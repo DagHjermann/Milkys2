@@ -133,16 +133,19 @@ data_xl_lessthans <- readRDS("Big_excel_table/Data_xl_lessthans_ver12.rds")
 
 ## 2. Plot in document    
 
-### a. Set plot type
 ```{r}
 type <- "line"
 ```
 
+
 ### Test 1
 ```{r}
-ymax <- 0.25
+ymax <- 0.45
 plot_medians_and_trends(c("HG", "Gadus morhua", "Muskel", "23B",  "WW"), 
-                             eqs_type = type, xlim = c(1980, 2019), ylim = c(0, ymax))
+                             eqs_type = "line", xlim = c(1984, 2019), ylim = c(0, ymax))
+
+plot_medians_and_trends(c("HG", "Gadus morhua", "Muskel", "53B",  "WW"), 
+                             eqs_type = "line", xlim = c(1984, 2019), ylim = c(0, ymax))
 
 ```
 
@@ -174,7 +177,7 @@ folder <- "Figures_401/Test01"
 
 
 
-### b. Figures for Sigurd (15B)  
+### b. Plot figures for Sigurd (15B)
 See mail 26.09.2019   
 ```{r}
 
