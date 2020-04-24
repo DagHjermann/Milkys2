@@ -4,6 +4,7 @@ output: html_notebook
 ---
 
 
+
 ## 0. Lib and source
 ```{r}
 library(dplyr)
@@ -13,11 +14,12 @@ library(lubridate)
 library(openxlsx)
 library(mgcv)
 library(AICcmodavg)   # AICc()
-library(extrafont)    # Used by add_trend()
 # font_import(pattern = "Wingdings.ttf")    # if not already installed on your PC
 ```
 
-### Functions used
+### Functions used  
+This loads the functions we need
+test fra BBE
 ```{r}
 # source("16_Trend_functions.R")
 source("001_Add_trends_functions.R")
@@ -28,8 +30,19 @@ source("401 Plot time series functions.R", encoding = "UTF-8")
 ## 1. Read data
 ### a1. Median data produced by script 11    
 ```{r}
+
+files <- dir("Data", pattern = "110_mediandata_updated_") %>% rev()
+
+cat("Reading the last file downloaded:")
+cat("\n", files[1])
+cat("\n")
+cat("If you want to read a different file, replace 'files[1]' with the file you want")
+cat("\n")
+
+filename <- paste0("Data/", files[1]) 
+
 # Medians
-data_med2 <- readRDS(file = "Data/data_medians_2018.rds") %>%
+data_med2 <- readRDS(file = filename) %>%
   rename(Proref_median = Median,
          Median = Value) 
 
@@ -78,13 +91,13 @@ data_stations <- readxl::read_excel("Input_data/Kartbase.xlsx")
 #   filter(STATION_CODE != stasjonskode)    # zero rows
 
 df_stationnames <- data_stations %>%
-  select(stasjonskode, `catch LAT__1`, `catch LONG__1`, stasjonsnavn, `Til Rapport`) %>%
+  select(stasjonskode, `catch LAT...40`, `catch LONG...41`, stasjonsnavn, `Til Rapport`) %>%
   rename(STATION_CODE = stasjonskode,
-         Lat = `catch LAT__1`, Long = `catch LONG__1`, 
+         Lat = `catch LAT...40`, Long = `catch LONG...41`, 
          Station_name = stasjonsnavn,
          Report_version_name = `Til Rapport`) %>%
   filter(!is.na(STATION_CODE)) %>%
-  filter(!Station_name %in% "Risøy, Østerfjord")  # One duplicate (different names), we just remove one of them
+  filter(!Station_name %in% "Risøy, Østerfjord")  # One duplicate (different names), we just remove 
 
 # Check stations that might be missing
 df_stationnames %>% filter(STATION_CODE %in% c("28A2","97A3","227G","19B","19N"))
@@ -123,59 +136,61 @@ df_speciesnames <- tibble(
 ### a6. Big excel data  
 NOTE: check version number!
 ```{r}
-data_xl_lessthans <- readRDS("Big_excel_table/data_xl_lessthans_ver12.rds")
+data_xl_lessthans <- readRDS("Big_excel_table/Data_xl_lessthans_ver12.rds")
 ```
 
 
 
 
-## 2. Plots   
-
-
-
-### a1. Set type and folder  
+## 2. Plot in document    
 
 ```{r}
 type <- "line"
-# dir.create("Figures_41/2nd edition")
-# dir.create("Figures_41/3rd edition")
-folder <- "Figures_41/4th edition"
-
 ```
 
 
-
-### a2. For testing
+### Test 1
 ```{r}
-# debugonce(plot_medians_and_trends)
-ymax <- 0.25
-X <- plot_medians_and_trends(c("HG", "Gadus morhua", "Muskel", "23B",  "WW"), 
-                             eqs_type = type, xlim = c(1980, 2019), ylim = c(0, ymax))
-X
+ymax <- 0.45
+plot_medians_and_trends(c("HG", "Gadus morhua", "Muskel", "23B",  "WW"), 
+                             eqs_type = "line", xlim = c(1984, 2019), ylim = c(0, ymax))
 
+plot_medians_and_trends(c("HG", "Gadus morhua", "Muskel", "53B",  "WW"), 
+                             eqs_type = "line", xlim = c(1984, 2019), ylim = c(0, ymax))
 
-
-X <- plot_medians_and_trends(c("HG", "Gadus morhua", "Muskel", "23B",  "WWa"), 
-                             eqs_type = type, xlim = c(1980, 2019), ylim = c(0, ymax))
-X
-
-#
-# HG blue mussel
-#
-X <- plot_medians_and_trends(c("HG", "Mytilus edulis", "Whole soft body", "51A",  "WW"), 
-                             eqs_type = type, xlim = c(1974, 2019), eqs_x = 1980)
-X
 ```
 
-### b. Figures for Sigurd (15B)  
+### Test 2
+```{r}
+plot_medians_and_trends(c("HG", "Gadus morhua", "Muskel", "23B",  "WWa"), 
+                             eqs_type = type, xlim = c(1980, 2019), ylim = c(0, ymax))
+
+```
+### Test 3
+```{r}
+plot_medians_and_trends(c("HG", "Mytilus edulis", "Whole soft body", "51A",  "WW"), 
+                             eqs_type = type, xlim = c(1974, 2019), eqs_x = 1980)
+```
+
+## 3. Plot to file
+
+### a1. Set type and folder  
+```{r}
+# Make new folder for storing figures
+# This needs only to be done once, therefore the commands below are commented out
+# dir.create("Figures_401")
+# dir.create("Figures_401/Test01")
+
+type <- "line"
+folder <- "Figures_401/Test01"
+
+```
+
+
+
+### b. Plot figures for Sigurd (15B)
 See mail 26.09.2019   
 ```{r}
-# dir.create("Figures_41/Sigurd_stasjon_15B")
-folder <- "Figures_41/Sigurd_stasjon_15B"
-
-data_med2 %>%
-  filter(STATION_CODE %in% "15B" & nchar(PARAM) == 2) %>%
-  xtabs(~MYEAR + PARAM, .)
 
 X <- plot_medians_and_trends(c("PB", "Gadus morhua", "Lever", "15B",  "WW"), 
                              eqs_type = type, xlim = c(1989, 2019))

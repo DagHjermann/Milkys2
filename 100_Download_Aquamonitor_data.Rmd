@@ -1,0 +1,315 @@
+---
+title: "100 Download NIVAbasen data"
+output: html_document
+---
+
+## 1. Preparations  
+
+### Load libraries and functions   
+```{r, results='hide', message=FALSE, warning=FALSE}
+library(reticulate)
+library(ggplot2)
+library(lubridate)
+library(dplyr)
+library(purrr)
+
+install.packages("svDialogs")
+install.packages("getPass")
+
+# Load self-made functions
+source("100_Download_Aquamonitor_data_R_functions.R")
+
+# Tell R where to find Python
+use_python("/opt/conda/bin/python/")
+
+```
+
+
+### Load Aquamonitor API      
+You don't have to change anything here  
+```{python}
+import imp
+
+# Load tenporary AM API
+am_path = r"/home/jovyan/shared/DHJ/MILKYS/aquamonitor.py"
+am = imp.load_source("aquamonitor", am_path)
+
+# Configure AM
+am.host = "https://test-aquamonitor.niva.no/"
+am.aqua_site = "admin/"
+
+```
+
+## 2. Username and password
+Run this - it will ask you to enter your ordinary NIVA username (3 letters) and password    
+```{r}
+
+x <- set_password()
+py_run_string("token = am.jhub_login(r.x['usr'], r.x['pwd'])")
+rm(x)
+
+```
+
+## 3. Find project name (if needed)       
+- This is only needed if you don't already know the exact name of the project
+- Note: You can also click on the "projects" data and scroll/sort/filter
+```{r}
+
+# Load data of projects and O numbers
+projects <- read.csv("Data_Nivabasen/Nivabasen_projects.csv",
+                     stringsAsFactors = FALSE, encoding = "UTF-8")
+o_numbers <- read.csv("Data_Nivabasen/Nivabasen_projects_o_numbers.csv",
+                     stringsAsFactors = FALSE, encoding = "UTF-8")
+
+# Example: search for projects whose name contains "CEMP"
+projects %>%
+  filter(grepl("CEMP", PROJECT_NAME))
+
+# Example: search for projects whose name contains "overvåkning"
+projects %>%
+  filter(grepl("overvåking", PROJECT_NAME, ignore.case = TRUE))
+
+# Example: search for O number
+# Note that one project can have several O numbers
+left_join(projects, o_numbers) %>% 
+  filter(grepl("14330ANA", O_NUMBER))
+
+
+```
+
+## 4. Select project  
+Modify 'project_name' to the desired project (project name is always unique)    
+```{r}
+
+# Set project name here (will be used in file name)
+project_name <- "CEMP_Biota"
+
+# The rest of the code doesn't need to be changed
+
+# Project ID is set automatically
+proj_id <- subset(projects, PROJECT_NAME == project_name)$PROJECT_ID
+
+
+# File name is constructed
+t <- Sys.time()
+# For time stamp including hours and minutes
+# timestamp <- paste0(substr(t, 1, 10), "_", substr(t, 12, 13), substr(t, 15, 16))
+# For time stamp with date only
+timestamp <- substr(t, 1, 10)
+filename <- paste0("Data_", project_name, "_", timestamp, ".xlsx")
+
+cat("Project name:", project_name, "\n")
+if (length(proj_id) == 1){
+  cat("Project ID:", proj_id, "\n")
+  cat("Data will be saved as", sQuote(filename), "in folder 'Data_Nivabasen'", "\n")
+} else {
+  cat("PROJECT NOT FOUND! Please correct 'project_name'. (It matters whether letters are capital/non-capital.)\n")
+}
+
+# Remove temporary variables
+rm(t, timestamp)
+
+```
+
+
+
+## 5. Download data  
+This downloads the data as an excel file. You don't have to change anything in this code chunk.  
+  
+**After this, you can jump to script 101!** (Parts 6 onwards, below, are only for your entertainment with this brand new data set.)     
+  
+Note 1: This may take some seconds  
+Note 2: You may get a message box with some error message while you download - just click OK
+The downloading will still occur (wait for the red square turn into a green arrow)
+```{python}
+import shutil
+
+# Set AM project ID to download
+proj_id = r.proj_id
+
+# Name of Excel file to create
+excel_file = r.filename
+
+# Download all data for project
+am.Query("project_id=" + str(proj_id), token).makeArchive("excel", excel_file).download(
+    ""
+)
+
+# Move file into Data_Nivabasen folder
+shutil.move(excel_file, "Data_Nivabasen/")
+
+```
+
+
+
+## 6. Reformat data  
+And read metadata
+```{r}
+library(readxl)
+
+# Check out file names
+# dir("Data_Nivabasen", "Data")
+
+# Check out sheet names
+# excel_sheets("Data_Nivabasen/Data_CEMP_Biota_2020-04-17.xlsx")
+
+# Reformatting data - this may take some time
+# debugonce(AqMexport_read_chemistry_table)
+dat <- AqMexport_read_chemistry_table("Data_CEMP_Biota_2020-04-17.xlsx")
+dat_vann <- AqMexport_read_chemistry_table("Data_CEMP_Biota_2020-04-17.xlsx", sheet = "WaterChemistry")
+
+# Metadata
+metadata_stations <- read_excel(
+  "Data_Nivabasen/Data_CEMP_Biota_2020-04-17.xlsx", sheet = "StationAttribute")
+metadata_stationpoint <- read_excel(
+  "Data_Nivabasen/Data_CEMP_Biota_2020-04-17.xlsx", sheet = "StationPoint")
+
+```
+
+## Some checking  
+
+### Checking out date columns  
+```{r}
+
+xtabs(~is.na(SampleDate), dat)
+
+xtabs(~is.na(CatchDateFirst), dat)
+xtabs(~is.na(CatchDateLast), dat)
+
+xtabs(~(CatchDateFirst < CatchDateLast), dat)
+
+dat %>%
+  filter(CatchDateFirst < CatchDateLast) %>%
+  View()
+
+```
+
+### Check out some values  
+```{r}
+
+# Tabell type krysstabell
+xtabs(~TissueName, dat)
+xtabs(~TaxonName + TissueName, dat)
+
+# Tabell type "høy" tabell
+dat %>% count(TissueName)
+dat %>% count(TaxonName, TissueName)
+
+# Check out tissues
+dat %>%
+  filter(StationCode == "30B") %>%
+  xtabs(~TissueName, .)
+
+# Check out the most common species
+dat %>%
+  count(TaxonName) %>%
+  filter(n > 100) %>%
+  arrange(desc(n))
+
+# Check out the most common substance names
+dat %>%
+  count(Substance) %>%
+  filter(n > 2500) %>%
+  arrange(desc(n))
+
+```
+
+## Add new variables  
+```{r}
+
+dat <- dat %>%
+  mutate(
+    Month = month(CatchDateFirst),
+    Year = case_when(
+      Month <= 2 ~ year(CatchDateFirst)-1,   # measurments in Jan-Feb belong to the year before
+      Month >= 3 ~ year(CatchDateFirst)
+    ) 
+  )
+  
+
+```
+
+
+## Show stations/year
+```{r}
+
+# Make summary data
+dat_summary <- dat %>%
+  count(StationCode, Year)
+  
+
+ggplot(dat_summary, aes(x = Year, y = StationCode, fill = n) ) +
+  geom_raster()
+
+# Get stations with >= 10 years of data ('stations_10_years')
+stations_10_years <- dat_summary %>%
+  count(StationCode) %>%
+  filter(n >= 10)
+
+# Filter dat_summary: keep only stations in 'stations_10_years'
+ggplot(dat_summary %>% filter(StationCode %in% stations_10_years$StationCode), 
+       aes(x = Year, y = StationCode, fill = n) ) +
+  geom_raster()
+
+# Exactly same as above, but using pipe
+dat_summary %>% 
+  filter(StationCode %in% stations_10_years$StationCode) %>%
+  ggplot(., aes(x = Year, y = StationCode, fill = n) ) +   # removed "dat_summary, " because we pipe
+  geom_raster()
+
+# Stations with data all years 2000-2018
+stations_allyears <- dat_summary %>%
+  filter(Year >= 2000 & Year <= 2018) %>%
+  count(StationCode) %>%
+  filter(n == 18)
+
+dat_summary %>% 
+  filter(StationCode %in% stations_allyears$StationCode) %>%
+  ggplot(., aes(x = Year, y = StationCode, fill = n) ) +   # removed "dat_summary, " because we pipe
+  geom_raster()
+
+```
+
+## Plot some data  
+```{r}
+
+dat %>%
+  filter(StationCode %in% "30B" & TissueName %in% "Lever" & Substance == "Cd" & Unit == "mg/kg") %>%
+  ggplot(aes(x = Year, y = Value, color = is.na(Flag))) +
+  geom_point() +
+  scale_y_log10()
+
+```
+
+
+
+## How piping works
+```{r}
+
+# Example
+round(5.1231890, 2)
+
+# Pipe 
+5.1231890 %>% round(2)      # shortcut
+5.1231890 %>% round(., 2)   # exacly the same
+
+2 %>% round(5.2432473489, .)
+
+```
+
+## %in%
+```{r}
+
+c(2,4,6,8) %in% 1:100
+
+c(2,4,6,8) %in% 5:100
+
+"Oslo" %in% c("Trondheim", "Oslo", "Bergen")
+"Tromsø" %in% c("Trondheim", "Oslo", "Bergen")
+
+c(2,4,6,8) == 4
+c(2,4,NA,8) == 4    # ???!
+c(2,4,NA,8) %in% 4  # OK
+
+```
+
