@@ -1,0 +1,235 @@
+---
+title: "03_Read_fish_individual_data"
+author: "DHJ"
+date: "27 8 2019"
+output: 
+  html_document:
+    keep_md: true
+---
+
+## Libraries
+```{r}
+library(dplyr)
+library(tidyr)
+library(purrr)     # map
+library(readxl)
+library(ggplot2)
+library(stringr)
+source("150_Get_fish_individual_data_functions.R")
+```
+
+## Files
+```{r}
+datafolder <- "Input_data/opparbeiding_biota/Fisk_2018"
+fns <- dir(datafolder, "*.xls*")
+fns <- fns[substr(fns,1,1) != "~"]   # 'locked' file (remove opened excel files)
+fns %>% dput()
+```
+
+## Test read of one file  
+Used to make the read_fish_individual_data() function. Using search_lineno()    
+```{r}
+fn <- fns[1]
+
+df_try <- read_excel(paste0(datafolder, "/", fn))
+
+line_header <- search_lineno(df_try, 1, "Fisknr")
+dat <- read_excel(paste0(datafolder, "/", fn), skip = line_header - 1)
+
+# If file has a hole (empty row) in the data, we delete data from the first hole
+first_empty <- which(is.na(dat$Fisknr))[1]
+if (!is.na(first_empty))
+  dat <- dat[1:(first_empty-1),]
+
+dat
+```
+
+## Test 'read_fish_individual_data'
+```{r}
+# debugonce(read_fish_individual_data )
+read_fish_individual_data(fns[1])
+```
+
+## Read all data into a list of data frames  
+    - Reads all columns of each file  
+    - Each data frame may differ from the other  
+```{r}
+fns_to_read <- fns[!fns %in% c("2018_MAL-FISK-stasjonskode_stasjonsnavn.xlsx", 
+                               "ikke_bruk_milkys data 2018 Svalbard og Tromsø - akvaplan-niva.xlsx", 
+                               "oversikt_over_fisk_2018.xlsx")]
+dat_list <- fns_to_read %>% map(read_fish_individual_data) 
+```
+
+## Check column names
+```{r}
+# Get column name for a given column number 
+get_colname <- function(df, colnumber) colnames(df)[colnumber]
+
+# Get all column names, by column number 
+for (i in 1:26){
+  cat(i, "\n")
+  column_names <- dat_list %>% map_chr(get_colname, colnumber = i)
+  print_less_common_values(column_names)
+  cat("------------------------------------\n")
+  }
+
+```
+
+## Print all columns  
+Change 'print_all' to TRUE to show result
+```{r}
+print_all <- FALSE
+if (print_all){
+  for (i in 1:26){
+  cat(i, "\n")
+  print(
+    dat_list %>% map_chr(get_colname, colnumber = i)
+  )
+  cat("------------------------------------\n")
+  }
+
+}
+```
+
+## Pick specific columns from each data frame   
+Levervekt not found for data set 3 (13B)  
+```{r}
+# Get selected columns  
+# 
+dat_list_selected <- dat_list %>% 
+  map(get_columns, colnames = c("Station", "Species", "Fisknr", "Lengde", "Vekt", "Kjønn", 
+                                "Levervekt", "Leverfarge", "Gonadevekt", "Alder"))
+
+# Look for Levervekt:
+# dat_list[[3]]
+```
+
+## Make data frame list ready for combining 1  
+```{r}
+#
+# Check Station (NOTE: HARD-CODED FILE NUMBERS)
+#
+cat("Existing values of in data:\n")
+dat_list_selected %>% map_chr(~unique(.$Station))
+
+# Station is lacking for data set number 13 and 18
+cat("\n\nStations - Get file names:\n")
+fns_to_read[c(13,18)]
+dat_list_selected[[13]]$Station <- "43B2"
+dat_list_selected[[18]]$Station <- "96B"
+# We will fix those "code + name" stations later
+
+#
+# Check Species (NOTE: HARD-CODED FILE NUMBERS)
+#
+dat_list_selected %>% map_chr(~unique(.$Species))
+# Station is lacking for data set number 13 and 18
+cat("\n\nSpecies - Get file names:\n")
+fns_to_read[c(8,13,17,18)]
+dat_list_selected[[8]]$Species <- "Torsk"
+dat_list_selected[[13]]$Species <- "Torsk"
+dat_list_selected[[17]]$Species <- "Torsk"
+dat_list_selected[[18]]$Species <- "Torsk"
+
+```
+
+## Make data frame list ready for combining 2  
+```{r}
+#
+# Check column classes
+#
+dat_list_selected %>% map_df(get_column_classes)
+
+# 
+# Change type of column, where needed
+#
+dat_list_selected <- dat_list_selected %>% map(~char2numeric(., "Fisknr"))
+dat_list_selected <- dat_list_selected %>% map(~char2numeric(., "Lengde"))
+dat_list_selected <- dat_list_selected %>% map(~char2numeric(., "Vekt"))
+dat_list_selected <- dat_list_selected %>% map(~char2numeric(., "Gonadevekt"))
+dat_list_selected <- dat_list_selected %>% map(~char2numeric(., "Alder"))
+
+```
+
+## Combine into a single data frame  
+```{r}
+dat <- bind_rows(dat_list_selected)
+dat
+```
+
+## Create STATION_CODE    
+    - STATION_CODE = name removed from "code + name" stations   
+    - Also rename(Fish_no = Fisknr)  
+```{r}
+xtabs(~addNA(Station), dat)
+
+dat <- dat %>% 
+  mutate(STATION_CODE = stringr::str_extract(Station, "([^[[:blank:]]]+)") ) %>%
+  mutate(STATION_CODE = sub("b", "B", STATION_CODE)) %>%
+  select(-Station) %>%
+  rename(Fish_no = Fisknr,
+         Length = Lengde, 
+         Weight = Vekt,
+         Liver_weight = Levervekt,
+         Liver_color = Leverfarge,
+         Gonad_weight = Gonadevekt,
+         Age = Alder) %>%
+  select(STATION_CODE, everything())
+
+xtabs(~addNA(STATION_CODE), dat)
+```
+
+## Check lacking data
+```{r}
+apply(!is.na(dat), 2, mean)
+
+```
+
+## Check Station/species
+```{r}
+dat %>%
+  count(STATION_CODE, Species)
+```
+
+
+## Test plot 1
+```{r}
+ggplot(dat, aes(Length, Weight, color = Species)) +
+  geom_point() +
+  facet_wrap(~STATION_CODE)
+```
+## Test plot 2
+```{r}
+ggplot(dat, aes(Weight, Gonad_weight, color = Species)) +
+  geom_point() +
+  facet_wrap(~STATION_CODE)
+```
+
+## Test plot 3
+```{r}
+ggplot(dat, aes(Weight, Liver_weight, color = Species)) +
+  geom_point() +
+  facet_wrap(~STATION_CODE)
+```
+
+## Test plot 4
+```{r}
+ggplot(dat, aes(Length, Age, color = Species)) +
+  geom_point() +
+  facet_wrap(~STATION_CODE)
+
+```
+
+## Save  
+```{r}
+saveRDS(dat, "Data/03_Fish_individual_data.rds")
+write.csv(dat, "Data/03_Fish_individual_data.csv", fileEncoding = "UTF-8") 
+
+```
+
+```{r}
+# The "ordinary knot button" doesn't work because pandoc fails to convert the .md file to HTML
+# Instead run the following line (must not be uncommented, that may create a loop):
+#   knitr::knit("03_Read_fish_individual_data.Rmd", encoding = "UTF-8") 
+```
+
