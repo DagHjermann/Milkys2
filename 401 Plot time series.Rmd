@@ -30,8 +30,19 @@ source("401 Plot time series functions.R", encoding = "UTF-8")
 ## 1. Read data
 ### a1. Median data produced by script 11    
 ```{r}
+
+files <- dir("Data", pattern = "110_mediandata_updated_") %>% rev()
+
+cat("Reading the last file downloaded:")
+cat("\n", files[1])
+cat("\n")
+cat("If you want to read a different file, replace 'files[1]' with the file you want")
+cat("\n")
+
+filename <- paste0("Data/", files[1]) 
+
 # Medians
-data_med2 <- readRDS(file = "Data/data_medians_2018.rds") %>%
+data_med2 <- readRDS(file = filename) %>%
   rename(Proref_median = Median,
          Median = Value) 
 
