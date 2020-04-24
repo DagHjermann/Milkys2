@@ -1,4 +1,11 @@
+Data/*
 .Rproj.user
+990*
+Input_data/opparbeiding_biota
+*.html
+Data_Nivabasen/*
+Dag
+BBE
 .Rhistory
-.RData
-.Ruserdata
+.ipynb_checkpoints*
+Figures_401
