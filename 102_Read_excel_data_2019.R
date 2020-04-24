@@ -21,11 +21,11 @@ source("101_Get_chemical_data_NIVAbasen_functions.R")  # for sum parameters
 dat <- vector("list", 7)
 
 # Data 1-2: read_excel_nilu1
-dat[[1]] <- read_excel_nilu1("Input_data/Rapportering MILKYS_2019.xlsx", "PBDE",
+dat[[1]] <- read_excel_nilu1("Input_data/NILU_data_for_2018.xlsx", "PBDE",
                             lessthans_given_as_negative_number = TRUE) %>%
   mutate(Group = "PBDE")
 
-dat[[2]] <- read_excel_nilu1("Input_data/Rapportering MILKYS_2019.xlsx", "PCB",
+dat[[2]] <- read_excel_nilu1("Input_data/NILU_data_for_2018.xlsx", "PCB",
                            lessthans_given_as_negative_number = FALSE,
                            name_Sample_amount = "Analysed sample amount:",
                            ) %>%
@@ -33,25 +33,25 @@ dat[[2]] <- read_excel_nilu1("Input_data/Rapportering MILKYS_2019.xlsx", "PCB",
 
 # Data 3-5: read_excel_nilu2
 # Note 3rd data column for CP sheet (dat[[4]]): "Rec %", we call it "Rec_percent"
-dat[[3]] <- read_excel_nilu2("Input_data/Rapportering MILKYS_2019.xlsx", "HBCD",
+dat[[3]] <- read_excel_nilu2("Input_data/NILU_data_for_2018.xlsx", "HBCD",
                        lessthans_given_as_negative_number = TRUE,
                        contains_sample_amount = TRUE) %>%
   mutate(Group = "HBCD")
 
-dat[[4]] <- read_excel_nilu2("Input_data/Rapportering MILKYS_2019.xlsx", "CP",
+dat[[4]] <- read_excel_nilu2("Input_data/NILU_data_for_2018.xlsx", "CP",
                        lessthans_given_as_negative_number = FALSE,
                        contains_sample_amount = TRUE) %>%
   mutate(Group = "CP") %>%
   mutate(Parameter = ifelse(Parameter == "X__1", "Rec_percent", Parameter))
 
-dat[[5]] <- read_excel_nilu2("Input_data/Rapportering MILKYS_2019.xlsx", "Metaller",
+dat[[5]] <- read_excel_nilu2("Input_data/NILU_data_for_2018.xlsx", "Metaller",
                        lessthans_given_as_negative_number = TRUE,
                        contains_sample_amount = FALSE,
                        skip = 2) %>%
   mutate(Group = "Metaller")
 
 # Data 6: we do manually
-df <- read_excel("Input_data/Rapportering MILKYS_2019.xlsx", "Fett %")
+df <- read_excel("Input_data/NILU_data_for_2018.xlsx", "Fett %")
 colnames(df)
 df <- df %>%
   rename(Sample_no_NILU = `Lab nr.`,
@@ -76,7 +76,7 @@ dat[[6]] <- df %>%
 #   Contains station + Sample_no_NILU + Sample_no
 #
 
-data_siloksan <- read_excel("Input_data/Rapportering MILKYS_2019.xlsx", sheet = "Siloksaner", skip = 1)
+data_siloksan <- read_excel("Input_data/NILU_data_for_2018.xlsx", sheet = "Siloksaner", skip = 1)
 
 # Change column names (knowing that these names doesn't fit well for the top part, we'll fix that later)
 colnames(data_siloksan)[1:3] <- c("Sample_no_NILU", "Sample_no", "Tissue")
