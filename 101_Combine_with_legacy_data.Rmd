@@ -1,0 +1,677 @@
+---
+title: "101 Combine with legacy data"
+output: html_document
+---
+
+**Combine legacy data (data until 2017) with new data (downloaded in script 100)**
+
+## 1. Load libraries and functions   
+```{r, results='hide', message=FALSE, warning=FALSE}
+library(dplyr)
+library(purrr)
+library(tidyr)
+library(ggplot2)
+library(lubridate)
+library(readxl)
+library(readr)
+
+# Load self-made functions
+source("100_Download_Aquamonitor_data_R_functions.R")
+source("101_Combine_with_legacy_data_functions.R")
+
+```
+
+
+## 2. Data  
+### a. Recently downloaded data  
+Read and reformat the most recent data (by default)  
+```{r}
+
+files <- dir("Data_Nivabasen", pattern = "Data_CEMP_Biota") %>% rev()
+
+cat("Reading the last file downloaded:")
+cat("\n", files[1])
+cat("\n")
+cat("If you want to read a different file, replace 'files[1]' with the file you want")
+cat("\n")
+
+dat_new1 <- AqMexport_read_chemistry_table(files[1])
+
+# We save the date part of the text (e.g., '2020-04-23')
+# This will be used in part 10, when we save the resulting file
+file_date <- substr(files[1], 17, 26)    # pick out the part of the text from character no. 17 to no. 26
+
+```
+
+### b. Read legacy data  
+The data go up to 2017 and combines data from the Access database (up to 2015) and NIVAbasen (2016-17). 
+```{r}
+
+data_through_2018 <- readRDS("Input_data/Data_through_2018.rds") 
+
+```
+
+
+## 3. Reformat recent data to conform with legacy data  
+
+### Define lookup tables  
+```{r}
+# TaxonName to LATIN_NAME
+lookup_latin_name <- data.frame(
+  TaxonName = c("Storstrandsnegl", "Purpursnegl", "Skrubbe", 
+                "Ærfugl", "Blåskjell", "Torsk", "Havmus", "Lange", "Brosme"),
+  LATIN_NAME = c("Littorina littorea", "Nucella lapillus", "Platichthys flesus",
+                 "Somateria mollissima", "Mytilus edulis", "Gadus morhua", "Chimera monstrosa", "Molva molva", "Brosme brosme"),
+  stringsAsFactors = FALSE
+)
+
+# Unit to UNIT
+lookup_unit <- data.frame(
+  Unit = c("µg/kg", "mg/kg", "%", "ng/g"),
+  UNIT = c("UG_P_KG", "MG_P_KG", "PERCENT", "UG_P_KG"),
+  stringsAsFactors = FALSE
+)
+
+```
+
+### List variables in data sets  
+Just for help with writing the next section  
+```{r}
+
+dat_new1 %>% 
+  names() %>% paste(collapse = ", ")
+data_through_2018 %>% 
+  names() %>% paste(collapse = ", ") 
+
+```
+
+### Reformatting    
+- All measurements are wet-weight (BASIS = "W"). NOTE: this may not always be the case in the future!  
+- SAMPLE_NO2 equals SAMPLE_NO for all data from 2015 forwards, and is a unique number for all data up to 2014   
+```{r}
+
+dat_new2 <- dat_new1 %>%
+  rename(STATION_CODE = StationCode,
+         SAMPLE_NO2 = ReplicateNo,
+         VALUE = Value,
+         FLAG1 = Flag) %>%
+  mutate(
+    Month = month(CatchDateFirst),
+    MYEAR = case_when(
+      Month <= 2 ~ year(CatchDateFirst)-1,   # measurments in Jan-Feb belong to the year before
+      Month >= 3 ~ year(CatchDateFirst)),
+    TISSUE_NAME = case_when(
+      TissueName == "Egg" ~ "Egg homogenate of yolk and albumin",
+      TissueName != "Egg" ~ TissueName),
+    PARAM = case_when(
+      nchar(Substance) == 2 ~ toupper(Substance),   # Metals
+      substr(Substance,1,4) == "4-n-" ~ toupper(Substance),
+      substr(Substance,1,4) == "4-t-" ~ toupper(Substance),
+      Substance == "TTS" ~ "DRYWT%",
+      Substance == "BD183" ~ "BDE183",
+      Substance == "a-HBCD" ~ "HBCDA",
+      Substance == "b-HBCD" ~ "HBCDB",
+      Substance == "g-HBCD" ~ "HBCDG",
+      Substance == "OCS" ~ "Oktaklorstyren (OCS)",
+      Substance == "MBT" ~ "Monobutyltinn (MBT)-Sn",
+      Substance == "DBT" ~ "Dibutyltinn-Sn (DBT-Sn)",
+      Substance == "TPhT" ~ "Trifenyltinn (TPhT)-Sn",
+      Substance == "TTBT" ~ "Tetrabutyltinn (TTBT)-Sn",
+      Substance == "4-nonylfenol" ~ "4-N-NP",            # see plot in Appendix ('Check nonylphenols')
+      Substance == "PFBA" ~ "Perfluorbutansyre (PFBA)",
+      Substance == "PFDoA" ~ "Perfluordodekansyre (PFDoA)",
+      Substance == "PFDS" ~ "Perfluordekansulfonat (PFDS)",
+      Substance == "PFPeA" ~ "Perfluorpentansyre (PFPeA)",
+      Substance == "PFTA" ~ "Perfluortetradekansyre (PFTA)",
+      Substance == "PFTrDA" ~ "Perfluortridekansyre (PFTrA)",
+      Substance == "PFHpS" ~ "Perfluorheptansulfonat (PFHpS)",
+      Substance == "Sum PFC inkl. LOQ" ~ "Sum PFC forbindelser inkl. LOQ",
+      Substance == "6:2 FTS" ~ "6:2 Fluortelomersulfonat (FTS, H4PFOS)",
+      Substance == "HPFHpA" ~ "7H-dodekafluorheptansyre (HPFHpA)",
+      Substance == "PF37DMOA" ~ "Perfluor-3,7-dimetyloktansyre (PF37DMOA)",
+      Substance == "Sum PFOS/PFOA inkl. LOQ" ~ "Total PFOS/PFOA inkl. LOQ",
+      TRUE ~ Substance
+    ),
+    BASIS = "W"    # All are wet-weight. NOTE: this may not always be the case in the future!
+  ) %>%
+  left_join(lookup_latin_name, by = "TaxonName") %>%
+  left_join(lookup_unit, by = "Unit") %>%
+  select(MYEAR, STATION_CODE, LATIN_NAME, SAMPLE_NO2, TISSUE_NAME, PARAM, BASIS,  
+         VALUE, FLAG1, UNIT)
+
+# dat_new2
+
+# Substance to PARAM:
+#   Metals (all Substance with 2 characters) -> all capitals
+#   4-t- and 4-n- -> all capitals  
+#   "a-HBCD", "b-HBCD", "g-HBCD" -> "HBCDA", "HBCDB", "HBCDG"
+#   TTS -> DRYWT%
+#   "BD183" - > "BDE183"
+
+# Variables not included:
+#   FLAG2, METHOD_ID, VALUE_ID, SPECIES_ID, TISSUE_ID, TAXONOMY_CODE_ID
+#   DETECTION_LIMIT, subno, seqno
+
+
+```
+
+
+
+### Check PARAM  
+```{r}
+
+p1a <- data_through_2018 %>%
+  filter(MYEAR == 2017) %>%
+  xtabs(~PARAM, .) %>% names()
+
+p1b <- data_through_2018 %>%
+  filter(MYEAR == 2018) %>%
+  xtabs(~PARAM, .) %>% names()
+
+p2 <- dat_new2 %>%
+  filter(MYEAR == 2018) %>%
+  xtabs(~PARAM, .) %>% names()
+
+# The first two listings are not shown because they are quite long
+# Change FALSE to TRUE to show them 
+if (FALSE){
+  cat("Parameters in 2017 legacy data that lack in the new data (for 2018)\n")
+  cat(sum(!p1a %in% p2), "parameters\n")
+  print(p1a[!p1a %in% p2])
+  cat("\n")
+  
+  cat("Parameters in 2018 legacy data that lack in the new data (for 2018)\n")
+  cat(sum(!p1b %in% p2), "parameters\n")
+  print(p1b[!p1b %in% p2])
+  cat("\n")
+}
+
+cat("Parameters in new data not existing in the legacy data (for 2017)\n")
+cat(sum(!p2 %in% p1a), "parameters\n")
+if (sum(!p2 %in% p1a) > 0){
+  print(p2[!p2 %in% p1a])
+}
+cat("\n")
+
+cat("Parameters in new data not existing in the legacy data (for 2018)\n")
+cat(sum(!p2 %in% p1b), "parameters\n")
+if (sum(!p2 %in% p1b) > 0){
+  print(p2[!p2 %in% p1b])
+}
+
+```
+
+## 4. Pick last year's data
+```{r}
+
+dat_new3 <- dat_new2 %>%
+  filter(MYEAR %in% 2019)
+    
+```
+
+### Tables  of new data
+```{r}
+
+# Data
+xtabs(~STATION_CODE + TISSUE_NAME, dat_new3)
+
+# Data
+xtabs(~STATION_CODE + LATIN_NAME, dat_new3)
+
+# Parameters
+# xtabs(~PARAM + TISSUE_NAME, dat_new3)
+
+```
+
+## 5. Fix units  
+
+### Add preferred unit to data
+```{r}
+
+preferred_units <- read_excel("Input_data/Lookup table - preferred parameter units.xlsx", sheet = "Units")
+
+unit_conversion <- read_excel("Input_data/Lookup table - preferred parameter units.xlsx", sheet = "Conversion")
+
+check <- preferred_units %>%
+  count(PARAM) %>%
+  filter(n > 1) %>%
+  nrow()
+
+if (check == 0){
+  dat_new4 <- dat_new3 %>%
+    left_join(preferred_units, by = "PARAM") %>% 
+    left_join(unit_conversion, by = c("UNIT", "Preferred_unit")) %>%
+    mutate(Conversion_factor = ifelse(UNIT == "PERCENT", 1, Conversion_factor))
+} else {
+  cat("Parameter_units.xlsx contains some PARAM with more than one preferred unit")
+  cat("\n")
+  cat("Fix Parameter_units.xlsx and repeat")
+  cat("\n")
+}  
+
+
+```
+
+### Check units that are different from preferred units   
+```{r}
+
+dat_new4 %>%
+  filter(is.na(Preferred_unit) | UNIT != Preferred_unit) %>%
+  count(PARAM, UNIT, Preferred_unit, Conversion_factor)
+
+```
+
+### If OK, we convert units  
+```{r}
+
+dat_new5 <- dat_new4 %>%
+  mutate(
+    VALUE = case_when(
+      is.na(Preferred_unit) ~ VALUE,
+      UNIT == Preferred_unit ~ VALUE,
+      UNIT != Preferred_unit ~ VALUE*Conversion_factor),
+    UNIT = case_when(
+      is.na(Preferred_unit) ~ UNIT,
+      UNIT == Preferred_unit ~ UNIT,
+      UNIT != Preferred_unit ~ Preferred_unit)
+  )
+
+#
+# For checking result
+#
+if (FALSE){
+  sel <- with(dat_new4, UNIT != Preferred_unit)
+  dat_new4[sel,] %>% select(PARAM, UNIT, VALUE)
+  dat_new5[sel,] %>% select(PARAM, UNIT, VALUE)
+}
+
+```
+
+
+## 6. Add sums  
+
+### Add sum parameters (as extra rows)  
+Note that this also deletes some 'index' variables and reshuffles data  
+```{r}
+
+for (i in seq_along(sum_parameters)){     # go through numbers 1 to 9
+  # We add new rows every time we go through the loop
+  dat_new5 <- add_sumparameter(i, sum_parameters, dat_new5)
+  }
+
+```
+
+
+## 7. Add columns for dry weight and fat    
+DRYWT and FAT_PERC
+```{r}
+
+check1 <- dat_new5 %>%
+  filter(PARAM %in% c("DRYWT%", "Fett")) %>%
+  count(MYEAR, STATION_CODE, LATIN_NAME, TISSUE_NAME, SAMPLE_NO2, PARAM)
+check2 <- sum(check1$n > 1)
+
+if (check2 == 0){
+  
+  dat_columns_to_add <- dat_new5 %>%
+    filter(PARAM %in% c("DRYWT%", "Fett")) %>%
+    mutate(PARAM = case_when(
+      PARAM == "DRYWT%" ~ "DRYWT",
+      PARAM == "Fett"  ~ "FAT_PERC")
+    ) %>%
+    select(MYEAR, STATION_CODE, LATIN_NAME, TISSUE_NAME, SAMPLE_NO2, PARAM, VALUE) %>%
+    pivot_wider(names_from = PARAM, values_from = VALUE)
+  
+  dat_new6 <- dat_new5 %>%
+    left_join(dat_columns_to_add)
+  
+} else {
+  
+  cat("Each line of data must have unique combination of MYEAR, STATION_CODE, LATIN_NAME, TISSUE_NAME, SAMPLE_NO2.")
+  cat("\n")
+  cat("Please check up the 'check1' data set to see where there are duplicates.")
+  cat("\n")
+  
+}
+
+
+
+```
+
+## 8. Calculate VALUE_WW, VALUE_DW and VALUE_FB  
+```{r}
+
+dat_new6 <- dat_new6 %>%
+  mutate(
+    VALUE_WW = case_when(
+      BASIS == "W" ~ VALUE,
+      BASIS == "D" ~ VALUE*(DRYWT/100),
+      BASIS == "F" ~ VALUE*(FAT_PERC/100)),
+    VALUE_DW = case_when(
+      BASIS == "W" ~ VALUE/(DRYWT/100),
+      BASIS == "D" ~ VALUE,
+      BASIS == "F" ~ VALUE*(FAT_PERC/100)/(DRYWT/100)),
+    VALUE_FB = case_when(
+      BASIS == "W" ~ VALUE/(FAT_PERC/100),
+      BASIS == "D" ~ VALUE*(DRYWT/100)/(FAT_PERC/100),
+      BASIS == "F" ~ VALUE)
+    )
+    
+# Example
+# value_ww = 8, drywt = 50, fatperc = 10
+# value_dw = 16
+# value_fb = 80
+
+```
+
+## 9. Add the new data to the old data  
+The variables lacking in dat_new6 are just added with NA values  
+```{r}
+
+data_updated <- bind_rows(data_through_2018, dat_new6)
+
+```
+
+## 10. Save the data for later use   
+We use the 
+```{r}
+
+# We make a file name using 'file_date' extracted from the original file (see part 2a)
+filename <- paste0("Data/101_data_updated_", file_date, ".rds")
+
+# Save in R format
+saveRDS(data_updated, filename)
+
+# To read this data, we use a sentence such as 
+#   my_data <- readRDS(filename)
+
+cat("Updated and standardized data saved as:")
+cat("\n", filename)
+
+# Note: Actually there is an alternative way of saving in R format:
+#   save(data_updated, file = filename)
+# You read the data using the sentence
+#   load(filename)
+# You may be more familiar with this method. One main difference bertween the two methods is that save() also stores the name given to the data set,
+# in this case 'data_updated'. When the file is read, the data are automatically given the name 'data_updated'. If a data set 
+# with that name already exists, it will be overwritten. Fir taht reasin, we should rather use saveRDS() where you are explicit about what name you give the 
+# data when you read it.
+
+```
+
+
+## 11. Check  
+Quick visual check if  
+```{r}
+# Set 'station' to one of the stations with new data (see table in part 4 above)
+station <- "15B"
+
+# Get all liver parameters with 2019 data from this station  
+pars <- data_updated %>%
+  filter(STATION_CODE == station & TISSUE_NAME == "Lever" & MYEAR == 2019) %>%
+  xtabs(~PARAM, .) %>% names()
+
+# For those parameters, we filter the data set for the data we want...
+data_updated %>%
+  filter(STATION_CODE == station & TISSUE_NAME == "Lever" & MYEAR >= 2000 & PARAM %in% pars) %>%
+  # ...extract the median value for every PARAM and MYEAR...
+  group_by(MYEAR, PARAM) %>%
+  summarise(Median_concentration = median(VALUE_WW)) %>%
+  # ...and we feed the result into ggplot for plotting time series:
+  ggplot(aes(MYEAR, Median_concentration)) + 
+  geom_point() + geom_line() +
+  facet_wrap(vars(PARAM), scales = "free_y")  # 'facet_wrap' means 'make one graph for each PARAM'; 'free_y' means 'let the y scale differ between plots'
+
+
+```
+
+
+
+## Appendix
+
+### Check ReplicateNO vs SAMPLE_NO2 (which equals LATIN_NAME for data from Nivabasen)
+```{r}
+
+dat_new1 %>%
+  filter(StationCode == "30B" & year(CatchDateFirst) == 2017 & TissueName == "Lever" & Substance == "As") %>%
+  select(StationCode, CatchDateFirst, ReplicateNo, Value) %>%
+  arrange(ReplicateNo)
+
+data_through_2018 %>%
+  filter(STATION_CODE == "30B" & MYEAR == 2017 & TISSUE_NAME == "Lever" & PARAM == "AS") %>%
+  select(MYEAR, STATION_CODE, SAMPLE_NO2, VALUE) %>%
+  arrange(SAMPLE_NO2)
+
+```
+
+### Check parameters in fish liver  
+Sort by name
+```{r}
+
+dat_new1 %>%
+  filter(StationCode == "30B" & year(CatchDateFirst) == 2017 & TissueName == "Lever" & ReplicateNo == 1) %>%
+  select(Substance, Value) %>%
+  arrange(Substance)
+
+data_through_2018 %>%
+  filter(STATION_CODE == "30B" & MYEAR == 2017 & TISSUE_NAME == "Lever" & SAMPLE_NO == 1) %>%
+  select(PARAM, VALUE) %>%
+  arrange(PARAM)
+
+```
+
+Sort by value
+```{r}
+
+a <- dat_new1 %>%
+  filter(StationCode == "30B" & year(CatchDateFirst) == 2017 & TissueName == "Lever" & ReplicateNo == 1) %>%
+  select(Substance, Value) %>%
+  arrange(Value)
+
+b <- data_through_2018 %>%
+  filter(STATION_CODE == "30B" & MYEAR == 2017 & TISSUE_NAME == "Lever" & SAMPLE_NO == 1) %>%
+  select(PARAM, VALUE) %>%
+  arrange(VALUE)
+
+left_join(b, a, by = c("VALUE" = "Value"))
+
+# not included in  AqM:
+#   WHO dioxins, SN (?!), Aldrin, DDEOP, DDTOP, Heptaklor, HCHA, HCHB, HCHD, HCHG 
+# 4-t- -> 4-T-
+# 4-n- -> 4-N-
+
+```
+
+Sort by name
+```{r}
+
+dat_new1 %>%
+  filter(StationCode == "30B" & year(CatchDateFirst) == 2017 & TissueName == "Lever" & ReplicateNo == 1) %>%
+  select(Substance, Value) %>%
+  arrange(Substance)
+
+data_through_2018 %>%
+  filter(STATION_CODE == "30B" & MYEAR == 2017 & TISSUE_NAME == "Lever" & SAMPLE_NO == 1) %>%
+  select(PARAM, VALUE) %>%
+  arrange(PARAM)
+
+```
+
+### Check parameters in fish muscle    
+```{r}
+
+dat_new1 %>%
+  filter(StationCode == "30B" & year(CatchDateFirst) == 2017 & TissueName == "Muskel" & ReplicateNo == 1) %>%
+  select(Substance, Value) %>%
+  arrange(Substance)
+
+data_through_2018 %>%
+  filter(STATION_CODE == "30B" & MYEAR == 2017 & TISSUE_NAME == "Muskel" & SAMPLE_NO == 1) %>%
+  select(PARAM, VALUE) %>%
+  arrange(PARAM)
+
+# TTS -> DRYWT%
+
+```
+
+### Check PBDEs  
+```{r}
+
+dat_new1 %>%
+  filter(StationCode == "30B" & year(CatchDateFirst) == 2017 & substr(Substance,1,2) == "BD") %>%
+  xtabs(~Substance, .)
+
+data_through_2018 %>%
+  filter(STATION_CODE == "30B" & MYEAR == 2017 & substr(PARAM,1,2) == "BD") %>%
+  xtabs(~PARAM, .)
+
+# "BD183" - > "BDE183"
+
+dat_new1 %>%
+  filter(StationCode == "30B" & year(CatchDateFirst) == 2017 & grepl("HBC", Substance)) %>%
+  xtabs(~Substance, .) %>% names()
+
+data_through_2018 %>%
+  filter(STATION_CODE == "30B" & MYEAR == 2017 & grepl("HBC", PARAM)) %>%
+  xtabs(~PARAM, .) %>% names()
+
+# "a-HBCD"   "b-HBCD"   "g-HBCD"   "Sum HBCD"
+# "HBCDA"    "HBCDB"    "HBCDG"    "Sum HBCD"
+
+dat_new1 %>%
+  filter(StationCode == "30B" & year(CatchDateFirst) == 2017 & substr(Substance,1,2) == "PF") %>%
+  xtabs(~Substance, .)
+
+data_through_2018 %>%
+  filter(STATION_CODE == "30B" & MYEAR == 2017 & substr(PARAM,1,2) == "PF") %>%
+  xtabs(~PARAM, .)
+
+# All ok
+
+dat_new1 %>%
+  filter(StationCode == "30B" & year(CatchDateFirst) == 2017 & nchar(Substance) == 2) %>%
+  xtabs(~Substance, .)
+
+data_through_2018 %>%
+  filter(STATION_CODE == "30B" & MYEAR == 2017 & nchar(PARAM) == 2) %>%
+  xtabs(~PARAM, .)
+
+# Metals (all Substance with 2 characters) -> all capitals
+
+```
+
+### Check nonylphenols  
+In particular, "4-nonylfenol" used in 2018  
+- seems like it is 4-n-NP
+```{r}
+
+dat_new1 %>%
+  mutate(Year = year(CatchDateFirst)) %>%
+  filter(TissueName == "Lever" & Substance %in% c("4-n-NP", "4-t-NP", "4-nonylfenol")) %>%
+  mutate(Value = case_when(
+    Unit == "mg/kg" ~ Value*1000,
+    Unit == "µg/kg" ~ Value,
+    TRUE ~ -999)
+    ) %>%
+  group_by(StationCode, Year, TissueName, Substance) %>%
+  summarise(Value = median(Value)) %>%
+  ggplot(aes(Year, Value, color = Substance)) +
+  geom_point() + geom_line() + 
+  facet_wrap(vars(StationCode))
+
+           
+```
+
+
+### Check ReplicateNO vs SAMPLE_NO2 (which equals LATIN_NAME for data from Nivabasen)
+```{r}
+
+dat_new1 %>%
+  filter(StationCode == "30B" & year(CatchDateFirst) == 2017 & TissueName == "Lever" & Substance == "TTS") %>%
+  select(StationCode, CatchDateFirst, ReplicateNo, Value) %>%
+  arrange(ReplicateNo)
+
+data_through_2018 %>%
+  filter(STATION_CODE == "30B" & MYEAR == 2017 & TISSUE_NAME == "Lever" & PARAM == "DRYWT%") %>%
+  select(MYEAR, STATION_CODE, SAMPLE_NO2, VALUE) %>%
+  arrange(SAMPLE_NO2)
+
+```
+
+### Check TissueName vs TISSUE_NAME 
+Note that the Aquamonitor data doesn't include fish biological effect data   
+```{r}
+
+dat_new1 %>%
+  filter(year(CatchDateFirst) >= 2017) %>%
+  xtabs(~TissueName, .)  %>% sort() %>% names() %>% dput()
+
+data_through_2018 %>%
+  filter(MYEAR == 2017) %>%
+  xtabs(~TISSUE_NAME, .) %>% sort() %>% names() %>% dput()
+
+
+```
+
+### Check TaxonName vs LATIN_NAME 
+Used to make lookup_latin_name
+```{r}
+
+dat_new1 %>%
+  filter(year(CatchDateFirst) >= 2017) %>%
+  xtabs(~TaxonName, .)  %>% sort() %>% names() %>% dput()
+
+data_through_2018 %>%
+  filter(MYEAR == 2017) %>%
+  xtabs(~LATIN_NAME, .) %>% sort() %>% names() %>% dput()
+
+```
+
+### Check Unit vs UNIT 
+Used to make lookup_latin_name
+```{r}
+
+dat_new1 %>%
+  filter(year(CatchDateFirst) >= 2017) %>%
+  xtabs(~Unit, .)  %>% sort() %>% names() %>% rev() %>% dput()
+
+data_through_2018 %>%
+  filter(MYEAR == 2017) %>%
+  xtabs(~UNIT, .) %>% sort() %>% names() %>% rev() %>% dput()
+
+dat_new1 %>%
+  filter(year(CatchDateFirst) >= 2017 & !Unit %in% c("mg/kg", "µg/kg")) %>%
+  xtabs(~Substance + Unit, .)
+
+data_through_2018 %>%
+  filter(MYEAR == 2017 & !UNIT %in% c("MG_P_KG", "UG_P_KG")) %>%
+  xtabs(~PARAM + UNIT, .)
+
+# "Delta13C", "Delta15N"
+# "TTS"
+
+```
+
+
+### Make table for preferred parameter units   
+"Lookup table - preferred parameter units.xlsx"
+```{r}
+
+df_units <- data_through_2018 %>%
+  count(PARAM, UNIT)
+
+# openxlsx::write.xlsx(df_units, "Input_data/Units2.xlsx")
+# Table was corrected manually afterwards
+
+param_multiple_units <- df_units %>%
+  count(PARAM) %>%
+  filter(n > 1) %>%
+  pull(PARAM)
+
+df_units %>%
+  filter(PARAM %in% param_multiple_units)
+
+
+```
+
+
