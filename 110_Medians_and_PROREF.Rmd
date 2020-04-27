@@ -39,7 +39,7 @@ data_all <- readRDS(filename)
 
 # We save the date part of the text (e.g., '2020-04-23')
 # This will be used in part 10, when we save the resulting file
-file_date <- substr(files[1], 18, 27)    # pick out the part of the text from character no. 17 to no. 26
+file_date <- substr(filename, 18, 27)    # pick out the part of the text from character no. 17 to no. 26
 
 ```
 

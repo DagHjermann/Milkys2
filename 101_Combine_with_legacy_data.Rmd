@@ -35,11 +35,12 @@ cat("\n")
 cat("If you want to read a different file, replace 'files[1]' with the file you want")
 cat("\n")
 
-dat_new1 <- AqMexport_read_chemistry_table(files[1])
+filename <- files[1]
+dat_new1 <- AqMexport_read_chemistry_table(filename)
 
 # We save the date part of the text (e.g., '2020-04-23')
 # This will be used in part 10, when we save the resulting file
-file_date <- substr(files[1], 17, 26)    # pick out the part of the text from character no. 17 to no. 26
+file_date <- substr(filename, 17, 26)    # pick out the part of the text from character no. 17 to no. 26
 
 ```
 
