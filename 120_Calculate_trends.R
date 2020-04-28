@@ -183,18 +183,18 @@ cat("Number of minutes:", nrow(df_series)/174*20/60, "\n")   # as 174 series too
 # NOTE: This procedure generates a lot of error messages,
 #   even when it functions normally
 #
-# Some of the "usual" error messages are:
-#
-# Error in smooth.construct.tp.smooth.spec(object, dk$data, dk$knots) : 
-# A term has fewer unique covariate combinations than specified maximum degrees of freedom
-# In addition: Warning message:
-#   Unknown or uninitialised column: `SD`. 
-# Error : $ operator is invalid for atomic vectors
+# The "usual" error messages is the one below, meaning that GAM (non-linear regression)
+#   failed, probably because there was too little data:
+#    "Error in smooth.construct.tp.smooth.spec(object, dk$data, dk$knots) : 
+#     A term has fewer unique covariate combinations than specified maximum degrees of freedom"
 #
 #o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
 
-args <- df_series %>% 
-  sample_n(20) %>%        # 20 random series
+df_series_random <- df_series %>% 
+  sample_n(20)        # 20 random series
+  
+# Turn into list
+args <- df_series_random[1:100,] %>% 
   as.list()
 # names(args) 
 
@@ -206,9 +206,27 @@ names(args) <- sub("TISSUE_NAME", "tissue", names(args))
 names(args) <- sub("Basis", "basis", names(args))
 args <- args[c("station", "tissue", "species", "param", "basis")]
 
+
+# options()$show.error.messages
+
+# FOR DEBUGGING ONLY:
+# debugonce(model_from_medians)  
+# debugonce(calc_models_one_station2)
+# debugonce(calc_models_gam)
+# debugonce(GAM_trend_analysis)
+# debugonce(statistics_for_excel)
+
+# Turn off error messages if you want
+# old_options <- options(show.error.messages = FALSE, warn = -1)
+
+# Run models
 result_list_10yr <- args %>% pmap(model_from_medians_stat, yrs = 2010:2019, data_medians = data_med)
 result_list_long <- args %>% pmap(model_from_medians_stat, yrs = 1980:2019, data_medians = data_med)
 
+# Turn error messages on again
+# options(old_options)
+
+# Combine lists to data frames
 result_10yr <- bind_rows(result_list_10yr)
 result_long <- bind_rows(result_list_long)
 
@@ -274,7 +292,7 @@ args <- args[c("station", "tissue", "species", "param", "basis")]
 zz <- file("temp.txt", open = "wt")
 t0 <- Sys.time()
 sink(zz, type = "message")
-result_list_10yr <- args %>% pmap(model_from_medians_stat, yrs = 2009:2019, data_medians = data_med)
+result_list_10yr <- args %>% pmap(model_from_medians_stat, yrs = 2010:2019, data_medians = data_med)
 result_list_long <- args %>% pmap(model_from_medians_stat, yrs = 1980:2019, data_medians = data_med)
 sink()
 Sys.time() - t0  # 5.6 minutes for all WW
