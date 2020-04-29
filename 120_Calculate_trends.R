@@ -16,27 +16,6 @@
 
 
 #o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
-#
-# Make backup (with date + hour + minute stamp)
-#
-#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
-
-timestamp <- function(){
-  txt <- Sys.time()
-  paste0(substr(txt, 1, 10), "_", substr(txt, 12, 13), substr(txt, 15, 16))
-}
-# timestamp()
-
-
-if (FALSE){
-  file.copy("Data/120_result_10yr.RData", 
-            paste0("Data/120_result_10yr_back", timestamp(),".RData"))
-  file.copy("Data/120_result_long.RData", 
-            paste0("Data/120_result_long_back", timestamp(),".RData"))
-}
-
-
-#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
 #  
 ## Libraries ----
 #
@@ -288,18 +267,29 @@ names(args) <- sub("Basis", "basis", names(args))
 args <- args[c("station", "tissue", "species", "param", "basis")]
 
 
+model_from_medians_stat_s <- safely(model_from_medians_stat)
+  
 # Procedure
-zz <- file("temp.txt", open = "wt")
-t0 <- Sys.time()
+t0 <- Sys.time()     # Start time for procedure
+zz <- file("temp.txt", open = "wt")    # Makes file for writing error messages
 sink(zz, type = "message")
-result_list_10yr <- args %>% pmap(model_from_medians_stat, yrs = 2010:2019, data_medians = data_med)
-result_list_long <- args %>% pmap(model_from_medians_stat, yrs = 1980:2019, data_medians = data_med)
-sink()
-Sys.time() - t0  # 5.6 minutes for all WW
+result_list_10yr <- args %>% pmap(model_from_medians_stat_s, yrs = 2010:2019, data_medians = data_med)
+result_list_long <- args %>% pmap(model_from_medians_stat_s, yrs = 1980:2019, data_medians = data_med)
+sink()  
+Sys.time() - t0  # 36.55274 minutes
 
-# Combine lists to data frames
-result_10yr <- bind_rows(result_list_10yr)
-result_long <- bind_rows(result_list_long)
+# Transpose lists
+# Each list is a list of 2 elements: $result and $error 
+result_list_10yr_t <- transpose(result_list_10yr)
+result_list_long_t <- transpose(result_list_long)
+
+# Combine list 1 to data frame
+no_error <- is.null(result_list_10yr_t$error)
+result_10yr <- bind_rows(result_list_10yr_t$result[no_error])
+
+# Combine list 2 to data frame
+no_error <- is.null(result_list_long_t$error)
+result_long <- bind_rows(result_list_long_t$result[no_error])
 
 
 #o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
