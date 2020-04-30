@@ -389,7 +389,7 @@ saveRDS(data_updated, filename)
 cat("Updated and standardized data saved as:")
 cat("\n", filename)
 
-# Note: Actually there is an alternative way of saving in R format:
+# Note: There is an alternative way of saving in R format:
 #   save(data_updated, file = filename)
 # You read the data using the sentence
 #   load(filename)

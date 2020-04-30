@@ -34,8 +34,8 @@ cat("\n")
 cat("If you want to read a different file, replace 'files[1]' with the file you want")
 cat("\n")
 
-filename <- paste0("Data/", files[1]) 
-data_all <- readRDS(filename)
+filename <- files[1] 
+data_all <- readRDS(paste0("Data/", filename))
 
 # We save the date part of the text (e.g., '2020-04-23')
 # This will be used in part 10, when we save the resulting file
@@ -199,6 +199,9 @@ nrow(data_med_3)  # 448680
 filename <- paste0("Data/110_mediandata_updated_", file_date)
 
 saveRDS(data_med_3, filename)
+
+cat("Data of medians saved as: \n")
+cat(" ", filename, "\n")
 
 ```
 

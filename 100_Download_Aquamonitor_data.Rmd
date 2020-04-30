@@ -140,9 +140,9 @@ shutil.move(excel_file, "Data_Nivabasen/")
 
 ```
 
+## 6. Quick check of data
 
-
-## 6. Reformat data  
+### Reformat data  
 And read metadata
 ```{r}
 library(readxl)
@@ -165,8 +165,6 @@ metadata_stationpoint <- read_excel(
   "Data_Nivabasen/Data_CEMP_Biota_2020-04-17.xlsx", sheet = "StationPoint")
 
 ```
-
-## Some checking  
 
 ### Checking out date columns  
 ```{r}

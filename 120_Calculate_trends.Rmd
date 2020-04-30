@@ -14,7 +14,7 @@ Note: If you want to add or replace a few time series, and don't want to run thi
 - the "save data" section will then automatically add the new series to the existing time trends  
   
 ## 1. Libraries and functions  
-```{r}
+```{r, results='hide', message=FALSE, warning=FALSE}
 
 library(dplyr)
 library(purrr)
@@ -186,8 +186,10 @@ args <- args[c("station", "tissue", "species", "param", "basis")]
 # old_options <- options(show.error.messages = FALSE, warn = -1)
 
 # Run models
-result_list_10yr <- args %>% pmap(model_from_medians_stat, yrs = 2010:2019, data_medians = data_med)
-result_list_long <- args %>% pmap(model_from_medians_stat, yrs = 1980:2019, data_medians = data_med)
+result_list_10yr <- args %>% pmap(model_from_medians_stat, 
+                                  yrs = 2010:2019, data_medians = data_med)
+result_list_long <- args %>% pmap(model_from_medians_stat, 
+                                  yrs = 1980:2019, data_medians = data_med)
 
 # Turn error messages on again
 # options(old_options)
@@ -230,18 +232,6 @@ add_extra_series <- FALSE
 #
 # FILTERING EXAMPLES - insert where it says "Filter df_series" (repce everything between "start" and "end")
 
-# Use this for adding 'VDSI/Intersex' to existing trends
-#
-#   df_series <- df_series %>% 
-#     filter(PARAM %in% "VDSI/Intersex" & Basis %in% "WW") 
-#   } 
-#
-# Used for adding 'TPTIN' to existing trends
-#
-#  df_series <- df_series %>% 
-#    filter(PARAM %in% "TPTIN") 
-#
-
 # 
 if (add_extra_series){
   
@@ -251,64 +241,27 @@ if (add_extra_series){
   #
   # Filter df_series START
   # 
-
-  # Code below: Filter time series already existing in the data
-  #   NOTE: This will include entirely new series, but not "old" series which have gotten an extra year  
   
-  # Find newest existing time trend data
-  fn_existing_1 <- dir("Data", pattern = "120_result_10yr_") %>% tail(1)
-  fn_existing_2 <- dir("Data", pattern = "120_result_long_") %>% tail(1)
-  
-  # Read saved 10 year series...
-  result_10yr_original <- readRDS(paste0("Data/", fn_existing_1))
-  result_long_original <- readRDS(paste0("Data/", fn_existing_2))
-  
-  # Entirely new series
-  df_series_newseries <- df_series %>%
-    # Remove all series already present in result_10yr:
-    safe_anti_join(result_10yr, 
-                   by = c("STATION_CODE", "PARAM", "LATIN_NAME", "TISSUE_NAME", "Basis"),
-                   check = "BCUV")
-  
-  df_series Last_year
-
-  # Old series with new data  
-  
-  
-  # Read saved 'long' series...
-  result_long_original <- readRDS(paste0("Data/", fn_existing_2))
-  
-  
-    # Remove all series already present in result_long:
-    safe_anti_join(flag_replace_long, 
-                 by = c("STATION_CODE", "PARAM", "LATIN_NAME", "TISSUE_NAME", "Basis"),
-                 check = "BCV")
-
+  # Example: we want to add 'TPTIN' to existing trends  
+  # We filter df_series to get 'TPTIN' only:
+  #  df_series <- df_series %>% 
+  #    filter(PARAM %in% "TPTIN") 
 
   #
   # Filter df_series END
   # 
 
-      cat("Number of time series after filtering df_series:\n")
+  cat("Number of time series after filtering df_series:\n")
   cat("  ", nrow(df_series), "\n")
 } 
 
 
-  # Read saved 10 year series...
-  result_10yr_original <- readRDS(paste0("Data/", fn_existing_1) %>%
-    # Remove all series already present in result_10yr:
-    safe_anti_join(result_10yr, 
-                   by = c("STATION_CODE", "PARAM", "LATIN_NAME", "TISSUE_NAME", "Basis"),
-                   check = "BCUV")
 
 ```
 
 ## 5. Analyse all time series    
   
-**NOTE: This takes ca. 25 minutes**    
-  
-  
-
+### Prepare 'args' list    
 ```{r}
 
 args <- df_series %>% 
@@ -323,38 +276,66 @@ names(args) <- sub("TISSUE_NAME", "tissue", names(args))
 names(args) <- sub("Basis", "basis", names(args))
 args <- args[c("station", "tissue", "species", "param", "basis")]
 
+```
 
+
+### Calculattion procedure   
+  
+**NOTE: This takes ca. 35 minutes**    
+  
+```{r}
+
+# Turn 'model_from_medians_stat' into a 'safe' function
+#   The new function 'model_from_medians_stat_s' returns a list with two elements,
+#     "result" and "error"
+#   If the function works, "result" contains the normal output and "error" is NULL
+#   If the function fails, "result" is NULL and "error" contains the error message
 model_from_medians_stat_s <- safely(model_from_medians_stat)
   
-#o#o#o#o#o#o Calculation procedure #o#o#o#o#o#o
-t0 <- Sys.time()                                                            # Start time for procedure
-zz <- file("Messages from script 120 (can be deleted).txt", open = "wt")    # Makes file for writing error messages
+#
+#o#o#o#o#o#o Calculation procedure starts #o#o#o#o#o#o
+#
 
-sink(zz, type = "message")             # Redirect error/warning messages - will be sent to the temp.txt file 
-result_list_10yr <- args %>% pmap(model_from_medians_stat_s, yrs = 2010:2019, data_medians = data_med)  # ca 15-20 minutes
-result_list_long <- args %>% pmap(model_from_medians_stat_s, yrs = 1980:2019, data_medians = data_med)  # ca 15-20 minutes
-sink()                                 # Turn of redirection of messages   
+t0 <- Sys.time()                                                            # Start time for procedure
+zz <- file("Messages from script 120 (can be deleted).txt", open = "wt")    # File for error messages
+
+sink(zz, type = "message")             # Redirect error/warning messages 
+                                       # - error messages  will be sent to the temp.txt file 
+
+result_list_10yr <- args %>% pmap(model_from_medians_stat_s, 
+                                  yrs = 2010:2019, data_medians = data_med)  # ca 15-20 minutes
+result_list_long <- args %>% pmap(model_from_medians_stat_s, 
+                                  yrs = 1980:2019, data_medians = data_med)  # ca 15-20 minutes
+
+sink()                                 # Turn off redirection of messages   
 
 Sys.time() - t0  # Print time used - 36.55274 minutes last time  
 
-#o#o#o#o#o#o Calculation procedure ends #o#o#o#o#o#o
+```
+
+### Change output into data frames   
+
+```{r}
 
 # Transpose lists
-# Each list is a list of 2 elements: $result and $error 
+# 'result_list_10yr' is a list of some 1000 elements, where each element
+#    is a list with $result and $error
+# We turn this to a list 2 elements: $result and $error, each with some 1000 elements  
 result_list_10yr_t <- transpose(result_list_10yr)
 result_list_long_t <- transpose(result_list_long)
 
 # Combine list 1 to data frame
+#
 no_error <- is.null(result_list_10yr_t$error)
 result_10yr <- bind_rows(result_list_10yr_t$result[no_error])
 
 # Combine list 2 to data frame
 no_error <- is.null(result_list_long_t$error)
 result_long <- bind_rows(result_list_long_t$result[no_error])
-
 ```
 
-## 6. Save or update date  
+
+## 6. Save or update the result file    
 
 ```{r}
 
