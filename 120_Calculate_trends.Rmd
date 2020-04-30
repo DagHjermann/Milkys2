@@ -279,7 +279,7 @@ args <- args[c("station", "tissue", "species", "param", "basis")]
 ```
 
 
-### Calculattion procedure   
+### Calculation procedure   
   
 **NOTE: This takes ca. 35 minutes**    
   
@@ -326,12 +326,13 @@ result_list_long_t <- transpose(result_list_long)
 
 # Combine list 1 to data frame
 #
-no_error <- is.null(result_list_10yr_t$error)
+no_error <- result_list_10yr_t$error %>% map_lgl(is.null)
 result_10yr <- bind_rows(result_list_10yr_t$result[no_error])
 
 # Combine list 2 to data frame
-no_error <- is.null(result_list_long_t$error)
+no_error <- result_list_long_t$error %>% map_lgl(is.null)
 result_long <- bind_rows(result_list_long_t$result[no_error])
+
 ```
 
 
@@ -434,11 +435,7 @@ if (!add_extra_series){   # this is the normal case - we have calculated trends 
 }
 ```
 
-```{r}
 
-
-
-```
 
 
 ```{r}
