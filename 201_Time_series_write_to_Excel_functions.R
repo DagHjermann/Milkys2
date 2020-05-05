@@ -34,30 +34,34 @@ fact2char_df <- function(df){
 
 # Function for setting symbol
 #
-# up = é      ascii 233  Increasing concentration
-# down = ê    ascii 234  Decreasing concentration
-# circle = ¢  ascii 162  No significant time trend
-# square = §  ascii 167  Too few years to make time trend
-# star = «    ascii 171  Too few years with data over LOQ to make time trend
+# up = Ã©      ascii 233  Increasing concentration
+# down = Ãª    ascii 234  Decreasing concentration
+# circle = Â¢  ascii 162  No significant time trend
+# square = Â§  ascii 167  Too few years to make time trend
+# star = Â«    ascii 171  Too few years with data over LOQ to make time trend
 
 set_symbol <- function(data){
   library(gtools)
   result <- rep("", nrow(data))
   sel <- with(data, !Model_used %in% c("Linear", "Nonlinear") & (is.na(N_data) | N_data < 5))
-  # result[sel] <- "§"
-  result[sel] <- chr(167)
+  result[sel] <- "Â§"
+  # result[sel] <- chr(167)
   sel <- with(data, !Model_used %in% c("Linear", "Nonlinear") & N_data >= 5)
-  # result[sel] <- "«"
-  result[sel] <- chr(171)
+  result[sel] <- "Â«"
+  # result[sel] <- chr(171)
   sel <- with(data, Model_used %in% c("Linear", "Nonlinear") & P_change > 0.05)
-  # result[sel] <- "¢"
-  result[sel] <- chr(162)
+  result[sel] <- "Â¢"
+  if ("Status" %in% names(data)) {  # if this column exists
+    sel <- with(data, Status %in% "No variation in data")
+    result[sel] <- "Â¢"
+    }
+  # result[sel] <- chr(162)
   sel <- with(data, Model_used %in% c("Linear", "Nonlinear") & P_change <= 0.05 & Annual_change > 0)
-  # result[sel] <- "é"
-  result[sel] <- chr(233)
+  result[sel] <- "Ã©"
+  # result[sel] <- chr(233)
   sel <- with(data, Model_used %in% c("Linear", "Nonlinear") & P_change <= 0.05 & Annual_change < 0)
-  # result[sel] <- "ê"
-  result[sel] <- chr(234)
+  result[sel] <- "Ãª"
+  # result[sel] <- chr(234)
   result
   }
 
@@ -244,11 +248,11 @@ get_trends_previous_year <- function(trenddata, basis){
   }
 
 # As 'get_trends_previous_year' but picks all types of basis (W, D and F), and changes Basis to WW;DW and FB
-# Also includes columns "Ant.prøver.2015", "SD.2015", "EAC.2015", "EQS.2015", as well as "DETLIM_2015"
+# Also includes columns "Ant.prÃ¸ver.2015", "SD.2015", "EAC.2015", "EQS.2015", as well as "DETLIM_2015"
   
 prepare_results_previous_year <- function(trenddata){
   cns <- c("Parameter.Code", "Species", "Tissue", "Station.Code", "Basis",
-    "Ant.prøver.2015", "SD.2015", "Klasse.2015", "EAC.2015", "EQS.2015",
+    "Ant.prÃ¸ver.2015", "SD.2015", "Klasse.2015", "EAC.2015", "EQS.2015",
     "Trend.p.long.", "Detectable...change.long.", "First.Year.long.", "Last.Year.long.", 
     "No.of.Years.long.", "Trend.p.short.", "Detectable...change.short.", 
     "First.Year.short.", "Last.Year.short.", "No.of.Years.short.", "Trends.2015",
