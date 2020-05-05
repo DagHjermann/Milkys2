@@ -1,0 +1,73 @@
+---
+title: "105 Download Labware sample data"
+author: "DHJ"
+date: "5 5 2020"
+output: html_document
+---
+
+This script reads sample data (including info on pooling of samples etc.) from Nivabasen   
+
+- __NOTE: This must be done from your personal PC, it doesn't work n Jupyterhub__  
+- Also, you need to prepare by installing an Oracle client and ge a password to Nivabasen (see the readme file for niRvana)  
+  
+
+## 1. Libraries  
+```{r, message=FALSE}
+
+library(dplyr)
+library(niRvana)
+library(lubridate)
+
+```
+
+
+## 2. Set username and pasword for Nivabasen  
+```{r}
+
+set_credentials()
+
+```
+
+## 3. Get samples  
+```{r}
+
+# Get projects, but doesn't really make sense since the projects names fiffer from those in PROJECT in table LABWARE_CHECK_SAMPLE
+if (FALSE){
+  df_proj <- get_projects()
+  grep("CEMP", df_proj$PROJECT_NAME, value = TRUE)
+}
+
+dat <- get_nivabase_data("select * from NIVADATABASE.LABWARE_CHECK_SAMPLE where lower(PROSJEKT) like '%milkys%'")
+nrow(dat) # 3568
+
+sel <- grepl("2019", dat$TEXT_ID)
+sum(sel)   # 656
+mean(sel)  # 0.18
+
+```
+
+## 4. Read previously downloaded data and compare 
+```{r}
+
+# NOT WRItTEN YET
+
+
+```
+
+
+## 5. Save  
+```{r}
+
+# Needs only be save if different from previously downloaded data
+
+file_date <- Sys.time() %>% substr(1, 10)
+file_date
+
+filename <- paste0("Labware_samples_2019_", file_date, ".rds")
+# filename
+
+saveRDS(dat, paste0("Input_data/", filename))
+
+```
+
+
