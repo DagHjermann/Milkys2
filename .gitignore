@@ -1,11 +1,19 @@
 Data/*
-.Rproj.user
-990*
-Input_data/opparbeiding_biota
-*.html
 Data_Nivabasen/*
+Big_excel_table/*
+Input_data/Trendtabell_20160919_Komplett_v4_GSE med samletabell.xlsx
+Input_data/Data_xl_lessthans_ver12.csv
+Input_data/Data_xl_lessthans_ver12.rds
+Input_data/Data_through_2018.rds
+Input_data/120_result_10yr_2018.RData
+Input_data/120_result_long_2018.RData
+Input_data/opparbeiding_biota
+Figures_401
+990*
+Messages from script 120*
 Dag
 BBE
+*.html
 .Rhistory
+.Rproj.user
 .ipynb_checkpoints*
-Figures_401
