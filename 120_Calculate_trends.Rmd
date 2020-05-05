@@ -244,8 +244,8 @@ if (add_extra_series){
   
   # Example: we want to add 'TPTIN' to existing trends  
   # We filter df_series to get 'TPTIN' only:
-  #  df_series <- df_series %>% 
-  #    filter(PARAM %in% "TPTIN") 
+  df_series <- df_series %>% 
+    filter(PARAM %in% "TPTIN") 
 
   #
   # Filter df_series END
@@ -291,7 +291,12 @@ args <- args[c("station", "tissue", "species", "param", "basis")]
 #   If the function works, "result" contains the normal output and "error" is NULL
 #   If the function fails, "result" is NULL and "error" contains the error message
 model_from_medians_stat_s <- safely(model_from_medians_stat)
-  
+
+# Example
+# X <- model_from_medians_stat_s("TBT", "Nucella lapillus", "Whole soft body", "227G1", "DW", 1980:2018, data_med)
+# X$result
+# X$error
+
 #
 #o#o#o#o#o#o Calculation procedure starts #o#o#o#o#o#o
 #
@@ -325,7 +330,7 @@ result_list_10yr_t <- transpose(result_list_10yr)
 result_list_long_t <- transpose(result_list_long)
 
 # Combine list 1 to data frame
-#
+
 no_error <- result_list_10yr_t$error %>% map_lgl(is.null)
 result_10yr <- bind_rows(result_list_10yr_t$result[no_error])
 
@@ -433,6 +438,7 @@ if (!add_extra_series){   # this is the normal case - we have calculated trends 
   saveRDS(result_long, paste0("Data/", fn2, ".rds"))
 
 }
+
 ```
 
 
