@@ -227,9 +227,14 @@ select_for_regr_b <- function(sel_object){
   list(df_med_st = df_med_st, sel_ts = sel_ts, N = sel_object$N, Nplus = sel_object$Nplus)
 }
 
+# GAM_error <- list(
+#   model = NULL,
+#   data.frame(Year = dataset$x[sel], Estimate = pr$fit, SE = pr$se.fit, LowLimit = pr$fit - dY*pr$se.fit, HighLimit =
+# )
+
 GAM_trend_analysis <-  function(dataset){
-  max_df <- ifelse(nrow(dataset) <= 14, 3, 4)
-  sel <- is.finite(dataset$x) & is.finite(dataset$y) 
+  sel <- is.finite(dataset$x) & is.finite(dataset$y)  
+  max_df <- ifelse(sum(sel) <= 14, 3, 4)
   mgam <- mgcv::gam(y ~ s(x, k = max_df + 1), data = dataset[sel,])
   pr <- predict(mgam, se.fit = TRUE)
   dY <- -qt(0.025, nrow(dataset))
@@ -301,13 +306,13 @@ calc_models_gam <- function(obj, var_x = "MYEAR_regr", var_y = "Median", gam = F
   if (log)
     data_pick[,2] <- log(data_pick[,2])
   colnames(data_pick) <- c("x", "y")
-  if (nrow(data_pick) > 0){
+  if (sum(is.finite(data_pick$y)) > 0){
     mod_gam <- try(GAM_trend_analysis(dataset = data_pick))
     mod_lin <- lm(y~x, data = data_pick)
     pr <- predict(mod_lin, se = TRUE)
     dY <- -qt(0.025, nrow(data_pick))
     mod_lin_yFit <- data.frame(Year = data_pick$x[!is.na(data_pick$y)], Estimate = pr$fit, SE = pr$se.fit, LowLimit = pr$fit - dY*pr$se.fit, HighLimit = pr$fit + dY*pr$se.fit)  
-    if (class(gam)[1] != "try-error"){
+    if (class(mod_gam)[1] != "try-error"){
       result <- 
         list(AIC = c(nonlinear = AIC(mod_gam$model),
                      linear = AIC(mod_lin)),
@@ -316,7 +321,9 @@ calc_models_gam <- function(obj, var_x = "MYEAR_regr", var_y = "Median", gam = F
              mod_nonlin = mod_gam,
              mod_lin = mod_lin,
              mod_lin_yFit = mod_lin_yFit,
-             data = data_pick)
+             status = "GAM OK",
+             data = data_pick,
+             stringsAsFactors = FALSE)
     } else {
       result <- 
         list(AIC = c(nonlinear = NA,
@@ -326,7 +333,9 @@ calc_models_gam <- function(obj, var_x = "MYEAR_regr", var_y = "Median", gam = F
              mod_nonlin = NA,
              mod_lin = mod_lin,
              mod_lin_yFit = mod_lin_yFit,
-             data = data_pick)
+             status = "GAM failed",
+             data = data_pick,
+             stringsAsFactors = FALSE)
     }
   } else {
     result <- list(AIC = c(nonlinear = NA,
@@ -337,7 +346,9 @@ calc_models_gam <- function(obj, var_x = "MYEAR_regr", var_y = "Median", gam = F
                    mod_lin = NULL,
                    mod_lin_yFit = NULL,
                    mod_gam = NULL,
-                   data = data_pick)
+                   status = "No qualified data",
+                   data = data_pick,
+                   stringsAsFactors = FALSE)
   }  
   result
 }
@@ -373,7 +384,7 @@ data_for_excel <- function(df_med, station, yrs = 1990:2016){
 
 
 statistics_for_excel <- function(obj, regr_results, gam = FALSE){
-  if (sum(obj$sel_ts) > 0 & !gam){
+  if (sum(obj$sel_ts) > 0 & !(gam & regr_results$status == "GAM OK")){
     df_stat <- data.frame(
       Year1 = min(obj$df_med_st$MYEAR[obj$sel_ts]),
       Year2 = max(obj$df_med_st$MYEAR[obj$sel_ts]),
@@ -381,17 +392,19 @@ statistics_for_excel <- function(obj, regr_results, gam = FALSE){
       Nplus = obj$Nplus,
       Mean = mean(obj$df_med_st$Median, na.rm = TRUE),
       p_linear = p_linear(regr_results$mod_lin),
-      p_nonlinear = p_nonlinear(regr_results$mod_nonlin),
+      p_nonlinear = NA,  # p_nonlinear(regr_results$mod_nonlin),
       AICc_lin = regr_results$AICc[["linear"]],
-      AICc_nonlin = regr_results$AICc[["nonlinear"]],
+      AICc_nonlin = NA, # regr_results$AICc[["nonlinear"]],
       Lin_slope = coef(regr_results$mod_lin)[2],
       Lin_yr1 = head(regr_results$mod_lin$fitted, 1),
       Lin_yr2 = tail(regr_results$mod_lin$fitted, 1),
-      Nonlin_yr1 = head(regr_results$mod_nonlin$yFit$Estimate, 1),
-      Nonlin_yr2 = tail(regr_results$mod_nonlin$yFit$Estimate, 1),
-      Over_LOQ_yr2 = tail(obj$df_med_st[obj$sel_ts, "Over_LOQ"], 1)
+      Nonlin_yr1 = NA, # head(regr_results$mod_nonlin$yFit$Estimate, 1),
+      Nonlin_yr2 = NA, # tail(regr_results$mod_nonlin$yFit$Estimate, 1),
+      Over_LOQ_yr2 = tail(obj$df_med_st[obj$sel_ts, "Over_LOQ"], 1),
+      Status = regr_results$status,
+      stringsAsFactors = FALSE
     )
-  } else if (sum(obj$sel_ts) > 0 & gam){
+  } else if (sum(obj$sel_ts) > 0 & gam & regr_results$status == "GAM OK"){
     # Calculate p-value for GAM model (gam_p)
     x1 <- head(regr_results$mod_nonlin$yFit$Estimate,1)
     x2 <- tail(regr_results$mod_nonlin$yFit$Estimate,1)
@@ -414,8 +427,12 @@ statistics_for_excel <- function(obj, regr_results, gam = FALSE){
       Lin_yr2 = tail(regr_results$mod_lin$fitted, 1),
       Nonlin_yr1 = head(regr_results$mod_nonlin$yFit$Estimate, 1),
       Nonlin_yr2 = tail(regr_results$mod_nonlin$yFit$Estimate, 1),
-      Over_LOQ_yr2 = tail(obj$df_med_st[obj$sel_ts, "Over_LOQ"], 1)
+      Over_LOQ_yr2 = tail(obj$df_med_st[obj$sel_ts, "Over_LOQ"], 1),
+      Status = regr_results$status,
+      stringsAsFactors = FALSE
     )
+    if (SE1 < 0.00001 & SE2 < 0.00001)
+      df_stat$Status <- "No variation in data"
   } else {
     df_stat <- data.frame(
       Year1 = NA,
@@ -432,7 +449,9 @@ statistics_for_excel <- function(obj, regr_results, gam = FALSE){
       Lin_yr2 = NA,
       Nonlin_yr1 = NA,
       Nonlin_yr2 = NA,
-      Over_LOQ_yr2 = NA
+      Over_LOQ_yr2 = NA,
+      Status = regr_results$status,
+      stringsAsFactors = FALSE
     )
   }
   df_stat$Model_used <- select_model(df_stat)
@@ -443,13 +462,17 @@ statistics_for_excel <- function(obj, regr_results, gam = FALSE){
   } else {
     df_stat$P_change <- NA
   }
-  if (df_stat$P_change < 0.05 & df_stat$Model_used == "Linear"){
+  if (df_stat$Status == "No variation in data"){
+    df_stat$Dir_change <- ""
+  } else if (df_stat$P_change < 0.05 & df_stat$Model_used == "Linear"){
     df_stat$Dir_change <- ifelse(df_stat$Lin_slope > 0, "Up", "Down")
   } else if (df_stat$P_change < 0.05 & df_stat$Model_used == "Nonlinear"){
     df_stat$Dir_change <- ifelse(df_stat$Nonlin_yr2 > df_stat$Nonlin_yr1, "Up", "Down")
   } else {
     df_stat$Dir_change <- ""
   }
+  if (is.na(df_stat$p_linear) & is.na(df_stat$p_nonlinear) & df_stat$Status != "No variation in data")
+    df_stat$Status <- "Linear regr. and GAM failed"
   df_stat
 }
 
@@ -484,11 +507,13 @@ add_model_fits <- function(obj, regr_results, gam = FALSE){
   df$Fit_nonlin <- NA
   median_exists <- is.finite(obj$df_med_st$Median)
   if (!is.null(regr_results$mod_lin$fitted))
-    df$Fit_lin[obj$sel_ts][median_exists] <- regr_results$mod_lin$fitted    # the !is.na selection weeds out NAs in the middle of the time series
+    # df$Fit_lin[obj$sel_ts][median_exists] <- regr_results$mod_lin$fitted    # the !is.na selection weeds out NAs in the middle of the time series
+    df$Fit_lin[obj$sel_ts & median_exists] <- regr_results$mod_lin$fitted    # the !is.na selection weeds out NAs in the middle of the time series
   if (!is.null(regr_results$mod_nonlin) & !gam)
     df$Fit_nonlin[obj$sel_ts] <- regr_results$mod_nonlin$yFit$Estimate
-  if (!is.null(regr_results$mod_nonlin) & gam)
-    df$Fit_nonlin[obj$sel_ts][median_exists] <- regr_results$mod_nonlin$yFit$Estimate
+  if (!is.null(regr_results$mod_nonlin) & gam & regr_results$status == "GAM OK")
+    # df$Fit_nonlin[obj$sel_ts][median_exists] <- regr_results$mod_nonlin$yFit$Estimate
+    df$Fit_nonlin[obj$sel_ts & median_exists] <- regr_results$mod_nonlin$yFit$Estimate
   updated_obj <- obj
   updated_obj$df_med_st <- as.data.frame(df)
   updated_obj
@@ -793,13 +818,13 @@ plot_models_one_station_gg <- function(result_object, title = "", log = TRUE){
 }
 
 statistics_for_excel_empty <- function(df_med){
-  X <- data.frame(matrix(NA, 1, 19))
+  X <- data.frame(matrix(NA, 1, 20))
   colnames(X) <- c("Year1", "Year2", "N", "Nplus", "Mean", "p_linear", "p_nonlinear", 
                    "AICc_lin", "AICc_nonlin", "Lin_slope", "Lin_yr1", "Lin_yr2", 
-                   "Nonlin_yr1", "Nonlin_yr2", "Over_LOQ_yr2", "Model_used", "P_change", "Dir_change", "SD_last")
-  if (nrow(df_med) >= 1)
-    X$SD_last <- tail(df_med$SD, 1)
-  X
+                   "Nonlin_yr1", "Nonlin_yr2", "Over_LOQ_yr2", "Status", "Model_used", "P_change", "Dir_change", "SD_last")
+  # if (nrow(df_med) >= 1)
+  #   X$SD_last <- tail(df_med$SD, 1)
+  # X
 }
 
 
@@ -843,7 +868,6 @@ model_from_leveldata <- function(i, varname, yrs, leveldata, rawdata, plotname =
         plot_models_one_station(result_object, title = tit, log = log_transform)
       } else {
         print(
-          plot_models_one_station_gg(result_object, title = tit, log = log_transform)
         )
       }
       if (plotname != "window")
@@ -883,7 +907,7 @@ model_from_medians <- function(param, species, tissue, station, basis, yrs, data
   colnames(df_med) <- sub(varname, "Median", colnames(df_med))
   # If we want to excape from the  hard-coded variable names, put varname_n_over_loq as a function argument and do this:
   # colnames(df_med) <- sub(varname_n_over_loq, "Over_LOQ", colnames(df_med))
-  if (!param %in% c("VDSI", "VDSI/Intersex", "Intersex", "BAP3O")){      # only these two have median numbers <= 0
+  if (!param %in% c("VDSI", "VDSI/Intersex", "Intersex", "BAP3O", "Delta13C", "Delta15N")){      # these have median numbers <= 0
     log_transform <- TRUE
   } else {
     log_transform <- FALSE
@@ -915,6 +939,8 @@ model_from_medians <- function(param, species, tissue, station, basis, yrs, data
         dev.off()
     }
   }
+  result_stat <- result_stat %>%
+    select(-Status, Status)   # Put "Status" as last column
   list(result_object = result_object,
        statistics = 
          cbind(
