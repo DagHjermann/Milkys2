@@ -3,6 +3,17 @@ title: "201 Make csv for big excel file"
 output: html_document
 ---
 
+### 0. Select kind of csv file to make  
+Set   
+- decimal_comma = TRUE of you use European-style Excel (`,` for decimal numbers, columns separated by semicolon)   
+- decimal_comma = FALSE of you use American-style Excel (`.` for decimal numbers, columns separated by comma)   
+```{r}
+
+decimal_comma <- TRUE
+# used in part 7
+
+```
+
 ## 1. Libraries + functions
 ```{r}
 
@@ -85,7 +96,25 @@ if (file_date_trend1 != file_date | file_date_trend2 != file_date ){
 
 ```
 
-### c. Other data
+### c. Labware data  
+Data of samples   
+   
+NOTE: These data are downloaded from Nivabasen using the script   
+105_Download_Labware_sample_data.Rmd  
+This must be done using a PC - cannot be done from Jupyterhub   
+```{r}
+
+# Read and reformat the most recent data (by default)  
+files <- dir("Input_data", "Labware_samples_") %>% rev()
+
+filename <- files[1] 
+
+df_samples_labware_raw <- readRDS(paste0("Input_data/", filename))
+
+```
+
+
+### d. Other data
 ```{r}
 
 # Trends for previous year (2018)
@@ -122,7 +151,7 @@ df_stat <- readxl::read_excel("Input_data/Lookup for big excel - stations.xlsx")
 
 ```
 
-### d. Some data fixing  
+### e. Some data fixing  
 ```{r}
 
 ### 1. Delete VDSI that are not Basis WW    
@@ -141,6 +170,7 @@ cat(sum(sel), "units of BAP changed \n")
 
 
 ```
+
 
 ## 3. Some checking   
 
@@ -655,72 +685,66 @@ cat("\nNumber of columns:", ncol(data_xl), "\n") # 107
 ### Add N_string (sample size last year)   
 
 Example: N_string "8 (6-3)" means that:   
-- number of samples (pooled or unpooled) = 8  
+- number of samples (pooled or unpooled) = 8   
 - number of pooled samples = 6  
-- maximum number of individuals per pooled sample = 3  
+- maximum number of individuals per pooled sample = 3   
 
 ```{r}
 
+# Function for getting the number of individuals (per pooeld sample) from X_BULK_BIO 
+# the function is based on counting the number of commas
+number_of_ind <- function(txt){
+  result <- regexec(",", txt, fixed = TRUE) %>% map_int(~.[[1]]) + 1
+  result[is.na(result)] <- 1
+  result[result == 0] <- 1
+  result
+}
+
+# Get number of individuals per pooled sample
+# Use df_samples (table from LABWARE) 
+df_samples_labware <- df_samples_labware_raw %>%
+  rename(STATION_CODE = AQUAMONITOR_CODE,
+         LATIN_NAME = SPECIES,
+         SAMPLE_NO2 = BIOTA_SAMPLENO) %>%
+  mutate(TISSUE_NAME = stringr::str_sub(TISSUE, start = 4),
+         No_individuals = number_of_ind(X_BULK_BIO)) %>%    # get number of individuals per pooled sample
+  select(STATION_CODE, LATIN_NAME, TISSUE_NAME, SAMPLE_NO2, X_BULK_BIO, No_individuals) %>%
+  group_by(STATION_CODE, LATIN_NAME, TISSUE_NAME, SAMPLE_NO2) %>%
+  summarise_all(first) %>%
+  ungroup() %>%
+  # Special case for molluscs, which have no X_BULK_BIO value:
+  mutate(No_individuals = case_when(
+    LATIN_NAME %in% "Mytilus edulis" ~ 50,
+    LATIN_NAME %in% c("Littorina littorea", "Nucella lapillus") ~ 30,
+    No_individuals == 0 ~ 1,     # in the case of fish, no X_BULK_BIO value means 1 individual
+    TRUE ~ No_individuals)
+  )
+
+
+# Raw data with 'No_individuals' (info on pooled sample) added 
+df_samples <- data_lastyear_ind %>%
+  filter(MYEAR %in% 2018) %>%
+  safe_left_join(subset(df_samples_labware, select = -X_BULK_BIO),
+                 by = c("STATION_CODE", "LATIN_NAME", "TISSUE_NAME", "SAMPLE_NO2"),
+                 check = "BCV")
+
+# df_numbers - contains 'N_string' which will be added to data by left-join 
+#  - equals raw data summarised per station x parameter
+df_numbers <- df_samples %>%
+  filter(!is.na(VALUE_WW)) %>%
+  group_by(STATION_CODE, LATIN_NAME, TISSUE_NAME, PARAM) %>%
+  summarise(N = n(),
+            N_pooled = sum(No_individuals > 1),
+            Max_ind = max(No_individuals)
+  ) %>%
+  mutate(
+    N_string = paste0(N, " (", N_pooled, "-", Max_ind, ")")  # Make string
+  )
+
+#
+# Imposex and intersex - TO INCLUDE LATER   
+#
 if (FALSE){
-  # For getting the number of individuals (per pooeld sample) from X_BULK_BIO 
-  # Function based on counting the number of commas
-  number_of_ind <- function(txt){
-    result <- regexec(",", txt, fixed = TRUE) %>% map_int(~.[[1]]) + 1
-    result[is.na(result)] <- 1
-    result[result == 0] <- 1
-    result
-  }
-  
-  # Get number of individuals per pooled sample
-  # Use df_samples (table from LABWARE) 
-  df_samples_labware <- readRDS(file = "Data/01_df_samples.rds") %>%
-    rename(STATION_CODE = AQUAMONITOR_CODE,
-           LATIN_NAME = SPECIES,
-           SAMPLE_NO2 = BIOTA_SAMPLENO) %>%
-    mutate(TISSUE_NAME = stringr::str_sub(TISSUE, start = 4),
-           No_individuals = number_of_ind(X_BULK_BIO)) %>%    # get number of individuals per pooled sample
-    select(STATION_CODE, LATIN_NAME, TISSUE_NAME, SAMPLE_NO2, X_BULK_BIO, No_individuals) %>%
-    group_by(STATION_CODE, LATIN_NAME, TISSUE_NAME, SAMPLE_NO2) %>%
-    summarise_all(first) %>%
-    ungroup() %>%
-    # Special case for molluscs, which have no X_BULK_BIO value:
-    mutate(No_individuals = case_when(
-      LATIN_NAME %in% "Mytilus edulis" ~ 50,
-      LATIN_NAME %in% c("Littorina littorea", "Nucella lapillus") ~ 30,
-      No_individuals == 0 ~ 1,     # in the case of fish, no X_BULK_BIO value means 1 individual
-      TRUE ~ No_individuals)
-    )
-  
-  # Check that values are unique (result should be 0)
-  # Not needed as we use safe_left_join with check V
-  df_samples_labware %>%
-    count(STATION_CODE, LATIN_NAME, TISSUE_NAME, SAMPLE_NO2) %>%
-    filter(n > 1) %>%
-    nrow()
-  
-  # Raw data with 'No_individuals' (info on pooled sample) added 
-  df_samples <- data_lastyear_ind %>%
-    filter(MYEAR %in% 2018) %>%
-    safe_left_join(subset(df_samples_labware, select = -X_BULK_BIO),
-                   by = c("STATION_CODE", "LATIN_NAME", "TISSUE_NAME", "SAMPLE_NO2"),
-                   check = "BCV")
-  
-  # df_numbers - contains 'N_string' which will be added to data by left-join 
-  #  - equals raw data summarised per station x parameter
-  df_numbers <- df_samples %>%
-    filter(!is.na(VALUE_WW)) %>%
-    group_by(STATION_CODE, LATIN_NAME, TISSUE_NAME, PARAM) %>%
-    summarise(N = n(),
-              N_pooled = sum(No_individuals > 1),
-              Max_ind = max(No_individuals)
-    ) %>%
-    mutate(
-      N_string = paste0(N, " (", N_pooled, "-", Max_ind, ")")  # Make string
-    )
-  
-  #
-  # Imposex and intersex   
-  #
   data_imposex <- readRDS("Data/32_data_imposex.rds")
   
   df_numbers_imposex <- data_imposex %>%
@@ -739,37 +763,46 @@ if (FALSE){
     safe_left_join(df_numbers_imposex, by = c("STATION_CODE")) %>%
     mutate(N_string = ifelse(is.na(N_string_new), N_string, N_string_new)) %>%
     select(-N_string_new)
-  
-  #
-  # Add to data
-  #
-  nrow(data_xl)  # 19214
-  data_xl <- safe_left_join(data_xl, 
-                            df_numbers[,c("LATIN_NAME", "TISSUE_NAME", "STATION_CODE", "PARAM", "N_string")],
-                            by = c("LATIN_NAME", "TISSUE_NAME", "STATION_CODE", "PARAM"),
-                            check = "BCV")
-  nrow(data_xl)  # 19214
-  
-  # 
-  # This sample size is only valid for the last year, so we delete it if there is no data in the last year
-  #
-  colnumber <- which(colnames(data_xl) == paste0("Yr_", last_year))
-  sel <- is.na(data_xl[[colnumber]]); sum(sel)
-  data_xl$N_string[sel] %>% is.na() %>% mean() # already NA for 98.6%
-  data_xl$N_string[sel] <- NA
-  
-  # 
-  # For samples without pooled samples (e.g. "15 (0-1)"), replace with just the number ("15")
-  #
-  sel <- grepl ("(0-1)", data_xl$N_string, fixed = TRUE); sum(sel)  # just for checking
-  data_xl$N_string <- sub("(0-1)", "", data_xl$N_string, fixed = TRUE)
+}
+# end of "Imposex and intersex" part
+
+#
+# Add to data
+#
+data_xl <- safe_left_join(data_xl, 
+                          df_numbers[,c("LATIN_NAME", "TISSUE_NAME", "STATION_CODE", "PARAM", "N_string")],
+                          by = c("LATIN_NAME", "TISSUE_NAME", "STATION_CODE", "PARAM"),
+                          check = "BCV")
+
+# IF the safe_left_join() function above fails because df_numbers isn't unique,
+#   check what's wrong using the lines below
+if (FALSE){
+  check <- df_samples_labware %>%
+    count(STATION_CODE, LATIN_NAME, TISSUE_NAME, SAMPLE_NO2) %>%
+    filter(n > 1)
   
 }
 
-if (TRUE){
-  data_xl <- data_xl %>%
-    mutate(N_string = "set later")
-}
+# 
+# This sample size is only valid for the last year, so we delete it if there is no data in the last year
+#
+colnumber <- which(colnames(data_xl) == paste0("Yr_", last_year))
+sel <- is.na(data_xl[[colnumber]]); sum(sel)
+data_xl$N_string[sel] %>% is.na() %>% mean() # already NA for 98.6%
+data_xl$N_string[sel] <- NA
+
+# 
+# For samples without pooled samples (e.g. "15 (0-1)"), replace with just the number ("15")
+#
+sel <- grepl ("(0-1)", data_xl$N_string, fixed = TRUE); sum(sel)  # just for checking
+data_xl$N_string <- sub("(0-1)", "", data_xl$N_string, fixed = TRUE)
+
+# Check
+table(data_xl$N_string)
+
+#
+# Number of columns in data_xl
+#
 cat("\nNumber of columns:", ncol(data_xl), "\n") # 108
 
 
@@ -1536,7 +1569,11 @@ if (fn %in% dir("Big_excel_table")){
   cat("File", fn, "already exists! File will not be overwritten.")
 } else {
   # Save CSV
-  write.csv2(data_xl_lessthans, file = fn_full, quote = FALSE, na = "", row.names = FALSE)
+  if (decimal_comma){
+    write.csv2(data_xl_lessthans, file = fn_full, quote = FALSE, na = "", row.names = FALSE)
+  } else {
+    write.csv(data_xl_lessthans, file = fn_full, quote = FALSE, na = "", row.names = FALSE)
+  }
   cat("File", sQuote(fn), "written to folder 'Big_Excel_table'\n")
   # Save RDS
   saveRDS(data_xl_lessthans, sub("csv", "rds", fn_full))
@@ -1564,8 +1601,9 @@ The rest of the procedure is done in Excel, after the csv file has been written:
     * Open an empty Excel file  
     * In the menu, choose Data : Get Data : From File : From Text/CSV   
     * Select the csv file and click "Import"    
-    * In the next window, showing a preview of the file, choose "65001 Unicode (UTF-8)"  
+    * In the next window, showing a preview of the file, choose "65001 Unicode (UTF-8)" in the top left menu  
     * Now the file should open, showing Norwegian letters as normal  
+    * Remove all formatting by selecting all (Ctrl-A) and select Home : Clear : Clear Formats () 
 3. File : Save As and choose Excel Macro-enabled workbook (.xlsm). We suggest to keep the 
 same name as the csv (except for the file extension 'xlsm')    
 4. Open the excel file '_Macros2_2019.xlsm'   
