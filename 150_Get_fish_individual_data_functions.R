@@ -32,7 +32,7 @@ Year     Month  Salt  Flu
 # Function tailored to these data
 
 read_fish_individual_data <- function(fn){
-  df_try <- read_excel(paste0(datafolder, "/", fn)) %>% as.data.frame()
+  df_try <- read_excel(paste0(datafolder, "/", fn), col_names = FALSE) %>% as.data.frame()
   
   # Find header of file
   line_header <- search_lineno(df_try, 1, "Fisknr")
@@ -72,9 +72,9 @@ print_less_common_values <- function(txt){
     cat("Other values:\n")
     for (i in 2:length(tab)){
       no <- txt %in% names(tab)[i]
-      cat("  ", sQuote(names(tab)[i]), ", ", tab[i], " values", sep = "")
+      cat("  ", sQuote(names(tab)[i]), ", ", tab[i], " files", sep = "")
       indices <- which(txt %in% names(tab)[i])
-      cat(" (",  paste(indices, collapse = ", "), ")\n", sep = "")
+      cat(" (file numbers: ",  paste(indices, collapse = ", "), ")\n", sep = "")
     }
   } else {
       cat("Only value:\n  ", sQuote(names(tab)[1]), " (", tab[1], " values)\n", sep = "")
