@@ -161,7 +161,8 @@ DPTIN;DPTIN;;;diphenyltin - expressed as Sn-atom;Organo-metallic compounds
 EHDPP;EHDPP;2-ethylhexyl diphenyl phosphate;1241-94-7;2-ethylhexyl diphenyl phosphate;Phosphorus flame retardant (PFR)
 EPOCL;EPOCL;;;extractable persistent organically bound chlorine;Major inorganic constituents
 EROD;EROD;;;EROD - Ethoxyresorufin-O-deethylase;Biological effects: molecular/biochemical/cellular/assays
-FETT;Fett;;;Support parameters;
+FETT;Fett;;;Fat (percentage);Support parameters
+DRYWT%;DRYWT%;;;Dry weight (percentage);Support parameters
 FLE;FLE;9H-fluorene;86-73-7;fluorene;Polycyclic aromatic hydrocarbons (PAHs)
 FLU;FLU;fluoranthene;206-44-0;fluoranthene;Polycyclic aromatic hydrocarbons (PAHs)
 HBCDA;HBCDA;(1R,2R,5S,6R,9R,10S)-1,2,5,6,9,10-hexabromocyclododecane;134237-50-6;alpha-hexabromocyclododecane;Organobromines
