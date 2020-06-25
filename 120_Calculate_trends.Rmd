@@ -326,8 +326,8 @@ Sys.time() - t0  # Print time used - 36.55274 minutes last time
 # 'result_list_10yr' is a list of some 1000 elements, where each element
 #    is a list with $result and $error
 # We turn this to a list 2 elements: $result and $error, each with some 1000 elements  
-result_list_10yr_t <- transpose(result_list_10yr)
-result_list_long_t <- transpose(result_list_long)
+result_list_10yr_t <- purrr::transpose(result_list_10yr)
+result_list_long_t <- purrr::transpose(result_list_long)
 
 # Combine list 1 to data frame
 
