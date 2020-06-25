@@ -42,24 +42,6 @@ df_sheets
 
 ```
 
-```{r}
-df_sheets[1,]
-```
-
-
-```{r}
-
-min_funksjon <- function(i, datasett){
-  datasett[i,]
-}
-
-
-```
-
-```{r}
-min_funksjon(1, df_sheets)
-```
-
 
 ## Function for reading data
 ```{r}
