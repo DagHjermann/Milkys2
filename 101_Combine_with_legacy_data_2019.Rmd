@@ -44,6 +44,19 @@ file_date <- substr(filename, 17, 26)    # pick out the part of the text from ch
 
 ```
 
+### a2. Check PCBs  
+Find that that all except CB118 are lacking in 2019   
+This is fixed in part 3-c2 below  
+```{r}
+
+dat_new1 %>%
+  filter(Substance %in% c("CB28","CB52","CB101","CB118","CB138","CB153","CB180") &
+           year(CatchDateFirst) >= 2014) %>%
+  xtabs(~year(CatchDateFirst) + Substance, .)
+
+```
+
+
 ### b. Read legacy data  
 The data go up to 2017 and combines data from the Access database (up to 2015) and NIVAbasen (2016-17). 
 ```{r}
@@ -55,7 +68,7 @@ data_through_2018 <- readRDS("Input_data/Data_through_2018.rds")
 
 ## 3. Reformat recent data to conform with legacy data  
 
-### Define lookup tables  
+### a. Define lookup tables  
 ```{r}
 # TaxonName to LATIN_NAME
 lookup_latin_name <- data.frame(
@@ -75,7 +88,7 @@ lookup_unit <- data.frame(
 
 ```
 
-### List variables in data sets  
+### b. List variables in data sets  
 Just for help with writing the next section  
 ```{r}
 
@@ -86,7 +99,7 @@ data_through_2018 %>%
 
 ```
 
-### Reformatting    
+### c. Reformatting (dat_new2)    
 - All measurements are wet-weight (BASIS = "W"). NOTE: this may not always be the case in the future!  
 - SAMPLE_NO2 equals SAMPLE_NO for all data from 2015 forwards, and is a unique number for all data up to 2014   
 ```{r}
@@ -156,9 +169,50 @@ dat_new2 <- dat_new1 %>%
 
 ```
 
+### c2. Add missing PCBs for 2019   
+All missing except CB118 (see 2-a2)
+```{r}
+
+# lookup table for species
+df_latin <- dat_new2 %>%
+  filter(MYEAR >= 2019) %>%
+  distinct(STATION_CODE, LATIN_NAME)
+
+# check - should be none
+df_latin %>%
+  count(STATION_CODE) %>%
+  filter(n > 1)
+
+df_extra <- read_excel("Input_data/85_PCBs (except CB118) for Jupyterhub.xlsx")
+
+nrow(df_extra)
+
+df_extra <- df_extra %>%
+  select(-LATIN_NAME) %>%
+  left_join(df_latin) %>%
+  mutate(PARAM = sub("PCB ", "CB", NAME, fixed = TRUE)) %>%
+  mutate(MYEAR = 2019,            # hard-coded
+         SAMPLE_NO2 = SAMPLE_NO,
+         BASIS = "W")             # hard-coded
+
+nrow(df_extra)  # check that it is the same
+
+cols <- names(dat_new2)
+
+dat_new2b <- bind_rows(dat_new2, df_extra[cols])
+
+# Check  
+# Also lacking in 2017-18 but that doesn't matter
+dat_new2b %>%
+  filter(PARAM %in% c("CB28","CB52","CB101","CB118","CB138","CB153","CB180") &
+           MYEAR >= 2014) %>%
+  xtabs(~MYEAR + PARAM, .)
+
+```
 
 
-### Check PARAM  
+
+### d. Check PARAM  
 ```{r}
 
 p1a <- data_through_2018 %>%
@@ -169,7 +223,7 @@ p1b <- data_through_2018 %>%
   filter(MYEAR == 2018) %>%
   xtabs(~PARAM, .) %>% names()
 
-p2 <- dat_new2 %>%
+p2 <- dat_new2b %>%
   filter(MYEAR == 2018) %>%
   xtabs(~PARAM, .) %>% names()
 
@@ -202,13 +256,38 @@ if (sum(!p2 %in% p1b) > 0){
 
 ```
 
-## 4. Pick last year's data
+## 4. Pick last year's data (dat_new3)  
+Note that we use ">= 2019", not equal to
 ```{r}
 
-dat_new3 <- dat_new2 %>%
-  filter(MYEAR %in% 2019)
+dat_new3 <- dat_new2b %>%
+  filter(MYEAR >= 2019)
     
 ```
+
+### Tabulate year  
+```{r}
+# Some 2020 data...
+xtabs(~MYEAR, dat_new3) 
+
+# ...for blue mussel
+xtabs(~LATIN_NAME + MYEAR, dat_new3) 
+
+# ...in 26A2
+xtabs(~STATION_CODE + MYEAR, dat_new3 %>% filter(LATIN_NAME == "Mytilus edulis")) 
+
+```
+
+### Fix year problem  
+```{r}
+
+sel <- dat_new3$MYEAR %in% 2020
+dat_new3$MYEAR[sel] <- 2019
+
+cat("Changed", sum(sel), "records with MYEAR = 2020 to MYEAR = 2019 \n")
+
+```
+
 
 ### Tables  of new data
 ```{r}
@@ -244,7 +323,7 @@ if (check == 0){
     left_join(unit_conversion, by = c("UNIT", "Preferred_unit")) %>%
     mutate(Conversion_factor = ifelse(UNIT == "PERCENT", 1, Conversion_factor))
 } else {
-  cat("Parameter_units.xlsx contains some PARAM with more than one preferred unit")
+  cat("WARNING! Parameter_units.xlsx contains some PARAM with more than one preferred unit")
   cat("\n")
   cat("Fix Parameter_units.xlsx and repeat")
   cat("\n")
@@ -302,6 +381,33 @@ for (i in seq_along(sum_parameters)){     # go through numbers 1 to 9
 
 ```
 
+### Check
+```{r}
+
+
+dat_new5 %>%
+  filter(PARAM %in% names(sum_parameters)) %>%
+  xtabs(~PARAM + is.na(VALUE), .)
+
+
+# Set i, e.g. 1 for sum parameter number 1 (i.e. CB_S7)
+i <- 1
+pars <- c(sum_parameters[[i]], names(sum_parameters)[i])
+
+dat_new5 %>%
+  filter(PARAM %in% pars) %>%
+  filter(TISSUE_NAME %in% "Lever" & BASIS %in% "W") %>%
+  group_by(STATION_CODE, MYEAR, PARAM) %>%
+  summarise(median = median(VALUE)) %>%
+  ggplot(aes(PARAM, median, fill = PARAM)) +
+  geom_col() +
+  facet_wrap(vars(STATION_CODE))
+  
+  
+
+```
+
+
 
 ## 7. Add columns for dry weight and fat    
 DRYWT and FAT_PERC
@@ -335,8 +441,6 @@ if (check2 == 0){
   
 }
 
-
-
 ```
 
 ## 8. Calculate VALUE_WW, VALUE_DW and VALUE_FB  
@@ -356,7 +460,8 @@ dat_new6 <- dat_new6 %>%
       BASIS == "W" ~ VALUE/(FAT_PERC/100),
       BASIS == "D" ~ VALUE*(DRYWT/100)/(FAT_PERC/100),
       BASIS == "F" ~ VALUE)
-    )
+    ) %>%
+  select(-c(BASIS, VALUE, Preferred_unit, Conversion_factor, N_par, QUANTIFICATION_LIMIT))
     
 # Example
 # value_ww = 8, drywt = 50, fatperc = 10
@@ -366,12 +471,43 @@ dat_new6 <- dat_new6 %>%
 ```
 
 ## 9. Add the new data to the old data  
-The variables lacking in dat_new6 are just added with NA values  
+The variables lacking in dat_new6 (length-adjusted data) are just added with NA values  
 ```{r}
+
+data_through_2018 <- data_through_2018 %>%
+  select(-c(Flag_WW, Flag_DW, Flag_FB, Flag_WWa, Flag_DWa, Flag_FBa))
+
+# Check overlap of column names
+if (FALSE){
+  n1 <- names(data_through_2018)
+  n2 <- names(dat_new6)
+  n1[!n1 %in% n2]
+  n2[!n2 %in% n1]
+}
 
 data_updated <- bind_rows(data_through_2018, dat_new6)
 
 ```
+
+
+### Check sum data  
+```{r}
+
+data_updated %>%
+  filter(PARAM %in% "CB_S7" & TISSUE_NAME %in% "Lever" & !is.na(VALUE_WW)) %>%
+  group_by(STATION_CODE) %>%
+  mutate(n_year = length(unique(MYEAR))) %>%
+  filter(n_year > 5 ) %>%
+  group_by(STATION_CODE, TISSUE_NAME, MYEAR) %>%
+  summarise(median = median(VALUE_WW)) %>%
+  ggplot(aes(MYEAR, median, color = STATION_CODE)) +
+  geom_line() +
+  geom_point() + 
+  facet_wrap(vars(STATION_CODE))
+    
+
+```
+
 
 ## 10. Save the data for later use   
 We use the 
@@ -421,6 +557,7 @@ data_updated %>%
   # ...and we feed the result into ggplot for plotting time series:
   ggplot(aes(MYEAR, Median_concentration)) + 
   geom_point() + geom_line() +
+  scale_y_log10() +
   facet_wrap(vars(PARAM), scales = "free_y")  # 'facet_wrap' means 'make one graph for each PARAM'; 'free_y' means 'let the y scale differ between plots'
 
 
