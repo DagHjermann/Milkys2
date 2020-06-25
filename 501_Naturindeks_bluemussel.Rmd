@@ -1,0 +1,137 @@
+---
+title: "501_Naturindeks_bluemussel"
+output: html_document
+---
+
+## Lib
+```{r}
+
+install.packages("writexl")
+library(readxl)
+  library(dplyr)
+library(tidyr)
+
+```
+
+## Data
+```{r}
+files <- dir("Big_excel_table", pattern = "Data_xl_2020.+rds")
+# files
+
+# Pick latest file
+file <- tail(files,1)
+file
+
+# Read
+dat <- readRDS(sprintf("Big_excel_table/%s", file))
+
+# Parameter synonyms
+df_par <- read.csv("Input_data/Lookup for big excel - param.csv", sep = ";", dec = ",", stringsAsFactors = FALSE)
+
+# names(dat)
+```
+
+## Reformat data
+
+### Change PARAM where possible  
+```{r}
+
+# Check which will be changed
+dat %>%
+  count(PARAM, Parameter.Name) %>%
+  filter(!is.na(Parameter.Name) & PARAM != Parameter.Name)
+
+# Change PARAM
+dat <- dat %>%
+  mutate(PARAM = case_when(
+    !is.na(Parameter.Name) & PARAM != Parameter.Name ~ Parameter.Name,
+    TRUE ~ PARAM
+  ))
+
+
+```
+
+
+### Pick rows  
+```{r}
+# names(dat)
+# names(dat)[1:30]
+
+cols1 <- which(names(dat) %in% c("PARAM", "STATION_CODE"))  # used for left_join less-thans 
+cols1b <- which(names(dat) %in% c("Unit", "Long", "Lat", "EQS"))
+
+sel_rows <- dat$LATIN_NAME %in% "Mytilus edulis" & 
+  dat$Basis %in% "WW"
+# & !dat$PARAM %in% c("DRYWT%", "FATPERC")
+
+dat %>%
+  count(PARAM, PARAM) %>%
+  filter(is.na(PARAM))
+
+
+```
+
+### Values
+```{r}
+# Value columns
+x <- which(names(dat) %in% c("Yr_1981","Yr_2019"))
+
+# All columns
+cols2 <- c(cols1, cols1b, seq(x[1], x[2], by = 2))
+
+dat_vals <- dat[sel_rows, cols2] %>%
+  tidyr::pivot_longer(Yr_1981:Yr_2019, names_to = "Year", values_to = "Concentration") %>%
+  mutate(Year = substr(Year, 4,7)) %>%
+  filter(!is.na(Concentration))
+
+```
+
+
+### Less-thans  
+If less than LOQ, divide value by 2
+```{r}
+
+# Find less-than columns (TRUE/FALSE) 
+x <- which(names(dat) %in% c("Lt_1981","Lt_2019"))
+cols2 <- c(cols1, seq(x[1], x[2], by = 2))
+
+# Less-than data
+dat_lt <- dat[sel_rows, cols2] %>%
+  tidyr::pivot_longer(Lt_1981:Lt_2019, names_to = "Year", values_to = "Under_LOQ") %>%
+  mutate(Year = substr(Year, 4,7)) %>%
+  filter(!is.na(Under_LOQ))
+
+head(dat_vals)
+head(dat_lt)
+
+
+```
+
+### Make dat 2  
+```{r}
+dat2 <- dat_vals %>%
+  left_join(dat_lt, by = c("PARAM", "STATION_CODE", "Year"))
+
+dat2 <- dat2 %>%
+  filter(!is.na(Concentration)) %>%
+  mutate(Concentration = 
+           case_when(
+             Under_LOQ ~ Concentration/2,   # If less than LOQ, divide value by 2 
+             !Under_LOQ ~ Concentration
+           )) %>%
+  select(PARAM, EQS, everything()) %>%
+  rename(Substance = PARAM) %>%
+  select(Substance,EQS,STATION_CODE,Long,Lat,Year,Concentration,Unit,Under_LOQ)
+  
+
+```
+
+
+## Skriv til excel  
+```{r}
+
+writexl::write_xlsx(dat2, "Data/501_Naturindex_bluemussel.xlsx")
+
+```
+
+
