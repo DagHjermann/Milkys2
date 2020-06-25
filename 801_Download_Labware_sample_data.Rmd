@@ -6,9 +6,16 @@ output: html_document
 ---
 
 This script reads sample data (including info on pooling of samples etc.) from Nivabasen   
+Produces the R data file **Labware_samples_2019_[date].rds**which is used by scripts  
+- 109_Adjust_for_fish_length.Rmd  
+- 201_Make_big_excel_file.Rmd                 
 
-- __NOTE: This must be done from your personal PC, it doesn't work n Jupyterhub__  
-- Also, you need to prepare by installing an Oracle client and ge a password to Nivabasen (see the readme file for niRvana)  
+- __NOTE: This script must be used on your personal PC, it doesn't work n Jupyterhub!__   
+Prerequsites for this script to work on your PC:  
+- Install 32-bit Oracle client    
+- Get password to Nivabasen from JVE (see the readme file for niRvana)   
+- Install package niRvana (https://github.com/NIVANorge/niRvana)  
+  
   
 
 ## 1. Libraries  
