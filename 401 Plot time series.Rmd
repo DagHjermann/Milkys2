@@ -153,10 +153,10 @@ type <- "line"
 ```{r}
 ymax <- 0.45
 plot_medians_and_trends(c("HG", "Gadus morhua", "Muskel", "23B",  "WW"), 
-                             eqs_type = "line", xlim = c(1984, 2019), ylim = c(0, ymax))
+                             eqs_type = "line", xlim = c(1984, 2020), ylim = c(0, ymax))
 
 plot_medians_and_trends(c("HG", "Gadus morhua", "Muskel", "53B",  "WW"), 
-                             eqs_type = "line", xlim = c(1984, 2019), ylim = c(0, ymax))
+                             eqs_type = "line", xlim = c(1982, 2019), ylim = c(0, ymax))
 
 ```
 
@@ -172,9 +172,18 @@ plot_medians_and_trends(c("HG", "Mytilus edulis", "Whole soft body", "51A",  "WW
                              eqs_type = type, xlim = c(1974, 2019), eqs_x = 1980)
 ```
 
+### Test 4
+```{r}
+# debugonce(plot_medians_and_trends)
+# debugonce(get_plotdata)
+plot_medians_and_trends(c("CB118", "Gadus morhua", "Lever", "30B",  "WW"), 
+                             eqs_type = type, xlim = c(1984, 2019), ylim = c(0, 800))
+
+```
+
 ## 3. Plot to file
 
-### a1. Set type and folder  
+### a. Set type and folder  
 ```{r}
 # Make new folder for storing figures
 # This needs only to be done once, therefore the commands below are commented out
@@ -233,3 +242,129 @@ X <- plot_medians_and_trends(c("ZN", "Gadus morhua", "Lever", "15B",  "WW"),
 save_trendplot(X, folder)
 ```
 
+```{r}
+i <- 23
+```
+
+### c. Plots for Mildir meeting June 2020  
+Make a bunch of plots by going through a bumnch of stations  
+
+#### Functions  
+```{r}
+
+# dir.create("Figures_401/Mildir_June2020")
+
+# Function to make a data frame with one line per time series
+# This contains the info needed to make one time series plot and is used by 'plot_series_number'
+get_parameter_data <- function(df){
+  
+  # Get max value for parameter across stations
+  df_max <- df %>%
+    group_by(LATIN_NAME, TISSUE_NAME, PARAM, Basis) %>%
+    summarise(max_median = max(Median, na.rm = TRUE))
+  
+  # Get stations and parameters
+  parameter_data <- df %>%
+    distinct(STATION_CODE, LATIN_NAME, TISSUE_NAME, PARAM, MYEAR, Basis) %>%
+    group_by(STATION_CODE, LATIN_NAME, TISSUE_NAME, PARAM, Basis) %>%
+    summarise(n_years = n(), min_year = min(MYEAR), max_year = max(MYEAR)) %>%
+    # There must be data in 2019, and there must be at least 6 years of data:
+    filter(max_year == 2019 & n_years >= 6) %>%  
+    # Add an extra column for max value (across station):
+    left_join(df_max)
+  
+  parameter_data
+
+  }
+
+# Function to time series number i, which is line number i 
+# in 'data', which has beeen created using 'get_parameter_data'
+plot_series_number <- function(i, data, folder, save_plot = TRUE, show_plot = FALSE){
+  X <- plot_medians_and_trends(c(data$PARAM[i], data$LATIN_NAME[i], 
+                            data$TISSUE_NAME[i], data$STATION_CODE[i],  data$Basis[i]), 
+                          eqs_type = "line", 
+                          xlim = c(data$min_year[i]-5, 2020),    # Note: years
+                          ylim = c(0, data$max_median[i]*1.15))  # Note: max value across stations + 15%
+  
+  if (save_plot)
+    save_trendplot(X, folder)
+  
+  if (show_plot)
+    print(X)
+}
+
+# Safe version (meaning that if there is an error, we just continue to the next time series)
+plot_series_number_s <- safely(plot_series_number)
+
+# Test
+if (FALSE){
+  pars_cod_ww <- data_med2 %>%
+    filter(STATION_CODE %in% "30B" & Basis == "WW") %>%
+    get_parameter_data()
+  plot_series_number(1, pars_cod_ww, "Figures_401/Mildir_June2020", 
+                     save_plot = FALSE, show_plot = TRUE)
+}
+
+```
+
+#### Some cod stations  
+```{r}
+data_med2 %>%
+  distinct(STATION_CODE, TISSUE_NAME, MYEAR) %>%
+  group_by(STATION_CODE, TISSUE_NAME) %>%
+  summarise(n_years = n(), min_year = min(MYEAR), max_year = max(MYEAR)) %>%
+  arrange(desc(n_years))  
+
+folder <- "Figures_401/Mildir_June2020"
+
+#
+# Not length-adjusted
+#
+pars_cod_ww <- data_med2 %>%
+  filter(STATION_CODE %in% c("23B","30B","36B","53B","15B","13B","28B","43B2") & 
+           Basis == "WW") %>%
+  get_parameter_data()
+
+1:nrow(pars_cod_ww) %>%
+  purrr::walk(plot_series_number_s, data = pars_cod_ww, folder = folder)
+
+#
+# Length-adjusted (metals only)
+#
+pars_cod_wwa <- data_med2 %>%
+  filter(STATION_CODE %in% c("23B","30B","36B","53B","15B","13B","28B","43B2") & 
+           Basis == "WWa" &
+           nchar(PARAM) == 2) %>%
+  get_parameter_data()
+
+1:nrow(pars_cod_wwa) %>%
+  purrr::walk(plot_series_number_s, data = pars_cod_wwa, folder = folder)
+
+```
+#### Some blue mussel stations  
+```{r}
+
+df <- data_med2 %>%
+  filter(LATIN_NAME == "Mytilus edulis") %>%
+  distinct(STATION_CODE, TISSUE_NAME, MYEAR) %>%
+  group_by(STATION_CODE, TISSUE_NAME) %>%
+  summarise(n_years = n(), min_year = min(MYEAR), max_year = max(MYEAR)) %>%
+  arrange(desc(n_years))  %>%
+  filter(max_year == 2019)
+# df
+df$STATION_CODE
+
+folder <- "Figures_401/Mildir_June2020"
+
+#
+# Not length-adjusted, obviously
+#
+pars_mussel_ww <- data_med2 %>%
+  filter(STATION_CODE %in% df$STATION_CODE & 
+           Basis == "WW") %>%
+  get_parameter_data()
+
+1:nrow(pars_mussel_ww) %>%
+  purrr::walk(plot_series_number_s, data = pars_mussel_ww, folder = folder)
+
+```

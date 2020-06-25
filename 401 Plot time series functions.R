@@ -61,11 +61,16 @@
 
 
 plot_medians_and_trends <- function(ser, x_rel = 0.8, y_rel = 0.9, xlim = NULL, ylim = NULL, 
-                                    titlesize = 0.85, ...){
-  X <- get_plotdata(ser[1], ser[2], ser[3], ser[4], ser[5])
+                                    titlesize = 0.85, trend_years = NULL, ...){
+  
+  if (is.null(trend_years) & !is.null(xlim))
+    trend_years <- seq(xlim[1], xlim[2])
+  if (is.null(trend_years) & is.null(xlim))
+    stop("You must supply either xlim or trend_years")
+  X <- get_plotdata(ser[1], ser[2], ser[3], ser[4], ser[5],
+                    trend_years = trend_years)
   start_yr <-  2*floor(min(X$df_data$MYEAR)/2)
-  
-  
+
   # The next is needed because the big excel file for 2018 (made in 2019) uses
   #   English tissue names
   dfbig_tissue <- case_when(
@@ -107,10 +112,11 @@ plot_medians_and_trends <- function(ser, x_rel = 0.8, y_rel = 0.9, xlim = NULL, 
   
   # Find breaks to supply to 'scale_x_continuous'
   yrstep <- case_when(
-    diff(xlim) < 18 ~ 2,
-    diff(xlim) >= 18 ~ 4
+    diff(xlim) < 18 ~ 2,     # show every second year on x axis 
+    diff(xlim) >= 18 ~ 4     # show every fourth year on x axis
   )
   
+  # Years to show on x axis
   breaks <- seq(
     2*ceiling(xlim[1]/2), 
     2*floor(xlim[2]/2), 
@@ -218,6 +224,9 @@ get_plotdata <- function(param, species, tissue = NULL, station, basis = "WW",
   
   # Parameter names (from parameter code)
   paramname <- lookup_params$Param_name[lookup_params$PARAM %in% param]
+  if (length(paramname) == 0){
+    paramname <- param
+  }
   
   # Species ordinary name (from latin name)
   speciesname <- lookup_species$Species_name[lookup_species$LATIN_NAME %in% species]
