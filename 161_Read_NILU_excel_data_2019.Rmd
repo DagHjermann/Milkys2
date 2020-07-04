@@ -1,0 +1,556 @@
+---
+title: "161_Read_NILU_excel_data_2019"
+output: html_document
+---
+
+Note: The excel file needs to be fixed beforehand   
+- The sheets are either   
+    - type 1 (samples in columns, substances in rows) - to be read with read_excel_nilu1  
+    - type 1 (samples in rows, substances in columns) - to be read with read_excel_nilu2  
+- See decriptions and instructions for each of the to types in '161_Read_excel_data_functions.R'   
+- In this case, sheets "HBCD", "PBDE" and "PCB" are of type 1 and the rest are type 2   
+
+
+## 1. Packages and functions
+```{r}
+library(dplyr)
+library(tidyr)
+library(readxl)
+library(ggplot2)
+
+source('161_Read_NILU_excel_data_functions.R')
+source("101_Combine_with_legacy_data_functions.R")  # for sum parameters
+```
+
+## Set year
+```{r}
+
+year <- 2019
+station_code_not_given <- "19N"  # used whenever STATOPN_CODE is not goiven in data
+
+```
+
+
+## Data  
+### Sample data    
+Used to double-check sample numbers (see part 'Checks')  
+```{r}
+
+### Sample data for 2019   
+# We need to have a look at this to fix the siloksan data (which also contains cod) 
+files <- dir("Input_data", "Labware_samples_") %>% rev()
+filename <- files[1] 
+df_samples <- readRDS(paste0("Input_data/", filename))
+
+df_samples_sel <- df_samples %>%
+  filter(grepl("2019", TEXT_ID)) %>%
+  filter(AQUAMONITOR_CODE %in% c("24B","19B","43B2","30B")) %>%   # from looking in "siloksaner" in the Excel file
+  select(AQUAMONITOR_CODE, TEXT_ID, SAMPLE_NUMBER, TISSUE, BIOTA_SAMPLENO, DESCRIPTION) %>%
+  arrange(AQUAMONITOR_CODE, TISSUE, BIOTA_SAMPLENO)
+
+```
+
+### Existing main data  
+ONLY for checking (variable names etc.)  
+Read and reformat the most recent data (by default)  
+Code identical to the code in the start of script 109   
+```{r}
+
+dat_new3 %>% names() %>% dput()
+
+c("MYEAR", "STATION_CODE", "LATIN_NAME", "SAMPLE_NO2", "TISSUE_NAME", 
+"PARAM", "BASIS", "VALUE", "FLAG1", "UNIT")
+
+
+files <- dir("Data", pattern = "101_data_updated") %>% rev()
+
+cat("Reading the last file downloaded:")
+cat("\n", files[1])
+cat("\n")
+cat("If you want to read a different file, replace 'files[1]' with the file you want")
+cat("\n")
+
+filename <- files[1] 
+data_all <- readRDS(paste0("Data/", filename))
+
+# We save the date part of the text (e.g., '2020-04-23')
+# This will be used in part 10, when we save the resulting file
+file_date <- substr(filename, 18, 27)    # pick out the part of the text from character no. 17 to no. 26
+
+```
+
+## Read from excel  
+
+```{r}
+
+filename <- "Input_data/NILU_data_for_2019_korrigert_edited.xlsx"
+sheets <- excel_sheets(filename)
+sheets
+
+# Empty list for data
+dat <- vector("list", length(sheets))
+
+```
+
+### Sheet 1 - PBDE (type 1)  
+```{r, message=FALSE, fig.width = 9, fig.height=6}
+
+# Data 1-2: read_excel_nilu1
+# debugonce(read_excel_nilu1)
+dat[[1]] <- read_excel_nilu1(filename, "PBDE", 
+                             find_upper_top = "sample number", # text to search for in first line of upper part
+                             find_upper_bottom = "file",            # text to search for in last line of upper part
+                             find_lower_top = "structure",          # text to search for in first line of lower part
+                             name_Sample_no_NILU = "NILU-Sample number:",  # Names given in Excel sheet (must fit exactly)
+                             name_NIVA_id = "NIVA-ID",  
+                             name_Tissue = "type:", 
+                             name_Sample_amount = "amount:",
+                             name_Unit = "unit",
+                             lessthans_given_as_negative_number = TRUE) %>%
+  mutate(Group = "PBDE",
+         STATION_CODE = "19N", 
+         BIOTA_SAMPLENO = stringr::str_extract(Label, "[0-9]+") %>% as.numeric())
+
+ggplot(dat[[1]], aes(Parameter, Value)) +
+  geom_boxplot() +
+  facet_wrap(vars(Tissue), nrow = 1, scales = "free_y") +
+  theme(axis.text.x = element_text(angle = -45, hjust = 0))
+
+```
+
+### Check parameter names    
+2,3,3',4,4',5',6-HepBDE occurs twice in the data, with IUPAC-no. 191 and 197   
+From the Polybrominated Diphenyl Ethers EQS dossier 2011 we find that  
+- 2,3,3’,4,4’,5’,6-HepBDE = 191  
+- 2,2’,3,3’,4,4’,6,6’-OctBDE = 197  
+```{r}
+
+dat[[1]] %>%
+  distinct(Parameter, IPUAC_no) %>%
+  group_by(Parameter) %>%
+  mutate(n = n()) %>%
+  filter(n > 1)
+
+sel <- dat[[1]]$IPUAC_no %in% 197
+dat[[1]]$Parameter[sel] <- "2,2’,3,3’,4,4’,6,6’-OctBDE"
+
+cat(sum(sel), "Parameter names corrected \n")
+
+```
+
+
+### Sheet 2 -PCB (type 1)    
+```{r, message=FALSE, fig.width = 9, fig.height=6}
+dat[[2]] <- read_excel_nilu1(filename, "PCB", 
+                             find_upper_top = "sample number", # text to search for in first line of upper part
+                             find_upper_bottom = "file",            # text to search for in last line of upper part
+                             find_lower_top = "structure",          # text to search for in first line of lower part
+                             name_Sample_no_NILU = "NILU-Sample number:",  # Names given in Excel sheet (must fit exactly)
+                             name_NIVA_id = "NIVA-ID",  
+                             name_Tissue = "type:", 
+                             name_Sample_amount = "amount:",
+                             name_Unit = "unit",
+                             lessthans_given_as_negative_number = FALSE) %>%
+  mutate(Group = "PCB",
+         STATION_CODE = "19N", 
+         BIOTA_SAMPLENO = stringr::str_extract(Label, "[0-9]+") %>% as.numeric()) %>%
+  filter(!is.na(Parameter))    # filter away the bottom line in the PCB excel sheet (below Sum 7 PCB)
+
+# head(dat[[2]])
+
+table(addNA(dat[[2]]$Parameter))
+
+ggplot(dat[[2]], aes(Parameter, Value)) +
+  geom_boxplot() +
+  facet_wrap(vars(Tissue), nrow = 1, scales = "free_y") +
+  theme(axis.text.x = element_text(angle = -45, hjust = 0))
+
+```
+
+### Sheet 3 - HBCD (type 1)  
+```{r, message=FALSE, fig.width = 9, fig.height=6}
+
+# debugonce(read_excel_nilu1)
+dat[[3]] <- read_excel_nilu1(filename, "HBCD", 
+                             find_upper_top = "sample number", # text to search for in first line of upper part
+                             find_upper_bottom = "file",            # text to search for in last line of upper part
+                             find_lower_top = "structure",          # text to search for in first line of lower part
+                             name_Sample_no_NILU = "NILU sample number:",  # Names given in Excel sheet (must fit exactly)
+                             name_NIVA_id = "NIVA-ID",  
+                             name_Tissue = "type:", 
+                             name_Sample_amount = "amount:",
+                             name_Unit = "unit",
+                             lessthans_given_as_negative_number = TRUE) %>%
+  mutate(Group = "HBCD",
+         STATION_CODE = "19N",
+         BIOTA_SAMPLENO = stringr::str_extract(Label, "[0-9]+") %>% as.numeric())
+
+# count(dat[[3]], Unit)
+# dat[[3]] %>% filter(is.na(Unit))
+
+# head(dat[[3]])
+
+
+ggplot(dat[[3]], aes(Parameter, Value)) +
+  geom_boxplot() +
+  facet_wrap(vars(Tissue), nrow = 1, scales = "free_y") +
+  theme(axis.text.x = element_text(angle = -45, hjust = 0))
+
+```
+
+### Sheet 4 - Chlorinated paraffins (type 2)     
+```{r, message=FALSE, fig.width = 9, fig.height=6}
+
+dat[[4]] <- read_excel_nilu2(filename, 
+                             "CP", 
+                             lessthans_given_as_negative_number = TRUE) %>%
+  mutate(Group = "Chlorinated paraffins",
+         STATION_CODE = "19N")
+head(dat[[4]])
+
+ggplot(dat[[4]], aes(Parameter, Value)) +
+  geom_boxplot() +
+  facet_wrap(vars(Tissue), nrow = 1, scales = "free_y") +
+  theme(axis.text.x = element_text(angle = -45, hjust = 0))
+
+
+```
+
+### Sheet 5 - Siloxans (type 2)    
+```{r, message=FALSE, fig.width = 9, fig.height=6}
+
+dat[[5]] <- read_excel_nilu2(filename, 
+                             "siloksaner", 
+                             lessthans_given_as_negative_number = TRUE) %>%
+  mutate(Group = "Siloxans")
+# head(dat[[5]])
+
+```
+
+
+### Sheet 5: add STATION_CODE + sample no variables for cod (siloxans) 
+```{r, fig.width = 9, fig.height=6}
+
+# STATION_CODE
+# Show part of "Label" between first and second space (space = \\s)
+# dat[[5]]$Label %>% stringr::str_extract("(?<=\\s)[^\\s]+(?=\\s)") %>% table()
+
+dat[[5]] <- dat[[5]] %>%
+  # Add STATION_CODE
+  mutate(STATION_CODE = stringr::str_extract(Label, "(?<=\\s)[^\\s]+(?=\\s)")) %>%
+  mutate(STATION_CODE = sub("-", "", STATION_CODE)) %>% # View()
+  mutate(STATION_CODE = case_when(
+    is.na(STATION_CODE) & grepl("Ærfugl", Label) ~ "19N", 
+    !is.na(STATION_CODE) ~ STATION_CODE)
+    ) %>%
+  # Add sample number 
+  mutate(BIOTA_SAMPLENO = stringr::str_extract(Label, "(?<=\\s)[^\\s]+(?=$)") %>% as.numeric())
+
+# head(dat[[5]])
+# mutate(STATION_CODE = sub("-", "", STATION_CODE)) %>%
+  
+
+xtabs(~addNA(BIOTA_SAMPLENO) + addNA(STATION_CODE), dat[[5]])
+
+ggplot(dat[[5]], aes(Parameter, Value)) +
+  geom_boxplot() +
+  facet_wrap(vars(Tissue), nrow = 1, scales = "free_y")
+
+```
+
+### Sheet 6 - Fat (type 2)    
+```{r, message=FALSE, fig.width = 4, fig.height=4}
+dat[[6]] <- read_excel_nilu2(filename, 
+                             "Fett %", 
+                             lessthans_given_as_negative_number = FALSE) %>%
+  filter(Parameter != "Comments") %>%
+  mutate(Group = "Fat",
+         STATION_CODE = "19N")
+
+# Remove one very high value (also see comment in sheet)
+sel <- dat[[6]]$Tissue == "Ærfuglblod" & dat[[6]]$Value > 0.7; sum(sel)
+dat[[6]]$Value[sel] <- NA
+
+cat(sum(sel), "value(s) deleted for being very high \n")
+
+# head(dat[[6]])
+# dat[[6]] %>% View()
+
+ggplot(dat[[6]], aes(Tissue, Value)) +
+  geom_boxplot()
+
+```
+
+
+## Combine data  
+
+#### Standardize NIVA_ID
+Change NILU ID so they conform with Nivabase:
+- NILU:     NIVA_ID   "Nr. 2018-09655"  
+- Labware;  TEXT_ID     "NR-2018-09676"
+```{r}
+
+xtabs(~NIVA_ID, dat[[4]])[1:5]
+
+for (i in 1:length(dat)){
+  dat[[i]] <- dat[[i]] %>%
+    mutate(TEXT_ID = sub(".*Nr.+ +", "NR-", NIVA_ID)) %>%
+    mutate(TEXT_ID = sub("Nr", "NR", TEXT_ID)) %>%
+    mutate(TEXT_ID = sub("NR.", "NR-", TEXT_ID, fixed = TRUE)) %>%
+    mutate(TEXT_ID = sub("NR ", "NR-", TEXT_ID, fixed = TRUE)) %>%
+    mutate(TEXT_ID = sub(" *2019", "2019", TEXT_ID)) %>%            # note: year-specific!
+    mutate(TEXT_ID = sub("2019-", "2019-0", TEXT_ID, fixed = TRUE))             # note: year-specific!
+}
+
+xtabs(~TEXT_ID, dat[[4]])[1:5]
+
+```
+
+### Add BIOTA_SAMPLENO to data set 4 and 6   
+```{r}
+
+# check
+if (FALSE){
+  dat[[1]]$TEXT_ID %>% unique() 
+  dat[[4]]$TEXT_ID %>% unique() 
+}
+
+lookup_BIOTA_SAMPLENO <- dat[[1]] %>%
+  distinct(TEXT_ID, BIOTA_SAMPLENO)
+
+# Should be zero!
+n <- lookup_BIOTA_SAMPLENO %>%
+  count(TEXT_ID) %>%
+  filter(n > 1) %>%
+  nrow()
+
+if (n > 0)
+  cat("WARNING! Some NIVA_ID have more thank one BIOTA_SAMPLENO! \n")
+
+dat[[4]] <- dat[[4]] %>%
+  left_join(lookup_BIOTA_SAMPLENO, by = "TEXT_ID")
+
+dat[[6]] <- dat[[6]] %>%
+  left_join(lookup_BIOTA_SAMPLENO, by = "TEXT_ID")
+
+
+```
+
+
+### Combine data 
+```{r}
+
+# Check column types  
+get_coltypes <- function(dataframe){
+  df <- dataframe %>% purrr::map_chr(class) %>% matrix(nrow = 1) %>% as.data.frame(stringsAsFactors = FALSE)
+  colnames(df) <- colnames(dataframe)
+  df
+}
+# get_coltypes(dat[[1]])
+dat %>% purrr::map_df(get_coltypes)
+
+#
+# Combine data 1-6
+#
+dat_nilu1 <- bind_rows(dat)
+
+#
+# Save at this stage
+#
+saveRDS(dat_nilu1, "Data/161_data_nilu_niluformat.rds")
+
+
+```
+
+## Checks 
+
+### Check that we have STATION_CODE and BIOTA_SAMPLENO for all     
+```{r}
+
+xtabs(~is.na(STATION_CODE) + Group, dat_nilu1)
+xtabs(~is.na(BIOTA_SAMPLENO) + Group, dat_nilu1)
+
+```
+
+### Check that we have one measurement per sample and parameter  
+```{r}
+
+df_check <- dat_nilu1 %>%
+  count(STATION_CODE, Tissue, BIOTA_SAMPLENO, Parameter) %>%
+  filter(n > 1)
+n <- nrow(df_check)
+
+if (n > 0){
+  cat("We have", n , "cases with more than one measurement per sample and parameter! Check 'df_check'!")
+}
+
+```
+
+
+### Check sample numbers using 'df_samples'        
+
+```{r}
+
+df_check <- dat_nilu1 %>%
+  left_join(df_samples %>% 
+              select(TEXT_ID, BIOTA_SAMPLENO) %>% 
+              rename(BIOTA_SAMPLENO_sample = BIOTA_SAMPLENO),
+            by = "TEXT_ID") %>%
+  filter(BIOTA_SAMPLENO_sample != BIOTA_SAMPLENO) 
+
+n <- nrow(df_check)
+
+if (n > 0){
+  cat("We have", n , "cases where BIOTA_SAMPLENO does not fit with NIVA's sample data! Check 'df_check'!")
+}
+
+```
+
+
+## Make data ready for joining to rest of data  
+  
+Desired format:  
+```
+head(dat_new3, 3)
+  MYEAR STATION_CODE LATIN_NAME   SAMPLE_NO2 TISSUE_NAME PARAM  BASIS VALUE FLAG1 UNIT   
+  <dbl> <chr>        <chr>             <dbl> <chr>       <chr>  <chr> <dbl> <chr> <chr>  
+1  2019 15B          Gadus morhua          1 Lever       BD153  W     1.9   NA    UG_P_KG
+2  2019 15B          Gadus morhua          1 Lever       BDE100 W     8     NA    UG_P_KG
+3  2019 15B          Gadus morhua          1 Lever       CB157  W     0.029 NA    UG_P_KG
+```
+
+
+###  Units and tissues 
+```{r}
+
+# xtabs(~Unit, dat_nilu)
+# xtabs(~UNIT, df_2018)  # df_2018 from script 01!
+
+# Parameter UNIT added (old "Unit" is kept)
+dat_nilu2 <- nilu_fix_units(dat_nilu1)
+
+dat_nilu2 %>%
+  count(Unit, UNIT)
+
+# FOR check, in case there are cases with unit = NA
+# dat_nilu2 %>%
+#   filter(is.na(UNIT))
+
+# xtabs(~Unit + UNIT, dat_nilu2)
+
+# Not relevant this year - no HG data:
+# dat_nilu2 <- nilu_fix_hg_unit(dat_nilu2)
+  
+cat("Number of NA values for UNIT: \n")
+sum(is.na(dat_nilu2$UNIT))  # SHOULD BE ZERO
+
+# Parameter TISSUE_NAME added (old "Tissue" is kept)
+dat_nilu2 <- nilu_fix_tissue(dat_nilu2)
+
+cat("\n Number of NA values for TISSUE_NAME: \n")
+sum(is.na(dat_nilu2$TISSUE_NAME))  # SHOULD BE ZERO
+
+# FOR check, in case there are cases with TISSUE_NAME = NA
+# dat_nilu2 %>%
+#   filter(is.na(TISSUE_NAME))
+
+cat("\n Number of rows: \n")
+nrow(dat_nilu2)  # 2610
+
+
+```
+
+### Parameters (PARAM)   
+Originally Parameter, we set PARAM here ('Parameter' is kept)
+```{r}
+dat_nilu3 <- dat_nilu2
+dat_nilu3$PARAM <- ""                        # Create PARAM
+dat_nilu3 <- nilu_param_pcb_pbde(dat_nilu3)   # Set PARAM for PBCs and PBDEs (using IPUAC nr)
+dat_nilu3 <- nilu_param(dat_nilu3)            # Set PARAM for the most of the rest
+
+# Finally, Sum PCB
+sel <- dat_nilu3$Parameter %in% "Sum 7 PCB"; sum(sel)
+dat_nilu3$PARAM[sel] <- "CB_S7"
+
+# All parameters
+# dat_nilu3 %>% count(Parameter, PARAM) %>% View()
+
+# Check remaining missing PARAM
+dat_nilu3 %>% filter(PARAM == "") %>% count(Parameter, PARAM)    # none
+dat_nilu3 %>% filter(is.na(PARAM)) %>% count(Parameter, PARAM)   # the rest we can drop
+
+```
+
+#### Filter data for PARAM  
+I.e., remove LOQ and the PCB sums  
+```{r}
+
+dat_nilu3 <- dat_nilu3 %>% filter(!is.na(PARAM))
+
+```
+
+
+### Make ready for adding data to the rest of the data   
+- Will be added in script 101 after section 4 - to 'dat_new3'  
+- Add MYEAR, STATION_CODE, LATIN_NAME, BASIS   
+- 
+```{r}
+
+dat_nilu4 <- dat_nilu3 %>%
+  mutate(MYEAR = year,
+         STATION_CODE = case_when(
+           !is.na(STATION_CODE) ~ STATION_CODE,
+           is.na(STATION_CODE) ~ station_code_not_given            # assume that all that isn't cod, is 
+         ),
+         LATIN_NAME = case_when(
+           STATION_CODE %in% "19N" ~ "Somateria mollisima",
+           TRUE ~ "Gadus morhua"
+         ),
+         BASIS = "W"
+  ) %>%
+  rename(SAMPLE_NO2 = BIOTA_SAMPLENO,
+         VALUE = Value)
+
+```
+
+
+```{r}
+
+needed_variables <- c("MYEAR", "STATION_CODE", "LATIN_NAME", "SAMPLE_NO2", "TISSUE_NAME", 
+                      "PARAM", "BASIS", "VALUE", "FLAG1", "UNIT")
+
+dat_nilu4[needed_variables]
+```
+
+```{r}
+
+dat_nilu1 %>%
+  xtabs(~addNA(Parameter), .)
+dat_nilu3 %>%
+  xtabs(~addNA(Parameter), .)
+
+dat_nilu4 %>%
+  xtabs(~addNA(PARAM), .)
+```
+
+
+## Test adding nilu data to original data   
+
+### Check column names  
+NILU data vs original data  
+```{r}
+
+n1 <- names(dat_nilu7)
+n2 <- names(data_all)
+n2[!n2 %in% n1]
+
+
+```
+
+## Save  
+```{r}
+
+saveRDS(dat_nilu7, "Data/161_data_nilu_nivaformat.rds")
+
+```
+

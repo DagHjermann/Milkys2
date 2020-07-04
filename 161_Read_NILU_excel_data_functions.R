@@ -15,7 +15,7 @@ library(readxl)
 #
 # Column 1: 
 #   upper part: "NILU-Sample number:" etc.
-#   lower part: compund names
+#   lower part: compound names
 #
 # Column 2: 
 #   upper part: empty
@@ -32,62 +32,70 @@ get_value_with_lessthansign <- function(txt){
   i1 <- ifelse(lessthan, 2, 1)
   i2 <- nchar(txt)
   list(
-    Flag1 = ifelse(lessthan, "<", NA),
+    FLAG1 = ifelse(lessthan, "<", NA),
     Value = as.numeric(substr(txt, i1, i2))
   )
 }
 # get_value_with_lessthansign(c("2.45", "<3.5", "8.1", "< 10.1"))
 
 read_excel_nilu1 <- function(filename, sheetname,
-                            lessthans_given_as_negative_number, 
-                            find_upper_top = "NILU-sample number", # text to search for in first line of upper part
-                            find_upper_bottom = "file",            # text to search for in last line of upper part
-                            find_lower_top = "structure",          # text to search for in first line of lower part
-                            name_Sample_no_NILU = "NILU-Sample number:",  # Names given in EXcle sheet (must fit exactly)
-                            name_Sample_no = "Customers sample ID:",  
-                            name_Tissue = "Sample type:", 
-                            name_Sample_amount = "Sample amount:",
-                            name_Unit = "Concentration units:"
-                            ){
+                             lessthans_given_as_negative_number, 
+                             find_upper_top = "NILU-sample number", # text to search for in first line of upper part
+                             find_upper_bottom = "file",            # text to search for in last line of upper part
+                             find_lower_top = "structure",          # text to search for in first line of lower part
+                             name_Sample_no_NILU = "NILU-Sample number:",  # Example: 20/0813
+                             name_NIVA_id = "NIVA-ID",                     # Example: Nr. 2019-8466  
+                             name_Label = "label",                         # Example: Breøyane Pr.1
+                             name_Tissue = "Sample type:",                 # Example: Ærfugl egg
+                             name_Sample_amount = "Sample amount:",        # Example: 1,00
+                             name_Unit = "Concentration units:"            # Example: ng/g
+){
   # Info for user
   cat("\nReading file: ", filename, "\n")
   cat("Sheet: ", sheetname, "\n")
-
+  
   # Test read used to set row numbers ----
   test_read <- read_excel(filename, sheet = sheetname, 
                           col_names = FALSE, col_types = "text")
   
   # upper part
-  row1a <- grep(find_upper_top, test_read$X__1, ignore.case = TRUE)
-  row1b <- grep(find_upper_bottom, test_read$X__1, ignore.case = TRUE)
+  row1a <- grep(find_upper_top, test_read[[1]], ignore.case = TRUE); if (length(row1a) == 0) stop(paste(sQuote(find_upper_top), "not found"))
+  row1b <- grep(find_upper_bottom, test_read[[1]], ignore.case = TRUE); if (length(row1b) == 0) stop(paste(sQuote(find_upper_bottom), "not found"))
+  
   # lower part
-  row2 <- grep(find_lower_top, test_read$X__1, ignore.case = TRUE)
+  row2 <- grep(find_lower_top, test_read[[1]], ignore.case = TRUE); if (length(row2) == 0) stop(paste(sQuote(find_lower_top), "not found"))
   #
   # Upper part ----
   #
   dat_upper <- read_excel(filename, sheet = sheetname, 
                           skip = row1a - 1, n_max = row1b - row1a + 1, col_names = FALSE, col_types = "text")
-  row_sampleno <- grep(name_Sample_no, dat_upper$X__1, ignore.case = TRUE)
+  row_sampleno <- grep(name_NIVA_id, dat_upper[[1]], ignore.case = TRUE)
   sample_no <- dat_upper[row_sampleno,] %>% as.data.frame() %>% .[,3:ncol(dat_upper)]
   
   # Swap rows and columns
-  dat_meta <- dat_upper %>% select(-X__2) %>% as.matrix() %>% t() %>% .[-1,]
+  #dat_meta <- dat_upper %>% select(-X__2) %>% as.matrix() %>% t() %>% .[-1,]
+  dat_meta <- dat_upper[,-2] %>% as.matrix() %>% t() %>% .[-1,]
   dat_meta[1:5,]
   dat_meta <- data.frame(dat_meta, stringsAsFactors = FALSE)
-  colnames(dat_meta) <- dat_upper$X__1
+  colnames(dat_meta) <- dat_upper[[1]]
+  
+  if (sum(is.na(names(dat_meta))) > 0)
+    stop(paste0("There should be no empty cells in the top part of column 1 (between row ", row1a, " and ", row1b, ")"))
   
   # Change names for the columns we will use
-  # dput(dat_upper$X__1)
+  # dput(dat_upper[[1]])
   
-  sel <- colnames(dat_meta) %in% name_Sample_no_NILU; if (sum(sel)==0) stop(paste(name_Sample_no_NILU,"not found"))
+  sel <- grepl(name_Sample_no_NILU, colnames(dat_meta), ignore.case = TRUE); if (sum(sel) != 1) stop(paste(name_Sample_no_NILU,"not found or found > 1"))
   colnames(dat_meta)[sel] <- "Sample_no_NILU"
-  sel <- colnames(dat_meta) %in% name_Sample_no; if (sum(sel)==0) stop(paste(name_Sample_no,"not found"))
-  colnames(dat_meta)[sel] <- "Sample_no"
-  sel <- colnames(dat_meta) %in% name_Tissue; if (sum(sel)==0) stop(paste(name_Tissue,"not found"))
+  sel <- grepl(name_NIVA_id, colnames(dat_meta), ignore.case = TRUE); if (sum(sel) != 1) stop(paste(name_NIVA_id,"not found or found > 1"))
+  colnames(dat_meta)[sel] <- "NIVA_ID"
+  sel <- grepl(name_Label, colnames(dat_meta), ignore.case = TRUE); if (sum(sel) != 1) stop(paste(name_Label,"not found or found > 1"))
+  colnames(dat_meta)[sel] <- "Label"
+  sel <- grepl(name_Tissue, colnames(dat_meta), ignore.case = TRUE); if (sum(sel) != 1) stop(paste(name_Tissue,"not found or found > 1"))
   colnames(dat_meta)[sel] <- "Tissue"
-  sel <- colnames(dat_meta) %in% name_Sample_amount; if (sum(sel)==0) stop(paste(name_Sample_amount,"not found"))
+  sel <- grepl(name_Sample_amount, colnames(dat_meta), ignore.case = TRUE); if (sum(sel) != 1) stop(paste(name_Sample_amount,"not found or found > 1"))
   colnames(dat_meta)[sel] <- "Sample_amount"
-  sel <- colnames(dat_meta) %in% name_Unit; if (sum(sel)==0) stop(paste(name_Unit,"not found"))
+  sel <- grepl(name_Unit, colnames(dat_meta), ignore.case = TRUE); if (sum(sel) != 1) stop(paste(name_Unit,"not found or found > 1"))
   colnames(dat_meta)[sel] <- "Unit"
   
   #
@@ -100,33 +108,33 @@ read_excel_nilu1 <- function(filename, sheetname,
   
   dat_meta <- dat_meta %>%
     as_tibble() %>%
-    select(Sample_no_NILU, Sample_no, Tissue, Sample_amount, Unit)
-    
+    select(Sample_no_NILU, NIVA_ID, Label, Tissue, Sample_amount, Unit)
+  
   # Restructure data
   dat_result <- dat_lower %>% 
-    gather("Sample_no", "Value", -c(Parameter, IPUAC_no)) %>%
-    left_join(dat_meta, by = "Sample_no") %>%
-    mutate(IPUAC_no = as.numeric(IPUAC_no))
+    gather("NIVA_ID", "Value", -c(Parameter, IPUAC_no)) %>%
+    left_join(dat_meta, by = "NIVA_ID") %>%
+    mutate(IPUAC_no = as.numeric(IPUAC_no)) 
   
   # Set LOQ flag
   if (lessthans_given_as_negative_number){
     dat_result <- dat_result %>%
       mutate(Value = as.numeric(Value)) %>% 
-      mutate(Flag1 = ifelse(Value < 0, "<", NA)) %>%
+      mutate(FLAG1 = ifelse(Value < 0, "<", NA)) %>%
       mutate(Value = ifelse(Value < 0, -Value, Value)
       )
   } else {   # given with less-than sign
     resultlist <- get_value_with_lessthansign(dat_result$Value)
     dat_result <- dat_result %>%
-      mutate(Flag1 = resultlist$Flag1,
+      mutate(FLAG1 = resultlist$FLAG1,
              Value = resultlist$Value
       )
   }
   cat("Returning", nrow(dat_result), "rows of data\n")
   dat_result %>% 
     mutate(Sample_amount = as.numeric(Sample_amount)) %>%
-    select(Sample_no_NILU, Sample_no, Tissue, Sample_amount, Parameter, IPUAC_no, Value, Unit, Flag1)
-  } 
+    select(Sample_no_NILU, NIVA_ID, Label, Tissue, Sample_amount, Parameter, IPUAC_no, Value, Unit, FLAG1)
+} 
 
 # TEST
 # debugonce(read_excel_nilu1)
@@ -143,63 +151,55 @@ read_excel_nilu1 <- function(filename, sheetname,
 # read_excel_nilu2 - reads excel data where 
 #   1) there is one compound per column, and one sample per row
 #   2) there are two lines at the top, the first one with name of compound, the second with units
-#   3) the first 3 columns are 1) NILU's sample ID, 2) NIVA's sample ID, and 3) Type of tissue
-#   4) Column 4 is either "sample amount" (set contains_sample_amount = TRUE), or 
-#      the first column of data (set contains_sample_amount = FALSE)
+#   3) the first 5 columns must have these EXACT names:
+#      "Sample_no_NILU, NIVA_ID, Tissue, Label, Sample_amount"
+#       1) NILU's sample ID (may be lacking for cod samples)
+#       2) NIVA's sample ID (may be lacking for cod samples) 
+#       3) Type of tissue
+#       4) Label (if applicable)
+#       5) Weight of sample (if applicable)
+#   6) Column 6  is the first column of data
 #
 
 read_excel_nilu2 <- function(filename, sheetname, 
                              lessthans_given_as_negative_number, 
-                             contains_sample_amount,
                              skip = 0){
   # Info for user
   cat("\nReading file: ", filename, "\n")
   cat("Sheet: ", sheetname, "\n\n")
-
+  
   # Read file parts
   dat_upper <- read_excel(filename, sheet = sheetname, skip = skip, n_max = 1)
   dat_result <- read_excel(filename, sheet = sheetname, skip = skip + 1)
-
+  
   # Add column names (some will later be values of Parameter)
   colnames(dat_result) <- colnames(dat_upper)
-
-  # Change the 3 or 4 first column names (hard-coded!)
-  if (contains_sample_amount){
-    colnames(dat_result)[1:4] <- c("Sample_no_NILU", "Sample_no", "Tissue", "Sample_amount")
-    cat("Changing variable names - check that old and new names correspond:\n")
-    examples <- dat_result[1:3, 1:4] %>% purrr::map_chr(paste, collapse = ", ")
-    tibble(`Original name` = colnames(dat_upper)[1:4], `New name` = colnames(dat_result)[1:4], Example = examples) %>% print()
-    dat_result <- dat_result %>% mutate(Sample_amount = as.numeric(Sample_amount))
-  }  else {
-    colnames(dat_result)[1:3] <- c("Sample_no_NILU", "Sample_no", "Tissue")
-    cat("Changing variable names - check that old and new names correspond:\n")
-    examples <- dat_result[1:3, 1:3] %>% purrr::map_chr(paste, collapse = ", ")
-    tibble(`Original name` = colnames(dat_upper)[1:3], `New name` = colnames(dat_result)[1:3], Example = examples) %>% print()
-    dat_result <- dat_result %>% mutate(Sample_amount = NA)
-  }
+  
   # Restructure data
   dat_result <- dat_result %>%
-    gather("Parameter", "Value", -c(Sample_no_NILU, Sample_no, Tissue, Sample_amount))
+    gather("Parameter", "Value", -c(Sample_no_NILU, NIVA_ID, Tissue, Label, Sample_amount))
+
   # Set LOQ flag
   if (lessthans_given_as_negative_number){
     dat_result <- dat_result %>%
       mutate(Value = as.numeric(Value)) %>% 
-      mutate(Flag1 = ifelse(Value < 0, "<", NA)) %>%
+      mutate(FLAG1 = ifelse(Value < 0, "<", NA)) %>%
       mutate(Value = ifelse(Value < 0, -Value, Value)
       )
   } else {   # given with less-than sign
     resultlist <- get_value_with_lessthansign(dat_result$Value)
     dat_result <- dat_result %>%
-      mutate(Flag1 = resultlist$Flag1,
+      mutate(FLAG1 = resultlist$FLAG1,
              Value = resultlist$Value
       )
   }
   dat_unit <- tibble(Parameter = colnames(dat_upper), Unit = as.character(as.data.frame(dat_upper)[1,]))
   dat_result <- dat_result %>% 
     left_join(dat_unit, by = "Parameter") %>%
-    mutate(IPUAC_no = NA)
+    mutate(IPUAC_no = NA,
+           Label = as.character(Label))
   cat("\nReturning", nrow(dat_result), "rows of data\n")
-  dat_result %>% select(Sample_no_NILU, Sample_no, Tissue, Sample_amount, Parameter, IPUAC_no, Value, Unit, Flag1)
+  dat_result %>% select(Sample_no_NILU, NIVA_ID, Tissue, Label, Sample_amount, Parameter, IPUAC_no, Value, Unit, FLAG1)
 }
 
 # TEST
@@ -237,13 +237,17 @@ nilu_fix_hg_unit <- function(df){
   df$Value[sel] <- df$Value[sel]/1000
   cat("Hg unit changed from ug/kg to mg/kg for", sum(sel), "records\n")
   df
-  }
- 
+}
+
 
 nilu_fix_tissue <- function(df){
   df_tissue <- tibble(
-    Tissue = c("Ærfugl blod", "Ærfugl egg", "Ærfuglblod", "Ærfuglegg", "Torskelever", "Torskefilet"),
-    TISSUE_NAME = c("Blod", "Egg", "Blod", "Egg", "Lever", "Muskel")
+    Tissue = c("Ærfugl blod", "Ærfugl egg", 
+               "Ærfuglblod", "Ærfuglegg", 
+               "Torskelever", "Torskefilet"),
+    TISSUE_NAME = c("Blod", "Egg homogenate of yolk and albumin", 
+                    "Blod", "Egg homogenate of yolk and albumin", 
+                    "Lever", "Muskel")
   )
   df %>% left_join(df_tissue, by = "Tissue")
 }
@@ -267,17 +271,19 @@ nilu_param <- function(df){
                   "202  Hg  [ No Gas ]", "208  Pb  [ No Gas ]", "52  Cr  [ He ]", 
                   "59  Co  [ He ]", "60  Ni  [ He ]",  "63  Cu  [ He ]",
                   "66  Zn  [ He ]", "75  As  [ He ]",
-                  "a-HBCD", "b-HBCD", "g-HBCD", 
+                  "a-HBCD", "b-HBCD", "g-HBCD",
+                  "TBA",
                   "MCCP", "SCCP", "HCB",
-                  "Fett %",
+                  "Fett %", "FAT_PERC",
                   "D4","D5","D6"),
     PARAM_new = c("AG", "CD", "SN",
                   "HG", "PB", "CR",
                   "CO", "NI", "CU",
                   "ZN", "AS",
+                  "TBA",
                   "HBCDA", "HBCDB", "HBCDG",
                   "MCCP", "SCCP", "HCB",
-                  "Fett",
+                  "Fett", "Fett", 
                   "D4","D5","D6")
   )
   
