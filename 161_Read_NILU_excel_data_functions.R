@@ -4,7 +4,7 @@ library(tidyr)
 library(readxl)
 
 #
-# read_excel_nilu1 - reads excel data where 
+# read_excel_nilu1 - reads excel data where samples are in columns, substances in rows
 #   1) there is one sample per column, adnd one compund per row
 #   2) there is a top "block" of "metadata" ("upper part"), and a main "block" of consentrations
 #
@@ -148,7 +148,8 @@ read_excel_nilu1 <- function(filename, sheetname,
 
 #o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
 #
-# read_excel_nilu2 - reads excel data where 
+# read_excel_nilu2 - reads excel data where samples in rows, substances in columns
+#
 #   1) there is one compound per column, and one sample per row
 #   2) there are two lines at the top, the first one with name of compound, the second with units
 #   3) the first 5 columns must have these EXACT names:

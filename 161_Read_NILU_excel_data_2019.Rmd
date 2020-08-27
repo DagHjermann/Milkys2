@@ -2,11 +2,15 @@
 title: "161_Read_NILU_excel_data_2019"
 output: html_document
 ---
+  
+Reading data from Excel sheets from NILU  
+- Mostly eider duck (egg and blood) - in the case of siloxans, also cod data    
 
-Note: The excel file needs to be fixed beforehand   
+  
+NOTE: The excel file needs to be fixed beforehand!   
 - The sheets are either   
     - type 1 (samples in columns, substances in rows) - to be read with read_excel_nilu1  
-    - type 1 (samples in rows, substances in columns) - to be read with read_excel_nilu2  
+    - type 2 (samples in rows, substances in columns) - to be read with read_excel_nilu2  
 - See decriptions and instructions for each of the to types in '161_Read_excel_data_functions.R'   
 - In this case, sheets "HBCD", "PBDE" and "PCB" are of type 1 and the rest are type 2   
 
@@ -22,7 +26,7 @@ source('161_Read_NILU_excel_data_functions.R')
 source("101_Combine_with_legacy_data_functions.R")  # for sum parameters
 ```
 
-## Set year
+## 2. Set year and station (for eider duck)
 ```{r}
 
 year <- 2019
@@ -31,7 +35,7 @@ station_code_not_given <- "19N"  # used whenever STATOPN_CODE is not goiven in d
 ```
 
 
-## Data  
+## 3. Data  
 ### Sample data    
 Used to double-check sample numbers (see part 'Checks')  
 ```{r}
@@ -79,7 +83,7 @@ file_date <- substr(filename, 18, 27)    # pick out the part of the text from ch
 
 ```
 
-## Read from excel  
+## 4. Read from excel  
 
 ```{r}
 
@@ -139,7 +143,7 @@ cat(sum(sel), "Parameter names corrected \n")
 ```
 
 
-### Sheet 2 -PCB (type 1)    
+### Sheet 2 - PCB (type 1)    
 ```{r, message=FALSE, fig.width = 9, fig.height=6}
 dat[[2]] <- read_excel_nilu1(filename, "PCB", 
                              find_upper_top = "sample number", # text to search for in first line of upper part
@@ -199,6 +203,7 @@ ggplot(dat[[3]], aes(Parameter, Value)) +
 ```
 
 ### Sheet 4 - Chlorinated paraffins (type 2)     
+BIOTA_SAMPLENO is added late (part 5)  
 ```{r, message=FALSE, fig.width = 9, fig.height=6}
 
 dat[[4]] <- read_excel_nilu2(filename, 
@@ -217,6 +222,7 @@ ggplot(dat[[4]], aes(Parameter, Value)) +
 ```
 
 ### Sheet 5 - Siloxans (type 2)    
+Siloxans are special since they also contain cod data  
 ```{r, message=FALSE, fig.width = 9, fig.height=6}
 
 dat[[5]] <- read_excel_nilu2(filename, 
@@ -259,6 +265,7 @@ ggplot(dat[[5]], aes(Parameter, Value)) +
 ```
 
 ### Sheet 6 - Fat (type 2)    
+BIOTA_SAMPLENO is added late (part 5)  
 ```{r, message=FALSE, fig.width = 4, fig.height=4}
 dat[[6]] <- read_excel_nilu2(filename, 
                              "Fett %", 
@@ -282,7 +289,7 @@ ggplot(dat[[6]], aes(Tissue, Value)) +
 ```
 
 
-## Combine data  
+## 5. Combine data  
 
 #### Standardize NIVA_ID
 Change NILU ID so they conform with Nivabase:
@@ -362,7 +369,7 @@ saveRDS(dat_nilu1, "Data/161_data_nilu_niluformat.rds")
 
 ```
 
-## Checks 
+## 6. Checks 
 
 ### Check that we have STATION_CODE and BIOTA_SAMPLENO for all     
 ```{r}
@@ -407,7 +414,7 @@ if (n > 0){
 ```
 
 
-## Make data ready for joining to rest of data  
+## 7. Make data ready for joining to rest of data  
   
 Desired format:  
 ```
@@ -493,7 +500,7 @@ dat_nilu3 <- dat_nilu3 %>% filter(!is.na(PARAM))
 ### Make ready for adding data to the rest of the data   
 - Will be added in script 101 after section 4 - to 'dat_new3'  
 - Add MYEAR, STATION_CODE, LATIN_NAME, BASIS   
-- 
+- Also change variable names  
 ```{r}
 
 dat_nilu4 <- dat_nilu3 %>%
@@ -513,44 +520,27 @@ dat_nilu4 <- dat_nilu3 %>%
 
 ```
 
+## 8. Save  
 
+### Check before save
 ```{r}
 
 needed_variables <- c("MYEAR", "STATION_CODE", "LATIN_NAME", "SAMPLE_NO2", "TISSUE_NAME", 
                       "PARAM", "BASIS", "VALUE", "FLAG1", "UNIT")
 
-dat_nilu4[needed_variables]
-```
+# If you want to view the data manually:  
+# dat_nilu4[needed_variables] %>% View()
 
-```{r}
-
-dat_nilu1 %>%
-  xtabs(~addNA(Parameter), .)
-dat_nilu3 %>%
-  xtabs(~addNA(Parameter), .)
-
-dat_nilu4 %>%
-  xtabs(~addNA(PARAM), .)
-```
-
-
-## Test adding nilu data to original data   
-
-### Check column names  
-NILU data vs original data  
-```{r}
-
-n1 <- names(dat_nilu7)
-n2 <- names(data_all)
-n2[!n2 %in% n1]
-
+dat_nilu4[needed_variables] %>% head()
 
 ```
 
-## Save  
+
+### Save  
 ```{r}
 
-saveRDS(dat_nilu7, "Data/161_data_nilu_nivaformat.rds")
+saveRDS(dat_nilu4[needed_variables], 
+        "Data/161_data_nilu_nivaformat.rds")
 
 ```
 
