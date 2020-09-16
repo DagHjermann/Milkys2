@@ -45,7 +45,6 @@ library(safejoin)
 source("002_Utility_functions.R")
 source("111_Nstring_SD_DDI_functions.R")
 
-
 ```
 
 
@@ -359,6 +358,7 @@ dat_sd <- data_all %>%
          VALUE_WW, VALUE_DW, VALUE_FB, VALUE_WWa, VALUE_DWa, VALUE_FBa) %>%
   tidyr::pivot_longer(cols = c(VALUE_WW, VALUE_DW, VALUE_FB, VALUE_WWa, VALUE_DWa, VALUE_FBa), 
                       names_to = "Basis", values_to = "VALUE", values_drop_na = TRUE) %>%
+  mutate(Basis = sub("VALUE_", "", Basis)) %>%
   group_by(MYEAR, STATION_CODE, LATIN_NAME, TISSUE_NAME, PARAM, Basis) %>%
   summarise(SD = sd(VALUE, na.rm = TRUE))
 

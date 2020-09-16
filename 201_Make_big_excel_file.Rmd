@@ -946,7 +946,8 @@ data_xl <- safe_left_join(
 # Change variable name
 names(data_xl)[ncol(data_xl)] <- "N_string"
 
-cat("\nNumber of columns:", ncol(data_xl), "\n") # 108
+cat(sum(!is.na(data_xl$N_string)), "values of 'N_string' added to data \n")
+cat("Number of columns:", ncol(data_xl), "\n") # 108
 
 data_xl <- safe_left_join(
   data_xl, 
@@ -961,7 +962,9 @@ data_xl <- safe_left_join(
 # Change variable name
 names(data_xl)[ncol(data_xl)] <- "SD_last"
 
-cat("\nNumber of columns:", ncol(data_xl), "\n") # 109
+cat("\n")
+cat(sum(!is.na(data_xl$SD_last)), "values of 'SD_last' added to data \n")
+cat("Number of columns:", ncol(data_xl), "\n") # 109
 
 ```
 
@@ -1780,14 +1783,28 @@ x[i1:i2]
 ```{r}
 if (FALSE){
   
-  data_xl_lessthans[c("Parameter Code", "Substance.Group", "Yr_1981", "Yr_2019")] %>% View()
+  data_xl_lessthans[c("Parameter Code", "Parameter Group", "V81", "V19")] %>% View()
   
   data_xl_lessthans[c("Parameter Code", "V81", "V19")] %>%
     group_by(`Parameter Code`) %>%
     summarise_all(.funs = function(x) sum(is.na(x))) %>%
     mutate(Sum = V81 + V19) %>%
     arrange(desc(Sum))
+  
+  data_xl_lessthans[c("Parameter Code", "V81", "V19")] %>%
+    group_by(`Parameter Code`) %>%
+    summarise_all(.funs = function(x) sum(is.na(x))) %>%
+    mutate(Sum = V81 + V19) %>%
+    arrange(desc(Sum))
+  
+  names(data_xl_lessthans_oldnames)
+  data_xl_lessthans_oldnames %>% 
+    select(PARAM, LATIN_NAME, TISSUE_NAME, Basis, Yr_2019, N_string, SD_last) %>%
+    View()
+    
+
 }
+
 
 ```
 
@@ -1865,8 +1882,28 @@ if (FALSE){
   file_versions
   
   fn <- paste0("Big_excel_table/", file_versions$Filename[1])
+  fn
+
+  # CHeck header
+  readLines(fn, n = 1)
+  
+  # read csv
   check <- read.csv2(file = fn)
-  # colnames(check)
+  
+  # read R data
+  check <- readRDS(file = sub(".csv", ".rds", fn, fixed = TRUE))
+
+  # Read older version (check2) and compare number of rows and column 1:22 between check and check2: 
+  fn2 <- paste0("Big_excel_table/", file_versions$Filename[2])
+  check2 <- read.csv2(file = fn2)
+  dim(check)
+  dim(check2)
+  i <- 1
+  for (i in 1:22){
+    cat(i, ":", sum(!check[[i]] == check2[[i]], na.rm = TRUE), "\n")
+  }
+
+    # colnames(check)
   colnames(check)[1:20]
   check <- check %>%
     rename(PARAM = Parameter.Code,
@@ -1875,9 +1912,13 @@ if (FALSE){
   
   xtabs(~addNA(CLASS_CHANGE), check)
   
+  names(check)
+  check %>%
+    filterxtabs(~addNA(CLASS_CHANGE), check)
+
+  
   
 }
-
 ```
 
 
