@@ -1,0 +1,836 @@
+---
+title: "109_Adjust_for_fish_length"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+---
+
+## 1. Packages
+```{r}
+
+# install safejoin, if that has not already been done
+# It may also want to update some packages; if so,  go down to the console 
+if (!"safejoin" %in% installed.packages()){
+  devtools::install_github(repo = "moodymudskipper/safejoin", upgrade = "always")
+}
+
+library(dplyr)
+library(purrr)
+library(stringr)
+library(lubridate)
+library(ggplot2)
+library(readr)
+library(tidyr)
+library(safejoin)  # from https://github.com/moodymudskipper/safejoin 
+
+
+source("109_Adjust_for_fish_length_functions.R")
+
+```
+
+
+## 2. Data
+
+### Main data  
+Read and reformat the most recent data (by default)  
+```{r}
+
+files <- dir("Data", pattern = "101_data_updated") %>% rev()
+
+cat("Reading the last file downloaded:")
+cat("\n", files[1])
+cat("\n")
+cat("If you want to read a different file, replace 'files[1]' with the file you want")
+cat("\n\n")
+
+filename <- files[1] 
+cat("Time since this file was modified: \n")
+Sys.time() - file.info(paste0("Data/", filename))$mtime 
+
+data_all <- readRDS(paste0("Data/", filename))
+
+# We save the date part of the text (e.g., '2020-04-23')
+# This will be used in part 10, when we save the resulting file
+file_date <- substr(filename, 18, 27)    # pick out the part of the text from character no. 17 to no. 26
+
+```
+
+
+### Length data for 2019  
+```{r}
+
+# Data on length
+data_ind_fish <- readRDS("Data/150_Fish_individual_data_2019.rds")
+
+```
+
+### Sample data for 2019   
+Read and reformat the most recent data (by default)  
+```{r}
+
+files <- dir("Input_data", "Labware_samples_") %>% rev()
+filename <- files[1] 
+df_samples <- readRDS(paste0("Input_data/", filename))
+# xtabs(~TISSUE, df_samples)
+
+# 
+# Prepare sample data    
+#
+df_fishsamples <- df_samples %>%
+  select(AQUAMONITOR_CODE, BIOTA_SAMPLENO, TISSUE, X_BULK_BIO) %>%
+  distinct(AQUAMONITOR_CODE, TISSUE, BIOTA_SAMPLENO, X_BULK_BIO) %>%
+  mutate(TISSUE_NAME = str_sub(TISSUE, start = 4)) %>%   # strip off "LI-", "MU-" etc in the start  
+  select(-TISSUE)
+
+# After
+xtabs(~TISSUE_NAME, df_fishsamples)
+
+# Special case: galle (bile) at 30B
+sel <- is.na(df_samples$AQUAMONITOR_CODE) & grepl("30B", df_samples$DESCRIPTION); sum(sel)
+
+# Check: 
+#  View(df_samples[sel,])
+
+# Add galle (bile) at 30B, if needed
+if (sum(sel) > 0) {
+  
+  df_fishsamples_extra <- df_samples[sel,] %>%
+    mutate(AQUAMONITOR_CODE = "30B",
+           BIOTA_SAMPLENO = as.numeric(X_BULK_BIO),
+           X_BULK_BIO = NA,
+           TISSUE_NAME = TISSUE) %>%
+    select(AQUAMONITOR_CODE, TISSUE_NAME, BIOTA_SAMPLENO, X_BULK_BIO)
+  
+  df_fishsamples <- bind_rows(
+    df_fishsamples %>% filter(!is.na(AQUAMONITOR_CODE)), 
+    df_fishsamples_extra
+    )
+}
+
+# Check lines with AQUAMONITOR_CODE = NA, if any
+if (FALSE){
+
+    sel <- is.na(df_samples$AQUAMONITOR_CODE); sum(sel)
+  View(df_samples[sel,])
+  
+  sel <- is.na(df_fishsamples$AQUAMONITOR_CODE); sum(sel)
+  View(df_fishsamples[sel,])
+
+  }
+
+```
+
+## 3. Prepare 'df_lnmea'  
+Data with mean length per sample  
+
+### Add rows for biol. effects in cod
+```{r}
+
+# Only a check of tissue
+# test <- data_ind2 %>%
+#   filter(MYEAR == 2019 & PARAM %in% c("PA1OH", "PYR1OH", "BAP3OH", "ALAD", "EROD")) %>%
+#   count(PARAM, TISSUE_NAME)
+
+# We must specify Lever - microsome (single specimen-sample) for EROD, otherwise it is 
+# mixed up with Lever (often pooled sample) when Length is added
+df_fishsamples_bioleff <- data_all %>%
+  filter(MYEAR == 2019 & PARAM %in% c("PA1OH", "PYR1OH", "BAP3OH", "ALAD", "EROD")) %>%
+  distinct(STATION_CODE, SAMPLE_NO2, TISSUE_NAME) %>%
+  rename(AQUAMONITOR_CODE = STATION_CODE,
+         BIOTA_SAMPLENO = SAMPLE_NO2) %>%
+  mutate(TISSUE_NAME = ifelse(TISSUE_NAME == "Lever", "Lever - microsome", TISSUE_NAME))
+
+# Check if these data have already been added
+check <- df_fishsamples %>% filter(AQUAMONITOR_CODE == "15B" & TISSUE_NAME == "Galle" & BIOTA_SAMPLENO > 0) %>% nrow()
+
+# If not already added
+if (nrow(df_fishsamples_bioleff) > 0 & check == 0){
+  df_fishsamples <- bind_rows(
+    df_fishsamples,
+    df_fishsamples_bioleff
+  )
+  cat("Rows for biol. effects in cod added\n")
+}
+
+```
+
+### df_fishsamples2 - split X_BULK_BIO
+Split up X_BULK_BIO (the fish each samples consists of) so each fish gets a separate row  
+* E.g., a pooled liver sample from 3 fish becomes 3 rows
+```{r}
+
+df_fishsamples2 <- tidyr::separate_rows(df_fishsamples, X_BULK_BIO) %>%
+  mutate(X_BULK_BIO = as.numeric(X_BULK_BIO))
+
+nrow(df_fishsamples)   # 1710
+nrow(df_fishsamples2)  # 2166
+
+df_fishsamples %>%
+  filter(AQUAMONITOR_CODE == "10B" & TISSUE_NAME == "Lever" & BIOTA_SAMPLENO == 8)
+df_fishsamples2 %>%
+  filter(AQUAMONITOR_CODE == "10B" & TISSUE_NAME == "Lever" & BIOTA_SAMPLENO == 8)
+
+
+```
+
+
+### Add Length to df_fishsamples2
+```{r}
+
+df_fishsamples3 <- df_fishsamples2 %>%
+  rename(STATION_CODE = AQUAMONITOR_CODE,
+         SAMPLE_NO2 = BIOTA_SAMPLENO,
+         Fish_no = X_BULK_BIO) %>%
+  mutate(Fish_no = 
+           case_when(is.na(Fish_no) ~ SAMPLE_NO2,
+                     !is.na(Fish_no) ~ Fish_no)
+         )
+
+if (FALSE){
+  df_fishsamples3 %>% xtabs(~addNA(STATION_CODE), .)
+  df_fishsamples3 %>% xtabs(~addNA(Fish_no), .)
+  data_ind_fish %>% xtabs(~addNA(STATION_CODE), .)
+  data_ind_fish %>% xtabs(~addNA(Fish_no), .)
+}
+
+df_fishsamples3 <- df_fishsamples3 %>%
+  safe_left_join(data_ind_fish %>% 
+                   select(STATION_CODE, Fish_no, Length, Weight),
+                 by = c("STATION_CODE", "Fish_no"),
+                 na_matches = "never",
+                 check = "v")
+
+```
+
+### LNMEA (mean length per sample)
+```{r}
+df_lnmea <- df_fishsamples3 %>%
+  mutate(MYEAR = 2019) %>%
+  ungroup() %>%
+  group_by(MYEAR, STATION_CODE, TISSUE_NAME, SAMPLE_NO2) %>%
+  summarise(LNMEA = 10*mean(Length, na.rm = TRUE),             # multiply by 10 to get millimeters
+            WTMEAN = mean(Weight, na.rm = TRUE)
+            ) %>%
+  ungroup()
+
+nrow(df_lnmea)  # 752
+
+```
+
+## 4. Add mean length (LNMEA) to last year's data  
+
+### Pick last year's data and add LNMEA  
+```{r}
+
+data_lastyear <- data_all %>%
+  filter(MYEAR == 2019) %>%
+  # remove LNMEA for last year (empty anyway)
+  select(-LNMEA) %>%
+  # Also here we must specify Lever - microsome for EROD
+  mutate(TISSUE_NAME = case_when(
+    TISSUE_NAME == "Lever" & PARAM %in% "EROD" ~ "Lever - microsome",
+    TRUE ~ TISSUE_NAME)
+  ) %>%
+  # add LNMEA by joining that column from df_lnmea 
+  safe_left_join(
+    df_lnmea, 
+    by = c("MYEAR", "STATION_CODE", "TISSUE_NAME", "SAMPLE_NO2"),
+    na_matches = "never",
+    check = "bCV") %>%
+  # Change "Lever - microsome" back (in order to fit with the rest of the data)
+  mutate(TISSUE_NAME = case_when(
+    TISSUE_NAME == "Lever - microsome" ~ "Lever", 
+    TRUE ~ TISSUE_NAME)
+  )
+
+
+```
+
+### Check
+```{r}
+
+data_lastyear %>% 
+  filter(STATION_CODE == "30B" & TISSUE_NAME == "Galle") %>% 
+  select(MYEAR, STATION_CODE, TISSUE_NAME, SAMPLE_NO2, PARAM, LNMEA)
+
+data_lastyear %>% 
+  filter(STATION_CODE == "15B" & TISSUE_NAME == "Lever" & SAMPLE_NO2 == 8) %>% 
+  select(MYEAR, STATION_CODE, TISSUE_NAME, SAMPLE_NO2, PARAM, LNMEA)
+
+# data_ind2_old
+```
+
+### Check uniqueness
+```{r}
+check <- data_lastyear %>%
+  ungroup() %>%
+  group_by(STATION_CODE, LATIN_NAME, TISSUE_NAME, MYEAR, SAMPLE_NO2, UNIT, PARAM) %>%
+  mutate(n = n()) %>%
+  filter(n > 1)
+nrow(check)  # should be 0
+```
+
+### Create data_all2 by adding last years' data to the rest  
+Creates data_all2  
+
+```{r}
+
+# names(data_all)
+# names(data_lastyear)
+
+data_all2 <- bind_rows(
+  data_all %>% filter(MYEAR < 2019),
+  data_lastyear %>% select(-WTMEAN)
+) %>%
+  mutate(VALUE_WWa = NA,
+         VALUE_DWa = NA,
+         VALUE_FBa = NA
+         )
+
+```
+
+
+
+## 5. Length adjustment - preparations 
+### a. Make data set 'data_lengthreg' to save regression results
+```{r}
+
+data_lengthreg <- subset(data_all2, MYEAR %in% 1980:2017 & is.finite(VALUE_WW) &
+                           LATIN_NAME %in% "Gadus morhua") %>%
+    group_by(STATION_CODE, PARAM, LATIN_NAME, TISSUE_NAME) %>%
+    summarise(N = n(), yr_start = min(MYEAR), yr_end = max(MYEAR)) %>%
+    filter(yr_end >= 2012 & N >= 50)  # need at least 50 observations, and at least until 2012
+nrow(data_lengthreg) # 865
+
+#
+# If present, delete HG and C/N ++ (but not DRYWT%)  in fish liver
+#
+cat("\n")
+cat("If present, delete HG and C/N ++ (but not DRYWT%) in fish liver \n")
+sel <- with(data_lengthreg, LATIN_NAME %in% 'Gadus morhua' & PARAM %in% c("HG","C/N","Delta13C","Delta15N") & TISSUE_NAME %in% "Lever")
+sum(sel)  # 0
+data_lengthreg <- data_lengthreg[!sel,]  
+
+#
+# Delete everyting "not HG" in fish muscle (some PCB data)
+#
+cat("\n\n")
+cat("Delete non-fitting parameters from fish muscle (some PCB data) \n")
+sel <- with(data_lengthreg, LATIN_NAME %in% 'Gadus morhua' & !PARAM %in% c("HG","C/N","Delta13C","Delta15N", "DRYWT%") & TISSUE_NAME %in% "Muskel")
+sum(sel)  # 19
+table(data_lengthreg$PARAM[sel])
+data_lengthreg <- data_lengthreg[!sel,]
+
+cat("\n")
+cat("Resulting time series: \n")
+nrow(data_lengthreg) # 846
+head(data_lengthreg) 
+
+ggplot(data_lengthreg, aes(N)) + geom_histogram(binwidth = 1)
+
+```
+
+
+### b. Add variables to be filled in data_lengthreg
+```{r}
+
+# names(data_lengthreg)
+
+k <- ncol(data_lengthreg)   # for setting col. numbers (col_ww etc.)
+data_lengthreg <- data.frame(
+  data_lengthreg,
+  WW_Est = NA, WW_SE = NA, WW_P = NA, WW_N = NA, WW_Nreg = NA, 
+  DW_Est = NA, DW_SE = NA, DW_P = NA, DW_N = NA, DW_Nreg = NA, 
+  FB_Est = NA, FB_SE = NA, FB_P = NA, FB_N = NA, FB_Nreg = NA)
+
+col_ww <- k + 1:5
+col_dw <- k + 1:5 + 5
+col_fb <- k + 1:5 + 10
+ 
+```
+
+
+### c. Find parameters that includes many zeros (so 'a' must be >0)  
+If <1% is at/below zero, we just delete the zeros instead  
+```{r}
+
+tab <- xtabs(~(VALUE_WW <= 0) + PARAM, subset(data_all2, LATIN_NAME %in% "Gadus morhua"))
+tab2 <- tab[,tab[2,] > 0]
+tab2
+
+# Percent at or below zero
+percent_zero <- 100*tab2[2,]/tab2[1,]
+
+# If <1% is at/below zero, we delete the zeros
+param_delete_zeros <- names(percent_zero)[percent_zero < 1]
+
+# Show them
+cat("\n")
+cat("param_delete_zeros: \n")
+param_delete_zeros
+
+# Delete those
+sel <- with(data_all2, !is.na(VALUE_WW) & VALUE_WW <= 0 & PARAM %in% param_delete_zeros); sum(sel)  # 0
+data_all2 <- data_all2[!sel,]
+
+# For the rest, we don't log values before regression
+param_incl_zero <- names(percent_zero)[percent_zero >= 1]
+
+# Show them
+cat("\n")
+cat("param_incl_zero: \n")
+param_incl_zero
+
+```
+
+
+### d. Check uniqueness
+```{r}
+
+check1 <- data_all2 %>%
+  ungroup() %>%
+  group_by(STATION_CODE, LATIN_NAME, TISSUE_NAME, MYEAR, SAMPLE_NO2, UNIT, PARAM) %>%
+  mutate(n = n()) %>%
+  filter(n > 1)
+nrow(check1)  # should be zero!
+
+check2 <-data_lengthreg %>%
+  ungroup() %>%
+  group_by(STATION_CODE, LATIN_NAME, TISSUE_NAME, PARAM) %>%
+  mutate(n = n()) %>%
+  filter(n > 1)
+nrow(check2)  # should be zero!
+  
+```
+
+## 6a. Test adjustment   
+
+### Select data  
+```{r}
+
+station <- "13B"
+par <- "CB118"
+
+cat("Chosen", par, "at", station, "\n\n")
+
+# Chose data in 'data_lengthreg'
+i <- with(data_lengthreg, STATION_CODE %in% station & PARAM %in% par) %>% which()
+cat("Chose line", i, "in 'data_lengthreg' \n\n")
+
+# Select data
+sel <- with(data_all2, 
+            is.finite(VALUE_WW) & is.finite(LNMEA) & 
+              PARAM %in% data_lengthreg$PARAM[i] & 
+              LATIN_NAME %in% data_lengthreg$LATIN_NAME[i] &
+              TISSUE_NAME %in% data_lengthreg$TISSUE_NAME[i] & 
+              STATION_CODE %in% data_lengthreg$STATION_CODE[i])
+df <- data_all2[sel, ]
+
+cat(nrow(df), "rows selected from data_all \n")
+
+
+```
+
+### Show data byyear and length    
+```{r, fig.width = 9, fig.height=3}
+
+gg1 <- df %>%
+  mutate(Above_LOQ = is.na(FLAG1)) %>%
+  ggplot(aes(MYEAR, VALUE_WW, color = Above_LOQ)) +
+  geom_point() +
+  scale_y_log10()
+
+gg2 <- df %>%
+  mutate(Above_LOQ = is.na(FLAG1)) %>%
+  ggplot(aes(LNMEA, VALUE_WW, color = Above_LOQ)) +
+  geom_point() +
+  geom_smooth(method = "lm", formula = 'y ~ x') +
+  scale_y_log10()
+
+cowplot::plot_grid(gg1, gg2, nrow = 1)
+
+```
+
+
+### Set `a`
+```{r}
+
+if (data_lengthreg$PARAM[i] %in% param_incl_zero){
+  a <- 1                        # if the parameter includes zero, we add 1 before log
+} else {
+  a <- 0
+}
+
+cat("'a' (constant that will be used in log-transformation) set to", a)
+
+```
+
+### Perform adjustment
+```{r, fig.width = 9, fig.height=3}
+
+result <- try(adjust_selected(data_all2, sel, var = "VALUE_WW", a = a))        # adjust_selected()
+if (class(result) != "try-error"){
+  data_all2$VALUE_WWa[sel] <- result$value
+  data_lengthreg[i, col_ww] <- result$summary[1:5]
+} 
+
+# Printout
+cat("\n\n")
+if (class(result) != "try-error"){
+  cat("Regression succeeded \n")
+  cat(length(result$value), "values of 'VALUE_WWa' calculated and substituted in 'data_all2' \n")
+  cat("\nRegression summary: \n")
+  result$summary %>% print()
+  cat("\n")
+
+  gg1 <- data_all2[sel,] %>%
+    mutate(Above_LOQ = is.na(FLAG1)) %>%
+    ggplot(aes(MYEAR, VALUE_WWa, color = Above_LOQ)) +
+    geom_point() +
+    scale_y_log10()
+  
+  gg2 <- data_all2[sel,]  %>%
+    mutate(Above_LOQ = is.na(FLAG1)) %>%
+    ggplot(aes(LNMEA, VALUE_WWa, color = Above_LOQ)) +
+    geom_point() +
+    geom_smooth(method = "lm", formula = 'y ~ x') +
+    scale_y_log10()
+  
+  cowplot::plot_grid(gg1, gg2, nrow = 1)
+  
+} else {
+  cat("Regression failed \n")
+}
+
+
+
+```
+
+
+
+## 6b. Performing the adjustment  
+Takes 2-3 minutes on DHJ's PC    
+```{r, error=FALSE, warning=FALSE, message=FALSE, results='hide'}
+
+if (FALSE){
+  par <- "CB118"
+  data_all2 %>% 
+    filter(STATION_CODE %in% "15B" & PARAM %in% par & MYEAR == "2019" & SAMPLE_NO2 == 1) 
+  data_all2 %>% 
+    filter(STATION_CODE %in% "15B" & PARAM %in% par & MYEAR == "2019" & SAMPLE_NO2 == 1) 
+}
+
+i_max <- nrow(data_lengthreg)
+# i_max <- 700
+
+# Doesn't work on Linux
+# pb <- winProgressBar(max=i_max)
+
+# A minute or two
+for (i in 1:i_max){
+
+  #
+  # Set 'a' (constant that will be used in log-transformation) 
+  #
+  if (data_lengthreg$PARAM[i] %in% param_incl_zero){
+    a <- 1                        # if the parameter includes zero, we add 1 before log
+  } else {
+    a <- 0
+  }
+
+  #
+  # Select data, wet-weight
+  #
+  sel <- with(data_all2, 
+    is.finite(VALUE_WW) & is.finite(LNMEA) & 
+    PARAM %in% data_lengthreg$PARAM[i] & 
+    LATIN_NAME %in% data_lengthreg$LATIN_NAME[i] &
+    TISSUE_NAME %in% data_lengthreg$TISSUE_NAME[i] & 
+    STATION_CODE %in% data_lengthreg$STATION_CODE[i])
+  df <- data_all2[sel, ]
+  nrow(df)
+  # debugonce(adjust_selected2)
+  # print(subset(data_lengthreg[i,], select = c(PARAM, LATIN_NAME, TISSUE_NAME, STATION_CODE)))
+  # cat("WW\n")
+  # result <- try(adjust_selected2(data_all2, sel, var = "VALUE_WW"))     # adjust_selected2()
+  
+  #
+  # Perform regression, wet-weight data
+  #
+  result <- try(adjust_selected(data_all2, sel, var = "VALUE_WW", a = a))        # adjust_selected()
+  if (class(result) != "try-error"){
+    data_all2$VALUE_WWa[sel] <- result$value
+    data_lengthreg[i, col_ww] <- result$summary[1:5]   # number 6 is "a"
+    }
+  #cat("DW\n")
+
+  #
+  # Select data, dry-weight
+  #
+  sel <- with(data_all2, 
+    is.finite(VALUE_DW) & is.finite(LNMEA) & 
+    PARAM %in% data_lengthreg$PARAM[i] & 
+    LATIN_NAME %in% data_lengthreg$LATIN_NAME[i] &
+    TISSUE_NAME %in% data_lengthreg$TISSUE_NAME[i] & 
+    STATION_CODE %in% data_lengthreg$STATION_CODE[i])
+  #
+  # Perform regression
+  #
+  result <- try(adjust_selected(data_all2, sel, var = "VALUE_DW", a = a))        # adjust_selected()
+  if (class(result) != "try-error"){
+    data_all2$VALUE_DWa[sel] <- result$value
+    data_lengthreg[i, col_dw] <- result$summary[1:5]   # number 6 is "a"
+    }
+  #
+  # Select data, fat-weight
+  #
+  sel <- with(data_all2, 
+    is.finite(VALUE_FB) & is.finite(LNMEA) & 
+    PARAM %in% data_lengthreg$PARAM[i] & 
+    LATIN_NAME %in% data_lengthreg$LATIN_NAME[i] &
+    TISSUE_NAME %in% data_lengthreg$TISSUE_NAME[i] & 
+    STATION_CODE %in% data_lengthreg$STATION_CODE[i])
+  #
+  # Perform regression
+  #
+  result <- try(adjust_selected(data_all2, sel, var = "VALUE_FB", a = a))        # adjust_selected()
+  if (class(result) != "try-error"){
+    data_all2$VALUE_FBa[sel] <- result$value
+    data_lengthreg[i, col_fb] <- result$summary[1:5]   # number 6 is "a"
+    }
+  # setWinProgressBar(pb, i)
+  }
+# close(pb)
+
+data_all2 <- as_tibble(data_all2)
+
+```
+
+## 7. Tables/statistics  
+
+### a. Results for example parameter  
+
+```{r}
+
+param <- "CB118"
+
+# How many have length?
+data_all2 %>%
+  filter(PARAM == param & TISSUE_NAME == "Lever" & MYEAR >= 2013)  %>%
+  group_by(STATION_CODE, MYEAR) %>%
+  summarize(Prop_length = mean(!is.na(LNMEA)), .groups = "drop") %>%
+  tidyr::pivot_wider(names_from = "MYEAR", values_from = Prop_length)
+
+# Of those data that have length, how many have length-addjusted CB118?
+df %>%
+  filter(PARAM == param & TISSUE_NAME == "Lever" & MYEAR >= 2013 & !is.na(LNMEA))  %>%
+  group_by(STATION_CODE, MYEAR) %>%
+  summarize(Prop_adjusted = sum(!is.na(VALUE_WWa))/sum(!is.na(VALUE_WW)), .groups = "drop") %>%
+  tidyr::pivot_wider(names_from = "MYEAR", values_from = Prop_adjusted)
+
+```
+
+### b. Proportion of data that has length, per cod time series (since 2010)  
+```{r}
+
+data_all2 %>%
+  filter(LATIN_NAME %in% "Gadus morhua" & MYEAR >= 2010)  %>%
+  group_by(PARAM, STATION_CODE) %>%
+  summarize(Percent_length = 100*mean(!is.na(LNMEA)), .groups = "drop") %>%
+  ggplot(aes(Percent_length)) +
+  geom_histogram()
+
+```
+### c. Proportion of length-adjusted time series per parameter, for cod data that has length (since 2010)  
+```{r}
+
+# 
+data_all2 %>%
+  filter(LATIN_NAME %in% "Gadus morhua" & MYEAR >= 2010 & !is.na(LNMEA))  %>%
+  group_by(PARAM, STATION_CODE) %>%
+  summarize(Prop_adjusted = sum(!is.na(VALUE_WWa))/sum(!is.na(VALUE_WW)), .groups = "drop") %>%
+  group_by(PARAM) %>%
+  summarize(Percent_adjusted = 100*mean(Prop_adjusted), .groups = "drop") %>%
+  ggplot(aes(Percent_adjusted)) +
+  geom_histogram()
+
+```
+
+
+### d. Check uniqueness
+```{r}
+
+check <- data_all2 %>%
+  ungroup() %>%
+  group_by(STATION_CODE, LATIN_NAME, TISSUE_NAME, MYEAR, SAMPLE_NO2, UNIT, PARAM) %>%
+  mutate(n = n()) %>%
+  filter(n > 1)
+
+if (nrow(check) > 0){
+  cat("WARNING!", nrow(check), "records in the data seem to be duplicates. Use 'View(check)' to see them. \n")
+} else {
+  cat("No duplicates found in the data. \n")
+}
+
+```
+
+### e. Test graphs
+```{r, fig.width=9, fig.height=6}
+par <- "CB_S7"
+par <- "HG"
+
+# Not length-adjusted 
+data_all2 %>% 
+  filter(LATIN_NAME %in% "Gadus morhua" & PARAM %in% par) %>%
+  group_by(STATION_CODE) %>%
+  mutate(n_year = length(unique(MYEAR))) %>%
+  filter(n_year >= 7) %>%
+  ggplot(aes(MYEAR, VALUE_WW, color = TISSUE_NAME)) +
+    geom_point() +
+    scale_y_log10() +
+    facet_wrap(vars(STATION_CODE)) +
+  labs(title = paste(par, "in cod"))
+
+# Length-adjusted 
+data_all2 %>% 
+  filter(LATIN_NAME %in% "Gadus morhua" & PARAM %in% par) %>%
+  group_by(STATION_CODE) %>%
+  mutate(n_year = length(unique(MYEAR))) %>%
+  filter(n_year >= 7) %>%
+  ggplot(aes(MYEAR, VALUE_WWa, color = TISSUE_NAME)) +
+    geom_point() +
+    scale_y_log10() +
+    facet_wrap(vars(STATION_CODE)) +
+  labs(title = paste(par, "in cod"))
+
+# Length-adjusted vs unajusted
+data_all2 %>% 
+  filter(LATIN_NAME %in% "Gadus morhua" & PARAM %in% par) %>%
+  group_by(STATION_CODE) %>%
+  mutate(n_year = length(unique(MYEAR))) %>%
+  filter(n_year >= 7) %>%
+  ggplot(aes(VALUE_WW, VALUE_WWa, color = TISSUE_NAME)) +
+    geom_point() +
+    scale_x_log10() +
+    scale_y_log10() +
+    facet_wrap(vars(STATION_CODE)) +
+  labs(title = paste(par, "in cod"))
+
+# Time series for one tissue
+tissue <- case_when(
+  par == "HG" ~ "Muskel",
+  TRUE ~ "Lever"
+)
+
+data_all2 %>% 
+  filter(LATIN_NAME %in% "Gadus morhua" & PARAM %in% par & 
+           TISSUE_NAME %in% tissue) %>%
+  tidyr::pivot_longer(c(VALUE_WW, VALUE_WWa), names_to = "Type", values_to = "Concentration", 
+                      names_prefix = "VALUE_") %>%
+  group_by(STATION_CODE, MYEAR, Type) %>%
+  summarise(Median = median(Concentration), .groups = "drop") %>%
+  group_by(STATION_CODE) %>%
+  mutate(n_year = length(unique(MYEAR))) %>%
+  filter(n_year >= 7) %>%
+  ggplot(aes(MYEAR, Median, color = Type)) +
+    geom_line() +
+    geom_point() +
+    scale_y_log10() +
+    facet_wrap(vars(STATION_CODE)) +
+  labs(title = paste0(par, " in cod (tissue = ", tissue))
+
+```
+
+
+
+## 8. Save data
+
+### a. R data file    
+```{r}
+
+filename <- paste0("Data/109_adjusted_data_", file_date, ".rds")
+
+saveRDS(data_all2, filename)
+
+cat("Data of medians saved as: \n")
+cat(" ", filename, "\n")
+
+```
+
+### b. csv file
+```{r}
+
+fn <- paste0("Data/10_data_all2_", file_date, ".csv")
+readr::write_excel_csv(data_all2, fn, na = "")
+
+```
+
+
+
+### c. Save last years as Excel file  
+Needed by Norman  
+```{r}
+
+data_all2 <- data_all
+
+if (FALSE){
+  
+  # Check SH and WO parameters
+
+  table(data_all2$TISSUE_NAME)
+  
+  data_all2 %>% filter(TISSUE_NAME == "SH") %>% xtabs(~MYEAR + PARAM, .)
+  data_all2 %>% filter(TISSUE_NAME == "SH") %>% xtabs(~STATION_CODE + PARAM, .)
+
+  data_all2 %>% filter(TISSUE_NAME == "WO") %>% xtabs(~MYEAR + PARAM, .)
+  data_all2 %>% filter(TISSUE_NAME == "WO") %>% xtabs(~STATION_CODE + PARAM, .)
+  
+  data_all2 %>% 
+    filter(TISSUE_NAME == "WO" & PARAM %in% "IMPS") %>%    # imposex on an individual level
+    ggplot(aes(MYEAR, VALUE_WW)) +
+    geom_jitter(width = 0.2, height = 0.1) +
+    facet_wrap(vars(STATION_CODE))
+
+  data_all2 %>% 
+    filter(PARAM %in% "VDSI") %>%
+    ggplot(aes(MYEAR, VALUE_WW)) +
+    geom_point() +
+    facet_wrap(vars(STATION_CODE))
+
+  data_all2 %>% 
+    filter(TISSUE_NAME == "WO" & PARAM %in% "RSPI") %>%
+    ggplot(aes(MYEAR, VALUE_WW)) +
+    geom_point() +
+    facet_wrap(vars(STATION_CODE))
+
+  }
+
+# - delete "sample" and "TISSUE_NAME == 'WO' and 'SH'"
+# - change TISSUE_NAME into English versions for the rest
+data_all2 <- data_all2 %>%
+  filter(!PARAM %in% "Sample") %>%
+  filter(!TISSUE_NAME %in% c('SH', 'WO')) %>%
+  mutate(TISSUE_NAME = case_when(
+    TISSUE_NAME %in% "Lever" ~ "Liver",
+    TISSUE_NAME %in% "Muskel" ~ "Muscle",
+    TISSUE_NAME %in% "Blod" ~ "Blood",
+    TISSUE_NAME %in% "Galle" ~ "Bile",
+    TRUE ~ TISSUE_NAME)
+  )
+
+cat("TISSUE_NAME values: \n")
+table(data_all2$TISSUE_NAME)
+
+# 2015-2019 
+data_2015_19 <- data_all2 %>%
+  filter(MYEAR %in% 2015:2019) %>%
+  select(-c(VALUE_DW, VALUE_FB, VALUE_WWa, VALUE_DWa, VALUE_FBa)) 
+  
+data_2015_19 %>%
+  writexl::write_xlsx("Data/Milkys_raw_data_2015-18 (script 109).xlsx")
+
+```
+
+
+
