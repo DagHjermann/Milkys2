@@ -1,0 +1,190 @@
+---
+title: "32_Read_imposex_data"
+author: "DHJ"
+date: "24 8 2019"
+output: 
+  html_document:
+    keep_md: true
+  
+---
+
+## Libraries
+```{r Packages, include=FALSE}
+library(readxl)
+library(dplyr)
+library(purrr)
+library(tidyr)
+library(stringr)
+library(ggplot2)
+```
+
+
+
+## Define data
+```{r}
+
+folder_data <- "Input_data/opparbeiding_biota/Snegl_2019/"
+
+fn <- dir(folder_data)      # file names
+fn <- fn[!grepl("^~", fn)]
+stations <-stringr::str_extract(fn, "[^_]*")
+# Change 131 to 131G
+stations[stations == "131"] <- "131G"
+cat("Stations: \n")
+stations
+
+#
+# Excel file names 
+#
+df_sheets <- data.frame(
+  fn = fn,
+  STATION_CODE = stations,
+  range = c("A7:F57", "A7:F57", "A7:F57",  
+            "A7:F53", "A7:F57",  
+            "A3:K53", "A7:F57", "A7:F57"),   # "A3:K53" is for 71G which has a different format 
+  stringsAsFactors = FALSE)
+df_sheets
+
+```
+
+
+## Function for reading data
+```{r}
+# Function
+read_data <- function(i, df_specifications){
+  fn <- df_specifications[i, "fn"]
+  stationcode <- df_specifications[i, "STATION_CODE"]
+  range <- df_specifications[i, "range"]
+  df <- read_excel(paste0(folder_data, "/", fn), range = range, 
+                   col_types = c(rep("numeric",2), "text", rep("numeric",2), "text"), 
+                   na = c("", "-"))
+  colnames(df) <- c("No", "Length", "Sex", "PL", "VDSI", "Researcher")
+  df <- data.frame(STATION_CODE = stationcode, as.data.frame(df), stringsAsFactors = FALSE)
+  df
+  }
+
+# debugonce(read_data)
+
+# test
+# read_data(i=2, df_specifications = df_sheets)
+
+
+```
+
+## Read data
+### Read data type 1 - all except 71G
+```{r}
+# Data frame of all sheets of type 1 (one row per )
+df_sheets_type1 <- df_sheets %>% 
+  filter(STATION_CODE != "71G")
+
+data_type1_list <- 1:nrow(df_sheets_type1) %>%
+  map(read_data, df_specifications = df_sheets_type1)
+
+data_type1 <- data_type1_list %>% 
+  bind_rows()
+
+```
+
+### Fix sex  
+```{r}
+xtabs(~Sex, data_type1) 
+
+data_type1 <- data_type1 %>%
+  mutate(Sex = tolower(Sex))
+  
+xtabs(~Sex, data_type1) 
+
+```
+
+
+### Read data type 2 - Intersex (71G)
+```{r}
+
+read_data_type2 <- function(i, df_specifications){
+  fn <- df_specifications[i, "fn"]
+  stationcode <- df_specifications[i, "STATION_CODE"]
+  range <- df_specifications[i, "range"]
+  df <- read_excel(paste0(folder_data, "/", fn), range = range,
+                   col_types = c(rep("numeric",2), rep("text",4), rep("numeric",4), "text"))
+  df <- data.frame(STATION_CODE = stationcode, as.data.frame(df), stringsAsFactors = FALSE)
+  colnames(df)[c(2,3,8)] <- c("No", "Length", "Intersex")
+  df
+  }
+
+# Read data
+i <- which(df_sheets$STATION_CODE %in% "71G")
+df <- read_data_type2(i, df_sheets)
+
+# Set sex
+df$Sex <- ""
+df$Sex[df[["F"]] %in% 1] <- "f"
+df$Sex[df[["M"]] %in% 1] <- "m"
+
+# 
+data_type2 <- df %>%
+  select(STATION_CODE, No, Length, Sex, Intersex)
+
+```
+
+
+## Combine (on narrow format)
+```{r}
+# data_ind2 <- readRDS("Data/01_dat_all.rds")
+# head(data_ind2, 2)
+# xtabs(~PARAM, data_ind2 %>% filter(MYEAR == 2018))
+
+data_imposex <- rbind(
+  data_type1 %>%
+    select(-Researcher) %>%
+    mutate(LATIN_NAME = "Nucella lapillus") %>%
+    gather("PARAM", "VALUE_WW", PL, VDSI),
+  data_type2 %>%
+    mutate(LATIN_NAME = "Littorina littorea") %>%
+    gather("PARAM", "VALUE_WW", Intersex)
+  )
+
+```
+
+## Save  
+These data are used in script `104_Add_Extra_data.Rmd` 
+```{r}
+
+saveRDS  (data_imposex, "Data/171_data_imposex_2019.rds")
+write.csv(data_imposex, "Data/171_data_imposex_2019.csv", fileEncoding = "UTF-8")
+
+# data_imposex <- readRDS("Data/32_data_imposex.rds")
+# data_imposex %>% 
+#  filter(!is.na(VALUE_WW) & STATION_CODE == "227G2")
+```
+
+
+## Extras  
+
+### Make means  
+```{r}
+
+data_means <- data_imposex %>%
+  group_by(STATION_CODE, PARAM, Sex) %>%
+  summarise(Gjennomsnitt = mean(VALUE_WW, na.rm = TRUE),
+            Std = sd(VALUE_WW, na.rm = TRUE),
+            N = n(),
+            .groups = "drop") %>%
+  arrange(PARAM, Sex, STATION_CODE)
+
+```
+
+### Check means values  
+```{r}
+data_means
+```
+
+### Plot means   
+```{r}
+
+ggplot(data_means, aes(x = STATION_CODE, y = Gjennomsnitt, color = Sex)) +
+  geom_point() +
+  facet_wrap(vars(PARAM), scales = "free_y")
+
+```
+

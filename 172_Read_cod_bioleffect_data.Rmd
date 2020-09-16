@@ -1,0 +1,212 @@
+---
+title: "172_Read_cod_bioleffect_data"
+output: 
+  html_document:
+    keep_md: true
+    toc: true
+---
+
+- The data will be added in script 101 `101_Combine_with_legacy_data_2019.Rmd`, after section 4 - to 'dat_new3'   
+  
+Desired format:  
+```
+head(dat_new3, 3)
+  MYEAR STATION_CODE LATIN_NAME   SAMPLE_NO2 TISSUE_NAME PARAM  BASIS VALUE FLAG1 UNIT   
+  <dbl> <chr>        <chr>             <dbl> <chr>       <chr>  <chr> <dbl> <chr> <chr>  
+1  2019 15B          Gadus morhua          1 Lever       BD153  W     1.9   NA    UG_P_KG
+2  2019 15B          Gadus morhua          1 Lever       BDE100 W     8     NA    UG_P_KG
+3  2019 15B          Gadus morhua          1 Lever       CB157  W     0.029 NA    UG_P_KG
+```
+
+
+## Libraries
+```{r Packages, include=FALSE}
+library(readxl)
+library(dplyr)
+library(purrr)
+library(tidyr)
+```
+
+## Set year
+```{r}
+
+year <- 2019  
+
+```
+
+
+## Data  
+
+Note that    
+    - "Seqno" is station (in the old Access base - see below)
+    - "Subno" is equal to SPECIMEN_NO in the NIVADATABASE, and different from SUBNO in ICES  
+```{r}
+
+# dir("Input_data")
+fn <- "Input_data/BEM-JAMP_2019_ARU.xls"
+dat <- read_excel(fn, sheet = "Import_format", na = "n.d.")
+
+cat("Number of lines read: \n")
+nrow(dat)
+
+```
+
+
+### Seqno lookup table   
+(Could just have looked at the 'stasjon' column in the Excel file)
+```{r}
+
+# How to find the connection from Seqno to STATION_CODE
+# (commented out, replaced with hard-coded version below, ie 'df_seqno2station')
+
+# fn <- "H:/Documents/seksjon 212/COCO/Analyser/Data_extraction/Milkys_Data_2017_01_17_cemp_tables.RData"
+# load(fn)
+# cemp_f2 %>%
+#   count(seqno, jmpst) %>%
+#   filter(seqno %in% unique(dat$Seqno)) %>% 
+#   select(-n) %>%
+#   dput()
+
+# Edited, as some seqno has several station codes
+df_seqno2station <- data.frame(
+  Seqno = c(151, 231, 301, 531), 
+  STATION_CODE = c("15B", "23B", "30B", "53B"),
+  stringsAsFactors = FALSE)
+
+### Add STATION_CODE test
+# dat %>%
+#   left_join(df_seqno2station, by = "Seqno") %>%
+#   select(Seqno, stasjon, STATION_CODE, nummer) %>%
+#   View()
+
+```
+
+
+
+## Put in correct format   
+- The "O" parameters are the "OH" values normalized by AY380:   
+    - PA1O = PA1OH/AY380   
+    - PYR1O = PYR1OH/AY380   
+    - BAP3O = BAP3OH/AY380  
+```{r}
+
+dat2 <- dat %>%
+  # Add STATION_CODE
+  left_join(df_seqno2station, by = "Seqno") %>%
+  rename(SAMPLE_NO2 = nummer) %>%
+  # Make unnormalized data:
+  mutate(PA1OH = PA1O*AY380,
+         PYR1OH = PYR1O*AY380,
+         BAP3OH = BAP3O*AY380) %>%
+  gather("PARAM", "VALUE", PA1O, PYR1O, BAP3O, PA1OH, PYR1OH, BAP3OH, ALAD, EROD) %>%
+  # reshape on tall/narrow form:
+  select(STATION_CODE, SAMPLE_NO2, AY380, PARAM, VALUE) %>%
+  # add extra variables:
+  mutate(MYEAR = year,
+         LATIN_NAME = "Gadus morhua",
+         TISSUE_NAME = 
+           case_when(PARAM %in% c("PA1O", "PYR1O", "BAP3O", "PA1OH", "PYR1OH", "BAP3OH") ~ "Galle",
+                     PARAM %in% "ALAD" ~ "Blod",
+                     PARAM %in% "EROD" ~ "Liver - microsome"),
+         UNIT =
+           case_when(PARAM %in% c("PA1O", "PYR1O", "BAP3O", "PA1OH", "PYR1OH", "BAP3OH") ~ "UG_P_KG",
+                     PARAM %in% "ALAD" ~ "ng/min/mg protein",
+                     PARAM %in% "EROD" ~ "pmol/min/mg protein"),
+         BASIS = "W",
+         Preferred_unit = UNIT,
+         Conversion_factor = 1,
+         N_par = 1) %>%
+  filter(!is.na(VALUE))
+
+```
+
+
+
+## Uncertainties (SD in percent)  
+```{r}
+
+dat2 <- dat2 %>%
+  mutate(Uncertainty = 
+           case_when(
+             # OH-PAH i MILKYS 2018-gallepr?ver (003).xlsx
+             PARAM %in% c("PA1O", "PA1OH") ~ 40/2,
+             PARAM %in% c("PYR1O", "PYR1OH") ~ 50/2,
+             PARAM %in% c("BAP3O", "BAP3OH") ~ 150/2,
+             # ALA-D uncertainty.txt
+             PARAM %in% c("ALAD") ~ 20,
+             # Conservative guess
+             PARAM %in% c("EROD") ~ 30
+             )
+         )
+```
+
+## LOQ (kind of!)  
+We simply use the minimum value recorded  
+```{r}
+df_valuestatistics <- dat2 %>%
+  group_by(PARAM) %>%
+  summarise(Val_min = min(VALUE, na.rm = TRUE) %>% round(4),
+            Val_med = median(VALUE, na.rm = TRUE) %>% round(4),
+            Val_max = max(VALUE, na.rm = TRUE) %>% round(4)
+  )
+df_valuestatistics
+
+# Add LOQ to data
+dat3 <- dat2 %>%
+  left_join(df_valuestatistics %>%
+              select(PARAM, Val_min) %>%
+              rename(QUANTIFICATION_LIMIT = Val_min),
+            by = "PARAM") %>%
+  mutate(FLAG1 = case_when(
+    is.na(VALUE) ~ "<",
+    !is.na(VALUE) ~ as.character(NA))
+    )
+
+```
+
+### Add UNCRT and METCU  
+We here use LOQ from less-thans as LOQ, if possible  
+    - i.e. LOQ_lt_med, or QUANTIFICATION_LIMIT if LOQ_lt_med is not given
+```{r}
+dat3 <- dat3 %>%
+  mutate(s = QUANTIFICATION_LIMIT/3,
+         UNCRT = sqrt(s^2 + (VALUE^2)*(Uncertainty^2)),
+         METCU = "SD"
+         ) %>%
+  select(-s)
+```
+
+
+
+## Saving data
+
+### Check
+```{r}
+
+needed_variables <- c("MYEAR", "STATION_CODE", "LATIN_NAME", "SAMPLE_NO2", "TISSUE_NAME", 
+                      "PARAM", "BASIS", "VALUE", "FLAG1", "UNIT")
+
+dat3[needed_variables] %>% head()
+
+```
+
+### Save  
+These data are used in script 101 `101_Combine_with_legacy_data_2019.Rmd` 
+```{r}
+
+saveRDS(dat3, "Data/172_cod_biological_effects_2019.rds")
+
+#
+# This goes into script 34
+#
+
+# dat3 <- readRDS("Data/33_data_biological_effects.rds")
+```
+
+#### FInal check
+```{r}
+# xxx
+dat3 %>% 
+  xtabs(~PARAM + is.na(UNCRT), .)
+
+```
