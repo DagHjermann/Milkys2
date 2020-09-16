@@ -9,7 +9,7 @@ output:
 How to use the scripts in `shared/DHJ/Milkys2` 
 
 ## Getting started  
-1. In JupyterLab, start RStudio (from the RStudio icon)  
+1. In JupyterLab, start RStudio from the RStudio icon (in the Launcher tab). NOTE: If there is no Launcher tab,select "File : New Launcher" in the menu.   
 2. In RStudio, choose **File:Recent Projects** (in the menu) and choose **Milkys2** (or navigate to this folder and open `Milkys2.Rproj`)   
 
 ## How to use RStudio  
@@ -20,10 +20,12 @@ How to use the scripts in `shared/DHJ/Milkys2`
 - To run the **next code chunk**, use **Ctrl-Alt-N** (or the "Run" menu, see above)    
 - To run **all code chunks**, use **Ctrl-Alt-R** (or the "Run" menu)    
 - To run all code chunks and also **create/update html and md files**, use the "Knit" button in the top left of the script window. (For instance, if you read this in a browser, you are looking at the file `000_HOW_TO_USE_THESE_FILES.html` made by opening `000_HOW_TO_USE_THESE_FILES.Rmd` and clicking "Knit".)     
+- In an Rmd (R markdown) script, **Ctrl+Shift+O** opens a clickable table of contents    
   
 ## Overview of script files  
 #### Scripts 001-099: Scripts containing functions used by several other scripts    
-001_Add_trends_functions.R                   
+001_Add_trends_functions.R               
+002_Utility_functions.R
   
 #### Scripts 100-149: Main pipeline for collecting data and calculating all medians and trends <br> (Uses data from Nivabasen, and possibly also extra data files made using scripts 150-199)   
 100_Download_Aquamonitor_data_R_functions.R   
@@ -32,7 +34,8 @@ How to use the scripts in `shared/DHJ/Milkys2`
 101_Combine_with_legacy_data_2019.Rmd             
 109_Adjust_for_fish_length_functions.R       
 109_Adjust_for_fish_length.Rmd               
-110_Medians_and_PROREF.Rmd                   
+110_Medians_and_PROREF.Rmd             
+111_Nstring_SD_DDI.Rmd
 120_Calculate_trends.Rmd                    
   
 #### Scripts 150-199: Scripts for reading data from other sources and (optionally) make SQL for insertion into NIVAbase  
@@ -80,7 +83,7 @@ How to use the scripts in `shared/DHJ/Milkys2`
 **Data_Nivabasen** - Excel files produced by script 100                                 
 **Big_excel_table** - csv files produced by script 201  
 **Figures** - Figure files (usually jpg) produced by scripts. Should be numbered (see above)                                         
-**Figures_401** - Figure files (usually jpg) produced by script 401
-README.md"                
+**Figures_401** - Figure files (usually jpg) produced by script 401  
+
 
 
