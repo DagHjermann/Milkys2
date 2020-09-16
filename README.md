@@ -3,7 +3,7 @@ Milkys scripts to run on Jupyterhub. The main aim of these files is to read the 
 
 ## Getting started  
 1. In JupyterLab, start RStudio from the RStudio icon (in the Launcher tab). NOTE: If there is no Launcher tab,select "File : New Launcher" in the menu.   
-2. In RStudio, choose **file:Open Project** and open `Milkys2.Rproj` in the folder `Shared/DHJ/Milkys2`. (Or try **File:Recent Projects**)   
+2. In RStudio, choose **file:Open Project** and open `Milkys2.Rproj` in the folder `Shared/DHJ/Milkys2`. (Or try **File:Recent Projects**). The work flow starts with script 100 (`100_Download_Aquamonitor_data.Rmd`), see below. See [this minimal guide](https://github.com/DagHjermann/Milkys2#how-to-use-rstudio) for getting started in RStudio.     
 
 
 ## Work flow for the Milkys project   
