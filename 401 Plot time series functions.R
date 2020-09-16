@@ -79,6 +79,9 @@ plot_medians_and_trends <- function(ser, x_rel = 0.8, y_rel = 0.9, xlim = NULL, 
     TRUE ~ ser[3])
   dfbig <- get_dfbig(ser[1], ser[2], dfbig_tissue, ser[4], ser[5])
   
+  # Last year
+  last_year <- grep("Yr", names(dfbig), value = TRUE) %>% sub("Yr_", "", .)  %>% as.numeric() %>% max()
+  
   # Proref from median data
   # proref <- X$df_data$Q95[1]
 
@@ -122,21 +125,30 @@ plot_medians_and_trends <- function(ser, x_rel = 0.8, y_rel = 0.9, xlim = NULL, 
     2*floor(xlim[2]/2), 
     yrstep)
   
-  # Start plot
+  # Start plot.   ELU: testing "geom_text(aes(x=Inf, y=Inf, hjust=10.0, vjust=2.7, label = "\u25AA"), size = rel(8))"
+  
   gg <- plot_medians_color(X, proref, xlim = xlim, eqs = dfbig$EQS, ylim = ylim, ...) +
     scale_x_continuous(minor_breaks = seq(xlim[1], xlim[2]), breaks = breaks) +
     ggtitle(plot_title) +
+    
+    #ELU: evt små firkanter som mangler:
+    #geom_text(aes(x=Inf, y=Inf, hjust=10.1, vjust=2.6, label = "\u25AA"), size = rel(8)) +
+    #geom_text(aes(x=Inf, y=Inf, hjust=8.6, vjust=2.6, label = "\u25AA"), size = rel(8)) +
+    
     theme(title = element_text(size = rel(titlesize)))
   
-  # Add trend symbols
-  trendsymbol_xl <- c(substr(dfbig$Trends.2018, 1, 1), substr(dfbig$Trends.2018, 3, 3))
+  # Add trend symbols. 
+  trend_variable <- paste0("Trends.", last_year)
+  trendsymbol_xl <- c(substr(dfbig[[trend_variable]], 1, 1), substr(dfbig[[trend_variable]], 3, 3))
   trends <- case_when(
     trendsymbol_xl %in% "¢" ~ "circle",
     trendsymbol_xl %in% "é" ~ "arrowup",
     trendsymbol_xl %in% "ê" ~ "arrowdown"
   )
-  gg <- add_trend(gg, trendsymbols = trends, x_rel = x_rel, y_rel = y_rel, 
+ 
+   gg <- add_trend(gg, trendsymbols = trends, x_rel = x_rel, y_rel = y_rel, 
                   x_spacing = c(0, 0.035, 0.065), fontsize = 10)
+  
   
   # Make file name (but does not save file)
   fn <- paste0("TSplot_", ser[1], "_", ser[2], "_", ser[3], "_", ser[4], "_", ser[5], ".png")
@@ -152,7 +164,7 @@ plot_medians_and_trends <- function(ser, x_rel = 0.8, y_rel = 0.9, xlim = NULL, 
 
 
 #
-# Function 
+# Function . ELU: 1980:2018 -> 1980:2019?
 #
 
 get_plotdata <- function(param, species, tissue = NULL, station, basis = "WW", 
@@ -465,6 +477,8 @@ add_trend <- function(gg,
       annotate("text", x = x_pos[1], y = y_pos, label = txt[1], hjust = 0.5, vjust = 0.5, size = fontsize, family = fontfamily[1]) +
       annotate("text", x = x_pos[2], y = y_pos, label = "/", hjust = 0.5, vjust = 0.5, size = fontsize) +
       annotate("text", x = x_pos[3], y = y_pos, label = txt[2], hjust = 0.5,  vjust = 0.5, size = fontsize, family = fontfamily[2])
+    
+    
     # For Linux (e.g. Jupyterhub)
   } else {
     txt <- case_when(
@@ -476,7 +490,8 @@ add_trend <- function(gg,
       annotate("text", x = x_pos[1], y = y_pos, label = txt[1], hjust = 0.5, vjust = 0.5, size = fontsize) +
       annotate("text", x = x_pos[2], y = y_pos, label = "/", hjust = 0.5, vjust = 0.7, size = round(fontsize*0.8, 0)) +
       annotate("text", x = x_pos[3], y = y_pos, label = txt[2], hjust = 0.5, vjust = 0.5, size = fontsize)
-  }
+  
+    }
   gg
 }
 
