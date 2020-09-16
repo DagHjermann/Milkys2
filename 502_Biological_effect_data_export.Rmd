@@ -1,0 +1,294 @@
+---
+title: "502_Biological_effect_data_export"
+output: html_document
+---
+
+
+## 1. Packages
+```{r}
+
+library(dplyr)
+library(purrr)
+library(tidyr)
+library(stringr)
+library(lubridate)
+library(ggplot2)
+
+```
+
+
+## 2. Data
+
+### Main data from script 101    
+Read and reformat the most recent data (by default)  
+```{r}
+
+files <- dir("Data", pattern = "101_data_updated") %>% rev()
+
+cat("Reading the last file downloaded:")
+cat("\n", files[1])
+cat("\n")
+cat("If you want to read a different file, replace 'files[1]' with the file you want")
+cat("\n")
+
+filename <- files[1] 
+data_all <- readRDS(paste0("Data/", filename))
+
+# We save the date part of the text (e.g., '2020-04-23')
+# This will be used in part 10, when we save the resulting file
+file_date <- substr(filename, 18, 27)    # pick out the part of the text from character no. 17 to no. 26
+
+```
+
+## 3. Get stations  
+
+### Set 227G1 and 227G2 to '227G'   
+```{r}
+
+# Tables of data in stations 227G, 227G1, 227G2
+if (FALSE){
+  
+  df1 <- data_all %>% filter(grepl("227G", STATION_CODE) & PARAM == "TBT")
+  xtabs(~MYEAR + STATION_CODE, df1)
+  
+  df2 <- data_all %>% filter(grepl("227G", STATION_CODE) & PARAM == "VDSI")
+  xtabs(~MYEAR + STATION_CODE, df2)
+  
+}
+
+# Change 227G1 and 227G2 to '227G'
+data_all2 <- data_all %>%
+  mutate(STATION_CODE = case_when(
+    grepl("227G", STATION_CODE) ~ "227G",
+    TRUE ~ STATION_CODE)
+  )
+cat("227G1 and 227G2 changed to '227G' \n")
+
+# also, remove one duplicate
+sel <- with(data_all2, STATION_CODE %in% "227G" & MYEAR == 2015 & PARAM == "VDSI") %>% which()
+# data_all2[sel,]
+data_all3 <- data_all2[-sel[2],]
+cat("One duplicate removed \n")
+
+# Check for duplicates  
+df_duplicates <- data_all3 %>%
+  filter(LATIN_NAME %in% c("Littorina littorea", "Nucella lapillus")) %>%
+  group_by(STATION_CODE, LATIN_NAME, TISSUE_NAME, MYEAR, SAMPLE_NO2, PARAM) %>%
+  mutate(n = n()) %>%
+  filter(n > 1)
+
+if (nrow(df_duplicates) > 0){
+  cat("WARNING! Duplicates in the data! Check 'df_duplicates'. \n")
+  xtabs(~PARAM, df_duplicates) %>% print()
+  xtabs(~MYEAR, df_duplicates) %>% print()
+  xtabs(~STATION_CODE, df_duplicates) %>% print()
+} else {
+  cat("No more duplicates found \n")
+}
+
+```
+
+## Extract data  
+```{r}
+
+# Get stations
+biol_effect_stations <- data_all3 %>%
+  filter(PARAM %in% c("PYR1O", "PYR1OH", "VDSI", "Intersex") & MYEAR >= 2010) %>%
+  count(STATION_CODE) %>%
+  pull(STATION_CODE)
+
+# Get data
+data_biol_effects <- data_all3 %>%
+  filter(MYEAR >= 2010 & STATION_CODE %in% biol_effect_stations) %>%
+  # Drop 1) TBTIN (tim atom weight) and 2) individual-based snail measurements (2010-2013 only)
+  filter(!PARAM %in% c("TBTIN", "Tributyltinn (TBT)-Sn",
+                       "HTMEA", "IMPS", "LNFPE", "LNMPE")
+         ) %>%
+  filter(TISSUE_NAME != "WO")
+
+cat(nrow(data_biol_effects), "records extracted")
+
+```
+
+## Check extraction  
+```{r}
+
+data_biol_effects %>%
+  xtabs(~TISSUE_NAME + LATIN_NAME, .)
+
+```
+
+
+### Check cod extraction  
+- The "O" parameters are the "OH" values normalized by AY380:   
+    - PA1O = PA1OH/AY380   
+    - PYR1O = PYR1OH/AY380   
+    - BAP3O = BAP3OH/AY380  
+```{r}
+
+# Show parameters as data
+if (FALSE){
+  data_biol_effects %>%
+    filter(LATIN_NAME == "Gadus morhua") %>%
+    distinct(PARAM, MYEAR) %>%
+    group_by(PARAM) %>%
+    summarise(No_of_years = n()) %>%
+    View()
+}
+
+#
+# Print out parameters, grouped by number of years
+#
+
+df_no_years_per_parameter <- data_biol_effects %>%
+  filter(LATIN_NAME == "Gadus morhua") %>%
+  distinct(PARAM, MYEAR) %>%
+  count(PARAM)
+
+for (i in sort(unique(df_no_years_per_parameter$n))){
+  cat(i, "years: \n")
+  pars <- df_no_years_per_parameter %>%
+    filter(n == i) %>%
+    pull(PARAM)
+  cat(pars, sep = ", ")
+  cat("\n\n")
+}
+
+
+```
+
+### Check snail extraction   
+```{r}
+
+data_biol_effects %>%
+  filter(LATIN_NAME %in% c("Littorina littorea", "Nucella lapillus")) %>%
+  xtabs(~PARAM + MYEAR, .) 
+
+```
+
+### Checking out the relationship between some of the tins   
+- "MBTIN" equals 1.5 times "Monobutyltinn (MBT)-Sn"
+- "DBTIN" equals 2 times "Dibutyltinn-Sn (DBT-Sn)"  
+```{r}
+
+df <- data_biol_effects %>%
+  filter(PARAM %in% c("Monobutyltinn (MBT)-Sn", "MBTIN") & MYEAR == 2017) %>%
+  arrange(STATION_CODE, SAMPLE_NO2, PARAM) %>%
+  select(STATION_CODE, SAMPLE_NO2, PARAM, VALUE_WW) %>%
+  pivot_wider(names_from = PARAM, values_from = VALUE_WW)
+df$Ratio <- df[[3]]/df[[4]]
+df  # Ratio = 1.5
+
+df <- data_biol_effects %>%
+  filter(PARAM %in% c("Dibutyltinn-Sn (DBT-Sn)", "DBTIN") & MYEAR == 2017) %>%
+  arrange(STATION_CODE, SAMPLE_NO2, PARAM) %>%
+  select(STATION_CODE, SAMPLE_NO2, PARAM, VALUE_WW) %>%
+  pivot_wider(names_from = PARAM, values_from = VALUE_WW)
+df$Ratio <- df[[3]]/df[[4]]
+df  # Ratio = 2
+
+```
+
+
+## Data in wide form  
+
+### Cod   
+```{r}
+
+# Variables
+# data_biol_effects %>% names() %>% dput() %>% paste(collapse = ", ")
+
+df1 <- data_biol_effects %>% 
+  filter(LATIN_NAME %in% c("Gadus morhua")) %>%
+  select(MYEAR, STATION_CODE, LATIN_NAME, TISSUE_NAME, SAMPLE_NO2, PARAM, DRYWT, FAT_PERC, LNMEA, VALUE_WW) %>%
+  tidyr::pivot_wider(names_from = PARAM, values_from = VALUE_WW) %>%
+  arrange(MYEAR, STATION_CODE, LATIN_NAME, TISSUE_NAME, SAMPLE_NO2)
+
+# flags
+df2 <- data_biol_effects %>% 
+  filter(LATIN_NAME %in% c("Gadus morhua")) %>%
+  select(MYEAR, STATION_CODE, LATIN_NAME, TISSUE_NAME, SAMPLE_NO2, PARAM, FLAG1) %>%
+  mutate(PARAM = paste0(PARAM, "_flag")) %>%
+  pivot_wider(names_from = PARAM, values_from = FLAG1)
+
+# data_biol_effects_wide_snails
+# View(df1)
+# View(df2)
+
+# Sort order of columns: key data (vars1), biol. effects (vars2), all the rest (vars3 = values, vars4 = flags)
+vars1 <- c("MYEAR", "STATION_CODE", "LATIN_NAME", "TISSUE_NAME", "SAMPLE_NO2", "DRYWT", "FAT_PERC", "LNMEA", "DRYWT")
+vars2a <- c("ALAD", "BAP3O", "BAP3OH", "PA1O", "PA1OH", "PYR1O", "PYR1OH", "CYP1A", "AY380", "ABS380")
+vars2b <- paste0(vars2a, "_flag")
+vars2 <- matrix(c(vars2a,vars2b), nrow = 2, byrow = TRUE) %>% as.character()
+vars3 <- names(df1)
+vars3 <- vars3[!vars3 %in% c(vars1, vars2, "Fett", "DRYWT%")] 
+vars4 <- names(df2)
+vars4 <- vars4[!vars4 %in% c(vars1, vars2, "Fett_flag", "DRYWT%_flag")] 
+vars <- c(vars1, vars2, 
+          sort(c(vars3, vars4))
+)
+# vars
+
+data_biol_effects_wide_cod <- left_join(df1, df2, by = c("MYEAR", "STATION_CODE", "LATIN_NAME", "TISSUE_NAME", "SAMPLE_NO2"))[vars]
+
+d <- dim(data_biol_effects_wide_cod)
+cat("Wide cod data extracted,",  d[1], "rows and", d[2], "columns \n")
+
+```
+
+### Snails, wide format  
+```{r}
+
+# Variables
+# data_biol_effects %>% names() %>% dput() %>% paste(collapse = ", ")
+
+df1 <- data_biol_effects %>% 
+  filter(LATIN_NAME %in% c("Littorina littorea", "Nucella lapillus")) %>%
+  select(MYEAR, STATION_CODE, LATIN_NAME, TISSUE_NAME, SAMPLE_NO2, PARAM, DRYWT, FAT_PERC, LNMEA, VALUE_WW) %>%
+  tidyr::pivot_wider(names_from = PARAM, values_from = VALUE_WW) %>%
+  arrange(MYEAR, STATION_CODE, LATIN_NAME, TISSUE_NAME, SAMPLE_NO2)
+
+# flags
+df2 <- data_biol_effects %>% 
+  filter(LATIN_NAME %in% c("Littorina littorea", "Nucella lapillus")) %>%
+  select(MYEAR, STATION_CODE, LATIN_NAME, TISSUE_NAME, SAMPLE_NO2, PARAM, FLAG1) %>%
+  mutate(PARAM = paste0(PARAM, "_flag")) %>%
+  pivot_wider(names_from = PARAM, values_from = FLAG1)
+
+# data_biol_effects_wide_snails
+# View(df1)
+# View(df2)
+
+# Sort order of columns: key data (vars1), biol. effects (vars2), all the rest (vars3 = values, vars4 = flags)
+vars1 <- c("MYEAR", "STATION_CODE", "LATIN_NAME", "TISSUE_NAME", "SAMPLE_NO2", "DRYWT", "FAT_PERC", "LNMEA", "DRYWT")
+vars2 <- c("VDSI", "Intersex")
+vars3 <- names(df1)
+vars3 <- vars3[!vars3 %in% c(vars1, vars2, "Fett", "DRYWT%")] 
+vars4 <- names(df2)
+vars4 <- vars4[!vars4 %in% c(vars1, vars2, "Fett_flag", "DRYWT%_flag")] 
+vars <- c(vars1, vars2, 
+          sort(c(vars3, vars4))
+)
+
+data_biol_effects_wide_snails <- left_join(df1, df2, 
+                                           by = c("MYEAR", "STATION_CODE", "LATIN_NAME", "TISSUE_NAME", "SAMPLE_NO2"))[vars]
+
+d <- dim(data_biol_effects_wide_snails)
+cat("Wide snail data extracted,",  d[1], "rows and", d[2], "columns \n")
+
+```
+
+## Save to Excel  
+```{r}
+
+writexl::write_xlsx(
+  list(
+    `All data (long format)` = data_biol_effects,
+    `Cod data (wide format)` = data_biol_effects_wide_cod,
+    `Snail data (wide format)` = data_biol_effects_wide_snails
+  ),
+  "Data/502_Biological_effect_data_update2019.xlsx"
+)
+
+```
+
