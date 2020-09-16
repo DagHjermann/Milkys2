@@ -65,7 +65,8 @@ if (check == 0){   # add only if not already added
   data_extra$Median <- 0    # manual entry of value 
   data_med2 <- rbind(data_med2, data_extra)
   rm(data_extra)
-  }
+}
+
 ```
 
 ```{r}
@@ -154,12 +155,15 @@ file_versions
 data_xl_name <- file_versions$Filename[1]
 data_xl_lessthans <- readRDS(paste0("Big_excel_table/", data_xl_name))
 
+cat("Read big excel table", sQuote(data_xl_name))
+
 # for inspection:
 if (FALSE){
   data_xl_lessthans %>% 
     select(PARAM, LATIN_NAME, TISSUE_NAME, STATION_CODE, Basis, Yr_2019, EQS_2019, Lt_2019, Trends.2019) %>% 
     View()
 }
+
 
 ```
 
@@ -207,6 +211,26 @@ plot_medians_and_trends(c("CR", "Mytilus edulis", "Whole soft body", "57A",  "WW
 # debugonce(get_plotdata)
 plot_medians_and_trends(c("CB118", "Gadus morhua", "Lever", "30B",  "WW"), 
                              eqs_type = type, xlim = c(1984, 2019), ylim = c(0, 800))
+
+
+```
+### Test 5
+```{r}
+# debugonce(plot_medians_and_trends)
+plot_medians_and_trends(c("VDSI", "Nucella lapillus", "Whole soft body", "36G",  "WW"), 
+                             eqs_type = type, xlim = c(1984, 2019))
+
+```
+
+### Test 6 - square symbol  
+```{r}
+
+X <- plot_medians_and_trends(c("OCS", "Gadus morhua", "Lever", "30B",  "WW"), 
+                             eqs_type = type, xlim = c(1984, 2019), ylim = c(0, 15))
+# str(X, 1)
+X$fn <- "TSplot_OCS_Gadus morhua_Lever_30B_WW_TEST3.png"
+save_trendplot(X, "Figures_401/Til rapporten")
+
 
 ```
 

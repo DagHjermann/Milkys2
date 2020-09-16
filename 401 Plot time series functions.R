@@ -143,7 +143,8 @@ plot_medians_and_trends <- function(ser, x_rel = 0.8, y_rel = 0.9, xlim = NULL, 
   trends <- case_when(
     trendsymbol_xl %in% "¢" ~ "circle",
     trendsymbol_xl %in% "é" ~ "arrowup",
-    trendsymbol_xl %in% "ê" ~ "arrowdown"
+    trendsymbol_xl %in% "ê" ~ "arrowdown",
+    trendsymbol_xl %in% "§" ~ "filledsquare",
   )
  
    gg <- add_trend(gg, trendsymbols = trends, x_rel = x_rel, y_rel = y_rel, 
@@ -484,12 +485,17 @@ add_trend <- function(gg,
     txt <- case_when(
       trendsymbols == "arrowup" ~ "\u2191",
       trendsymbols == "arrowdown" ~ "\u2193",
-      trendsymbols == "circle" ~ "\u25CB"
+      trendsymbols == "circle" ~ "\u25CB",
+      trendsymbols == "filledsquare" ~ "\u25FE"  # 25FE
+    )
+    relsize <- case_when(
+      trendsymbols == "filledsquare" ~ 0.55,
+      TRUE ~ 1
     )
     gg <- gg +
-      annotate("text", x = x_pos[1], y = y_pos, label = txt[1], hjust = 0.5, vjust = 0.5, size = fontsize) +
+      annotate("text", x = x_pos[1], y = y_pos, label = txt[1], hjust = 0.5, vjust = 0.5, size = fontsize*relsize) +
       annotate("text", x = x_pos[2], y = y_pos, label = "/", hjust = 0.5, vjust = 0.7, size = round(fontsize*0.8, 0)) +
-      annotate("text", x = x_pos[3], y = y_pos, label = txt[2], hjust = 0.5, vjust = 0.5, size = fontsize)
+      annotate("text", x = x_pos[3], y = y_pos, label = txt[2], hjust = 0.5, vjust = 0.5, size = fontsize*relsize)
   
     }
   gg
