@@ -5,8 +5,8 @@ output: html_document
   
 Reading data from Excel sheets from NILU  
 - Mostly eider duck (egg and blood) - in the case of siloxans, also cod data    
+- The data will be added in script 101, after section 4 - to 'dat_new3'  
 
-  
 NOTE: The excel file needs to be fixed beforehand!   
 - The sheets are either   
     - type 1 (samples in columns, substances in rows) - to be read with read_excel_nilu1  
@@ -60,10 +60,8 @@ Read and reformat the most recent data (by default)
 Code identical to the code in the start of script 109   
 ```{r}
 
-dat_new3 %>% names() %>% dput()
-
-c("MYEAR", "STATION_CODE", "LATIN_NAME", "SAMPLE_NO2", "TISSUE_NAME", 
-"PARAM", "BASIS", "VALUE", "FLAG1", "UNIT")
+# c("MYEAR", "STATION_CODE", "LATIN_NAME", "SAMPLE_NO2", "TISSUE_NAME", 
+#   "PARAM", "BASIS", "VALUE", "FLAG1", "UNIT")
 
 
 files <- dir("Data", pattern = "101_data_updated") %>% rev()
@@ -83,6 +81,9 @@ file_date <- substr(filename, 18, 27)    # pick out the part of the text from ch
 
 ```
 
+
+
+
 ## 4. Read from excel  
 
 ```{r}
@@ -92,7 +93,7 @@ sheets <- excel_sheets(filename)
 sheets
 
 # Empty list for data
-dat <- vector("list", length(sheets))
+dat <- vector("list", length(sheets) + 1)   # "+ 1" is because we have an extra file with metals 
 
 ```
 
@@ -288,6 +289,134 @@ ggplot(dat[[6]], aes(Tissue, Value)) +
 
 ```
 
+### Extra file: Metals (data no. 7)
+Submitted to NOG later (7th Aug 2020)  
+```{r}
+
+#
+# 1. Read data
+#
+data_metals_units <- read_excel("Input_data/mv-o118009-2020-1-Milkyst_rapport.xlsx", range = "A6:O7")
+data_metals_data <- read_excel("Input_data/mv-o118009-2020-1-Milkyst_rapport.xlsx", range = "A7:O38")
+
+#
+# 2. Fix column names
+#
+x <- colnames(data_metals_units)[5:15]
+x <- sub("[0-9]+", "", x)
+x <- sub("[ He ]", "", x, fixed = TRUE)
+x <- sub("[ No Gas ]", "", x, fixed = TRUE)
+x <- gsub(" ", "", x, fixed = TRUE)
+x
+colnames(data_metals_units)[5:15] <- x
+substances <- x
+
+colnames(data_metals_units)[1:4] <- colnames(data_metals_data)[1:4]
+colnames(data_metals_data)[5:15] <- colnames(data_metals_units)[5:15]
+data_metals_data <- data_metals_data %>%
+  rename(Sample_no_NILU = `Lab.nr`) %>%
+  filter(!is.na(Sample_no_NILU))
+
+# data_metals_units
+
+#
+# 3. Get STATION_CODE and BIOTA_SAMPLENO from another data set
+#
+
+df_niva_identifiers <- dat[[2]] %>% 
+  distinct(Sample_no_NILU, NIVA_ID, Label, Tissue, STATION_CODE, BIOTA_SAMPLENO) 
+
+# Check 'df_niva_identifiers'
+check1 <- df_niva_identifiers %>%
+  group_by(Sample_no_NILU) %>%
+  mutate(n = n()) %>%
+  filter(n > 1)
+if (nrow(check1) > 0) 
+  stop("STOP! More than one STATION_CODE/BIOTA_SAMPLENO per Sample_no_NILU! Check 'check1'. \n")
+
+#
+# 4. Fix 'Sample_no_NILU'
+#
+if (FALSE){
+  # data_metals_data's version of Sample_no_NILU contains a zero:
+  data_metals_data$Sample_no_NILU %>% unique() %>% sort()
+  df_niva_identifiers$Sample_no_NILU %>% unique() %>% sort()
+}
+# Remove zero after slash in Sample_no_NILU:
+data_metals_data$Sample_no_NILU <- sub("/0", "/", data_metals_data$Sample_no_NILU, fixed = TRUE)
+
+#
+# 5. Add STATION_CODE/BIOTA_SAMPLENO to data
+#
+data_metals_data2 <- data_metals_data %>%
+  left_join(df_niva_identifiers, by = "Sample_no_NILU") 
+
+check2 <- data_metals_data2 %>%
+  filter(is.na(STATION_CODE) | is.na(BIOTA_SAMPLENO))
+
+# Check result of join
+if (nrow(check2) > 0) {
+  stop("STOP! Some records lack STATION_CODE/BIOTA_SAMPLENO. Check 'check2'. \n")
+} else {
+ cat("STATION_CODE and BIOTA_SAMPLENO added to data. \n") 
+}
+
+
+#
+# 6. Make broad data
+#
+vars <- c("Sample_no_NILU", "NIVA_ID", "Label", "STATION_CODE", "BIOTA_SAMPLENO", "Tissue", "Provetype", substances)
+data_metals_long <- data_metals_data2[vars] %>%
+  pivot_longer(all_of(substances), names_to = "Parameter", values_to = "Value_raw") %>%
+  mutate(
+    Value = case_when(
+      Value_raw < 0 ~ -Value_raw,
+      Value_raw >= 0 ~ Value_raw),
+    FLAG1 = case_when(
+      Value_raw < 0 ~ "<",
+      Value_raw >= 0 ~ as.character(NA)),
+    Sample_amount = 1,
+    Group = "Metals")
+#
+# Double-check tissue
+#
+
+cat("Double-check tissue: \n")
+xtabs(~addNA(Tissue) + addNA(Provetype), data_metals_long)
+
+
+#
+# 7. Add unit 
+#
+# Make look-up data
+metals_units <- data_metals_units[5:15] %>% t() %>% as.data.frame() 
+colnames(metals_units)[1] <- "Unit"
+metals_units$Parameter <- rownames(metals_units)
+
+# Add tissue using left join
+n1 <- nrow(data_metals_long)
+data_metals_long <- data_metals_long %>%
+  left_join(metals_units, by = "Parameter")
+n2 <- nrow(data_metals_long)
+
+if (n1 != n2) 
+  stop("STOP! Left join seems to hae resulted in duplication of data. \n")
+
+
+#
+# 8. Make the 7th data set
+#
+dat[[7]] <- data_metals_long %>%
+  mutate(TEXT_ID = as.character(NA)) %>%
+  select(-Provetype , -Value_raw)
+
+if (FALSE){
+  dat[[1]] %>% colnames()
+  dat[[2]] %>% colnames() %>% dput()
+  View(dat[[2]])
+}
+
+```
 
 ## 5. Combine data  
 
@@ -357,7 +486,7 @@ get_coltypes <- function(dataframe){
 dat %>% purrr::map_df(get_coltypes)
 
 #
-# Combine data 1-6
+# Combine data 1-7
 #
 dat_nilu1 <- bind_rows(dat)
 
@@ -414,7 +543,8 @@ if (n > 0){
 ```
 
 
-## 7. Make data ready for joining to rest of data  
+## 7. Make data ready for joining to rest of data   
+- The data will be added in script 101, after section 4 - to 'dat_new3'  
   
 Desired format:  
 ```
@@ -436,17 +566,27 @@ head(dat_new3, 3)
 # Parameter UNIT added (old "Unit" is kept)
 dat_nilu2 <- nilu_fix_units(dat_nilu1)
 
+# Also set for fat
+sel <- dat_nilu2$Parameter == "FAT_PERC"; sum(sel)
+dat_nilu2$UNIT[sel] <- "%"
+
 dat_nilu2 %>%
   count(Unit, UNIT)
 
-# FOR check, in case there are cases with unit = NA
-# dat_nilu2 %>%
-#   filter(is.na(UNIT))
+if (FALSE){
 
-# xtabs(~Unit + UNIT, dat_nilu2)
+  # FOR check, in case there are cases with unit = NA
+  xtabs(~addNA(UNIT), dat_nilu2)
 
-# Not relevant this year - no HG data:
-# dat_nilu2 <- nilu_fix_hg_unit(dat_nilu2)
+  dat_nilu2 %>%
+    filter(is.na(UNIT)) %>%
+    xtabs(~Parameter, .)
+
+  xtabs(~Unit + UNIT, dat_nilu2)
+}
+
+# Change ug/kg to mg/kg for Hg data where (if) necessary
+dat_nilu2 <- nilu_fix_hg_unit(dat_nilu2)
   
 cat("Number of NA values for UNIT: \n")
 sum(is.na(dat_nilu2$UNIT))  # SHOULD BE ZERO
@@ -462,7 +602,7 @@ sum(is.na(dat_nilu2$TISSUE_NAME))  # SHOULD BE ZERO
 #   filter(is.na(TISSUE_NAME))
 
 cat("\n Number of rows: \n")
-nrow(dat_nilu2)  # 2610
+nrow(dat_nilu2)  # 3207
 
 
 ```
@@ -471,9 +611,13 @@ nrow(dat_nilu2)  # 2610
 Originally Parameter, we set PARAM here ('Parameter' is kept)
 ```{r}
 dat_nilu3 <- dat_nilu2
-dat_nilu3$PARAM <- ""                        # Create PARAM
+dat_nilu3$PARAM <- ""                         # Create PARAM
 dat_nilu3 <- nilu_param_pcb_pbde(dat_nilu3)   # Set PARAM for PBCs and PBDEs (using IPUAC nr)
 dat_nilu3 <- nilu_param(dat_nilu3)            # Set PARAM for the most of the rest
+
+# Metals: upper case
+sel <- dat_nilu3$Group %in% "Metals"; sum(sel)
+dat_nilu3$PARAM[sel] <- toupper(dat_nilu3$Parameter[sel])
 
 # Finally, Sum PCB
 sel <- dat_nilu3$Parameter %in% "Sum 7 PCB"; sum(sel)
@@ -510,7 +654,7 @@ dat_nilu4 <- dat_nilu3 %>%
            is.na(STATION_CODE) ~ station_code_not_given            # assume that all that isn't cod, is 
          ),
          LATIN_NAME = case_when(
-           STATION_CODE %in% "19N" ~ "Somateria mollisima",
+           STATION_CODE %in% "19N" ~ "Somateria mollissima",
            TRUE ~ "Gadus morhua"
          ),
          BASIS = "W"
@@ -533,14 +677,15 @@ needed_variables <- c("MYEAR", "STATION_CODE", "LATIN_NAME", "SAMPLE_NO2", "TISS
 
 dat_nilu4[needed_variables] %>% head()
 
+# dat_nilu4[needed_variables] %>% View()
+
 ```
 
 
 ### Save  
 ```{r}
 
-saveRDS(dat_nilu4[needed_variables], 
-        "Data/161_data_nilu_nivaformat.rds")
+saveRDS(dat_nilu4, "Data/161_data_nilu_nivaformat.rds")
 
 ```
 

@@ -12,6 +12,22 @@ Note: If you want to add or replace a few time series, and don't want to run thi
 - set add_extra_series to TRUE  
 - modify the filtering of df_series  
 - the "save data" section will then automatically add the new series to the existing time trends  
+
+
+```{r}
+# ============ NOTE ============
+#
+# If 'add_extra_series' below is set to FALSE
+#   - all time trends will be calculated (i.e., the 'normal' procedure)
+#
+# If 'add_extra_series' below is set to TRUE
+#   - only the series defined in 'add_extra_series' will be calculated ("SPECIAL" part below, 4c)
+#   - the "save data" section will then automatically add the new series to the existing time trends  
+#     If those time trends already exists, they will be replaced by the new time trends
+
+add_extra_series <- FALSE
+
+```
   
 ## 1. Libraries and functions  
 ```{r, results='hide', message=FALSE, warning=FALSE}
@@ -50,9 +66,12 @@ cat("Reading the last file downloaded:")
 cat("\n", files[1])
 cat("\n")
 cat("If you want to read a different file, replace 'files[1]' with the file you want")
-cat("\n")
+cat("\n\n")
 
-filename <- files[1] 
+filename <- files[1]   
+cat("Time since this file was modified: \n")
+Sys.time() - file.info(paste0("Data/", filename))$mtime
+
 data_med <- readRDS(paste0("Data/", filename)) %>%
   rename(Proref_median = Median,
          Median = Value) 
@@ -155,6 +174,11 @@ cat("Number of series:", nrow(df_series), "\n")
 ### b. Test the entire procedure  
 For 20 random series   
 ```{r}
+# We turn the function 'model_from_medians_stat' into a 'safe' function
+#   in the sense that if the function fails (an error occurs), the procedure will not stop, but 
+# continue looping through all the stations/parameters.
+# The new function, called 'model_from_medians_stat_s', is created using the 'safely' function. (More info below.)
+model_from_medians_stat_s <- safely(model_from_medians_stat)
 
 # Pick 20 random series
 df_series_random <- df_series %>% 
@@ -186,21 +210,44 @@ args <- args[c("station", "tissue", "species", "param", "basis")]
 # old_options <- options(show.error.messages = FALSE, warn = -1)
 
 # Run models
-result_list_10yr <- args %>% pmap(model_from_medians_stat, 
+result_list_10yr <- args %>% pmap(model_from_medians_stat_s, 
                                   yrs = 2010:2019, data_medians = data_med)
-result_list_long <- args %>% pmap(model_from_medians_stat, 
+result_list_long <- args %>% pmap(model_from_medians_stat_s, 
                                   yrs = 1980:2019, data_medians = data_med)
 
 # Turn error messages on again
 # options(old_options)
 
-# Combine lists to data frames
-result_10yr <- bind_rows(result_list_10yr)
-result_long <- bind_rows(result_list_long)
+# 'model_from_medians_stat' returns a data frame of one line   
+# 'model_from_medians_stat_s' (the 'safe' version) returns a list with two elements,
+#     "result" and "error"
+#   If the function works, "result" contains the normal output (the one-line data frame) and "error" is NULL
+#   If the function fails, "result" is NULL and "error" contains the error message
+# pmap() returns a list with one element per parameter/station, so the result is a 20-element list of lists:
+#   result_list_10yr[[1]] = list with elements "result" and "error" 
+#   result_list_10yr[[2]] = list with elements "result" and "error" 
+#   ...
+#   result_list_10yr[[20]] = list with elements "result" and "error" 
+
+# We transpose these lists, resulting in the following lists:
+#   result_list_10yr_t$result = list of 20 elements (each is a one line data frame)
+#   result_list_10yr_t$error = list of 20 elements (each is either NULL or an error message)
+result_list_10yr_t <- purrr::transpose(result_list_10yr)
+result_list_long_t <- purrr::transpose(result_list_long)
+
+# For 10-year trends, use the "error" element to find out which elements that have no errors:
+no_error <- result_list_10yr_t$error %>% map_lgl(is.null)
+
+# Combine the "result" elements with no errors to a single data frame
+result_10yr <- bind_rows(result_list_10yr_t$result[no_error])
+
+# For long-term trends, do the same:
+no_error <- result_list_long_t$error %>% map_lgl(is.null)
+result_long <- bind_rows(result_list_long_t$result[no_error])
 
 ```
 
-### c. SPECIAL: add or updatetrends for one/a few parameters/stations   
+### c. SPECIAL: add or update trends for one/a few parameters/stations   
 Calculate trends for just a few selected series, and add them to the existing trend data sets (result_10yr and result_long)   
 In order to do this:  
 - set 'add_extra_series' in this chunk to TRUE    
@@ -210,12 +257,14 @@ In order to do this:
 For the ordinary case (where you want to analyse all time series), i.e., when add_extra_series = FALSE, just run the chunk below   
 
 ```{r}
-# Set 'add_extra_series' to TRUE if you want to add just add a few trends to existing trends
-#   or if you want to replace a few trends
-# (Will also be used futher below, in the 'save' part)
 
-add_extra_series <- FALSE
-
+# If 'add_extra_series' (set in the top of the script) is set to FALSE:
+#   - all time trends will be calculated (i.e., the 'normal' procedure)
+#
+# If 'add_extra_series' is set to TRUE:
+#   - only the series defined in 'add_extra_series' (see below) will be calculated 
+#   - the "save data" section will then automatically add the new series to the existing time trends  
+#     If those time trends already exists, they will be replaced by the new time trends
 
 #o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
 #
@@ -245,7 +294,7 @@ if (add_extra_series){
   # Example: we want to add 'TPTIN' to existing trends  
   # We filter df_series to get 'TPTIN' only:
   df_series <- df_series %>% 
-    filter(PARAM %in% "TPTIN") 
+    filter(PARAM %in% "C/N") 
 
   #
   # Filter df_series END
@@ -283,7 +332,7 @@ args <- args[c("station", "tissue", "species", "param", "basis")]
   
 **NOTE: This takes ca. 35 minutes**    
   
-```{r}
+```{r, result = 'hide', message=FALSE, warning=FALSE, error=FALSE}
 
 # Turn 'model_from_medians_stat' into a 'safe' function
 #   The new function 'model_from_medians_stat_s' returns a list with two elements,
@@ -313,9 +362,15 @@ result_list_long <- args %>% pmap(model_from_medians_stat_s,
                                   yrs = 1980:2019, data_medians = data_med)  # ca 15-20 minutes
 
 sink()                                 # Turn off redirection of messages   
+t1 <- Sys.time()                                                            # Start time for procedure
 
-Sys.time() - t0  # Print time used - 36.55274 minutes last time  
 
+```
+
+### Time used  
+```{r}
+cat("Procedure finished. \n")
+print(t1 - t0)
 ```
 
 ### Change output into data frames   
@@ -325,7 +380,7 @@ Sys.time() - t0  # Print time used - 36.55274 minutes last time
 # Transpose lists
 # 'result_list_10yr' is a list of some 1000 elements, where each element
 #    is a list with $result and $error
-# We turn this to a list 2 elements: $result and $error, each with some 1000 elements  
+# 'Transposing' means to turn this to a list of 2 elements: $result and $error, each with some 1000 elements  
 result_list_10yr_t <- purrr::transpose(result_list_10yr)
 result_list_long_t <- purrr::transpose(result_list_long)
 
@@ -344,6 +399,8 @@ result_long <- bind_rows(result_list_long_t$result[no_error])
 ## 6. Save or update the result file    
 
 ```{r}
+
+cat("'add_extra_series' set to", add_extra_series, "\n\n")
 
 if (!add_extra_series){   # this is the normal case - we have calculated trends for all series
 
@@ -389,14 +446,16 @@ if (!add_extra_series){   # this is the normal case - we have calculated trends 
     # Remove all series already present in result_10yr:
     safe_anti_join(result_10yr, 
                    by = c("STATION_CODE", "PARAM", "LATIN_NAME", "TISSUE_NAME", "Basis"),
-                   check = "BCUV")
+                   na_matches = "never",
+                   check = "BUV")
 
   # Read saved 'long' series...
   result_long_original <- readRDS(paste0("Data/", fn_existing_2)) %>%
     # Remove all series already present in result_long:
-    safe_anti_join(flag_replace_long, 
+    safe_anti_join(result_long, 
                  by = c("STATION_CODE", "PARAM", "LATIN_NAME", "TISSUE_NAME", "Basis"),
-                 check = "BCV")
+                 na_matches = "never",
+                 check = "BUV")
   
   # Add the newly made series
   result_10yr <- bind_rows(result_10yr_original, result_10yr)
@@ -436,6 +495,11 @@ if (!add_extra_series){   # this is the normal case - we have calculated trends 
   
   saveRDS(result_10yr, paste0("Data/", fn1, ".rds"))
   saveRDS(result_long, paste0("Data/", fn2, ".rds"))
+  
+  cat("\n")
+  cat("=========================================================================\n")
+  cat(" REMEMBER TO SET 'add_extra_series <- FALSE' NOW THAT YOU ARE FINISHED. \n")
+  cat("=========================================================================\n")
 
 }
 
@@ -443,36 +507,30 @@ if (!add_extra_series){   # this is the normal case - we have calculated trends 
 
 
 
-
+## 7. Appendix  
+Use the code below (run the part inside the `{}`) for reading the produced data    
 ```{r}
 
-fn <- get_newest_filenames("120_result_long.+back.+rda", "back_", ".rda")
-  result_long <- readRDS(paste0("Data/", fn))
+if (FALSE){
+  
+  # Trends - most recent estimate 
+  # Read and reformat the most recent data (by default)  
+  
+  # Find files and sort with the newest first
+  files1 <- dir("Data", pattern = "120_result_10yr") %>% rev()
+  files2 <- dir("Data", pattern = "120_result_long") %>% rev()
+  
+  # Print for user
+  cat("Trend estimates - reading the last files produced:")
+  cat("\n ", files1[1])
+  cat("\n ", files2[1])
 
-  fn <- get_newest_filenames("120_result_10yr.+back.+rda", "back_", ".rda")
-  result_10yr <- readRDS(paste0("Data/", fn))
-
-```
-
-
-```{r}
-
-```
-
-
-```{r}
-
-```
-
-
-```{r}
-
-```
-
-
-```{r}
+  # Read files
+  result_10yr <- readRDS(paste0("Data/", files1[1]))
+  result_long <- readRDS(paste0("Data/", files2[1]))
+  
+}
 
 ```
-
 
 

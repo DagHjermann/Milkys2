@@ -1,3 +1,4 @@
+
 #
 # Based on "31_Read_excel_data_2019.R" in R project Milkys
 #
@@ -13,44 +14,133 @@ library(ggplot2)
 source('161_Read_NILU_excel_data_functions.R')
 source("101_Combine_with_legacy_data_functions.R")  # for sum parameters
 
-#
-# Note: File fixed beforehand (see '31_Read_excel_data_functions.R')
-# (Also the row names of the upper part had to be moved one row up)
+# Note: The excel file needs to be fixed beforehand 
+# - The sheets are either of type 1 (to be read with read_excel_nilu1) or type 2 (use read_excel_nilu2)
+# - See decriptions and instructions for each of the to types in '31_Read_excel_data_functions.R'
+# - In this case, sheets "HBCD", "PBDE" and "PCB" are of type 1 and the rest are type 2
+# - For siloksaner, we also needed to add 
+
+### Sample data for 2019   
+# We need to have a look at this to fix the siloksan data (which also contains cod) 
+files <- dir("Input_data", "Labware_samples_") %>% rev()
+filename <- files[1] 
+df_samples <- readRDS(paste0("Input_data/", filename))
+
+df_samples_sel <- df_samples %>%
+  filter(grepl("2019", TEXT_ID)) %>%
+  filter(AQUAMONITOR_CODE %in% c("24B","19B","43B2","30B")) %>%   # from looking in "siloksaner" in the Excel file
+  select(AQUAMONITOR_CODE, TEXT_ID, SAMPLE_NUMBER, TISSUE, BIOTA_SAMPLENO, DESCRIPTION) %>%
+  arrange(AQUAMONITOR_CODE, TISSUE, BIOTA_SAMPLENO)
+
+
 
 #
-# 2a. Read data parts, NILU files ----
+# 2a. Read type 1 sheets (one sample = one column ) ----
 #
+
+filename <- "Input_data/NILU_data_for_2019_korrigert_edited.xlsx"
+excel_sheets(filename)
 
 dat <- vector("list", 7)
 
 # Data 1-2: read_excel_nilu1
-dat[[1]] <- read_excel_nilu1("Input_data/NILU_data_for_2018.xlsx", "PBDE",
-                            lessthans_given_as_negative_number = TRUE) %>%
+# debugonce(read_excel_nilu1)
+dat[[1]] <- read_excel_nilu1(filename, "PBDE", 
+                             find_upper_top = "sample number", # text to search for in first line of upper part
+                             find_upper_bottom = "file",            # text to search for in last line of upper part
+                             find_lower_top = "structure",          # text to search for in first line of lower part
+                             name_Sample_no_NILU = "NILU-Sample number:",  # Names given in Excel sheet (must fit exactly)
+                             name_Sample_no = "NIVA-ID",  
+                             name_Tissue = "type:", 
+                             name_Sample_amount = "amount:",
+                             name_Unit = "unit",
+                             lessthans_given_as_negative_number = TRUE) %>%
   mutate(Group = "PBDE")
 
-dat[[2]] <- read_excel_nilu1("Input_data/NILU_data_for_2018.xlsx", "PCB",
-                           lessthans_given_as_negative_number = FALSE,
-                           name_Sample_amount = "Analysed sample amount:",
-                           ) %>%
+dat[[2]] <- read_excel_nilu1(filename, "PCB", 
+                             find_upper_top = "sample number", # text to search for in first line of upper part
+                             find_upper_bottom = "file",            # text to search for in last line of upper part
+                             find_lower_top = "structure",          # text to search for in first line of lower part
+                             name_Sample_no_NILU = "NILU-Sample number:",  # Names given in Excel sheet (must fit exactly)
+                             name_Sample_no = "NIVA-ID",  
+                             name_Tissue = "type:", 
+                             name_Sample_amount = "amount:",
+                             name_Unit = "unit",
+                             lessthans_given_as_negative_number = FALSE) %>%
   mutate(Group = "PCB")
+head(dat[[2]])
 
-# Data 3-5: read_excel_nilu2
-# Note 3rd data column for CP sheet (dat[[4]]): "Rec %", we call it "Rec_percent"
-dat[[3]] <- read_excel_nilu2("Input_data/NILU_data_for_2018.xlsx", "HBCD",
-                       lessthans_given_as_negative_number = TRUE,
-                       contains_sample_amount = TRUE) %>%
+
+# debugonce(read_excel_nilu1)
+dat[[3]] <- read_excel_nilu1(filename, "HBCD", 
+                             find_upper_top = "sample number", # text to search for in first line of upper part
+                             find_upper_bottom = "file",            # text to search for in last line of upper part
+                             find_lower_top = "structure",          # text to search for in first line of lower part
+                             name_Sample_no_NILU = "NILU sample number:",  # Names given in Excel sheet (must fit exactly)
+                             name_Sample_no = "NIVA-ID",  
+                             name_Tissue = "type:", 
+                             name_Sample_amount = "amount:",
+                             name_Unit = "unit",
+                             lessthans_given_as_negative_number = TRUE) %>%
   mutate(Group = "HBCD")
+head(dat[[3]])
 
-dat[[4]] <- read_excel_nilu2("Input_data/NILU_data_for_2018.xlsx", "CP",
-                       lessthans_given_as_negative_number = FALSE,
-                       contains_sample_amount = TRUE) %>%
-  mutate(Group = "CP") %>%
+#
+# 2a. Read type 2 sheets (one sample = one row ) ----
+#
+
+# Data 4-5: read_excel_nilu2
+# Note 3rd data column for CP sheet (dat[[4]]): "Rec %", we call it "Rec_percent"
+
+# debugonce(read_excel_nilu2)
+dat[[4]] <- read_excel_nilu2(filename, 
+                             "CP", 
+                             lessthans_given_as_negative_number = TRUE) %>%
+  mutate(Group = "CP")
+head(dat[[4]])
+
+#
+# Note: Siloxans also includes cod data
+#
+dat[[5]] <- read_excel_nilu2(filename, 
+                             "siloksaner", 
+                             lessthans_given_as_negative_number = TRUE) %>%
+  mutate(Group = "Siloxans")
+head(dat[[5]])
+
+# STATION_CODE
+# Show part of "Label" between first and second space (space = \\s)
+# dat[[5]]$Label %>% stringr::str_extract("(?<=\\s)[^\\s]+(?=\\s)") %>% table()
+
+dat[[5]] <- dat[[5]] %>%
+  # Add STATION_CODE
+  mutate(STATION_CODE = stringr::str_extract(Label, "(?<=\\s)[^\\s]+(?=\\s)")) %>%
+  mutate(STATION_CODE = sub("-", "", STATION_CODE)) %>%
+  # Add sample number 
+  mutate(BIOTA_SAMPLENO = stringr::str_extract(Label, "(?<=\\s)[^\\s]+(?=$)") %>% as.numeric())
+
+head(dat[[5]])
+
+head(data_all)
+data_all %>%
+  filter(MYEAR == 2019 & STATION_CODE == "19B") %>%
+  xtabs(~SAMPLE_NO2 + STATION_CODE,  .)
+
+xtabs(~BIOTA_SAMPLENO + STATION_CODE, dat[[5]])
+
+
+
+stringr::str_extract(x, "(?<=_)[^_]+(?=_)")
+
+
+%>%
   mutate(Parameter = ifelse(Parameter == "X__1", "Rec_percent", Parameter))
 
-dat[[5]] <- read_excel_nilu2("Input_data/NILU_data_for_2018.xlsx", "Metaller",
-                       lessthans_given_as_negative_number = TRUE,
-                       contains_sample_amount = FALSE,
-                       skip = 2) %>%
+
+dat[[5]] <- read_excel_nilu2(filename, "Metaller",
+                             lessthans_given_as_negative_number = TRUE,
+                             contains_sample_amount = FALSE,
+                             skip = 2) %>%
   mutate(Group = "Metaller")
 
 # Data 6: we do manually
@@ -379,7 +469,7 @@ dat_nilu3 <- dat_nilu2 %>%
 
 for (i in seq_along(pars_list)){
   dat_nilu3 <- add_sumparameter(i, pars_list, dat_nilu3)
- }
+}
 
 
 ### Tables for number of cogeners per sum parameter  
@@ -388,8 +478,8 @@ if (FALSE){
   data_all_updated %>%
     filter(MYEAR >= 2010 & PARAM %in% c("CB_S7", "BDE6S", "PFAS", "CB118")) %>%
     xtabs(~MYEAR + PARAM, .)
-
-    for (i in 1:length(pars_list)){
+  
+  for (i in 1:length(pars_list)){
     par <- names(pars_list)[i]
     print(par)
     print(

@@ -1,20 +1,21 @@
 ---
-title: "102_Medians_and PROREF"
+title: "110_Medians_and PROREF"
 output: html_document
 ---
 
 ## 1. Packages
 ```{r, message=FALSE, warning=FALSE, results='hide'}
 
-
 library(readxl)
 library(tidyr)
 
-# Dropping dtplyr, it only saves 20 seconds or so
+#
+# Dropping dtplyr (it only saves 20 seconds or so in this script)
+#
 # install.packages("dtplyr")
 # library(data.table)
+# library(dtplyr)
 
-library(dtplyr)
 library(dplyr, warn.conflicts = FALSE)
 library(purrr)
 
@@ -27,7 +28,7 @@ library(purrr)
 
 ### Main data  
 Read and reformat the most recent data (by default)  
-```{r}
+```{r, collapse=TRUE}
 
 files <- dir("Data", pattern = "109_adjusted_data") %>% rev()
 
@@ -35,9 +36,12 @@ cat("Reading the last file downloaded:")
 cat("\n", files[1])
 cat("\n")
 cat("If you want to read a different file, replace 'files[1]' with the file you want")
-cat("\n")
+cat("\n\n")
 
-filename <- files[1] 
+filename <- files[1]
+cat("Time since this file was modified: \n")
+Sys.time() - file.info(paste0("Data/", filename))$mtime
+
 data_all <- readRDS(paste0("Data/", filename))
 
 # We save the date part of the text (e.g., '2020-04-23')
@@ -48,13 +52,53 @@ file_date <- substr(filename, pos1, pos2)    # pick out the part of the text fro
 
 ```
 
+
 ### Fixing 
-Fixing station 227G2 (shall count as 227G) 
+Fixing station 227G1 and 227G2 (shall count as 227G) 
 ```{r}
 
-sel <- data_all$STATION_CODE %in% "227G2"; sum(sel)
+sel <- data_all$STATION_CODE %in% c("227G1","227G2"); sum(sel)
 # xtabs(~MYEAR, data_all[sel,])
 data_all$STATION_CODE[sel] <- "227G"
+
+```
+
+Fixing station 36A and 36A1 (36A1 shall count as 36A) 
+```{r}
+
+sel <- data_all$STATION_CODE %in% "36A1"; sum(sel)
+# xtabs(~MYEAR, data_all[sel,])
+data_all$STATION_CODE[sel] <- "36A"
+
+```
+
+C/N lacking for 2019  
+```{r}
+
+if (FALSE) { 
+  
+  # Check %C by station - good coverage 2015-2019, bad coverage after that
+  data_all %>%
+    filter(PARAM %in% "% C" & MYEAR >= 2000) %>%
+    xtabs(~STATION_CODE + MYEAR, .)
+}
+
+# 
+data_all %>%
+  filter(PARAM %in% "% C" & MYEAR >= 2000) %>%
+  xtabs(~is.na(VALUE_WW) + MYEAR, .)
+
+data_all %>%
+  filter(PARAM %in% "C/N" & MYEAR >= 2000) %>%
+  xtabs(~is.na(VALUE_WW) + MYEAR, .)
+
+if (FALSE){
+  # Dry-weight data: no different
+  data_all %>%
+    filter(PARAM %in% "C/N" & MYEAR >= 2000) %>%
+    xtabs(~is.na(VALUE_DW) + MYEAR, .)
+}
+
 
 ```
 
@@ -109,18 +153,18 @@ if (sum(check$n > 1) == 0){
 ### Calculate medians using dtplyr  
 ```{r}
 
-data_all_dt <- lazy_dt(data_all)
+# data_all_dt <- lazy_dt(data_all)
 
 t0 <- Sys.time()
 
-data_med_1a <- data_all_dt %>% 
+data_med_1a <- data_all %>% 
   group_by(MYEAR, STATION_CODE, LATIN_NAME, TISSUE_NAME, PARAM, UNIT) %>% 
   summarise_at(vars(DRYWT, FAT_PERC, VALUE_WW, VALUE_DW, VALUE_FB, VALUE_WWa, VALUE_DWa, VALUE_FBa), 
                median, 
                na.rm = TRUE) %>%
   as_tibble()
 
-Sys.time() - t0  # 12 secs (took 0.19 sec with data.table)
+Sys.time() - t0  # 19 secs (took 0.19 sec with data.table)
 
 ```
 
@@ -130,15 +174,20 @@ Sys.time() - t0  # 12 secs (took 0.19 sec with data.table)
 
 t0 <- Sys.time()
 
-data_med_1b <- data_all_dt %>%
+data_med_1b <- data_all %>%
   group_by(MYEAR, STATION_CODE, LATIN_NAME, TISSUE_NAME, PARAM, UNIT) %>%
-  summarise(N = n(), Det_limit = median(VALUE_WW[!is.na(FLAG1)]), Over_LOQ = sum(is.na(FLAG1))) %>%
+  summarise(
+    N = n(), 
+    Det_limit = median(VALUE_WW[!is.na(FLAG1)]), 
+    Over_LOQ = sum(is.na(FLAG1)),
+    .groups = "drop") %>%
   as_tibble()
 
-Sys.time() - t0  # 1.4 secs
+Sys.time() - t0  # 4 secs
 
 
 ```
+
 
 ### Combine data_med_1 and data_med_2    
 Add N, Det_limit and Over_LOQ to the data set with medians  
@@ -183,21 +232,47 @@ proref_updated03 <- bind_rows(
 ```{r}
 
 data_med_2 <- data_med_1 %>%
-  pivot_longer(cols = c(VALUE_WW, VALUE_DW, VALUE_FB, VALUE_WWa, VALUE_DWa, VALUE_FBa), names_to = "Basis", values_to = "Value") %>%
+  pivot_longer(
+    cols = c(VALUE_WW, VALUE_DW, VALUE_FB, VALUE_WWa, VALUE_DWa, VALUE_FBa), 
+    names_to = "Basis", 
+    values_to = "Value") %>%
   mutate(Basis = stringr::str_sub(Basis, start = 7))
-nrow(data_med_2)   # 429432
 
 data_med_3 <- data_med_2 %>%
   left_join(proref_updated03 %>% select(-N), by = c("LATIN_NAME", "TISSUE_NAME", "PARAM", "Basis"))
 
-nrow(data_med_3)  # 448680
+nrow(data_med_2)  # 525960
+nrow(data_med_3)  # 525960
 
 ```
+
+### Checks 
+
+#### Check 19N   
+Should be NA for all Q95 values     
+```{r}
+
+data_med_3 %>%
+  filter(STATION_CODE == "19N") %>%
+  xtabs(~is.na(Q95), .)
+
+```
+
+#### Check C/N   
+Should be NA for all Q95 values     
+```{r}
+
+data_med_3 %>%
+  filter(STATION_CODE == "19N") %>%
+  xtabs(~is.na(Q95), .)
+
+```
+
 
 ## 5. Save  
 ```{r}
 
-filename <- paste0("Data/110_mediandata_updated_", file_date)
+filename <- paste0("Data/110_mediandata_updated_", file_date, ".rds")
 
 saveRDS(data_med_3, filename)
 
