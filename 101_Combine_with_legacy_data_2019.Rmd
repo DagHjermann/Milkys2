@@ -750,8 +750,8 @@ if (sum(!p2 %in% p1b) > 0){
 
 station <- "11G"
 
-# Aquamonitor data at this stage (dat_new2)    
-dat_new2 %>%
+# Aquamonitor data at this stage (dat_new2c)    
+dat_new2c %>%
   filter(PARAM == "TBT" & MYEAR == 2019  & STATION_CODE == station) %>%
   select(STATION_CODE, MYEAR, PARAM, VALUE, FLAG1, UNIT)  
 
@@ -765,8 +765,8 @@ df2b
 
 station <- "11G"
 
-# Aquamonitor data at this stage (dat_new2)    
-dat_new2 %>%
+# Aquamonitor data at this stage (dat_new2c)    
+dat_new2c %>%
   filter(grepl("tin", PARAM, ignore.case = TRUE) & STATION_CODE == station) %>%
   select(STATION_CODE, MYEAR, PARAM, VALUE, FLAG1, UNIT)  
 
@@ -783,7 +783,7 @@ See report:
 
 ```{r}
 
-df <- dat_new2 %>%
+df <- dat_new2c %>%
   filter(STATION_CODE == "80B" & MYEAR == 2019 & TISSUE_NAME == "Lever" & BASIS == "W")
 
 # AG lacking for SAMPLE_NO2 = 3
@@ -794,7 +794,7 @@ df %>%
 if (FALSE){
 
   # Check typical values and quanification limit:
-  dat_new2 %>%
+  dat_new2c %>%
     filter(PARAM == "AG" & MYEAR == 2019 & TISSUE_NAME == "Lever" & BASIS == "W") %>%
     arrange(VALUE)
 
@@ -809,17 +809,17 @@ df_to_add <- df %>%
          FLAG1 = "<")
 
 # Check if this observation is lacking
-check <- dat_new2 %>%
+check <- dat_new2c %>%
   filter(STATION_CODE == "80B" & MYEAR == 2019 & TISSUE_NAME == "Lever" & BASIS == "W" &
            PARAM == "AG" & SAMPLE_NO2 == 3)
 
 # If so, add it:
 if (nrow(check) == 0){
-  dat_new2 <- bind_rows(dat_new2, df_to_add) 
+  dat_new2c <- bind_rows(dat_new2c, df_to_add) 
 }
 
 # Check if it is fixed:
-df <- dat_new2 %>%
+df <- dat_new2c %>%
   filter(STATION_CODE == "80B" & MYEAR == 2019 & TISSUE_NAME == "Lever" & BASIS == "W")
 
 # AG lacking for SAMPLE_NO2 = 3
@@ -839,7 +839,7 @@ If needed, see report:
 
 ```{r}
 
-df <- dat_new2 %>%
+df <- dat_new2c %>%
   filter(STATION_CODE == "98B1" & MYEAR == 2019 & TISSUE_NAME == "Lever" & BASIS == "W" & 
            PARAM == "ZN" & UNIT == "MG_P_KG")
 
@@ -851,16 +851,16 @@ df %>%
 if (FALSE){
   
   # Check all values:
-  dat_new2 %>%
+  dat_new2c %>%
     filter(MYEAR == 2019 & TISSUE_NAME == "Lever" & BASIS == "W" & PARAM == "ZN") %>%
     arrange(VALUE)
   
 }
 
 # Correct all values > 1000 by dividing by 1000
-sel <- with(dat_new2, MYEAR == 2019 & TISSUE_NAME == "Lever" & BASIS == "W" & 
+sel <- with(dat_new2c, MYEAR == 2019 & TISSUE_NAME == "Lever" & BASIS == "W" & 
               PARAM == "ZN" & UNIT == "MG_P_KG" & VALUE > 1000)
-dat_new2$VALUE[sel] <- dat_new2$VALUE[sel]/1000
+dat_new2c$VALUE[sel] <- dat_new2c$VALUE[sel]/1000
 
 cat("\n")
 cat("Number of values corrected: \n")
@@ -868,7 +868,7 @@ sum(sel)
 
 cat("\n")
 cat("New values: \n")
-  dat_new2 %>%
+  dat_new2c %>%
   filter(STATION_CODE == "98B1" & MYEAR == 2019 & TISSUE_NAME == "Lever" & BASIS == "W" & 
            PARAM == "ZN" & UNIT == "MG_P_KG") %>%
   arrange(VALUE) %>%
@@ -884,11 +884,19 @@ df <- dat_new2c %>%
   filter(MYEAR == 2019) %>% # xtabs(~PARAM, .)
   filter(PARAM %in% c("C/N", "% C", "% N"))
 
-df %>% xtabs(~PARAM, .)
+df %>% xtabs(~PARAM + is.na(VALUE), .)
 
-if (FALSE)
+if (FALSE){
   df %>% xtabs(~STATION_CODE + PARAM, .)
   
+  df <- dat_new2c %>%
+    filter(MYEAR == 2018 + STATION_CODE %in% "30B") %>% 
+    filter(PARAM %in% c("C/N", "% C", "% N")) %>%
+    select(MYEAR, SAMPLE_NO2, PARAM, VALUE_WW)
+  
+}
+
+
 ```
 
 
@@ -1047,9 +1055,9 @@ dat_new3d <- dat_new3d
 ### Add preferred unit to data
 ```{r}
 
-preferred_units <- read_excel("Input_data/Lookup table - preferred parameter units.xlsx", sheet = "Units")
-
-unit_conversion <- read_excel("Input_data/Lookup table - preferred parameter units.xlsx", sheet = "Conversion")
+fn <- "Input_data/Lookup table - preferred parameter units.xlsx"
+preferred_units <- read_excel(fn, sheet = "Preferred units")
+unit_conversion <- read_excel(fn, sheet = "Conversion factors")
 
 check <- preferred_units %>%
   count(PARAM) %>%
@@ -1069,23 +1077,64 @@ if (check == 0){
   cat("\n")
 }  
 
-test <- dat_new4 %>%
+#
+# CHECKS
+#
+
+
+test1 <- dat_new4 %>%
   filter(is.na(Preferred_unit))
 
-if (nrow(test) > 0){
-  cat("WARNING! Preferred_unit and Conversion_factor not found for", 
-      nrow(test), "records of the following parameters: \n")
-  test %>%
+test2 <- dat_new4 %>%
+  filter(UNIT != Preferred_unit & is.na(Conversion_factor))
+
+cat("\n")
+if (nrow(test1) > 0){
+  cat("WARNING! Preferred_unit not found for", 
+      nrow(test1), "records of the following parameters: \n")
+  test1 %>%
     pull(PARAM) %>%
     unique() %>%
     print()
-  cat("Please edit 'Parameter_units.xlsx' \n")
 } else {
-  cat("Preferred_unit and Conversion_factor found for all parameters. \n")
+  cat("Preferred_unit found for all parameters. \n")
+}
+
+cat("\n")
+if (nrow(test2) > 0){
+  cat("WARNING! Conversion_factor not found for", 
+      nrow(test2), "records of the following parameters: \n")
+  test2 %>%
+    pull(PARAM) %>%
+    unique() %>%
+    print()
+  cat("\n")
+  cat("You must either change the preferred unit or add the lacking conversion factors. \n")
+  test3 <- test2 %>%
+    distinct(PARAM, UNIT, Preferred_unit) %>%
+    count(UNIT, Preferred_unit)
+  for (i in nrow(test3))
+    cat("Cannot convert from", test3$UNIT[i], "to", test3$Preferred_unit[i], "for", test3$n[i], "parameters \n")
+  
+  cat("\n")
+  cat("Table of existing units ('UNIT' in table below) and preferred units: \n")
+  xtabs(~PARAM + Preferred_unit + UNIT,  test2)  
+  
+} else {
+  cat(" Conversion_factor found for all parameters. \n")
+}
+
+if (nrow(test1) > 0 | nrow(test2) > 0){
+  cat("\n")
+  cat("------------------------------------------------------------ \n")
+  cat("Please edit 'Lookup table - preferred parameter units.xlsx'  \n")
+  cat("(Folder 'Input_data') \n")
+  cat("Download the file to your PC, edit it, and   \n")
+  cat("   upload it back to the 'Input_data' folder.  \n")
+  cat("------------------------------------------------------------ \n")
 }
 
 ```
-
 
 
 ### Check units that are different from preferred units   
@@ -1110,7 +1159,8 @@ dat_new5 <- dat_new4 %>%
       is.na(Preferred_unit) ~ UNIT,
       UNIT == Preferred_unit ~ UNIT,
       UNIT != Preferred_unit ~ Preferred_unit)
-  )
+  ) %>%
+  filter(!is.na(VALUE))
 
 #
 # For checking result
@@ -1372,7 +1422,7 @@ data_updated %>%
 ```
 
 ### Check C/N data  
-- C/N is in all data since 2012  
+- C/N is in all data since 2012, but has only NA values in 2019    
 - '% C' and '% N' is in all data since 2015  
 - Also checked just before saving  
 ```{r}
@@ -1381,9 +1431,8 @@ df <- data_updated %>%
   filter(MYEAR >= 2008) %>% # xtabs(~PARAM, .)
   filter(PARAM %in% c("C/N", "% C", "% N"))
 
-df %>% xtabs(~MYEAR + PARAM, .)
+df %>% xtabs(~MYEAR + PARAM + is.na(VALUE_WW), .)
 
-  
 ```
 
 
@@ -1675,12 +1724,13 @@ if (nrow(df_duplicates) > 0){
 
 ```
 
+#### Tables of TISSUE_NAME  
 ```{r}
 
 cat("Table of TISSUE_NAME \n-------------------------------------------\n")
 xtabs(~TISSUE_NAME, data_updated)
 
-cat("\n\nnTable of TISSUE_NAME by year \n-------------------------------------------\n")
+cat("\n\nTable of TISSUE_NAME by year \n-------------------------------------------\n")
 df <- data_updated %>%
   filter(MYEAR >= 2008) # %>% # xtabs(~PARAM, .)
 xtabs(~MYEAR + TISSUE_NAME, df)
@@ -1713,6 +1763,17 @@ if (nrow(df_duplicates) > 0){
 
 ```
 
+```{r}
+df <- data_updated2 %>%
+  filter(STATION_CODE == "98B1" & MYEAR == 2019 & TISSUE_NAME == "Lever" & 
+           PARAM == "ZN" & UNIT == "MG_P_KG")
+
+cat("Existing values: \n")
+df %>%
+ arrange(VALUE_WW) %>%
+ pull(VALUE_WW)
+
+```
 
 ## 11. Save the data for later use   
 We use the date the data was downloaded (in script 101) in the filename  

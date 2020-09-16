@@ -1,0 +1,457 @@
+---
+title: "Script 101 appendix"
+output: html_document
+---
+
+**Various code snippets that were used in the development of script 101; might be useful later** 
+
+## 1. Load libraries and functions   
+```{r, results='hide', message=FALSE, warning=FALSE}
+library(dplyr)
+library(purrr)
+library(tidyr)
+library(ggplot2)
+library(lubridate)
+library(readxl)
+library(readr)
+
+
+```
+
+
+
+## Appendix
+
+### Check ReplicateNO vs SAMPLE_NO2 (which equals LATIN_NAME for data from Nivabasen)
+```{r}
+
+dat_new1 %>%
+  filter(StationCode == "30B" & year(CatchDateFirst) == 2017 & TissueName == "Lever" & Substance == "As") %>%
+  select(StationCode, CatchDateFirst, ReplicateNo, Value) %>%
+  arrange(ReplicateNo)
+
+data_through_2018 %>%
+  filter(STATION_CODE == "30B" & MYEAR == 2017 & TISSUE_NAME == "Lever" & PARAM == "AS") %>%
+  select(MYEAR, STATION_CODE, SAMPLE_NO2, VALUE) %>%
+  arrange(SAMPLE_NO2)
+
+```
+
+### Check parameters in fish liver  
+Sort by name
+```{r}
+
+dat_new1 %>%
+  filter(StationCode == "30B" & year(CatchDateFirst) == 2017 & TissueName == "Lever" & ReplicateNo == 1) %>%
+  select(Substance, Value) %>%
+  arrange(Substance)
+
+data_through_2018 %>%
+  filter(STATION_CODE == "30B" & MYEAR == 2017 & TISSUE_NAME == "Lever" & SAMPLE_NO == 1) %>%
+  select(PARAM, VALUE) %>%
+  arrange(PARAM)
+
+```
+
+Sort by value
+```{r}
+
+a <- dat_new1 %>%
+  filter(StationCode == "30B" & year(CatchDateFirst) == 2017 & TissueName == "Lever" & ReplicateNo == 1) %>%
+  select(Substance, Value) %>%
+  arrange(Value)
+
+b <- data_through_2018 %>%
+  filter(STATION_CODE == "30B" & MYEAR == 2017 & TISSUE_NAME == "Lever" & SAMPLE_NO == 1) %>%
+  select(PARAM, VALUE) %>%
+  arrange(VALUE)
+
+left_join(b, a, by = c("VALUE" = "Value"))
+
+# not included in  AqM:
+#   WHO dioxins, SN (?!), Aldrin, DDEOP, DDTOP, Heptaklor, HCHA, HCHB, HCHD, HCHG 
+# 4-t- -> 4-T-
+# 4-n- -> 4-N-
+
+```
+
+Sort by name
+```{r}
+
+dat_new1 %>%
+  filter(StationCode == "30B" & year(CatchDateFirst) == 2017 & TissueName == "Lever" & ReplicateNo == 1) %>%
+  select(Substance, Value) %>%
+  arrange(Substance)
+
+data_through_2018 %>%
+  filter(STATION_CODE == "30B" & MYEAR == 2017 & TISSUE_NAME == "Lever" & SAMPLE_NO == 1) %>%
+  select(PARAM, VALUE) %>%
+  arrange(PARAM)
+
+```
+
+### Check parameters in fish muscle    
+```{r}
+
+dat_new1 %>%
+  filter(StationCode == "30B" & year(CatchDateFirst) == 2017 & TissueName == "Muskel" & ReplicateNo == 1) %>%
+  select(Substance, Value) %>%
+  arrange(Substance)
+
+data_through_2018 %>%
+  filter(STATION_CODE == "30B" & MYEAR == 2017 & TISSUE_NAME == "Muskel" & SAMPLE_NO == 1) %>%
+  select(PARAM, VALUE) %>%
+  arrange(PARAM)
+
+# TTS -> DRYWT%
+
+```
+
+### Check PBDEs  
+```{r}
+
+dat_new1 %>%
+  filter(StationCode == "30B" & year(CatchDateFirst) == 2017 & substr(Substance,1,2) == "BD") %>%
+  xtabs(~Substance, .)
+
+data_through_2018 %>%
+  filter(STATION_CODE == "30B" & MYEAR == 2017 & substr(PARAM,1,2) == "BD") %>%
+  xtabs(~PARAM, .)
+
+# "BD183" - > "BDE183"
+
+dat_new1 %>%
+  filter(StationCode == "30B" & year(CatchDateFirst) == 2017 & grepl("HBC", Substance)) %>%
+  xtabs(~Substance, .) %>% names()
+
+data_through_2018 %>%
+  filter(STATION_CODE == "30B" & MYEAR == 2017 & grepl("HBC", PARAM)) %>%
+  xtabs(~PARAM, .) %>% names()
+
+# "a-HBCD"   "b-HBCD"   "g-HBCD"   "Sum HBCD"
+# "HBCDA"    "HBCDB"    "HBCDG"    "Sum HBCD"
+
+dat_new1 %>%
+  filter(StationCode == "30B" & year(CatchDateFirst) == 2017 & substr(Substance,1,2) == "PF") %>%
+  xtabs(~Substance, .)
+
+data_through_2018 %>%
+  filter(STATION_CODE == "30B" & MYEAR == 2017 & substr(PARAM,1,2) == "PF") %>%
+  xtabs(~PARAM, .)
+
+# All ok
+
+dat_new1 %>%
+  filter(StationCode == "30B" & year(CatchDateFirst) == 2017 & nchar(Substance) == 2) %>%
+  xtabs(~Substance, .)
+
+data_through_2018 %>%
+  filter(STATION_CODE == "30B" & MYEAR == 2017 & nchar(PARAM) == 2) %>%
+  xtabs(~PARAM, .)
+
+# Metals (all Substance with 2 characters) -> all capitals
+
+```
+
+### Check nonylphenols  
+In particular, "4-nonylfenol" used in 2018  
+- seems like it is 4-n-NP
+```{r}
+
+dat_new1 %>%
+  mutate(Year = year(CatchDateFirst)) %>%
+  filter(TissueName == "Lever" & Substance %in% c("4-n-NP", "4-t-NP", "4-nonylfenol")) %>%
+  mutate(Value = case_when(
+    Unit == "mg/kg" ~ Value*1000,
+    Unit == "µg/kg" ~ Value,
+    TRUE ~ -999)
+    ) %>%
+  group_by(StationCode, Year, TissueName, Substance) %>%
+  summarise(Value = median(Value)) %>%
+  ggplot(aes(Year, Value, color = Substance)) +
+  geom_point() + geom_line() + 
+  facet_wrap(vars(StationCode))
+
+           
+```
+
+
+### Check ReplicateNO vs SAMPLE_NO2 (which equals LATIN_NAME for data from Nivabasen)
+```{r}
+
+dat_new1 %>%
+  filter(StationCode == "30B" & year(CatchDateFirst) == 2017 & TissueName == "Lever" & Substance == "TTS") %>%
+  select(StationCode, CatchDateFirst, ReplicateNo, Value) %>%
+  arrange(ReplicateNo)
+
+data_through_2018 %>%
+  filter(STATION_CODE == "30B" & MYEAR == 2017 & TISSUE_NAME == "Lever" & PARAM == "DRYWT%") %>%
+  select(MYEAR, STATION_CODE, SAMPLE_NO2, VALUE) %>%
+  arrange(SAMPLE_NO2)
+
+```
+
+### Check TissueName vs TISSUE_NAME 
+Note that the Aquamonitor data doesn't include fish biological effect data   
+```{r}
+
+dat_new1 %>%
+  filter(year(CatchDateFirst) >= 2017) %>%
+  xtabs(~TissueName, .)  %>% sort() %>% names() %>% dput()
+
+data_through_2018 %>%
+  filter(MYEAR == 2017) %>%
+  xtabs(~TISSUE_NAME, .) %>% sort() %>% names() %>% dput()
+
+
+```
+
+### Check TaxonName vs LATIN_NAME 
+Used to make lookup_latin_name
+```{r}
+
+dat_new1 %>%
+  filter(year(CatchDateFirst) >= 2017) %>%
+  xtabs(~TaxonName, .)  %>% sort() %>% names() %>% dput()
+
+data_through_2018 %>%
+  filter(MYEAR == 2017) %>%
+  xtabs(~LATIN_NAME, .) %>% sort() %>% names() %>% dput()
+
+```
+
+### Check Unit vs UNIT 
+Used to make lookup_latin_name
+```{r}
+
+dat_new1 %>%
+  filter(year(CatchDateFirst) >= 2017) %>%
+  xtabs(~Unit, .)  %>% sort() %>% names() %>% rev() %>% dput()
+
+data_through_2018 %>%
+  filter(MYEAR == 2017) %>%
+  xtabs(~UNIT, .) %>% sort() %>% names() %>% rev() %>% dput()
+
+dat_new1 %>%
+  filter(year(CatchDateFirst) >= 2017 & !Unit %in% c("mg/kg", "µg/kg")) %>%
+  xtabs(~Substance + Unit, .)
+
+data_through_2018 %>%
+  filter(MYEAR == 2017 & !UNIT %in% c("MG_P_KG", "UG_P_KG")) %>%
+  xtabs(~PARAM + UNIT, .)
+
+# "Delta13C", "Delta15N"
+# "TTS"
+
+```
+
+
+### Make table for preferred parameter units   
+"Lookup table - preferred parameter units.xlsx"
+```{r}
+
+df_units <- data_through_2018 %>%
+  count(PARAM, UNIT)
+
+# openxlsx::write.xlsx(df_units, "Input_data/Units2.xlsx")
+# Table was corrected manually afterwards
+
+param_multiple_units <- df_units %>%
+  count(PARAM) %>%
+  filter(n > 1) %>%
+  pull(PARAM)
+
+df_units %>%
+  filter(PARAM %in% param_multiple_units)
+
+
+```
+
+
+
+
+### Check TBTs  
+Checking in the original data (df1a), downloaded directly from Nivabasen (Biota_chemistry_values)   
+Example: 227G:  
+- Tributyltinn (TBT) = 2.30  
+- Tributyltinn (TBT)-Sn	= 0.96  
+- so "Tributyltinn (TBT)" is the ion weigth and "Tributyltinn (TBT)-Sn" is the tim atom weight  
+Aquamonitor returns TBT = 0.96, so it returns the tin atom weight  
+  
+We have had troube mixing up these before - see  
+- `\\niva-of5\osl-userdata$\DHJ\Documents\seksjon 212\MIME 2019\TODO intersessionaly.txt`
+- `C:\Data\seksjon 212\Milkys_2018\ICES\Check TBT data from Rob.R`   
+- Analysis reports:  
+    - `K:\Prosjekter\Sjøvann\JAMP\2015\analyser\bestillinger i LIMS\analyserapporter\snegl`   
+    - `K:\Prosjekter\Sjøvann\JAMP\2016\analyser\bestillinger i LIMS\analyserapporter` - mangler snegl    
+    - `K:\Prosjekter\Sjøvann\JAMP\2017\analyser\Analyserapporter\snegl`  
+    - `K:\Prosjekter\Sjøvann\JAMP\2018\analyser\Analyserapporter\snegler`     
+    - `K:\Prosjekter\Sjøvann\JAMP\2019\analyser\Analyserapporter\snegler`  
+
+### Data from this script, TBT  
+```{r}
+df1 <- data_updated %>%
+  filter(grepl("TBT", PARAM) | grepl("tributyl", PARAM, ignore.case = TRUE)) %>%
+  filter(!grepl("TTBT", PARAM))
+```
+
+### Check occurence of TBT/TBTIN  
+```{r}
+# Some years, TBTIN is also given:
+df1 %>%
+  xtabs(~PARAM + MYEAR, .)
+
+# Some years, TBTIN is also given:
+df1 %>%
+  filter(MYEAR == 2007) %>%
+  xtabs(~PARAM + STATION_CODE, .)
+
+# But no stations/years have TBTIN and not TBT: 
+number_tntin_only <- df1 %>%
+  count(STATION_CODE, MYEAR, PARAM) %>%
+  tidyr::pivot_wider(names_from = PARAM, values_from = n) %>%
+  mutate(TBTIN_only = (TBT > 0) & (TBTIN == 0)) %>%
+  filter(TBTIN_only) %>%
+  nrow()
+number_tntin_only  # 0
+```
+
+### Check TBT for one station   
+- Up through 2015, data are from the Access database and seems to be correct there 
+- Check years 2014-2018 (using pdf lab reports in `K:\Prosjekter\Sjøvann\JAMP\`):
+    - 2015: Value given is TBT cation, given correctly
+    - 2016: Could not find lab report
+    - 2017: Value given is TBT cation, given correctly 
+    - 2018: Value given is TBT cation, given correctly 
+    - 2019: Value given is TBT tin atom, not given correctly
+```{r}
+station <- "36G"
+station <- "11G"
+
+df1 %>%
+  filter(PARAM == "TBT" & STATION_CODE == station) %>%
+  select(MYEAR, PARAM, VALUE_WW, VALUE_DW, FLAG1, UNIT)  
+
+```
+
+
+
+```{r}
+
+
+# View(df1b)
+
+# Aquamonitor
+df2 <- df %>%
+  filter(grepl("TBT", PARAM) | grepl("tributyl", PARAM, ignore.case = TRUE)) %>%
+  filter(!grepl("TTBT", PARAM))
+df2 %>%
+  filter(MYEAR == 2019) %>%
+  select(PARAM, VALUE_WW, FLAG1, UNIT)
+# View(df2)
+
+```
+### 227G etc.  
+```{r}
+df1b <- df1a %>% filter(grepl("227G", STATION_CODE))
+df1b %>%
+  filter(grepl("Tributyltinn", NAME)) %>%
+  select(NAME, VALUE, FLAG1, UNIT)
+```
+
+### Check and save biological effect data     
+```{r}
+
+# Get stations
+biol_effect_stations <- data_updated %>%
+  filter(PARAM %in% c("PYR1O", "PYR1OH", "VDSI") & MYEAR >= 2010) %>%
+  count(STATION_CODE) %>%
+  pull(STATION_CODE)
+
+# Get data
+data_biol_effects <- data_updated %>%
+  filter(MYEAR >= 2010 & STATION_CODE %in% biol_effect_stations)
+  
+df <- data_biol_effects %>%
+  filter(grepl("227G", STATION_CODE) & MYEAR >= 2010) %>% # View()
+  filter(!PARAM %in% c("HTMEA", "IMPS", "LNFPE", "LNMPE"))
+df %>% xtabs(~STATION_CODE + MYEAR, .)
+df %>%
+  filter(PARAM %in% "VDSI") %>%
+  xtabs(~STATION_CODE + MYEAR, .)
+View(df)
+
+df2 <- df %>%
+  filter(grepl("TBT", PARAM) | grepl("tributyl", PARAM, ignore.case = TRUE)) %>%
+  filter(!grepl("TTBT", PARAM))
+View(df2)
+  xtabs(~PARAM + MYEAR, df2)
+
+if (FALSE){
+  
+  # Check snail parameters
+  data_updated %>%
+    filter(grepl("227G", STATION_CODE) & MYEAR >= 2010) %>%
+    xtabs(~PARAM + MYEAR, .)
+}
+
+# individual-based snail measurements (2010.2013 only)- we skip these:
+c("HTMEA", "IMPS", "LNFPE", "LNMPE")  
+
+# "Tributyltinn (TBT)-Sn" 
+  
+```
+
+
+### Fix erronous tin data   
+Checks ratio ion wight / tin weight in data - if the ratio is close to one, it is assumed that the tim weight is given and a new ion weight is calculated and used to replace old data. Deprecated as we found the source of the confusion.  
+```{r}
+
+#
+# Ratios for ion wight / tin weight
+# For pairs 5 -8 only (for lazyness)
+# Can be checked agains plots above
+#
+ratio <- c(NA,NA,NA,NA, 233.95/118.710, 345.2/118.710, 350/118.710, 736.3/(2*118.710))
+cat("Monooktyltinn (MOT) ratio:", ratio[5], "\n")
+cat("Dioktyltinn (DOT) ratio:", ratio[6], "\n")
+cat("Trifenyltinn (TPhT) ratio:", ratio[7], "\n")
+cat("Trisykloheksyltinn (TCHT) ratio:", ratio[8], "\n")
+
+for (i in 5:8){
+  i <- 5
+  pair <- pairs[[i]]
+  cat("ion weight data: \n")
+  sel1 <- data_updated$PARAM %in% pair[1]; sum(sel1)  # select ion weight data
+  cat("tin weight data: \n")
+  sel2 <- data_updated$PARAM %in% pair[2]; sum(sel2)  # select tin weight data
+  # Add 'VALUE_WW_tin' and 'Ratio' to the data supposed to be ion weights
+  df_for_join <- data_updated[sel2,] %>% 
+    select(MYEAR, STATION_CODE, SAMPLE_NO2, VALUE_WW) %>%
+    mutate(PARAM = pair[1]) %>%
+    rename(VALUE_WW_tin = VALUE_WW)
+  # df_for_join
+  data_updated2 <- data_updated %>% 
+    left_join(df_for_join, by = c("MYEAR", "STATION_CODE", "SAMPLE_NO2", "PARAM")) %>%
+    mutate(Ratio = VALUE_WW/VALUE_WW_tin)
+  # Select the values that needs correction
+  cat("ion weight data that needs correction: \n")
+  needs_correction <- data_updated2$Ratio < 1.05 & !is.na(data_updated2$Ratio); sum(needs_correction)
+  # Correc this vales by multiplying the values by the ratio of ion weight to tin weight
+  data_updated2$VALUE_WW[needs_correction] <- data_updated2$VALUE_WW[needs_correction]*ratio[i]
+  
+  & MYEAR >= 2014) %>% 
+    mutate(PARAM = factor(PARAM, levels = pair)) %>%
+    select(MYEAR, STATION_CODE, SAMPLE_NO2, PARAM, VALUE_WW) %>%
+    pivot_wider(names_from = "PARAM", values_from = "VALUE_WW", names_sort = TRUE)
+  df2$Rat1 = df2[[5]]/df2[[4]]
+  df2$Rat2 = df2[[4]]/df2[[5]]  
+  dubious_stations <- df2 %>% filter(Rat2 > 0.95 & Rat2 < 1.05) %>% pull(STATION_CODE) %>% unique()
+  cat(paste(pair, collapse = " + "), ": ", paste(dubious_stations, collapse = ", "), "\n")
+  gg <- ggplot(df2, aes(MYEAR, Rat2, color = STATION_CODE)) + 
+    geom_point() +
+    labs(title = paste(pair, collapse = " + "))
+  print(gg)  
+}
+
+```

@@ -20,6 +20,33 @@ sum_parameters <- list(
 )
 
 
+#
+# Set standard parameternames based on NAME given in NIVAbasen (METHOD_DEFINITIONS)   
+# 'synonymfile' should have the 'standard' name (the name you want to change to) in the first column
+#    and the other names from column 2 on
+#
+get_standard_parametername <- function(x, synonymfile){
+  if (is.factor(x))
+    x <- levels(x)[as.numeric(x)]
+  synonyms <- read.csv2(synonymfile, stringsAsFactors = FALSE)
+  n_cols <- ncol(synonyms)
+  # will search in all columns named "substance"
+  cols_synonyms <- grep("substance", colnames(synonyms))  # returns number
+  # except the first one
+  cols_synonyms <- cols_synonyms[cols_synonyms > 1]
+  # note that number of synonyms is 7, must be changed if file is changed!
+  for (col in cols_synonyms){
+    for (row in seq_len(nrow(synonyms))){
+      sel <- x %in% synonyms[row,col]
+      x[sel] <- synonyms[row, 1]
+    }
+  }
+  x
+}
+# Example
+# get_standard_parametername(c("Benzo[a]pyren", "Benzo[b,j]fluoranten"), "Input_data/Lookup table - standard parameter names.csv")
+
+
 # 
 # Adds a sum parameter as new rows to the data
 #
@@ -38,15 +65,16 @@ add_sumparameter <- function(i, pars_list, data){
     group_by(STATION_CODE, LATIN_NAME, TISSUE_NAME, MYEAR, SAMPLE_NO2, BASIS, UNIT)  # not PARAM
   if (nrow(df_grouped) > 0){
     df1 <- df_grouped %>%
-      summarise(VALUE = sum(VALUE, na.rm = TRUE)) %>%      # sum of the measurements
+      summarise(VALUE = sum(VALUE, na.rm = TRUE), .groups = "drop_last") %>%      # sum of the measurements
       mutate(QUANTIFICATION_LIMIT = NA) %>%
       as.data.frame(stringsAsFactors = FALSE)
     df2 <- df_grouped %>%
-      summarise(FLAG1 = ifelse(mean(!is.na(FLAG1))==1, "<", as.character(NA))) %>%       # If all FLAG1 are "<", FLAG1 = "<", otherwise FLAG1 = NA
+      summarise(FLAG1 = ifelse(mean(!is.na(FLAG1))==1, "<", as.character(NA)), 
+                .groups = "drop_last") %>%       # If all FLAG1 are "<", FLAG1 = "<", otherwise FLAG1 = NA
       as.data.frame()
     df2$FLAG1[df2$FLAG1 %in% "NA"] <- NA
     df3 <- df_grouped %>%
-      summarise(N_par = n()) %>%    # number of measurements
+      summarise(N_par = n(), .groups = "drop_last") %>%    # number of measurements
       as.data.frame()
     # Should be all 1
     # check <- df1[,1:9] == df2[,1:9]
@@ -68,4 +96,63 @@ add_sumparameter <- function(i, pars_list, data){
   }
   data
 }
+
+# Summarises a sequence into a string, e.g. "1991-1993,1996-1997,2000"
+summarize_sequence <- function(x){
+  x <- sort(unique(x))
+  dx <- diff(x)
+  df <- tibble(
+    x = x,
+    index = cumsum(c(1, dx) > 1) + 1)
+  df %>% 
+    group_by(index) %>%
+    summarize(Min = min(x),Max = max(x),  .groups = "drop") %>%
+    mutate(Summ = ifelse(Min < Max, paste0(Min,"-",Max), Min)) %>%
+    summarize(Summ = paste0(Summ, collapse = ","), .groups = "drop") %>%
+    pull(Summ)
+}
+
+# Summarizes which samples we have for which parameters, returns table  
+summarize_samples <- function(data) {
+  data %>%
+    count(PARAM, SAMPLE_NO2) %>%
+    group_by(PARAM) %>%
+    summarize(
+      Samples = summarize_sequence(which(n > 0)), 
+      Samples_n = sum(n > 0), 
+      .groups = "drop") %>%
+    group_by(Samples) %>%
+    summarize(
+      PARAM = paste(PARAM, collapse = ", "),
+      No_of_samples = first(Samples_n),
+      .groups = "drop") %>%
+    arrange(No_of_samples)
+}
+
+# Example
+if (FALSE){
+  dat_new6 %>% 
+    filter(TISSUE_NAME %in% "Lever" & MYEAR == 2019 & STATION_CODE == "30B") %>%
+    summarize_samples() %>%
+    View()
+  
+}
+
+# Summarizes which samples we have for which parameters, returns printout  
+summarize_samples_print <- function(data) {
+  df <- summarize_samples(data)
+  for (i in 1:nrow(df)){
+    cat("Samples", df$Samples[i], "(", df$No_of_samples[i], "): \n")
+    cat("    ", df$PARAM[i], " \n")
+  }
+}
+
+# Example
+if (FALSE){
+  dat_new6 %>% 
+    filter(TISSUE_NAME %in% "Lever" & MYEAR == 2019 & STATION_CODE == "30B") %>%
+    summarize_samples_print()
+  
+}
+
 
