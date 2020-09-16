@@ -1,0 +1,144 @@
+substances2;substances;substances3;substances4;substances5;substances6;substances7;IARC_class;Sums1;Order
+AG;Sølv;Ag/MS-B;Ag-B EF;;;;;;1
+AS;Arsen;As/MS-B;As-B EF;;;;;;2
+CO;Kobolt;Co/MS-B;Co-B EF;;;;;;3
+CD;Kadmium;Cd/MS-B;Cd-B EF;;;;;;4
+CR;Krom;Cr/ICP-B;Cr/ICP-B;;;;;;5
+CU;Kobber;Cu/MS-B;Cu-B EF;;;;;;6
+HG;Kvikksølv;Hg/B;Hg-B EF;;;;;;7
+NI;Nikkel;Ni/MS-B;Ni-B EF;;;;;;8
+PB;Bly;Pb/MS-B;Pb-B EF;;;;;;9
+ZN;Sink;Zn/MS-B;Zn-B EF;;;;;;10
+FN;Jern;;;;;;;;11
+CB28;PCB 28;CB28-B;CB28-B EF;;;;;CB_S7;12
+CB52;PCB 52;CB52-B;CB52-B EF;;;;;CB_S7;13
+CB101;PCB 101;CB101-B;CB101-B EF;;;;;CB_S7;14
+CB118;PCB 118;CB118-B;CB118-B EF;;;;;CB_S7;15
+CB138;PCB 138;CB138-B;CB138-B EF;;;;;CB_S7;16
+CB153;PCB 153;CB153-B;CB153-B EF;;;;;CB_S7;17
+CB180;PCB 180;CB180-B;CB180-B EF;;;;;CB_S7;18
+CB77;PCB 77;;;;;;;;19
+CB81;PCB 81;;;;;;;;20
+CB105;PCB 105;;;;;;;;21
+CB114;PCB 114;;;;;;;;22
+CB123;PCB 123;;;;;;;;23
+CB126;PCB 126;;;;;;;;24
+CB156;PCB 156;;;;;;;;25
+CB157;PCB 157;;;;;;;;26
+CB167;PCB 167;;;;;;;;27
+CB169;PCB 169;;;;;;;;28
+CB189;PCB 189;;;;;;;;29
+HBCDA;alfa-HBCD;HBCDA-B;HBCDa-B EF;;;a-HBCD;;HBCDD;30
+HBCDB;beta-HBCD;HBCDB-B;HBCDb-B EF;;;b-HBCD;;HBCDD;112
+HBCDG;gamma-HBCD;HBCDG-B;HBCDg-B EF;;;g-HBCD;;HBCDD;113
+SCCP;SCCP inkl. LOQ;;SCCP-B EF;;;;;;31
+MCCP;MCCP inkl. LOQ;;SCCP-B EF;;;;;;32
+BDE17;;;;;;;;;33
+BDE28;BDE28;;BDE28-BEF;;;;;BDE6S;34
+BDE47;BDE47;;BDE47-BEF;;;;;BDE6S;35
+BDE49;;;;;;;;;36
+BDE66;;;;;;;;;37
+BDE71;;;;;;;;;38
+BDE77;;;;;;;;;39
+BDE85;;;;;;;;;40
+BDE99;BDE99;;BDE99-BEF;;;;;BDE6S;41
+BDE100;BDE100;BD100;BDE100-BEF;;;;;BDE6S;42
+BDE119;;;;;;;;;43
+BDE126;;;;;;;;;44
+BDE138;;BD138;;;;;;;45
+BDE153;BDE153;BD153;BDE153-BEF;;;;;BDE6S;46
+BDE154;BDE154;BD154;BDE15-BEF4;;;;;BDE6S;47
+BDE156;;;;;;;;;48
+BDE183;BDE183;;BDE183-BEF;;;;;;49
+BDE184;;;;;;;;;50
+BDE191;;;;;;;;;51
+BDE196;BDE196;;BDE196-BEF;;;;;;52
+BDE197;;;;;;;;;53
+BDE205;;;;;;;;;54
+BDE206;;;;;;;;;55
+BDE207;;;;;;;;;56
+BDE209;BDE209;;BDE209-BEF;;;;;;57
+ACNLE;Acenaftylen;ACNLE-B;ACNLE-B EF;;;;Unclassified;P_S;58
+ACNE;Acenaften;ACNE-B;ACNE-B EF;;;;3;P_S;59
+FLE;Fluoren;FLE-B;FLE-B EF;;;;3;P_S;60
+PA;Fenantren;PA-B;PA-B EF;;;;3;P_S;61
+ANT;Antracen;ANT-B;ANT-B EF;;;;3;P_S;62
+FLU;Fluoranten;FLU-B;FLU-B EF;;;;3;P_S;63
+PYR;Pyren;PYR-B;PYR-B EF;;;;3;P_S;64
+BAA;Benzo[a]antracen;BAA-B;BAA-B EF;;;;2B;P_S;65
+CHR;Krysen+Trifenylen;CHR-B;CHR-B EF;CHRTR;CHRTR-B;CHRTR-B EF;2B;P_S;66
+BBJF;Benzo[b,j]fluoranten;BBJF-B;BBJF-B EF;;;;2B;P_S;67
+BKF;Benzo[k]fluoranten;BKF-B;BKF-B EF;;;;2B;P_S;68
+BAP;Benzo[a]pyren;BAP-B;BAP-B EF;;;;1;P_S;69
+DBA3A;Dibenzo[a,h]antracen;DBA3A-B;DBA3A-B EF;;;;2A;P_S;70
+BGHIP;Benzo[g,h,i]perylen;BGHIP-B;BGHIP-B EF;;;;3;P_S;71
+ICDP;Indeno[1,2,3-cd]pyren;ICDP-B;ICDP-B EF;;;;2B;P_S;72
+NAP;Naphtalene;NAP-B;NAP-B EF;Naftalen;;;;PAH16;73
+BBJKF;Benzo[b+j,k]fluoranten;BBJKF-B;BBJKF-B EF;;;;;P_S;74
+BJKF;Benzo[j,k]fluoranten;BJKF-B;BJKF-B EF;;;;;;75
+PFOS;Perfluoroktylsulfonat (PFOS);PFOS-B;PFOS-B;;;;;PFAS;76
+PFOSA;Perfluoroktansulfonamid (PFOSA);PFOSA-B;PFOSA-B;;;;;PFAS;77
+PFBS;Perfluorbutansulfonat (PFBS);PFBS-B;PFBS-B;;;;;;78
+PFDcA;Perfluordekansyre (PFDcA);PFDcA-B;PFDcA-B;PFDCA;;;;;79
+PFHxA;Perfluorheksansyre (PFHxA);PFHxA-B;PFHxA-B;PFHXA;;;;;80
+PFHxS;Perfluorheksansulfonat (PFHxS);PFHxS-B;PFHxS-B EF;PFHXS;;;;;80,5
+PFHpA;Perfluorheptansyre (PFHpA);PFHpA-B;PFHpA-B;PFHPA;;;;;81
+PFUdA;;;;PFUDA;;;;;
+PFOA;Perfluoroktansyre (PFOA);PFOA-B;PFOA-B;;;;;;82
+PFNA;Perfluornonansyre (PFNA);PFNA-B;PFNA-B;;;;;;83
+PFUdA;Perfluorundekansyre (PFUdA);PFUdA-B;PFUdA-B;PFUDA;;;;;84
+Fett;Fettinnhold;Fett-%;Fett% EF;;;Fett %;;;85
+DRYWT%;Tørrstoff %;TTS/%;TTS% OMK12;;;;;;86
+DDTPP;p,p'-DDT;DDTPP-B;DDTPP-B EF;;;;;;87
+DDEPP;p,p'-DDE;DDEPP-B;DDEPP-B EF;;;;;;88
+TDEPP;p,p'-DDD;TDEPP-B;DDDPP-B EF;TDEPP-B EF;P.P'-DDD;;;;89
+DDTEP;Sum DDT;DDT (sum);;;;;;;90
+DDDOP;o,p'-DDD;;;;;;;;91
+DDEOP;o,p'-DDE;;;;;;;;92
+DDTOP;o,p'-DDT;;;;;;;;93
+TBTIN;;;;;;;;;94
+TBT;Tributyltinn (TBT);TBT-B EF;;;;;;;95
+MBTIN;Monobutyltinn (MBT);MBT;;;;;;;96
+MOT;MONOKTYLTIN;Monooktyltinn (MOT);MONOKTYLT;;;;;;97
+MPTIN;;;;;;;;;98
+DBTIN;Dibutyltinn (DBT);DBT;;;;;;;99
+DOT;DIOKTYLTIN;Dioktyltinn (DOT);DOT-B EF;DIOKTYLT;;;;;100
+DPTIN;;;;;;;;;101
+TCHT;TRISYKLOHEKSYLTIN;Trisykloheksyltinn (TCyT);Trisykloheksyltinn (TCHT);TRISYKLOHEKSYLT;;;;;102
+TPTIN;TPhT-B EF;TPhT-B;Trifenyltinn (TPhT);TPhT;;;;;103
+TTBT;TETRABUTYLTIN;Tetrabutyltinn (TTBT);TTBT-B EF;TETRABUTYLT;;;;;104
+ALAD;;;;;;;;;105
+EROD;;;;;;;;;106
+CYP1A;;;;;;;;;107
+VDSI;;;;;;;;;108
+BAP3O;;;;;;;;;109
+PA1O;;;;;;;;;110
+PYR1O;;;;;;;;;111
+BPA;Bisfenol A;BPA-OMK;BPA-B EF;;;Bisf- A;;;114
+TBBPA;;;;;;;;;115
+TCrP;Trikresylfosfat (TCP);;TCrP-B EF;;;;;;116
+4-N-NP;4-n-nonylfenol;;;;;;;;117
+4-N-OP;4-n-oktylfenol;;;;;;;;118
+4-T-NP;4-nonylfenol;;;;;4-nonylphenol;;;119
+4-T-OP;4-tert-oktylfenol;;;;;4-tert-octylphenol;;;120
+Delta13C;Delta 13C;;;;;;;;121
+Delta15N;Delta 15N;;;;;;;;122
+C/N;W% C/N;;;;;;;;123
+HCHA;alfa-Heksaklorsykloheksan (alfa-HCH);;;;;;;;124
+HCHB;beta-Heksaklorsykloheksan (beta-HCH);;;;;;;;125
+HCHD;delta-Heksaklorsykloheksan (delta-HCH);;;;;;;;126
+HCHG;gamma-Heksaklorsykloheksan (gamma-HCH);;;;;;;;127
+MO;Molybden;;;;;;;;128
+SN;Tinn;;;;;;;;129
+HCB;Heksaklorbenzen (HCB);HCB-B;HCB-B EF;;;;;;130
+HCBD;Heksaklorbutadien (HCBD);HCBD-B;;;;;;;131
+TIBP;Triisobutylfosfat (TIBP);;TIBP-B EF;;;;;;132
+TBP;Tributylfosfat (TBP);;TBP-B EF;;;;;;133
+TCEP;Tri(2-kloroetyl)fosfat (TCEP);;TCEP-B EF;;;;;;134
+TCPP;Tri(1-klor-2-propyl)fosfat (TCPP);;TCPP-B EF;;;;;;135
+TDCP;Tri(1,3-diklor-2-propyl)fosfat (TDCP);;TDCP-B EF;;;;;;136
+TBEP;Tri(2-butoxyetyl)fosfat (TBEP);;TBEP-B EF;;;;;;137
+TPhP;Trifenylfosfat (TPhP);;TPhP-B EF;;;;;;138
+EHDPP;2-etylhexyldifenylfosfat (EHDPP);;EHDPP-B EF;;;;;;139
+TEHP;Tris(2-etylhexyl)fosfat (TEHP);;TEHP-B EF;;;;;;140
+ToCrP;Tris-o-kresylfosfat (ToCrP);;ToCrP-B EF;;;;;;141
