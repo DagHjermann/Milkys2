@@ -19,6 +19,9 @@ set_password <- function ()
 #
 # READING "WIDE" AQUAMONITOR DATA ----
 #
+# - Puts the data on 'long' format (two variables named Substance and Value)
+# - Additional variables for Unit and Flag ("<" for values less than LOQ)
+#
 #o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
 
 AqMexport_read_chemistry_table <- function(filename, 
@@ -47,12 +50,15 @@ AqMexport_read_chemistry_table <- function(filename,
     range = cell_limits(c(2,NA), c(NA, number_of_key_cols))
     )
   # Read substance names (row 1)
-  # col_names = FALSE means that columns will be named "...1", "...2" etc.
   # End cell = c(1, NA), where NA means number of columns is not set 
   df_names <- read_excel(
     fn, sheet = sheetname, col_names = FALSE, col_types = "text", 
     range = cell_limits(c(1, number_of_key_cols+1), c(1, NA))
   )
+  # Set 'proper' column names "Substance_1", "Substance_2" etc.
+  column_names <- paste0("Substance_", 1:ncol(df_names))
+  names(df_names) <- column_names
+  # Column names 
   # Read units (row 2)
   # Number of columns is set to be the same as df_names 
   df_units <- read_excel(
@@ -75,7 +81,7 @@ AqMexport_read_chemistry_table <- function(filename,
   for (col in time_vars){
     df_key[[col]] <- lubridate::dmy_hms(df_key[[col]])
   }
-  # Combine key variables and data
+  # Combine key variables and data, and put them on long format  
   data <- bind_cols(df_key, df_chem) %>%
     tidyr::pivot_longer(-seq(1,ncol(df_key)), names_to = "Temporary_name", values_to = "Value_chr")
   # Make look-up table for substance names
@@ -91,6 +97,7 @@ AqMexport_read_chemistry_table <- function(filename,
     Unit = as.character(X[1,]),
     stringsAsFactors = FALSE
   )
+  # Add columns "Substance" and "Unit" to the data using the look-up tables
   data <- data %>% 
     filter(!is.na(Value_chr)) %>%
     left_join(lookup_names, by = "Temporary_name") %>%
@@ -104,5 +111,6 @@ AqMexport_read_chemistry_table <- function(filename,
   # Make less-than flag
   data$Flag <- ifelse(grepl("<", data$Value_chr, fixed = TRUE), "<", NA)
   
+  # Return the data, without the 'Temporary_name' column  
   data %>% select(-Temporary_name)
 }
