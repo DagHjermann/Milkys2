@@ -1,0 +1,400 @@
+---
+title: "Making overview tables"
+output: html_notebook
+---
+
+
+Based on script '44_make_overview_trend_table' in H:/Documents/seksjon 212/Milkys 2017/Analyse  
+  
+* Tables are written to folder 'Report_tables'  
+* File namse 'version' correspond to 'big excel table' version numbers
+
+* 3-7: make "trend" tables (name 'Summarytable_trend') - also includes PROREF shading   
+* 8-11: make "EQS" tables (name 'Summarytable_EQS')  
+  
+## 0. Load packages and functions
+### Packages
+```{r}
+# library(tidyverse)
+library(dplyr)
+library(purrr)
+library(ggplot2)
+library(safejoin)
+# library(lubridate)
+# library(openxlsx)
+# update.packages("xlsx")
+library(xlsx)
+```
+
+### Functions used
+```{r}
+source("002_Utility_functions.R")
+source("210_Make_overview_tables_functions.R")
+```
+
+
+## 1. Read 'big excel' data    
+Make sure to read the most recent one!   
+```{r}
+datafolder <- "Big_excel_table"
+
+fns <- list_files(datafolder, "Data_xl_[:date:].+", ".rds")  
+
+fn_full <- paste0(datafolder, "/", fns[1])
+data_xl_lessthans <- readRDS(fn_full)
+
+cat("\n")
+cat("Data read from the file \n")
+cat("", fn_full)
+
+```
+
+
+### Change parameter from "VDSI/Intersex" to "VDSI"  
+In order to keep tables compact  
+```{r}
+sel <- data_xl_lessthans$PARAM %in% "VDSI/Intersex"; sum(sel)
+data_xl_lessthans$PARAM[sel] <- "VDSI"
+```
+
+### Checks
+```{r}
+data_xl_lessthans %>% colnames()
+
+data_xl_lessthans %>%
+  count(Substance.Group)
+
+data_xl_lessthans %>%
+  filter(Substance.Group %in% "Organo-metallic compounds") %>%
+  count(PARAM, Parameter.Name, IUPAC, Component.Name)
+
+data_xl_lessthans %>%
+  filter(PARAM %in% "TPhT" & Basis == "WW") %>%
+  select(PARAM, STATION_CODE, LATIN_NAME, TISSUE_NAME, Yr_2018, Q95, EQS)
+
+data_xl_lessthans %>%
+  filter(PARAM %in% "D5" & Basis == "WW") %>%
+  select(PARAM, STATION_CODE, LATIN_NAME, TISSUE_NAME, Yr_2018, Q95, EQS)
+
+data_xl_lessthans %>%
+  filter(!is.na(EQS)) %>%
+  count(PARAM, Parameter.Name, IUPAC, Component.Name)
+
+```
+
+
+## 2. Read station names
+Used in 'plot_single_series_medians_data' (see '_functions' file)  
+```{r}
+
+data_stations <- readxl::read_excel("Input_data/Kartbase.xlsx")
+
+# Note that 
+#     the current station code is 'stasjonskode', not "STATION_CODE"
+#     `catch LAT__1` and `catch LONG__1` are currect (planned?) positions
+#     the current station name is 'stasjonsnavn', not "STATION_CODE"
+#     but station name for report is `Til Rapport`
+#         station name for maps are `Til Kart`
+
+# Check the two station code columns
+# data_stations %>%
+#   filter(STATION_CODE != stasjonskode)    # zero rows
+
+df_stationnames <- data_stations %>%
+  select(stasjonskode, `catch LAT__1`, `catch LONG__1`, stasjonsnavn, `Til Rapport`) %>%
+  rename(STATION_CODE = stasjonskode,
+         Lat = `catch LAT__1`, Long = `catch LONG__1`, 
+         Station_name = stasjonsnavn,
+         Report_version_name = `Til Rapport`) %>%
+  filter(!is.na(STATION_CODE)) %>%
+  filter(!Station_name %in% "Risøy, Østerfjord")  # One duplicate (different names), we just remove one of them
+
+# Check stations that might be missing
+df_stationnames %>% filter(STATION_CODE %in% c("28A2","97A3","227G","19B","19N"))
+
+# Add missing station
+df_stationnames <- df_stationnames %>%
+  bind_rows(
+    tibble(STATION_CODE = "227G",
+           Report_version_name = "Flatskjær (St. 227G)")
+    )
+
+# Check some other stations
+df_stationnames %>% filter(STATION_CODE %in% c("I714", "I133"))
+
+```
+
+## 3. Definitions  
+
+### Define stations
+Note: order counts!
+```{r}
+stations_table <- c(
+  "30A", "I301", "I304", "31A", "36A1", "I023", "I024",                             # Blue mussel, Oslofjorden
+  "71A", "I714", "76A2", "I131A", "I133", "15A",                                    # Blue mussel, Grenland - S?rlandet
+  "51A", "52A", "56A", "57A", "64A", "65A", "22A", "I241", "26A2", "28A2", "91A2",  # Blue mussel, Vestlandet - Tr?ndelag
+  "97A2", "97A3", "98A2", "10A2", "11X",                                            # Blue mussel, Nord-Norge
+  "30B", "36B", "02B", "71B","13B", "15B", "53B", "23B", "24B",                     # Cod
+  "28B", "80B", "96B", "98B1", "43B2", "45B2", "10B", "19B",                        # Cod
+  "19N",                                                                            # Eider duck - twice (blood and egg)
+  "71G",                                                                            # Dog whelk / periwinkle
+  "36G", "76G", "131G", "15G", "227G", "22G", "98G", "11G")                         # Dog whelk
+
+# "28A2" "97A3"  = ?lesund harbour, Bod? harbour
+
+# stations_table
+
+# Get some line numbers for table - these are used later
+a <- which(stations_table == "11X")
+b <- which(stations_table == "19B")
+c <- which(stations_table == "19N")
+d <- which(stations_table == "71G")
+e <- length(stations_table)
+```
+
+### Define parameters  
+Again: the order counts!   
+Note: PAH sums in this table are called PAHSS (= PAH16), P_S (= PAH16 minus naphtalene) and PK_S (= KPAH)  
+```{r}
+par_table <- c("AG", "AS", "CO", "CD", "CR", "CU", "HG", "NI", "PB", "ZN", 
+               "CB_S7", 
+               "DDEPP", "HBCDA", "SCCP", "MCCP", 
+               "BDE47", "BDE100", "BDE209", "BDE6S",
+               "PAHSS", "P_S", "PK_S",      # changed "PK_S" to "KPAH"
+               "ANT", "BAA", "BKF", "BGHIP", "ICDP", "BAP", "FLU", "NAP",
+               "PFOS", "PFOSA", "PFOA", 
+               "TBT", "TPTIN", 
+               "D5",
+               "VDSI")
+```
+
+## 4. Make stations_df (one line per station)
+### Start by adding all stations
+```{r}
+stations_df <- data.frame(
+  Station = c(
+    stations_table[1:a],
+    stations_table[(a+1):b],   #  cod liver
+    stations_table[(a+1):b],   #  cod muscle
+    stations_table[c],         # eider duck blood
+    stations_table[c],         # eider duck eggs
+    stations_table[d:e]),
+  stringsAsFactors = FALSE)
+
+# Set row numbers for the finished table
+i_mussel <- 1:a
+i_cod_liver <- (a+1):b
+i_cod_muscle <- i_cod_liver + (b-a)
+i_eider_blood <- tail(i_cod_muscle,1) + 1
+i_eider_egg <-   tail(i_cod_muscle,1) + 2
+i_snails <- seq(i_eider_egg + 1, nrow(stations_df))
+
+```
+
+### Add Species and Tissue
+```{r}
+stations_df$Species <- NA
+stations_df$Species[stations_df$Station %in% stations_table[1:a]] <- "Mytilus edulis"
+stations_df$Species[stations_df$Station %in% stations_table[(a+1):b]] <- "Gadus morhua"
+stations_df$Species[stations_df$Station %in% stations_table[c]] <- "Somateria mollissima"
+stations_df$Species[stations_df$Station %in% stations_table[d]] <- "N. lapillus / L. littorea"
+stations_df$Species[stations_df$Station %in% stations_table[(d+1):e]] <- "Nucella lapillus"
+
+# stations_df$Tissue <- NA
+# stations_df$Tissue[stations_df$Station %in% stations_table[1:a]] <- "Whole soft body"
+# stations_df$Tissue[i_cod_liver] <- "Lever"
+# stations_df$Tissue[i_cod_muscle] <- "Muskel"
+# stations_df$Tissue[i_eider_blood] <- "Blod"
+# stations_df$Tissue[i_eider_egg] <- "Egg homogenate of yolk and albumin"
+# stations_df$Tissue[i_snails] <- "Whole soft body"
+
+stations_df$Tissue <- NA
+stations_df$Tissue[stations_df$Station %in% stations_table[1:a]] <- "Whole soft body"
+stations_df$Tissue[i_cod_liver] <- "Liver"
+stations_df$Tissue[i_cod_muscle] <- "Muscle"
+stations_df$Tissue[i_eider_blood] <- "Blood"
+stations_df$Tissue[i_eider_egg] <- "Egg"
+stations_df$Tissue[i_snails] <- "Whole soft body"
+```
+
+### Add Report_version_name
+```{r}
+stations_df <- left_join(stations_df, 
+                         df_stationnames %>% select(STATION_CODE, Report_version_name),
+                         by = c("Station" = "STATION_CODE"))
+
+# Example
+xtabs(~Report_version_name, stations_df)[1:6]
+
+```
+
+## 5. Make summaries_list  
+
+### a. Add Name_english (see code for 'write_excel_summarytable()')  
+```{r}
+df_english_name <- matrix(c(
+  "Gadus morhua", "Cod",
+  "Mytilus edulis", "Blue mussel",
+  "Somateria mollissima", "Eider duck",
+  "Nucella lapillus", "Dog whelk",
+  "N. lapillus / L. littorea", "Dog whelk / periwinkle"), ncol = 2, byrow = TRUE) %>%
+  as.data.frame()
+colnames(df_english_name) <- c("LATIN_NAME", "Name_english") 
+
+data_xl_lessthans <- data_xl_lessthans %>%
+  safe_left_join(df_english_name, by = "LATIN_NAME", check = "CV")
+
+data_xl_lessthans %>%
+  count(LATIN_NAME, Name_english)
+
+# colnames(data_xl_lessthans)
+
+```
+
+### b. Make list
+One list element per station/species/tissue, each element is a data frame of parameters  
+```{r}
+N <- nrow(stations_df)
+summaries_list <- vector("list", N)
+for (i in 1:N)
+  summaries_list[[i]] <- get_summary_onestation(
+    stations_df[i,"Station"], 
+    stations_df[i,"Report_version_name"],
+    stations_df[i,"Species"],
+    stations_df[i,"Tissue"], 
+    par_table = par_table, 
+    data = data_xl_lessthans,       # input data
+    varname_median = "Yr_2018", 
+    varname_trends = "Trends.2018")
+
+# Check result 1:
+# summaries_list[[1]] %>% head()
+# Check result 2:
+# i <- which(stations_df[,"Station"] == "36A1")
+# summaries_list[[i]] %>% select(PARAM, TISSUE_NAME, Yr_2018, EQSclass_2018, EQS, Trends.2018) %>% View()
+
+rows_per_station <- 1:length(summaries_list) %>% 
+  map_df(~tibble(i = ., STATION_CODE = stations_df$Station[.], nrow = nrow(summaries_list[[.]])))
+# rows_per_station
+if (sum(rows_per_station$nrow==0) > 0){
+  message("Stations not found:")
+  rows_per_station %>% 
+    filter(nrow == 0) %>%
+    pull(STATION_CODE) %>%
+    paste(collapse = ", ")
+} else (
+  cat("All stations found \n")
+)
+
+```
+
+## 6. Write excel table  
+```{r}
+source("42_Make_overview_tables_functions.R")
+# debugonce(write_excel_summarytable)
+# View(summaries_list[[5]])
+# write_excel_summarytable(summaries_list[5:6], "Report_tables/44_summarytable_NEW2.xlsx", param_names = par_table)
+
+fn <- paste0("Report_tables/Summarytable_trend (script 42) from R version ", version_no, ".xlsx")
+
+write_excel_summarytable(summaries_list, fn, param_names = par_table,
+                         varname_trend = "Trends.2018",
+                         varname_median = "Yr_2018")
+
+```
+
+## 7. In Excel  
+* Copy the sheet to a new sheet (call it "for report")
+* Move the HG column for cod muscle to the cod liver part. Then delete the cod muscle rows and the TISSUE column
+* Open the _Macros.xlsm work book  
+* Go back to our sheet, select the main part of the table
+* Go to menu Developer:Macros and select "_Macros.xlsm!Sheet1.Set_character_1_and_3_to_Wingdings_RANGE"
+* Delete the first sheet (Sheet1) and save as 'Summarytable_trend (script 42) version XX.xlsx'
+
+
+## 8. EQS table - Definitions
+
+### Parameters  
+Stations are the same
+```{r}
+par_table_eqs <- c("BDE6S", "BDE47", "SCCP", "MCCP", "DDEPP", "DD_SS", 
+  "HBCDA", "HCB", "HCBD", "HCHG", "HG", "4-N-NP", "4-T-NP", "4-N-OP", "4-T-OP", 
+  "QCB", "PFOA", "PFOS", 
+  "ANT", "BAA", "BAP", "FLU", "CB_S7", "TBT",
+  "TCDDN", "TCDD", "TE_DFI05", "TE_CBNOI05")
+
+# Deleted "DD_SS", "TCDDN", "TE_DFI05", "TE_CBNOI05"
+par_table_eqs <- c("BDE6S", "BDE47", "SCCP", "MCCP", "DDEPP", 
+  "HBCDA", "HCB", "HCBD", "HCHG", "HG", "4-N-NP", "4-T-NP", "4-N-OP", "4-T-OP", 
+  "QCB", "PFOA", "PFOS", 
+  "ANT", "BAA", "BAP", "FLU", "NAP", 
+  "CB_S7", 
+  "TBT", "TPTIN", 
+  "D5")
+
+# Check that all PARAM have EQS
+check <- par_table_eqs %in% unique(subset(data_xl_lessthans, !is.na(EQS))$PARAM)
+mean(check)  # should be 1 (confirms that all PARAM are correctly spelled)
+# par_table_eqs[!check]
+
+```
+
+## 9. EQS table - Make summaries_list  
+One list element per station/species/tissue, each element is a data frame of parameters  
+```{r}
+
+N <- nrow(stations_df)
+summaries_list_eqs <- vector("list", N)
+for (i in 1:N)
+  summaries_list_eqs[[i]] <- get_summary_onestation(
+    stations_df[i,"Station"], 
+    stations_df[i,"Report_version_name"],
+    stations_df[i,"Species"],
+    stations_df[i,"Tissue"], 
+    par_table = par_table_eqs, data = data_xl_lessthans,
+    varname_median = "Yr_2018", 
+    varname_trends = "Trends.2018")
+
+
+
+# Check result
+# summaries_list_eqs[[65]] %>% head()
+
+rows_per_station <- 1:length(summaries_list_eqs) %>% 
+  map_df(~tibble(i = ., STATION_CODE = stations_df$Station[.], nrow = nrow(summaries_list_eqs[[.]])))
+# rows_per_station
+if (sum(rows_per_station$nrow==0) > 0){
+  message("Stations not found:")
+  rows_per_station %>% filter(nrow == 0)
+} else (
+  cat("All stations found \n")
+)
+
+```
+
+
+## 10. Write excel table  
+```{r}
+source("42_Make_overview_tables_functions.R")
+# debugonce(write_excel_summarytable_proref_eqs)
+# View(summaries_list[[5]])
+# write_excel_summarytable(summaries_list[5:6], "Report_tables/44_summarytable_NEW2.xlsx", param_names = par_table)
+
+
+fn <- paste0("Report_tables/Summarytable_EQS (script 42) from R version ", version_no, ".xlsx")
+
+# debugonce(write_excel_summarytable_proref_eqs)
+
+write_excel_summarytable_proref_eqs(summaries_list_eqs, fn, param_names = par_table_eqs,
+                                    varname_median = "Yr_2018")
+
+
+```
+
+
+## 11. In Excel:
+* Copy to a workbook, delete "from R" in the file name
+* Move the HG column for cod muscle to the cod liver part. Then delete the cod muscle rows
+
+
+
