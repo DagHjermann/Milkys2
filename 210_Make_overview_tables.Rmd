@@ -6,7 +6,7 @@ output: html_notebook
 
 Based on script '44_make_overview_trend_table' in H:/Documents/seksjon 212/Milkys 2017/Analyse  
   
-* Tables are written to folder 'Report_tables'  
+* Tables are written to folder 'Tables_for_report'  
 * File namse 'version' correspond to 'big excel table' version numbers
 
 * 3-7: make "trend" tables (name 'Summarytable_trend') - also includes PROREF shading   
@@ -33,6 +33,17 @@ source("210_Make_overview_tables_functions.R")
 ```
 
 
+### Year  
+```{r}
+current_year <- 2019
+```
+
+### Folder to write results  
+```{r}
+resultfolder <- "Tables_for_report"
+```
+
+
 ## 1. Read 'big excel' data    
 Make sure to read the most recent one!   
 ```{r}
@@ -44,41 +55,82 @@ fn_full <- paste0(datafolder, "/", fns[1])
 data_xl_lessthans <- readRDS(fn_full)
 
 cat("\n")
-cat("Data read from the file \n")
-cat("", fn_full)
+cat("Data read from the file \n", fn_full, "\n (", nrow(data_xl_lessthans), "lines )")
+
+# Version number
+version_no <- sub(datafolder, "", fn_full) %>% substr(10, 25)
+cat("\n\n")
+cat("Tables made by this script will be written to folder \n  ", 
+    resultfolder,
+    "\nand file names will end with the following version: \n  ",
+    sQuote(version_no)
+)
+
 
 ```
 
-
-### Change parameter from "VDSI/Intersex" to "VDSI"  
-In order to keep tables compact  
+### A couple of changes to the big excel data   
 ```{r}
-sel <- data_xl_lessthans$PARAM %in% "VDSI/Intersex"; sum(sel)
+
+# 1. Change parameter from "VDSI/Intersex" to "VDSI"  
+#    In order to keep tables compact  
+
+sel <- data_xl_lessthans$PARAM %in% c("VDSI/Intersex", "Intersex")
 data_xl_lessthans$PARAM[sel] <- "VDSI"
+cat("Changed", sum(sel), "records to PARAM = 'VDSI'")
+
+# 2. VDSI (actually intersex) value of 71G in 2019
+#    Given by pers.comm (mail from Lise mandag 28. september 2020 10:51)
+sel <- with(data_xl_lessthans,
+            STATION_CODE %in% "71G" &
+            PARAM %in% "VDSI" & 
+              Basis == "WW")
+data_xl_lessthans$Yr_2019[sel] <- 0
+cat("\n")
+cat("Changed", sum(sel), "records to Yr_2019 = 0 for VDSI")
+
+# 3. LATIN_NAME of 71G
+sel <- with(data_xl_lessthans,
+            STATION_CODE %in% "71G")
+data_xl_lessthans$LATIN_NAME[sel] <- "N. lapillus / L. littorea"
+cat("\n")
+cat("Changed", sum(sel), "records to LATIN_NAME = 'N. lapillus / L. littorea'")
+
+
 ```
 
 ### Checks
 ```{r}
-data_xl_lessthans %>% colnames()
 
-data_xl_lessthans %>%
-  count(Substance.Group)
+if (FALSE){
 
-data_xl_lessthans %>%
-  filter(Substance.Group %in% "Organo-metallic compounds") %>%
-  count(PARAM, Parameter.Name, IUPAC, Component.Name)
-
-data_xl_lessthans %>%
-  filter(PARAM %in% "TPhT" & Basis == "WW") %>%
-  select(PARAM, STATION_CODE, LATIN_NAME, TISSUE_NAME, Yr_2018, Q95, EQS)
-
-data_xl_lessthans %>%
-  filter(PARAM %in% "D5" & Basis == "WW") %>%
-  select(PARAM, STATION_CODE, LATIN_NAME, TISSUE_NAME, Yr_2018, Q95, EQS)
-
-data_xl_lessthans %>%
-  filter(!is.na(EQS)) %>%
-  count(PARAM, Parameter.Name, IUPAC, Component.Name)
+  # All column names
+  data_xl_lessthans %>% colnames()
+  
+  data_xl_lessthans %>%
+    count(Substance.Group)
+  
+  data_xl_lessthans %>%
+    filter(Substance.Group %in% "Organo-metallic compounds") %>%
+    count(PARAM, Parameter.Name, IUPAC, Component.Name)
+  
+  data_xl_lessthans %>%
+    filter(PARAM %in% "TPhT" & Basis == "WW") %>%
+    select(PARAM, STATION_CODE, LATIN_NAME, TISSUE_NAME, Yr_2018, Q95, EQS)
+  
+  data_xl_lessthans %>%
+    filter(PARAM %in% "D5" & Basis == "WW") %>%
+    select(PARAM, STATION_CODE, LATIN_NAME, TISSUE_NAME, Yr_2018, Q95, EQS)
+  
+  data_xl_lessthans %>%
+    filter(!is.na(EQS)) %>%
+    count(PARAM, Parameter.Name, IUPAC, Component.Name)
+  
+  data_xl_lessthans %>%
+    filter(grepl("71G", STATION_CODE) & Basis == "WW") %>%
+    select(PARAM, STATION_CODE, LATIN_NAME, TISSUE_NAME, Yr_2018, Yr_2019)
+  
+}
 
 ```
 
@@ -87,40 +139,50 @@ data_xl_lessthans %>%
 Used in 'plot_single_series_medians_data' (see '_functions' file)  
 ```{r}
 
-data_stations <- readxl::read_excel("Input_data/Kartbase.xlsx")
+#
+# List of station names   
+#
+data_stations <- readxl::read_excel("Input_data/Kartbase_edit.xlsx")
+cat("\n")
+cat("List of station names read \n")
 
 # Note that 
-#     the current station code is 'stasjonskode', not "STATION_CODE"
-#     `catch LAT__1` and `catch LONG__1` are currect (planned?) positions
-#     the current station name is 'stasjonsnavn', not "STATION_CODE"
-#     but station name for report is `Til Rapport`
-#         station name for maps are `Til Kart`
+#     Positions are the nominal positions (doesn't change from year to year)
+#     Station name for report are those originally called `Til Rapport` in 
+#       Norman's sheet
 
-# Check the two station code columns
-# data_stations %>%
-#   filter(STATION_CODE != stasjonskode)    # zero rows
+# Check that STATION_CODE values are unique
+check <- data_stations %>%
+  group_by(STATION_CODE) %>%
+  mutate(n = n()) %>%
+  filter(n > 1)
+
+if (nrow(check) > 0){
+  stop("The same STATION_CODE occurs more than once! Check 'check'")
+}  
 
 df_stationnames <- data_stations %>%
-  select(stasjonskode, `catch LAT__1`, `catch LONG__1`, stasjonsnavn, `Til Rapport`) %>%
-  rename(STATION_CODE = stasjonskode,
-         Lat = `catch LAT__1`, Long = `catch LONG__1`, 
-         Station_name = stasjonsnavn,
-         Report_version_name = `Til Rapport`) %>%
   filter(!is.na(STATION_CODE)) %>%
-  filter(!Station_name %in% "Risøy, Østerfjord")  # One duplicate (different names), we just remove one of them
+  # Add 'Report_version_name'
+  mutate(
+    Report_version_name = paste0(Station_name, " (st. ", STATION_CODE, ")")
+  )
 
-# Check stations that might be missing
-df_stationnames %>% filter(STATION_CODE %in% c("28A2","97A3","227G","19B","19N"))
+# Fixing station 36A and 36A1 (36A1 shall count as 36A) 
+sel <- df_stationnames$STATION_CODE %in% "36A1"
+df_stationnames$STATION_CODE[sel] <- "36A"
+cat(sum(sel), "lines with 36A1 changed to 36A \n")
 
-# Add missing station
-df_stationnames <- df_stationnames %>%
-  bind_rows(
-    tibble(STATION_CODE = "227G",
-           Report_version_name = "Flatskjær (St. 227G)")
-    )
+# Fixing station 36A and 36A1 (36A1 shall count as 36A) 
+sel <- df_stationnames$STATION_CODE %in% "227G2"
+df_stationnames$STATION_CODE[sel] <- "227G"
+cat(sum(sel), "lines with 227G2 changed to 227G \n")
 
-# Check some other stations
-df_stationnames %>% filter(STATION_CODE %in% c("I714", "I133"))
+
+if (FALSE){
+  # Check some stations that might be missing
+  df_stationnames %>% filter(STATION_CODE %in% c("28A2","97A3","227G","19B","19N","I714", "I133"))
+}
 
 ```
 
@@ -130,17 +192,18 @@ df_stationnames %>% filter(STATION_CODE %in% c("I714", "I133"))
 Note: order counts!
 ```{r}
 stations_table <- c(
-  "30A", "I301", "I304", "31A", "36A1", "I023", "I024",                             # Blue mussel, Oslofjorden
-  "71A", "I714", "76A2", "I131A", "I133", "15A",                                    # Blue mussel, Grenland - S?rlandet
-  "51A", "52A", "56A", "57A", "64A", "65A", "22A", "I241", "26A2", "28A2", "91A2",  # Blue mussel, Vestlandet - Tr?ndelag
-  "97A2", "97A3", "98A2", "10A2", "11X",                                            # Blue mussel, Nord-Norge
-  "30B", "36B", "02B", "71B","13B", "15B", "53B", "23B", "24B",                     # Cod
-  "28B", "80B", "96B", "98B1", "43B2", "45B2", "10B", "19B",                        # Cod
-  "19N",                                                                            # Eider duck - twice (blood and egg)
-  "71G",                                                                            # Dog whelk / periwinkle
-  "36G", "76G", "131G", "15G", "227G", "22G", "98G", "11G")                         # Dog whelk
-
-# "28A2" "97A3"  = ?lesund harbour, Bod? harbour
+  "30A", "I301", "I304", "31A", "36A", "I023", "I024",    # Blue mussel, Oslofjorden
+  "71A", "I714", "76A2", "I131A", "I133", "15A",           # Blue mussel, Grenland - Sørlandet
+  "51A", "52A", "56A", "57A", "64A", "65A", "22A",         # Blue mussel, Vestlandet - Trøndelag
+     "I241", "26A2", "28A2", "91A2",                       #  - " -
+  "97A2", "97A3", "98A2", "10A2", "11X",                   # Blue mussel, Nord-Norge
+  "30B", "36B", "02B", "71B","13B", "15B",                 # Cod
+    "53B", "23B", "24B", "28B", "80B", "96B",              # Cod            
+    "98B1", "43B2", "45B2", "10B", "19B",                  # Cod
+  "19N",                                                   # Eider duck - twice (blood and egg)
+  "71G",                                                   # Dog whelk / periwinkle
+  "36G", "76G", "131G", "15G", "227G",                     # Dog whelk
+    "22G", "98G", "11G")                                   # Dog whelk
 
 # stations_table
 
@@ -231,6 +294,7 @@ xtabs(~Report_version_name, stations_df)[1:6]
 ## 5. Make summaries_list  
 
 ### a. Add Name_english (see code for 'write_excel_summarytable()')  
+We don't care about the flatfish here  
 ```{r}
 df_english_name <- matrix(c(
   "Gadus morhua", "Cod",
@@ -264,8 +328,9 @@ for (i in 1:N)
     stations_df[i,"Tissue"], 
     par_table = par_table, 
     data = data_xl_lessthans,       # input data
-    varname_median = "Yr_2018", 
-    varname_trends = "Trends.2018")
+    varname_median = paste0("Yr_", current_year), 
+    varname_trends = paste0("Trends.", current_year)
+  )
 
 # Check result 1:
 # summaries_list[[1]] %>% head()
@@ -279,7 +344,7 @@ rows_per_station <- 1:length(summaries_list) %>%
 if (sum(rows_per_station$nrow==0) > 0){
   message("Stations not found:")
   rows_per_station %>% 
-    filter(nrow == 0) %>%
+    filter(nrow == 0) %>% 
     pull(STATION_CODE) %>%
     paste(collapse = ", ")
 } else (
@@ -290,26 +355,27 @@ if (sum(rows_per_station$nrow==0) > 0){
 
 ## 6. Write excel table  
 ```{r}
-source("42_Make_overview_tables_functions.R")
-# debugonce(write_excel_summarytable)
-# View(summaries_list[[5]])
-# write_excel_summarytable(summaries_list[5:6], "Report_tables/44_summarytable_NEW2.xlsx", param_names = par_table)
 
-fn <- paste0("Report_tables/Summarytable_trend (script 42) from R version ", version_no, ".xlsx")
+fn <- paste0("Summarytable_trend from R version ", 
+             version_no, ".xlsx")
 
-write_excel_summarytable(summaries_list, fn, param_names = par_table,
+fn_full <- paste0(resultfolder, "/", fn)
+
+write_excel_summarytable(summaries_list, fn_full, 
+                         param_names = par_table,
                          varname_trend = "Trends.2018",
                          varname_median = "Yr_2018")
 
+cat("File \n  ", fn, "\nwritten to folder \n  ", resultfolder)
+
 ```
 
-## 7. In Excel  
-* Copy the sheet to a new sheet (call it "for report")
+## 7. What to do with this file in Excel  
+* "Save as" and change name by replacing "from R" with "for report"
 * Move the HG column for cod muscle to the cod liver part. Then delete the cod muscle rows and the TISSUE column
 * Open the _Macros.xlsm work book  
-* Go back to our sheet, select the main part of the table
+* Go back to our sheet, select the main part of the table (the part containing the trends symbols)
 * Go to menu Developer:Macros and select "_Macros.xlsm!Sheet1.Set_character_1_and_3_to_Wingdings_RANGE"
-* Delete the first sheet (Sheet1) and save as 'Summarytable_trend (script 42) version XX.xlsx'
 
 
 ## 8. EQS table - Definitions
@@ -375,25 +441,26 @@ if (sum(rows_per_station$nrow==0) > 0){
 
 ## 10. Write excel table  
 ```{r}
-source("42_Make_overview_tables_functions.R")
-# debugonce(write_excel_summarytable_proref_eqs)
-# View(summaries_list[[5]])
-# write_excel_summarytable(summaries_list[5:6], "Report_tables/44_summarytable_NEW2.xlsx", param_names = par_table)
 
+fn <- paste0("Summarytable_EQS from R version ", 
+             version_no, ".xlsx")
 
-fn <- paste0("Report_tables/Summarytable_EQS (script 42) from R version ", version_no, ".xlsx")
+fn_full <- paste0(resultfolder, "/", fn)
 
-# debugonce(write_excel_summarytable_proref_eqs)
+write_excel_summarytable_proref_eqs(
+  summaries_list_eqs, 
+  fn_full, 
+  param_names = par_table_eqs,
+  varname_median = "Yr_2018"
+  )
 
-write_excel_summarytable_proref_eqs(summaries_list_eqs, fn, param_names = par_table_eqs,
-                                    varname_median = "Yr_2018")
-
+cat("File \n  ", fn, "\nwritten to folder \n  ", resultfolder)
 
 ```
 
 
-## 11. In Excel:
-* Copy to a workbook, delete "from R" in the file name
+## 11. What to do with this file in Excel
+* "Save as" and change name by replacing "from R" with "for report"
 * Move the HG column for cod muscle to the cod liver part. Then delete the cod muscle rows
 
 
