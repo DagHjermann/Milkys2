@@ -20,9 +20,6 @@ library(dplyr)
 library(purrr)
 library(ggplot2)
 library(safejoin)
-# library(lubridate)
-# library(openxlsx)
-# update.packages("xlsx")
 library(xlsx)
 ```
 
@@ -217,18 +214,21 @@ e <- length(stations_table)
 
 ### Define parameters  
 Again: the order counts!   
-Note: PAH sums in this table are called PAHSS (= PAH16), P_S (= PAH16 minus naphtalene) and PK_S (= KPAH)  
+Note: PAH sums are called PAHSS (= PAH16), P_S (= PAH16 minus naphtalene) and PK_S (= KPAH)  
 ```{r}
-par_table <- c("AG", "AS", "CO", "CD", "CR", "CU", "HG", "NI", "PB", "ZN", 
+
+par_table <- c("AG", "CD", "CO", "CR", "HG", "NI", "PB",  
                "CB_S7", 
-               "DDEPP", "HBCDA", "SCCP", "MCCP", 
-               "BDE47", "BDE100", "BDE209", "BDE6S",
-               "PAHSS", "P_S", "PK_S",      # changed "PK_S" to "KPAH"
-               "ANT", "BAA", "BKF", "BGHIP", "ICDP", "BAP", "FLU", "NAP",
-               "PFOS", "PFOSA", "PFOA", 
-               "TBT", "TPTIN", 
-               "D5",
-               "VDSI")
+               "DDEPP",
+               "HCB", "HBCDA",
+               "BDE6S", "BDE47", "BDE100", "BDE209",
+               "SCCP", "MCCP", 
+               "P_S", "ANT", "BAA", "BAP", "FLU", "NAP",  
+               "PFOA", "PFOS", "PFOSA", 
+               "TBT", "TPT", 
+               "VDSI",
+               "D5")
+
 ```
 
 ## 4. Make stations_df (one line per station)
@@ -315,8 +315,9 @@ data_xl_lessthans %>%
 
 ```
 
-### b. Make list
-One list element per station/species/tissue, each element is a data frame of parameters  
+### b. Make list  
+* One list element per station/species/tissue  
+* Each element is a data frame of parameters  
 ```{r}
 N <- nrow(stations_df)
 summaries_list <- vector("list", N)
@@ -351,6 +352,15 @@ if (sum(rows_per_station$nrow==0) > 0){
   cat("All stations found \n")
 )
 
+if (FALSE){
+  # size of list:
+  length(summaries_list)
+  # names: first 5 elements of list:
+  names(summaries_list[1:5])
+  # first 5 elements of list:
+  str(summaries_list[1:5], 1)
+}
+
 ```
 
 ## 6. Write excel table  
@@ -361,7 +371,8 @@ fn <- paste0("Summarytable_trend from R version ",
 
 fn_full <- paste0(resultfolder, "/", fn)
 
-write_excel_summarytable(summaries_list, fn_full, 
+write_excel_summarytable(summaries_list, 
+                         fn_full, 
                          param_names = par_table,
                          varname_trend = "Trends.2018",
                          varname_median = "Yr_2018")
@@ -371,7 +382,7 @@ cat("File \n  ", fn, "\nwritten to folder \n  ", resultfolder)
 ```
 
 ## 7. What to do with this file in Excel  
-* "Save as" and change name by replacing "from R" with "for report"
+* "Save as" and change name by replacing "from R" with "for report". Make sure you save it as an "xlsm" (macro-enabled) file
 * Move the HG column for cod muscle to the cod liver part. Then delete the cod muscle rows and the TISSUE column
 * Open the _Macros.xlsm work book  
 * Go back to our sheet, select the main part of the table (the part containing the trends symbols)
@@ -383,6 +394,7 @@ cat("File \n  ", fn, "\nwritten to folder \n  ", resultfolder)
 ### Parameters  
 Stations are the same
 ```{r}
+
 par_table_eqs <- c("BDE6S", "BDE47", "SCCP", "MCCP", "DDEPP", "DD_SS", 
   "HBCDA", "HCB", "HCBD", "HCHG", "HG", "4-N-NP", "4-T-NP", "4-N-OP", "4-T-OP", 
   "QCB", "PFOA", "PFOS", 
