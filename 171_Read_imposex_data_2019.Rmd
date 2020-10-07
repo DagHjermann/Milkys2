@@ -20,7 +20,8 @@ library(ggplot2)
 
 
 
-## Define data
+## Define data  
+**Note:** 'range' in 'df_sheets' is the range to read in Excel. Open each ex cel file to make sure it's correct.  
 ```{r}
 
 folder_data <- "Input_data/opparbeiding_biota/Snegl_2019/"
@@ -39,8 +40,9 @@ stations
 df_sheets <- data.frame(
   fn = fn,
   STATION_CODE = stations,
+  # 'range' is 'hand-made', and must be adjusted to each file in 'stations' in the same order
   range = c("A7:F57", "A7:F57", "A7:F57",  
-            "A7:F53", "A7:F57",  
+            "A7:F53", "A7:F57", "A7:F57",
             "A3:K53", "A7:F57", "A7:F57"),   # "A3:K53" is for 71G which has a different format 
   stringsAsFactors = FALSE)
 df_sheets
