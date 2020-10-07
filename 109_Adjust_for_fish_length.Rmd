@@ -24,7 +24,7 @@ library(readr)
 library(tidyr)
 library(safejoin)  # from https://github.com/moodymudskipper/safejoin 
 
-
+source("002_Utility_functions.R")
 source("109_Adjust_for_fish_length_functions.R")
 
 ```
@@ -32,22 +32,23 @@ source("109_Adjust_for_fish_length_functions.R")
 
 ## 2. Data
 
-### Main data  
+### a. Main data  
 Read and reformat the most recent data (by default)  
 ```{r}
 
-files <- dir("Data", pattern = "101_data_updated") %>% rev()
+# Files 
+files <- list_files("Data", pattern = "101_data_updated")
 
-cat("Reading the last file downloaded:")
-cat("\n", files[1])
-cat("\n")
-cat("If you want to read a different file, replace 'files[1]' with the file you want")
-cat("\n\n")
-
-filename <- files[1] 
+# Pick file
+filename <- files[1]
+cat("\nLast file:", filename, "\n")
 cat("Time since this file was modified: \n")
 Sys.time() - file.info(paste0("Data/", filename))$mtime 
 
+# Info
+cat("\nIf you want to read a different file, input a different name for 'filename' \n")
+
+# Read data
 data_all <- readRDS(paste0("Data/", filename))
 
 # We save the date part of the text (e.g., '2020-04-23')
@@ -57,7 +58,7 @@ file_date <- substr(filename, 18, 27)    # pick out the part of the text from ch
 ```
 
 
-### Length data for 2019  
+### b. Length data for 2019  
 ```{r}
 
 # Data on length
@@ -65,7 +66,11 @@ data_ind_fish <- readRDS("Data/150_Fish_individual_data_2019.rds")
 
 ```
 
-### Sample data for 2019   
+```{r}
+
+```
+
+### c. Sample data for 2019   
 Read and reformat the most recent data (by default)  
 ```{r}
 
@@ -78,13 +83,29 @@ df_samples <- readRDS(paste0("Input_data/", filename))
 # Prepare sample data    
 #
 df_fishsamples <- df_samples %>%
-  select(AQUAMONITOR_CODE, BIOTA_SAMPLENO, TISSUE, X_BULK_BIO) %>%
-  distinct(AQUAMONITOR_CODE, TISSUE, BIOTA_SAMPLENO, X_BULK_BIO) %>%
-  mutate(TISSUE_NAME = str_sub(TISSUE, start = 4)) %>%   # strip off "LI-", "MU-" etc in the start  
+  select(AQUAMONITOR_CODE, BIOTA_SAMPLENO, TISSUE, X_BULK_BIO, DESCRIPTION) %>%
+  distinct(AQUAMONITOR_CODE, TISSUE, BIOTA_SAMPLENO, X_BULK_BIO, DESCRIPTION) %>%
+  mutate(
+    TISSUE_NAME = str_sub(TISSUE, start = 4),
+    # Extract SPECIMEN_NO by getting the last number of DESCRIPTION (using regex):
+    SPECIMEN_NO = str_extract_all(DESCRIPTION, "[0-9]+") %>% map(rev) %>% map_chr(~.[1])) %>% 
   select(-TISSUE)
 
-# After
-xtabs(~TISSUE_NAME, df_fishsamples)
+# Check sample number of muscle samples
+check <- df_fishsamples %>% 
+  filter(TISSUE_NAME == "Muskel") %>%
+  filter(!is.na(X_BULK_BIO) & SPECIMEN_NO != X_BULK_BIO)
+cat("Number of muscle samples where fish number isn't equal to sample number:", nrow(check), "\n")  
+cat("- stations of those: \n")
+cat(check %>% pull(AQUAMONITOR_CODE) %>% unique())  
+
+if (FALSE){
+  View((df_fishsamples %>% filter(TISSUE_NAME == "Muskel"))[sel,])
+}
+```
+
+### c. Sample data, special case: galle (bile) at 30B   
+```{r}
 
 # Special case: galle (bile) at 30B
 sel <- is.na(df_samples$AQUAMONITOR_CODE) & grepl("30B", df_samples$DESCRIPTION); sum(sel)
@@ -466,7 +487,7 @@ cat("'a' (constant that will be used in log-transformation) set to", a)
 
 ```
 
-### Perform adjustment
+### Perform test adjustment
 ```{r, fig.width = 9, fig.height=3}
 
 result <- try(adjust_selected(data_all2, sel, var = "VALUE_WW", a = a))        # adjust_selected()
@@ -680,17 +701,19 @@ if (nrow(check) > 0){
 par <- "CB_S7"
 par <- "HG"
 
-# Not length-adjusted 
-data_all2 %>% 
-  filter(LATIN_NAME %in% "Gadus morhua" & PARAM %in% par) %>%
-  group_by(STATION_CODE) %>%
-  mutate(n_year = length(unique(MYEAR))) %>%
-  filter(n_year >= 7) %>%
-  ggplot(aes(MYEAR, VALUE_WW, color = TISSUE_NAME)) +
+if (FALSE){
+  # Not length-adjusted 
+  data_all2 %>% 
+    filter(LATIN_NAME %in% "Gadus morhua" & PARAM %in% par) %>%
+    group_by(STATION_CODE) %>%
+    mutate(n_year = length(unique(MYEAR))) %>%
+    filter(n_year >= 7) %>%
+    ggplot(aes(MYEAR, VALUE_WW, color = TISSUE_NAME)) +
     geom_point() +
     scale_y_log10() +
     facet_wrap(vars(STATION_CODE)) +
-  labs(title = paste(par, "in cod"))
+    labs(title = paste(par, "in cod"))
+}
 
 # Length-adjusted 
 data_all2 %>% 
@@ -712,10 +735,11 @@ data_all2 %>%
   filter(n_year >= 7) %>%
   ggplot(aes(VALUE_WW, VALUE_WWa, color = TISSUE_NAME)) +
     geom_point() +
+    geom_abline(slope = 1, intercept = 0)  +
     scale_x_log10() +
     scale_y_log10() +
     facet_wrap(vars(STATION_CODE)) +
-  labs(title = paste(par, "in cod"))
+    labs(title = paste(par, "in cod"))
 
 # Time series for one tissue
 tissue <- case_when(
@@ -744,9 +768,54 @@ data_all2 %>%
 
 
 
-## 8. Save data
+## 8. Save data   
+The data should include one column for whether data is pooled, and fish number of the unpooled ones
 
-### a. R data file    
+### a. Make data to add to the raw data    
+```{r}
+# Summarise to one line per sample, including 'Fish_number'
+df_fishsamples3_summ <- df_fishsamples3 %>%
+  group_by(STATION_CODE, TISSUE_NAME, SAMPLE_NO2) %>%
+  summarise(
+    Pool_size = n(),
+    Fish_number = first(Fish_no),
+    .groups = "drop"
+  )
+
+# Set 'Fish_number' to NA if it's a pooled sample
+#   (only meaningful if the sample is from a single fish)
+sel <- df_fishsamples3_summ$Pool_size > 1
+df_fishsamples3_summ$Fish_number[sel] <- NA
+
+# Pooling of samples
+cat("Number of fish pooled per sample \n-----------------------------------\n")
+xtabs(~TISSUE_NAME + Pool_size, df_fishsamples3_summ)
+
+```
+### b. Add columns for pooling and fish number  
+```{r}
+
+data_all2 <- data_all2 %>%
+  safe_left_join(
+    df_fishsamples3_summ,
+    by = c("STATION_CODE", "TISSUE_NAME", "SAMPLE_NO2"),
+    check = "bCV"
+  )
+
+if (FALSE){
+
+  # For manual check  
+  data_all2 %>%
+    filter(MYEAR == 2019 & STATION_CODE == "13B" & 
+             TISSUE_NAME == "Lever" & PARAM == "CD") %>%
+    select(MYEAR, STATION_CODE, TISSUE_NAME, SAMPLE_NO2, 
+           Pool_size, Fish_number, PARAM, VALUE_WW, FLAG1) %>%
+    View()
+
+}
+```
+
+### c. R data file    
 ```{r}
 
 filename <- paste0("Data/109_adjusted_data_", file_date, ".rds")
@@ -756,9 +825,14 @@ saveRDS(data_all2, filename)
 cat("Data of medians saved as: \n")
 cat(" ", filename, "\n")
 
+if (FALSE){
+  # For reading the file instead 
+  data_all2 <- readRDS(filename)
+}
+
 ```
 
-### b. csv file
+### d. csv file
 ```{r}
 
 fn <- paste0("Data/10_data_all2_", file_date, ".csv")
@@ -766,13 +840,12 @@ readr::write_excel_csv(data_all2, fn, na = "")
 
 ```
 
-
-
 ### c. Save last years as Excel file  
 Needed by Norman  
 ```{r}
 
-data_all2 <- data_all
+from_year <- max(data_all2$MYEAR) - 4
+to_year <- max(data_all2$MYEAR)
 
 if (FALSE){
   
@@ -819,16 +892,24 @@ data_all2 <- data_all2 %>%
     TRUE ~ TISSUE_NAME)
   )
 
-cat("TISSUE_NAME values: \n")
+cat("TISSUE_NAME values after change: \n")
 table(data_all2$TISSUE_NAME)
 
-# 2015-2019 
-data_2015_19 <- data_all2 %>%
-  filter(MYEAR %in% 2015:2019) %>%
+# 2015-2019   
+data_last_years <- data_all2 %>%
+  filter(MYEAR %in% from_year:to_year) %>%
   select(-c(VALUE_DW, VALUE_FB, VALUE_WWa, VALUE_DWa, VALUE_FBa)) 
-  
-data_2015_19 %>%
-  writexl::write_xlsx("Data/Milkys_raw_data_2015-18 (script 109).xlsx")
+
+fn <- paste0(
+  "Data/Milkys_raw_data_", 
+  from_year, "-", substr(to_year, 3, 4),
+  " (script 109).xlsx")
+
+data_last_years %>%
+  writexl::write_xlsx(fn)
+
+cat("\nData written to \n")
+cat(" ", fn, "\n")
 
 ```
 
