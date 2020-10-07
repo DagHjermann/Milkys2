@@ -208,9 +208,41 @@ if (FALSE){
 
 ### b2. Tins - check what AqN values represent   
 By comparing with original report, we find that all tins in AqM, except TBT, are given as **tin (Sn) weight**. TBT is given as ion weight.  
+* See "K:\Prosjekter\Sjøvann\JAMP\2019\analyser\Analyserapporter\snegler\Analyserapport 925-7518 snegler.PDF"  
 - Exception: for the industry stations I965 and I969, it seems that tins are given as **ion weight** 
 (Original report for Milkys 2019 can be found at   
 `K:\Prosjekter\Sjøvann\JAMP\2019\analyser\Analyserapporter\snegler\Analyserapport 925-7518 snegler.PDF`)  
+  
+Previous years - overview of names used     
+
+Substance            | ION WEIGHT                        | TIN WEIGHT  
+---------------------|-----------------------------------|----------------------------------
+BUTYLTINS            |                                   |                              
+monobutyltin         | MBTIN, "monobutyltin (MBT)"       | Monobutyltinn (MBT)-Sn
+dibutyltin           | DBTIN                             | Dibutyltinn-Sn (DBT-Sn)
+tributyltin          | TBT                               | Tributyltinn (TBT)-Sn
+tetrabutyltin        | TTBT, "Tetrabutyltinn (TetraBT)"  | Tetrabutyltinn (TTBT)-Sn
+OCTYLTINS            |                                   |                              
+monooctyltin         | MOT                               | Monooktyltinn (MOT)-Sn
+dioctyltin           | DOT                               | Dioktyltinn-Sn (DOT-Sn)
+CYCLOHEXYLTINS       |                                   |                                   
+tricyclohexyltin     | TCHT                              |               
+PHENYLTINS           |                                   |                               
+Triphenyltin (TPhT)  | TPTIN                             | Trifenyltinn (TPhT)-Sn   
+  
+Some of these (e.g. DBTIN and TPTIN for ion weight) are illogical but need to be like this in 
+order to conform with legacy data (data_through_2018)   
+  
+Examples from 11G in 2019:   
+* Tributyltinn   
+    - Report says Tributyltinn (TBT) = <1.9, Tributyltinn (TBT)-Sn = <0.77     
+    - Aquamonitor says TBT = <0.77   
+    - Nivabase says Tributyltinn (TBT) = <1.9, Tributyltinn (TBT)-Sn = <0.77   
+* Triphenyltin   
+    - Report says Trifenyltinn (TPhT) = <1.9, Trifenyltinn (TPhT)-Sn = <0.64    
+    - Aquamonitor says TPhT = <0.64   
+    - Nivabase says Trifenyltinn (TPhT) = <1.9, Trifenyltinn (TPhT)-Sn = <0.64   
+    
 ```{r}
 if (FALSE){
   # Get parameter names in AM
@@ -219,23 +251,6 @@ if (FALSE){
     select(StationCode, CatchDateFirst, Substance, Unit, Value, Flag) %>% pull(Substance) %>% dput()
 }
 
-# USED IN PREVIOUS YEARS (and given in the big excel file)
-# Some of these (e.g. DBTIN and TPTIN for ion weight) are illogical but need to be like this in 
-#   order to conform with legacy data (data_through_2018)
-# Will be changed in 10 
-#                      ION WEIGHT                     TIN WEIGHT
-# BUTYLTINS       
-# monobutyltin         MBTIN, "monobutyltin (MBT)"       Monobutyltinn (MBT)-Sn
-# dibutyltin           DBTIN                             Dibutyltinn-Sn (DBT-Sn)
-# tributyltin          TBT                               Tributyltinn (TBT)-Sn  
-# tetrabutyltin        TTBT, "Tetrabutyltinn (TetraBT)"  Tetrabutyltinn (TTBT)-Sn
-# OCTYLTINS                                                 
-# monooctyltin         MOT                               Monooktyltinn (MOT)-Sn
-# dioctyltin           DOT                               Dioktyltinn-Sn (DOT-Sn)
-# CYCLOHEXYLTINS                                         
-# tricyclohexyltin     TCHT                             
-# PHENYLTINS                                             
-# Triphenyltin (TPhT)  TPTIN                             Trifenyltinn (TPhT)-Sn
 
 # Check first station in report - AqM:  
 dat_new1 %>%
@@ -1038,14 +1053,6 @@ dat_new3d <- dat_new3c %>%
 
 cat(nrow(data_imposex_vdsi), "observations added \n")
 
-
-```
-
-
-### Change name of data back to 'dat_new3'
-```{r}
-
-dat_new3d <- dat_new3d
 
 ```
 
