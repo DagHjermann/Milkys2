@@ -66,11 +66,8 @@ data_ind_fish <- readRDS("Data/150_Fish_individual_data_2019.rds")
 
 ```
 
-```{r}
 
-```
-
-### c. Sample data for 2019   
+### c1. Sample data for 2019   
 Read and reformat the most recent data (by default)  
 ```{r}
 
@@ -104,7 +101,7 @@ if (FALSE){
 }
 ```
 
-### c. Sample data, special case: galle (bile) at 30B   
+### c2. Sample data, special case: galle (bile) at 30B   
 ```{r}
 
 # Special case: galle (bile) at 30B
@@ -841,37 +838,70 @@ readr::write_excel_csv(data_all2, fn, na = "")
 ```
 
 ### c. Save last years as Excel file  
-Needed by Norman  
-```{r}
+Needed by Norman and Anders   
 
-from_year <- max(data_all2$MYEAR) - 4
-to_year <- max(data_all2$MYEAR)
+#### c1. Pick years  
+```{r}
+from_year <- max(data_export$MYEAR) - 4
+to_year <- max(data_export$MYEAR)
+
+data_export <- data_all2 %>%
+  filter(MYEAR %in% from_year:to_year)
+
+cat("'data_export':", nrow(data_export), "rows")
+
+```
+
+
+#### c2. Add trophic level data  
+```{r}
+data_trophiclevel <- readRDS("Input_data/104_dat3.rds") 
+
+cat("'data_trophiclevel' contains muscle only: \n")
+xtabs(~is.na(TL) + TISSUE_NAME, data_trophiclevel)
+
+data_export <- data_export %>%
+  safe_left_join(data_trophiclevel %>%
+                   rename(Fish_number = SAMPLE_NO2) %>%
+                   select(MYEAR, STATION_CODE, Fish_number, Delta15N, TL),
+                 by = c("MYEAR", "STATION_CODE", "Fish_number"),
+                 na_matches = "never",
+                 check = "bCV")
+
+cat("\n\n")
+cat("Final data: trophic level (TL) for most of muscle data and some of liver data: \n")
+xtabs(~is.na(TL) + TISSUE_NAME, data_export %>% filter(MYEAR >= from_year))
+
+```
+
+#### c3. Change tissue names  
+```{r}
 
 if (FALSE){
   
   # Check SH and WO parameters
 
-  table(data_all2$TISSUE_NAME)
+  table(data_export$TISSUE_NAME)
   
-  data_all2 %>% filter(TISSUE_NAME == "SH") %>% xtabs(~MYEAR + PARAM, .)
-  data_all2 %>% filter(TISSUE_NAME == "SH") %>% xtabs(~STATION_CODE + PARAM, .)
+  data_export %>% filter(TISSUE_NAME == "SH") %>% xtabs(~MYEAR + PARAM, .)
+  data_export %>% filter(TISSUE_NAME == "SH") %>% xtabs(~STATION_CODE + PARAM, .)
 
-  data_all2 %>% filter(TISSUE_NAME == "WO") %>% xtabs(~MYEAR + PARAM, .)
-  data_all2 %>% filter(TISSUE_NAME == "WO") %>% xtabs(~STATION_CODE + PARAM, .)
+  data_export %>% filter(TISSUE_NAME == "WO") %>% xtabs(~MYEAR + PARAM, .)
+  data_export %>% filter(TISSUE_NAME == "WO") %>% xtabs(~STATION_CODE + PARAM, .)
   
-  data_all2 %>% 
+  data_export %>% 
     filter(TISSUE_NAME == "WO" & PARAM %in% "IMPS") %>%    # imposex on an individual level
     ggplot(aes(MYEAR, VALUE_WW)) +
     geom_jitter(width = 0.2, height = 0.1) +
     facet_wrap(vars(STATION_CODE))
 
-  data_all2 %>% 
+  data_export %>% 
     filter(PARAM %in% "VDSI") %>%
     ggplot(aes(MYEAR, VALUE_WW)) +
     geom_point() +
     facet_wrap(vars(STATION_CODE))
 
-  data_all2 %>% 
+  data_export %>% 
     filter(TISSUE_NAME == "WO" & PARAM %in% "RSPI") %>%
     ggplot(aes(MYEAR, VALUE_WW)) +
     geom_point() +
@@ -881,7 +911,7 @@ if (FALSE){
 
 # - delete "sample" and "TISSUE_NAME == 'WO' and 'SH'"
 # - change TISSUE_NAME into English versions for the rest
-data_all2 <- data_all2 %>%
+data_export <- data_export %>%
   filter(!PARAM %in% "Sample") %>%
   filter(!TISSUE_NAME %in% c('SH', 'WO')) %>%
   mutate(TISSUE_NAME = case_when(
@@ -893,11 +923,15 @@ data_all2 <- data_all2 %>%
   )
 
 cat("TISSUE_NAME values after change: \n")
-table(data_all2$TISSUE_NAME)
+table(data_export$TISSUE_NAME)
+
+```
+
+#### c4. Pick data and save  
+```{r}
 
 # 2015-2019   
-data_last_years <- data_all2 %>%
-  filter(MYEAR %in% from_year:to_year) %>%
+data_last_years <- data_export %>%
   select(-c(VALUE_DW, VALUE_FB, VALUE_WWa, VALUE_DWa, VALUE_FBa)) 
 
 fn <- paste0(
@@ -912,6 +946,5 @@ cat("\nData written to \n")
 cat(" ", fn, "\n")
 
 ```
-
 
 
