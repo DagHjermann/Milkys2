@@ -1867,9 +1867,15 @@ cat("\n")
 cat("Excel file", sQuote(fn_stations), "(one line per station) written to folder 'Data'\n")
 
 ```
-### For checking (old) files
+### For checking (old) files  
 ```{r}
 
+#
+# NOTE: don't run all of the stuff inside the brackets
+# These are code snippets, so you are meant to pick and choose
+# (for instance, it doesn't make sense to make 'check' first by reading the text file,
+#   and then by reading the rds file. You only need to do one of them.)
+#
 if (FALSE){
   #
   # Existing file names (dates and versions)
@@ -1881,10 +1887,11 @@ if (FALSE){
     arrange(desc(Date), desc(Version))
   file_versions
   
+  # Get most recet file (based on date and version in file name)
   fn <- paste0("Big_excel_table/", file_versions$Filename[1])
   fn
 
-  # CHeck header
+  # Check header
   readLines(fn, n = 1)
   
   # read csv
@@ -1892,6 +1899,23 @@ if (FALSE){
   
   # read R data
   check <- readRDS(file = sub(".csv", ".rds", fn, fixed = TRUE))
+  
+  # All column names
+  names(check)
+  
+  # Check data for all TBT
+  check %>%
+    filter(PARAM == "TBT" & Basis == "WW") %>%
+    select(PARAM, Substance.Group, LATIN_NAME, TISSUE_NAME, STATION_CODE, Basis, 
+         Yr_2018, Yr_2019, N_string, SD_last, EQS) %>%
+    View()
+
+  # Check all data for one snail station
+  check %>%
+    filter(Basis == "WW" & STATION_CODE == "11G") %>%
+    select(PARAM, Substance.Group, LATIN_NAME, TISSUE_NAME, STATION_CODE, Basis, 
+         Yr_2003, Yr_2010, Yr_2014, Yr_2018, Yr_2019, N_string, SD_last, EQS) %>%
+    View("11G")
 
   # Read older version (check2) and compare number of rows and column 1:22 between check and check2: 
   fn2 <- paste0("Big_excel_table/", file_versions$Filename[2])
@@ -1912,9 +1936,8 @@ if (FALSE){
   
   xtabs(~addNA(CLASS_CHANGE), check)
   
-  names(check)
   check %>%
-    filterxtabs(~addNA(CLASS_CHANGE), check)
+    xtabs(~addNA(CLASS_CHANGE), check)
 
   
   

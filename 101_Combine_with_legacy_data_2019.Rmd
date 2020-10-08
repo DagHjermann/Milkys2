@@ -23,6 +23,7 @@ output:
 
 ## 1. Load libraries and functions   
 ```{r, results='hide', message=FALSE, warning=FALSE}
+
 library(dplyr)
 library(purrr)
 library(tidyr)
@@ -244,6 +245,7 @@ Examples from 11G in 2019:
     - Nivabase says Trifenyltinn (TPhT) = <1.9, Trifenyltinn (TPhT)-Sn = <0.64   
     
 ```{r}
+
 if (FALSE){
   # Get parameter names in AM
   dat_new1 %>%
