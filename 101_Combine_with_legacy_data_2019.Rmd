@@ -1047,13 +1047,33 @@ data_imposex_vdsi <- data_imposex %>%
     FLAG1 = as.character(NA),
     UNIT = "Index"
   )
-  
+
+# Add Intersex = 0 for 71G
+# Pers. comm. some mail sept-oct 2020
+data_imposex_vdsi_extra <- tibble(
+  STATION_CODE = "71G", 
+  LATIN_NAME = "Littorina littorea", 
+  PARAM = "Intersex",
+  Sex = "f",
+  VALUE = 0,
+  MYEAR = year,
+  SAMPLE_NO2 = 1,
+  TISSUE_NAME = "Whole soft body",
+  BASIS = "W",
+  FLAG1 = as.character(NA),
+  UNIT = "Index"
+)
+
+data_imposex_vdsi2 <- bind_rows(
+  data_imposex_vdsi,
+  data_imposex_vdsi_extra
+)  
 # data_imposex_vdsi[needed_variables]
   
 dat_new3d <- dat_new3c %>%
-  bind_rows(data_imposex_vdsi[needed_variables])
+  bind_rows(data_imposex_vdsi2[needed_variables])
 
-cat(nrow(data_imposex_vdsi), "observations added \n")
+cat(nrow(data_imposex_vdsi2), "observations added \n")
 
 
 ```
