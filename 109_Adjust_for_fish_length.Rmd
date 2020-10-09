@@ -842,8 +842,8 @@ Needed by Norman and Anders
 
 #### c1. Pick years  
 ```{r}
-from_year <- max(data_export$MYEAR) - 4
-to_year <- max(data_export$MYEAR)
+from_year <- max(data_all2$MYEAR) - 4
+to_year <- max(data_all2$MYEAR)
 
 data_export <- data_all2 %>%
   filter(MYEAR %in% from_year:to_year)
