@@ -3,6 +3,11 @@ title: "110_Medians_and PROREF"
 output: html_document
 ---
 
+Condenses data to annual medians (per parameter/station/tissue)  
+- I.e., this is the main source of time series data  
+
+**NOTE: 'Fixing data for time series' must be identical in script 110 and 111**
+
 ## 1. Packages
 ```{r, message=FALSE, warning=FALSE, results='hide'}
 
@@ -53,7 +58,7 @@ file_date <- substr(filename, pos1, pos2)    # pick out the part of the text fro
 ```
 
 
-### Fixing 
+### Fixing data for time series   
 Fixing station 227G1 and 227G2 (shall count as 227G) 
 ```{r}
 

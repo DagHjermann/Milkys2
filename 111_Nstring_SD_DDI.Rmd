@@ -13,9 +13,12 @@ Creates information needed for the creation of the big Excel file:
 * 'D.d.i.' = detectable data information = "N>LOQ [min - maks]"    
     - Example: 7 [0.11 - 0.29] = 7 values >LOQ,  these measurements varied from 0.11 to 0.29   
   
-* Uses the same input files as script 110, and in a way orks in the same way (summarises sample-level data into one line per year/station/tissue/parameter)     
-*-* Output to three different file  
-   - These are used by '201_Make_big_excel_file.Rmd'  
+**NOTE: 'Fixing data for time series' must be identical in script 110 and 111**
+    
+* *Input:* Uses the same input file as script 110, and in a way works in the same way (summarises sample-level data into one line per year/station/tissue/parameter)     
+    - Uses labware data in addition   
+* *Output* to three different files  
+    - These are used by '201_Make_big_excel_file.Rmd'  
 
 ## 0. Current year  
 The year of the last data
@@ -69,7 +72,7 @@ file_date <- data_list$file_date
 
 
 
-### Fixing   
+### Fixing data for time series   
 Same as in script 110 
 ```{r, results='hold'}
 
