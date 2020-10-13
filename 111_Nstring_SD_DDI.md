@@ -23,14 +23,15 @@ As in script 110, some data series are 'homogenized'
 ## 0. Current year  
 The year of the last data
 
-```{r}
+
+```r
 last_year <- 2019
 ```
 
 
 ## 1. Packages
-```{r, message=FALSE, warning=FALSE, results='hide'}
 
+```r
 library(readxl)
 library(tidyr)
 
@@ -48,7 +49,6 @@ library(safejoin)
 source("002_Utility_functions.R")
 source("110_Medians_and_PROREF_functions.R")   # homogenize_series
 source("111_Nstring_SD_DDI_functions.R")
-
 ```
 
 
@@ -56,19 +56,25 @@ source("111_Nstring_SD_DDI_functions.R")
 
 ### Main data  
 Read and reformat the most recent data (by default)  
-```{r, collapse=TRUE}
+
+```r
 
 files <- list_files("Data", pattern = "109_adjusted_data")
+## There are 5 files with pattern '109_adjusted_data' to choose from
 data_list <- read_rds_file(folder = "Data", 
                           files, 
                           filenumber = 1, 
                           get_date = TRUE,
                           time_since_modified = TRUE)
+## File '109_adjusted_data_2020-08-05.rds' (file number 1) has been read 
+##   This is the newest file. If you want to read an older file, put a different 'filenumber' 
+## 
+## Time since this file was modified: 
+## Time difference of 4.277301 days
 
 data_all <- data_list$data
 file_date <- data_list$file_date   
 # 'file_date' will be used in part 10, when we save the resulting file
-
 ```
 
 
@@ -80,16 +86,26 @@ Change STATION_CODE, in order to make a single time series for data with differe
   
 Also combines PARAM = VDSI and PARAM = Intersex to PARAM = "VDSI/Intersex" for station 71G  
 
-```{r}
 
+```r
 data_all <- homogenize_series(data_all)
+```
 
+```
+## Fixing station 227G1 and 227G2 (shall count as 227G) 
+## - changed STATION_CODE for 1361 rows of data 
+## 
+## Fixing station 36A and 36A1 (36A1 shall count as 36A) 
+## - changed STATION_CODE for 1367 rows of data 
+## 
+## Fix VDSI and Intersex at station 71G (both shall count as PARAM = 'VDSI/Intersex') 
+## - changed PARAM for 12 rows of data
 ```
 
 ### Labware data     
 Uses the most recent data (by default)    
-```{r, results='hold'}
 
+```r
 # Penultimate year:
 files <- list_files(
   folder = "Input_data",
@@ -118,14 +134,27 @@ df_samples_labware_raw <- bind_rows(
 cat("\n")
 cat("Combined labware file - number of lines per year: \n")
 xtabs(~MYEAR, df_samples_labware_raw)
+```
 
+```
+## There are 1 files with pattern 'Labware_samples_2018' to choose from 
+## File 'Labware_samples_2018_2020-09-11.rds' (file number 1) has been read 
+## 
+## There are 2 files with pattern 'Labware_samples_2019' to choose from 
+## File 'Labware_samples_2019_2020-09-11.rds' (file number 1) has been read 
+##   This is the newest file. If you want to read an older file, put a different 'filenumber' 
+## 
+## Combined labware file - number of lines per year: 
+## MYEAR
+## 2018 2019 
+##  659  655
 ```
 
 
 ### Fix BIOTA_SAMPLENO = 0    
 BIOTA_SAMPLENO corresponds to SAMPLE_NO2 in the data (i.e., sample number within station and tissue)    
-```{r, results='hold'}
 
+```r
 # xtabs(~BIOTA_SAMPLENO, df_samples_labware_raw)
 
 sel <- df_samples_labware_raw$BIOTA_SAMPLENO == 0
@@ -166,9 +195,22 @@ df_samples_labware_raw$BIOTA_SAMPLENO[sel] <- description_clipped[sel] %>%
 cat("\n")
 cat("Values of BIOTA_SAMPLENO after fix (should no zeros or NAs): \n")
 xtabs(~addNA(BIOTA_SAMPLENO), df_samples_labware_raw)
+```
 
-
-
+```
+## 60 samples have BIOTA_SAMPLENO == 0 
+## 
+## Tissue of samples with BIOTA_SAMPLENO == 0: 
+## TISSUE
+## BI-Galle 
+##       60 
+## 
+## Values of BIOTA_SAMPLENO after fix (should no zeros or NAs): 
+## addNA(BIOTA_SAMPLENO)
+##    1    2    3    4    5    6    7    8    9   10   11   12   13   14   15   16 
+##  158  139  138   80   78   78   78   78   75   74   72   69   66   64   61    2 
+##   17   18   19   23 <NA> 
+##    1    1    1    1    0
 ```
 
 
@@ -180,8 +222,8 @@ Example: N_string "8 (6-3)" means that:
 
 ### Get number of individuals per pooled sample  
 Uses function 'number_of_ind()' to get number of individuals per pooled sample   
-```{r, results='hold'}
 
+```r
 # Get number of individuals per pooled sample
 # Use df_samples (table from LABWARE) 
 # NOTE: Differs from code in 201 by extracting MYEAR and using it in grouping/summarising  
@@ -207,13 +249,18 @@ df_samples_labware <- df_samples_labware_raw %>%
   )
 
 xtabs(~is.na(No_individuals) + MYEAR, df_samples_labware)
+```
 
+```
+##                      MYEAR
+## is.na(No_individuals) 2018 2019
+##                 FALSE  659  655
 ```
 
 ### Fixing STATION_CODE     
 Same as in above (and in script 110) 
-```{r, results = 'hold'}
 
+```r
 # Fixing station 227G1 and 227G2 (shall count as 227G) 
 sel <- df_samples_labware$STATION_CODE %in% c("227G1","227G2")
 # xtabs(~MYEAR, data_all[sel,])
@@ -228,12 +275,18 @@ sel <- df_samples_labware$STATION_CODE %in% "36A1"
 df_samples_labware$STATION_CODE[sel] <- "36A"
 cat("Fixing station 36A and 36A1 (36A1 shall count as 36A) \n")
 cat("- STATION_CODE changed for", sum(sel), "rows \n")
+```
 
+```
+## Fixing station 227G1 and 227G2 (shall count as 227G) 
+## - STATION_CODE changed for 2 rows 
+## Fixing station 36A and 36A1 (36A1 shall count as 36A) 
+## - STATION_CODE changed for 6 rows
 ```
 
 ### Raw data with 'No_individuals' (info on pooled sample) added    
-```{r, results='hold'}
 
+```r
 data_all_samples <- data_all %>%
   filter(MYEAR %in% c(last_year-1, last_year)) %>%
   safe_left_join(subset(df_samples_labware, select = -X_BULK_BIO),
@@ -245,16 +298,45 @@ data_all_samples <- data_all %>%
     LATIN_NAME %in% "Mytilus edulis" ~ 50,    # industry blue mussel stations I964, I965, I969
     TRUE ~ No_individuals)
   )
+```
 
+```
+## Warning: x has unmatched sets of joining values: 
+##  # A tibble: 124 x 5
+##    MYEAR STATION_CODE LATIN_NAME     TISSUE_NAME     SAMPLE_NO2
+##    <dbl> <chr>        <chr>          <chr>                <dbl>
+##  1  2018 I969         Mytilus edulis Whole soft body          2
+##  2  2018 I969         Mytilus edulis Whole soft body          3
+##  3  2018 I969         Mytilus edulis Whole soft body          1
+##  4  2018 I965         Mytilus edulis Whole soft body          3
+##  5  2018 I965         Mytilus edulis Whole soft body          1
+##  6  2018 I965         Mytilus edulis Whole soft body          2
+##  7  2018 I964         Mytilus edulis Whole soft body          1
+##  8  2018 I964         Mytilus edulis Whole soft body          2
+##  9  2018 I964         Mytilus edulis Whole soft body          3
+## 10  2018 30B          Gadus morhua   Lever                   11
+## # … with 114 more rows
+```
+
+```r
 xtabs(~is.na(No_individuals), data_all_samples)
 xtabs(~is.na(No_individuals) + MYEAR, data_all_samples)  
+```
 
+```
+## is.na(No_individuals)
+## FALSE  TRUE 
+## 52718    42 
+##                      MYEAR
+## is.na(No_individuals)  2018  2019
+##                 FALSE 30203 22515
+##                 TRUE     42     0
 ```
 
 ### Check data with 'No_individuals' (info on pooled sample) added   
 Only left without are some very pretty strange parameters in cod liver in two stations   
-```{r, results='hold'}
 
+```r
 data_all_samples %>%
   filter(is.na(No_individuals)) %>%
   xtabs(~STATION_CODE + MYEAR, .)
@@ -268,13 +350,23 @@ if (FALSE){
     filter(is.na(No_individuals)) %>%
     View()
 }
+```
 
+```
+##             MYEAR
+## STATION_CODE 2018
+##          24B   21
+##          30B   21
+##             PARAM
+## STATION_CODE DBALD DDC_ANT DDC_BBF DDC_DBF DDC_PA DDC_PS HCTBPH
+##          24B     3       3       3       3      3      3      3
+##          30B     3       3       3       3      3      3      3
 ```
 
 ### Make data set with N_string   
 'dat_sample_string' - one line per station/tissue/parameter/year (same value for all Basis)   
-```{r, results='hold'}
 
+```r
 # dat_sample_string - contains 'N_string' which will be added to data by left-join 
 #  - equals raw data summarised per station x parameter
 dat_sample_string <- data_all_samples %>%
@@ -303,14 +395,15 @@ if (FALSE){
 
 sel <- grepl("NA", dat_sample_string$N_string)
 cat(sum(sel), "N_string contains 'NA' \n")
+```
 
-
+```
+## 14 N_string contains 'NA'
 ```
 
 ### Imposex and intersex - TO INCLUDE LATER?
-```{r}
 
-
+```r
 #
 # Imposex and intersex - TO INCLUDE LATER   
 #
@@ -339,15 +432,14 @@ if (FALSE){
     select(-N_string_new)
 }
 # end of "Imposex and intersex" part
-
 ```
 
 
 ## 4. Standard deviation (SD)      
 * 'dat_all_sd' - one line per station/tissue/parameter/year/basis (different values for different Basis)  
 * No values for VDSI because they are given by a single value   
-```{r, results='hold'}
 
+```r
 dat_sd <- data_all %>%
   filter(MYEAR %in% c(last_year-1, last_year)) %>%
   select(MYEAR, STATION_CODE, LATIN_NAME, TISSUE_NAME, PARAM, SAMPLE_NO2,
@@ -357,9 +449,30 @@ dat_sd <- data_all %>%
   mutate(Basis = sub("VALUE_", "", Basis)) %>%
   group_by(MYEAR, STATION_CODE, LATIN_NAME, TISSUE_NAME, PARAM, Basis) %>%
   summarise(SD = sd(VALUE, na.rm = TRUE))
+```
 
+```
+## `summarise()` regrouping output by 'MYEAR', 'STATION_CODE', 'LATIN_NAME', 'TISSUE_NAME', 'PARAM' (override with `.groups` argument)
+```
+
+```r
 xtabs(~is.na(SD) + Basis + MYEAR, dat_sd)  
+```
 
+```
+## , , MYEAR = 2018
+## 
+##          Basis
+## is.na(SD)   DW  DWa   FB  FBa   WW  WWa
+##     FALSE 4056  694 3865  649 4273  734
+##     TRUE   173    0   11    0  173    0
+## 
+## , , MYEAR = 2019
+## 
+##          Basis
+## is.na(SD)   DW  DWa   FB  FBa   WW  WWa
+##     FALSE 2819  600 2724  559 3038  635
+##     TRUE   169    0    9    0  170    0
 ```
 
 
@@ -368,7 +481,8 @@ D.d.i. = detectable data information = "N>LOQ [min - maks]"
 Example:   
   7 [0.11 - 0.29] means 7 measurements over LOQ, and these measurements varied from 0.11 to 0.29  
 
-```{r, results='hold'}
+
+```r
 # Get LOQ flags (one row per station*parameter*sample)
 data_all_flag <- data_all %>%
   filter(MYEAR %in% last_year) %>%
@@ -428,12 +542,23 @@ dat_ddi <- data_all_long %>%
 dat_ddi %>%
   select(STATION_CODE,LATIN_NAME,TISSUE_NAME,PARAM,Basis,DDI) %>%
   head()
+```
 
+```
+## # A tibble: 6 x 6
+##   STATION_CODE LATIN_NAME   TISSUE_NAME PARAM Basis DDI                
+##   <chr>        <chr>        <chr>       <chr> <chr> <chr>              
+## 1 02B          Gadus morhua Lever       AG    DW    10 [0.1786-4.0541] 
+## 2 02B          Gadus morhua Lever       AG    FB    10 [0.1818-3.6496] 
+## 3 02B          Gadus morhua Lever       AG    WW    10 [0.1-1.5]       
+## 4 02B          Gadus morhua Lever       AS    DW    11 [5.1786-16.9048]
+## 5 02B          Gadus morhua Lever       AS    FB    11 [3.8208-18.883] 
+## 6 02B          Gadus morhua Lever       AS    WW    11 [2.9-8.7]
 ```
 
 ## 6. Save  
-```{r, results= 'hold'}
 
+```r
 filename <- paste0("Data/111_Nstring_updated_", file_date, ".rds")
 saveRDS(dat_sample_string, filename)
 cat("Data of N_string saved as: \n")
@@ -450,7 +575,17 @@ filename <- paste0("Data/111_DDI_updated_", file_date, ".rds")
 saveRDS(dat_ddi, filename)
 cat("Data of D.d.i. (detectable data information) saved as: \n")
 cat(" ", filename, "\n")
+```
 
+```
+## Data of N_string saved as: 
+##   Data/111_Nstring_updated_2020-08-05.rds 
+## 
+## Data of SD (standard deviation) saved as: 
+##   Data/111_SD_updated_2020-08-05.rds 
+## 
+## Data of D.d.i. (detectable data information) saved as: 
+##   Data/111_DDI_updated_2020-08-05.rds
 ```
 
 

@@ -15,8 +15,8 @@ Some data series are also 'homogenized' here
 **NOTE: 'Fixing data for time series' must be identical in script 110 and 111**
 
 ## 1. Packages
-```{r, message=FALSE, warning=FALSE, results='hide'}
 
+```r
 library(readxl)
 library(tidyr)
 
@@ -31,7 +31,6 @@ library(dplyr, warn.conflicts = FALSE)
 library(purrr)
 
 source("110_Medians_and_PROREF_functions.R")
-
 ```
 
 
@@ -40,19 +39,26 @@ source("110_Medians_and_PROREF_functions.R")
 
 ### Main data  
 Read and reformat the most recent data (by default)  
-```{r, collapse=TRUE}
+
+```r
 
 files <- dir("Data", pattern = "109_adjusted_data") %>% rev()
 
 cat("Reading the last file downloaded:")
+## Reading the last file downloaded:
 cat("\n", files[1])
+## 
+##  109_adjusted_data_2020-08-05.rds
 cat("\n")
 cat("If you want to read a different file, replace 'files[1]' with the file you want")
+## If you want to read a different file, replace 'files[1]' with the file you want
 cat("\n\n")
 
 filename <- files[1]
 cat("Time since this file was modified: \n")
+## Time since this file was modified:
 Sys.time() - file.info(paste0("Data/", filename))$mtime
+## Time difference of 4.277902 days
 
 data_all <- readRDS(paste0("Data/", filename))
 
@@ -61,7 +67,6 @@ data_all <- readRDS(paste0("Data/", filename))
 pos1 <- regexpr("20", filename)[1]   # search for the first place "20" occurs inside filename
 pos2 <- pos1 + 9
 file_date <- substr(filename, pos1, pos2)    # pick out the part of the text from character no. 17 to no. 26
-
 ```
 
 
@@ -72,15 +77,25 @@ Change STATION_CODE, in order to make a single time series for data with differe
   
 Also combines PARAM = VDSI and PARAM = Intersex to PARAM = "VDSI/Intersex" for station 71G  
 
-```{r}
 
+```r
 data_all <- homogenize_series(data_all)
+```
 
+```
+## Fixing station 227G1 and 227G2 (shall count as 227G) 
+## - changed STATION_CODE for 1361 rows of data 
+## 
+## Fixing station 36A and 36A1 (36A1 shall count as 36A) 
+## - changed STATION_CODE for 1367 rows of data 
+## 
+## Fix VDSI and Intersex at station 71G (both shall count as PARAM = 'VDSI/Intersex') 
+## - changed PARAM for 12 rows of data
 ```
 
 ### Check: C/N lacking for 2019  
-```{r}
 
+```r
 if (FALSE) { 
   
   # Check %C by station - good coverage 2015-2019, bad coverage after that
@@ -93,19 +108,33 @@ if (FALSE) {
 data_all %>%
   filter(PARAM %in% "% C" & MYEAR >= 2000) %>%
   xtabs(~is.na(VALUE_WW) + MYEAR, .)
+```
 
+```
+##                MYEAR
+## is.na(VALUE_WW) 2015 2016 2017 2018 2019
+##           FALSE  309  298  359  341  305
+```
+
+```r
 data_all %>%
   filter(PARAM %in% "C/N" & MYEAR >= 2000) %>%
   xtabs(~is.na(VALUE_WW) + MYEAR, .)
+```
 
+```
+##                MYEAR
+## is.na(VALUE_WW) 2012 2013 2014 2015 2016 2017 2018 2019
+##           FALSE  238  249  272  309  298  359  341  305
+```
+
+```r
 if (FALSE){
   # Dry-weight data: no different
   data_all %>%
     filter(PARAM %in% "C/N" & MYEAR >= 2000) %>%
     xtabs(~is.na(VALUE_DW) + MYEAR, .)
 }
-
-
 ```
 
 
@@ -114,8 +143,8 @@ We do not update Proref values, as we don't want to have a "moving target". Howe
 - proref_old, which are the Proref values used in the report for the 2017 data - is used for all parameter/basis combinattions that are not in proref_paper  
 - proref_paper, which are the Proref values used in the Proref paper (a selection of parameters, and wet weigth only)  
 These are combined to proref_updated02, which added to the data in part 4  
-```{r}
 
+```r
 # Old ones 
 proref_old <- read_excel("Input_data/Proref_report_2017.xlsx")
 proref_paper <- read_excel("Input_data/Proref_paper.xlsx")
@@ -136,12 +165,11 @@ proref_updated02 <- proref_updated01 %>%
     proref_paper %>%
       select(PARAM, LATIN_NAME, TISSUE_NAME, Basis, Stations, N_stations, N, Median, Q95)
   )
-
 ```
 
 ### Check Proref  
-```{r}
 
+```r
 check <- proref_updated02 %>%
   count(PARAM, LATIN_NAME, TISSUE_NAME, Basis)
 
@@ -150,15 +178,18 @@ if (sum(check$n > 1) == 0){
 } else {
   cat("Warning: more than one Proref value per PARAM, LATIN_NAME, TISSUE_NAME, Basis combination. Must be fixed!  \n")
 }
+```
 
+```
+## All OK - only one Proref value per PARAM, LATIN_NAME, TISSUE_NAME, Basis combination
 ```
 
 
 ## 3. Summarise data for each year/station/parameter  
 
 ### Calculate medians using dtplyr  
-```{r}
 
+```r
 # data_all_dt <- lazy_dt(data_all)
 
 t0 <- Sys.time()
@@ -171,13 +202,16 @@ data_med_1a <- data_all %>%
   as_tibble()
 
 Sys.time() - t0  # 19 secs (took 0.19 sec with data.table)
+```
 
+```
+## Time difference of 20.32298 secs
 ```
 
 
 ### Calculate N, Det_limit and Over_LOQ
-```{r}
 
+```r
 t0 <- Sys.time()
 
 data_med_1b <- data_all %>%
@@ -190,15 +224,17 @@ data_med_1b <- data_all %>%
   as_tibble()
 
 Sys.time() - t0  # 4 secs
+```
 
-
+```
+## Time difference of 3.974387 secs
 ```
 
 
 ### Combine data_med_1 and data_med_2    
 Add N, Det_limit and Over_LOQ to the data set with medians  
-```{r}
 
+```r
 # Make sure the data sets are sorted the same way
 data_med_1a <- data_med_1a %>% arrange(MYEAR, STATION_CODE, LATIN_NAME, TISSUE_NAME, PARAM, UNIT)
 data_med_1b <- data_med_1b %>% arrange(MYEAR, STATION_CODE, LATIN_NAME, TISSUE_NAME, PARAM, UNIT)
@@ -213,16 +249,22 @@ if (nrow(data_med_1a) == nrow(data_med_1b)){
 } else {
   cat("data_med_1a and data_med_1b have different number of rows! Must be fixed, or use left_join(). \n")
 }
-
 ```
 
 ## 4. Add Proref  
 
 ### Add "VDSI/Intersex" to PROREF data 
-```{r}
 
+```r
 # Pick one VDSI line and change it
 sel <- proref_updated02$PARAM == "VDSI" & proref_updated02$Basis == "WW"; sum(sel)
+```
+
+```
+## [1] 1
+```
+
+```r
 proref_to_add <- proref_updated02[sel,]
 proref_to_add$PARAM <- "VDSI/Intersex"
 
@@ -231,12 +273,11 @@ proref_updated03 <- bind_rows(
   proref_updated02,
   proref_to_add
 )
-
 ```
 
 ### Add PROREF data to medians ----
-```{r}
 
+```r
 data_med_2 <- data_med_1 %>%
   pivot_longer(
     cols = c(VALUE_WW, VALUE_DW, VALUE_FB, VALUE_WWa, VALUE_DWa, VALUE_FBa), 
@@ -248,43 +289,73 @@ data_med_3 <- data_med_2 %>%
   left_join(proref_updated03 %>% select(-N), by = c("LATIN_NAME", "TISSUE_NAME", "PARAM", "Basis"))
 
 nrow(data_med_2)  # 525960
-nrow(data_med_3)  # 525960
+```
 
+```
+## [1] 525966
+```
+
+```r
+nrow(data_med_3)  # 525960
+```
+
+```
+## [1] 525966
 ```
 
 ### Checks 
 
 #### Check 19N   
 Should be NA for all Q95 values     
-```{r}
 
+```r
 data_med_3 %>%
   filter(STATION_CODE == "19N") %>%
   xtabs(~is.na(Q95), .)
+```
 
+```
+## is.na(Q95)
+## TRUE 
+## 3672
 ```
 
 #### Check C/N   
 Should be NA for all Q95 values     
-```{r}
 
+```r
 data_med_3 %>%
   filter(STATION_CODE == "19N") %>%
   xtabs(~is.na(Q95), .)
+```
 
+```
+## is.na(Q95)
+## TRUE 
+## 3672
 ```
 
 
 ## 5. Save  
-```{r}
 
+```r
 filename <- paste0("Data/110_mediandata_updated_", file_date, ".rds")
 
 saveRDS(data_med_3, filename)
 
 cat("Data of medians saved as: \n")
-cat(" ", filename, "\n")
+```
 
+```
+## Data of medians saved as:
+```
+
+```r
+cat(" ", filename, "\n")
+```
+
+```
+##   Data/110_mediandata_updated_2020-08-05.rds
 ```
 
 
