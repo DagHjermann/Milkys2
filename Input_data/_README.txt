@@ -2,7 +2,7 @@ SOURCES FOR THE FILES IN THE FOLDER 'Input_data'
 IF YOU ADD NEW FILES, PLEASE ADD THAT FILE BELOW   
 - dhj
 
-Data files produced in DHJ's R project "Milkys" (https://github.com/NIVANorge/Milkys):
+Data files produced in DHJ's R project "Milkys" (https://github.com/NIVANorge/Milkys) or "Milkys2_pc":
 - 120_result_10yr_2018.RData                               
 - 120_result_long_2018.RData                               
 - 13b5_df_background2.RData                                
@@ -27,7 +27,8 @@ Look-up tables - edit as needed
 - Lookup for big excel - stations.xlsx                     
 - Lookup table - parameter names for plots.xlsx            
 - Lookup table - preferred parameter units.xlsx            
-- Lookup table - substance groups.xlsx                     
+- Lookup table - substance groups.xlsx       
+- Lookup table - standard parameter names.csv (copied and renamed from '01b_synonyms.csv' in the 'Milkys' R project)
 - Kartbase_edit.xlsx                                       
 - Kartbase.xlsx                                            
 - StationDictionary_20191104_utf8_Norway.csv               
@@ -36,8 +37,10 @@ Look-up tables - edit as needed
   
 Data gotten by mail etc.    
 - NILU_data_for_2018.xlsx                                   
-- NILU_data_for_2019.xlsx  
+- NILU_data_for_2019_original.xlsx  
     - received in mail from NOG 24.06.2020, then called 'Samlerapport MILKYS 2019_2020.xlsx'  
+- NILU_data_for_2019.xlsx  
+     - after fixing it for reading through R (See "161_Read_NILU_excel_data_functions.R")
     
 Folders from `K:\Prosjekter\Sjøvann\JAMP\2018`, `K:\Prosjekter\Sjøvann\JAMP\2019` etc.:
 - opparbeiding_biota                                       
