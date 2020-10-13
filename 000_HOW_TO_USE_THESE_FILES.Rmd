@@ -104,5 +104,83 @@ fat basis
 **Figures_401** - Figure files (usually jpg) produced by script 401  
 
 
+## Overview of data flow
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, results='hide'}
+install.packages("DiagrammeR")
+```
+
+```{r diagram, echo=FALSE, fig.width=9, fig.height=13}
+
+library(DiagrammeR)
+
+txt_milkys <- "
+digraph boxes_and_circles {
+
+  # a 'graph' statement
+  graph [overlap = true, fontsize = 10]
+
+  # Scripts
+  node [shape = ellipse,
+        fixedsize = true,
+        width = 1.5] // ellipse
+  100 [label = 'Script 100', 
+    tooltip = 'Downloading all data from the project that can be downloaded from Jupyterhub (using the Aquamonitor API)']; 
+  LastYear [label = 'From last year']; 
+  802 [label = 'Script 802 (PC)', tooltip = 'Extra parameters not returned by script 101. Must be run on a PC. Will need an Oracle client and access to the Oracle Nivadatabase'];
+  101 [label = 'Script 101'];
+  150 [label = 'Script 150']; 
+  109 [label = 'Script 109']; 
+  161 [label = 'Script 161']; 
+  171 [label = 'Script 171']; 
+  172 [label = 'Script 172']; 
+  110 [label = 'Script 110']; 
+  111 [label = 'Script 111']; 
+  120 [label = 'Script 120']; 
+  201 [label = 'Script 201']; 
+  501 [label = 'Script 501']; 
+  510 [label = 'Script 510']; 
+  
+  # Data sets
+  node [shape = box,
+        fontname = Helvetica]
+  Raw1 [label = 'Raw data from AqM', width = 2];
+  Legacy [label = 'Legacy data', width = 2];
+  Nivabasen [label = 'Extra data from Nivabase', width = 2.5];
+  NILU [label = 'NILU data', width = 2];
+  Imposex [label = 'Imposex data', width = 2];
+  Codbiol [label = 'Cod biological effects', width = 2];
+  Raw2 [label = 'Raw data, complete records', width = 2.5];
+  Lengths [label = 'Fish length data', width = 2.5];
+  Raw3 [label = 'Raw data with length-adjusted conc.', width = 3];
+  Medians [label = 'Medians per station/year', width = 2.5];
+  Nstring [label = 'Nstring, SD and DDI', width = 2.5];
+  Trends [label = 'Trends per time series', width = 2.5];
+  Bigexcel [label = 'Big excel file', width = 2.5];
+  Graphs [label = 'Time series graphs', width = 2.5];
+  Tables [label = 'Summary tables', width = 2.5];
+
+  # Connections (edges)
+  100 -> Raw1; LastYear -> Legacy; 802 -> Nivabasen
+  161 -> NILU; 171 -> Imposex; 172 -> Codbiol
+  {Raw1 Nivabasen Legacy NILU Imposex Codbiol} -> 101; 
+  101 -> Raw2; 150 -> Lengths; 
+  {Raw2 Lengths} -> 109;
+  109 -> Raw3; Raw3 -> 110; 110 -> Medians; 
+  Raw3 -> 111; 111 -> Nstring; 
+  Medians -> 120; 120 -> Trends;
+ {Raw2 Raw3 Medians Trends Nstring} -> 201; 201 -> Bigexcel
+  Bigexcel -> {501 510}; 501 -> Graphs; 510 -> Tables
+  
+  subgraph {rank = same; Medians; Nstring}
+
+
+ }
+"
+
+grViz(txt_milkys)
+
+```
+
 
 
