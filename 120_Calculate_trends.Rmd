@@ -39,6 +39,7 @@ library(openxlsx)
 library(mgcv)
 library(AICcmodavg)   # AICc()
 library(ggplot2)
+library(safejoin)     # installed from https://github.com/moodymudskipper/safejoin   
 source("001_Add_trends_functions.R")  # Copied from '16_Trend_functions.R' in Milkys_2018
 
 #
@@ -163,16 +164,18 @@ lastyear <- 2017   # The series must last at least until this year
 df_series <- df %>%
   filter(Basis %in% c("WW","WWa","DW","DWa","FB","FBa")) %>%
   group_by(STATION_CODE, LATIN_NAME, TISSUE_NAME, PARAM, UNIT, Basis) %>%
-  summarise(No_of_years = n(), Last_year = max(MYEAR)) %>%
-  filter(No_of_years >= 4 & Last_year >= lastyear) %>%
-  ungroup()
+  summarise(No_of_years = n(), Last_year = max(MYEAR),
+            .groups = "drop") %>% 
+  filter(No_of_years >= 4 & Last_year >= lastyear)
 
 cat("Number of series:", nrow(df_series), "\n")
 
 ```
 
 ### b. Test the entire procedure  
-For 20 random series   
+For 20 random series  
+*  Takes ca 30 seconds  
+* Note: probably creates quite a few error messages - donæt worry about this  
 ```{r}
 # We turn the function 'model_from_medians_stat' into a 'safe' function
 #   in the sense that if the function fails (an error occurs), the procedure will not stop, but 
@@ -291,10 +294,15 @@ if (add_extra_series){
   # Filter df_series START
   # 
   
-  # Example: we want to add 'TPTIN' to existing trends  
+  # Example 1: we want to add 'TPTIN' to existing trends (for all stations)  
   # We filter df_series to get 'TPTIN' only:
-  df_series <- df_series %>% 
-    filter(PARAM %in% "C/N") 
+  if (FALSE)
+    df_series <- df_series %>% filter(STATION_CODE %in% "C/N") 
+
+  # Example 2: we want to add 'VDSI' to existing trends for station   
+  # We filter df_series to get 'TPTIN' only:
+  if (TRUE)
+    df_series <- df_series %>% filter(STATION_CODE %in% "71G" & PARAM == "VDSI/Intersex")
 
   #
   # Filter df_series END
@@ -442,25 +450,39 @@ if (!add_extra_series){   # this is the normal case - we have calculated trends 
   date_existing_2 <- substr(fn_existing_2, 17, 26)
   
   # Read saved 10 year series...
-  result_10yr_original <- readRDS(paste0("Data/", fn_existing_1)) %>%
+  result_10yr_original <- readRDS(paste0("Data/", fn_existing_1))
+  cat("result_10yr: ", nrow(result_10yr_original), "rows originally \n")
+
+  result_10yr_original <- result_10yr_original %>%
     # Remove all series already present in result_10yr:
     safe_anti_join(result_10yr, 
                    by = c("STATION_CODE", "PARAM", "LATIN_NAME", "TISSUE_NAME", "Basis"),
                    na_matches = "never",
                    check = "BUV")
+  cat("result_10yr: ", nrow(result_10yr_original), "after removing overlapping time series")
 
+  cat("\n")
   # Read saved 'long' series...
-  result_long_original <- readRDS(paste0("Data/", fn_existing_2)) %>%
-    # Remove all series already present in result_long:
+  result_long_original <- readRDS(paste0("Data/", fn_existing_2))
+  cat("result_long: ", nrow(result_long_original), "rows originally \n")
+  
+  # Remove all series already present in result_long:
+  result_long_original <- result_long_original %>%
     safe_anti_join(result_long, 
                  by = c("STATION_CODE", "PARAM", "LATIN_NAME", "TISSUE_NAME", "Basis"),
                  na_matches = "never",
                  check = "BUV")
+  cat("result_long: ", nrow(result_long_original), "after removing overlapping time series")
   
   # Add the newly made series
   result_10yr <- bind_rows(result_10yr_original, result_10yr)
   result_long <- bind_rows(result_long_original, result_long)
   
+  cat("\n")
+  cat("Final number of data sets (after adding/replacing series): \n")
+  cat("result_10yr: ", nrow(result_10yr), "rows \n")
+  cat("result_long: ", nrow(result_long), "rows \n")
+
   # Check that series are unique
   check1 <- result_long_original %>%
     count(STATION_CODE, PARAM, LATIN_NAME, TISSUE_NAME, Basis) %>%
@@ -475,7 +497,7 @@ if (!add_extra_series){   # this is the normal case - we have calculated trends 
   if (check1 == 0 & check2 == 0){
     cat("Series are unique\n")
   } else {
-    cat("WARNING: Series are not unique!\n")
+    stop("ERROR: Series are not unique! This must be fixed.\n")
   }
   
   # Filenames that will be used for saving data
