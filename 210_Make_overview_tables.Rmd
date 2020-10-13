@@ -20,6 +20,7 @@ library(dplyr)
 library(purrr)
 library(ggplot2)
 library(safejoin)
+library(readxl)
 library(xlsx)
 ```
 
@@ -132,7 +133,9 @@ if (FALSE){
 ```
 
 
-## 2. Read station names
+## 2. Read other data  
+
+### Station names
 Used in 'plot_single_series_medians_data' (see '_functions' file)  
 ```{r}
 
@@ -182,6 +185,39 @@ if (FALSE){
 }
 
 ```
+### Parameter order   
+```{r}
+
+fn <- "Input_data/Lookup table - preferred parameter order.xlsx"
+df_param_order <- read_excel(fn, sheet = "Order") %>%
+  rename(PARAM = Analysevariabel)
+
+cat("df_param_order:", nrow(df_param_order), "lines read \n")
+
+# Remove duplicates (but don't change the order)
+duplicates <- df_param_order %>%
+  count(PARAM) %>%
+  filter(n > 1) %>%
+  pull(PARAM)
+
+for (param in duplicates){
+  sel <- df_param_order$PARAM == param
+  sum(sel)
+  remove <- 2:sum(sel)
+  df_param_order <- df_param_order[-which(sel)[remove],]  # delete the second one
+}
+
+cat("after removing duplicates:", nrow(df_param_order), "lines left \n")
+
+if (FALSE){
+  # Check that it workd
+  duplicates <- df_param_order %>%
+    count(PARAM) %>%
+    filter(n > 1)
+}
+
+```
+
 
 ## 3. Definitions  
 
@@ -359,6 +395,10 @@ if (FALSE){
   names(summaries_list[1:5])
   # first 5 elements of list:
   str(summaries_list[1:5], 1)
+  
+  i <- which(stations_df$Station == "30A")
+  summaries_list[[i]] %>% select(PARAM, STATION_CODE, Basis, Yr_2019, EQS_2019) %>% View()
+  
 }
 
 ```
@@ -387,6 +427,7 @@ cat("File \n  ", fn, "\nwritten to folder \n  ", resultfolder)
 * Open the _Macros.xlsm work book  
 * Go back to our sheet, select the main part of the table (the part containing the trends symbols)
 * Go to menu Developer:Macros and select "_Macros.xlsm!Sheet1.Set_character_1_and_3_to_Wingdings_RANGE"
+* Save file 
 
 
 ## 8. EQS table - Definitions
@@ -410,10 +451,24 @@ par_table_eqs <- c("BDE6S", "BDE47", "SCCP", "MCCP", "DDEPP",
   "TBT", "TPTIN", 
   "D5")
 
+# Order 'par_table_eqs' following 'df_param_order':
+par_table_eqs <- par_table_eqs %>%
+  factor(levels = df_param_order$PARAM) %>%
+  sort()
+# par_table_eqs
+
 # Check that all PARAM have EQS
 check <- par_table_eqs %in% unique(subset(data_xl_lessthans, !is.na(EQS))$PARAM)
 mean(check)  # should be 1 (confirms that all PARAM are correctly spelled)
 # par_table_eqs[!check]
+
+if (sum(!check) > 0){
+  cat("Parameters without EQS: \n  ")
+  cat(par_table_eqs[!check] %>% paste(collapse = ", "), "\n")
+  stop("EQS not found for ", sum(!check), " parameters \n")
+} else {
+  cat("EQS found for all parameters \n")
+}
 
 ```
 

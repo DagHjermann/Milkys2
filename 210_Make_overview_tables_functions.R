@@ -39,7 +39,10 @@ get_summary_onestation <- function(station, stationname, species, tissue, par_ta
 #
 # For table 10 (Proref/change table)
 #
-#
+# 1. Goes through data_list (i.e. station*tissue combinations) one by one  
+# 2. For each data_list, write a line to Excel
+# 3. Within each line, pick parameter from 'param_names' and write a cell
+# 
 
 write_excel_summarytable <- function(data_list, filename, param_names,
                                      cols = grey(seq(1, 0, length = 6)),
