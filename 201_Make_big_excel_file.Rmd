@@ -896,16 +896,56 @@ cat("\nNumber of columns:", ncol(data_xl), "\n") # 104
 
 ```
 
-#### Add Klasse, EQSclass and EQS   
+#### Add Klasse (proref class) previous year  
+```{r}
+
+colnumber_value <- which(colnames(data_xl) == paste0("Yr_", last_year-1))  # Find column number for that year's median
+value_prevyear <- data_xl[,colnumber_value]
+
+colnumber_lessthan <- which(colnames(data_lessthans) == paste0("Lt_", last_year-1))  # Find column number for less-than
+lessthan_prevyear <- data_xl[,colnumber_value]
+
+# Less-thans are set a tad lower, to be put in the lower class
+sel <- !is.na(lessthan_prevyear) & lessthan_prevyear
+value_prevyear[sel] <- value_prevyear[sel] - 0.00001
+
+# Just to check that we get the correct classes, i.e., if the conc. is on the limit, we get the upper class (using right = FALSE)
+check_classes <- cut(value_prevyear/data_lessthans$Q95, breaks = c(-999999,1,2,5,10,20,999999), right = FALSE)
+
+cat("Classes for Value / Proref : \n")
+levels(check_classes)
+cat("\n")
+
+class_prevyear <- cut(value_prevyear/data_xl$Q95, breaks = c(-999999,1,2,5,10,20,999999), right = FALSE, labels = FALSE)
+# str(class_prevyear)
+# summary(class_prevyear)
+# table(addNA(class_prevyear))
+
+# Make variable
+data_xl$Klasse.prevyear <- class_prevyear
+
+# Tabulate
+# table(addNA(data_xl$Klasse.lastyear))
+
+# Set variable name
+colnames(data_xl)[ncol(data_xl)] <- paste0("Klasse.", last_year - 1)
+
+cat("\nNumber of rows:", nrow(data_xl), "\n\n") # 24346
+cat("\nNumber of columns:", ncol(data_xl), "\n") # 105
+
+```
+
+
+#### Add EQSclass and EQS for last year   
 ```{r}
 
 cols <- c("PARAM", "LATIN_NAME", "TISSUE_NAME", "STATION_CODE", "Basis",
-          paste0("Klasse.", last_year - 1), 
           paste0("EQSclass_", last_year - 1), 
           "EQS")
 
 select_rows <- complete.cases(
   results_seclast_year[c("PARAM", "LATIN_NAME", "TISSUE_NAME", "STATION_CODE", "Basis")])
+
 
 # cols %in% colnames(results_seclast_year)
 data_xl <- safe_left_join(
@@ -1953,8 +1993,9 @@ The rest of the procedure is done in Excel, after the csv file has been written:
     * Open 'Data_xl_TEMPLATE.xlsm' (in Excel)    
     * File : Save As and save with a different file name. We suggest to keep the 
 same 'first' name as the csv, for instance: Data_xl_2020-07-03.xlsm
-    * Open the csv file (the one from step 1) in Notepad++ (right-click and select Notepad++)   
+    * Open the csv file (the one from step 1) in Notepad++ (right-click and select Notepad++)
     * Mark all (Ctrl-A) and copy it (Ctrl-C)  
+      (The reason for this seemingly pointless detour is to handle encodings for Norwegian characters)
     * Paste (Ctrl-V) it into the top left cell in an empty sheet (e.g. sheet "X") in the Excel file  
 3. Now your data need to be split into columns. 
     * Mark the first column (A). 
