@@ -125,9 +125,14 @@ if (FALSE){
     count(PARAM, Parameter.Name, IUPAC, Component.Name)
   
   data_xl_lessthans %>%
-    filter(grepl("71G", STATION_CODE) & Basis == "WW") %>%
+    filter(grepl("71A", STATION_CODE) & Basis == "WW") %>%
     select(PARAM, STATION_CODE, LATIN_NAME, TISSUE_NAME, Yr_2018, Yr_2019)
   
+  data_xl_lessthans %>%
+    filter(PARAM %in% "CD" & Basis == "WW" & !is.na(Yr_2019)) %>%
+    select(PARAM, STATION_CODE, LATIN_NAME, TISSUE_NAME, Yr_2018, Q95, EQS) %>%
+    count(STATION_CODE, LATIN_NAME, TISSUE_NAME) %>%
+    arrange(LATIN_NAME, TISSUE_NAME)   # 33F = skrubbe
 }
 
 ```
@@ -225,7 +230,7 @@ if (FALSE){
 Note: order counts!
 ```{r}
 stations_table <- c(
-  "30A", "I301", "I304", "31A", "36A", "I023", "I024",    # Blue mussel, Oslofjorden
+  "30A", "I301", "I304", "31A", "36A", "I023", "I024",     # Blue mussel, Oslofjorden
   "71A", "I714", "76A2", "I131A", "I133", "15A",           # Blue mussel, Grenland - Sørlandet
   "51A", "52A", "56A", "57A", "64A", "65A", "22A",         # Blue mussel, Vestlandet - Trøndelag
      "I241", "26A2", "28A2", "91A2",                       #  - " -
@@ -233,6 +238,7 @@ stations_table <- c(
   "30B", "36B", "02B", "71B","13B", "15B",                 # Cod
     "53B", "23B", "24B", "28B", "80B", "96B",              # Cod            
     "98B1", "43B2", "45B2", "10B", "19B",                  # Cod
+    "33F",                                                 # European flounder
   "19N",                                                   # Eider duck - twice (blood and egg)
   "71G",                                                   # Dog whelk / periwinkle
   "36G", "76G", "131G", "15G", "227G",                     # Dog whelk
@@ -241,11 +247,11 @@ stations_table <- c(
 # stations_table
 
 # Get some line numbers for table - these are used later
-a <- which(stations_table == "11X")
-b <- which(stations_table == "19B")
-c <- which(stations_table == "19N")
-d <- which(stations_table == "71G")
-e <- length(stations_table)
+a <- which(stations_table == "11X")    # last blue mussel
+b <- which(stations_table == "33F")    # last cod and flounder
+c <- which(stations_table == "19N")    # first bird    
+d <- which(stations_table == "71G")    # first snail
+e <- length(stations_table)            # last
 ```
 
 ### Define parameters  
@@ -273,8 +279,8 @@ par_table <- c("AG", "CD", "CO", "CR", "HG", "NI", "PB",
 stations_df <- data.frame(
   Station = c(
     stations_table[1:a],
-    stations_table[(a+1):b],   #  cod liver
-    stations_table[(a+1):b],   #  cod muscle
+    stations_table[(a+1):b],   #  cod + flounder liver
+    stations_table[(a+1):b],   #  cod + flounder muscle
     stations_table[c],         # eider duck blood
     stations_table[c],         # eider duck eggs
     stations_table[d:e]),
@@ -282,10 +288,10 @@ stations_df <- data.frame(
 
 # Set row numbers for the finished table
 i_mussel <- 1:a
-i_cod_liver <- (a+1):b
-i_cod_muscle <- i_cod_liver + (b-a)
-i_eider_blood <- tail(i_cod_muscle,1) + 1
-i_eider_egg <-   tail(i_cod_muscle,1) + 2
+i_fish_liver <- (a+1):b
+i_fish_muscle <- i_fish_liver + (b-a)
+i_eider_blood <- tail(i_fish_muscle,1) + 1
+i_eider_egg <-   tail(i_fish_muscle,1) + 2
 i_snails <- seq(i_eider_egg + 1, nrow(stations_df))
 
 ```
@@ -295,22 +301,23 @@ i_snails <- seq(i_eider_egg + 1, nrow(stations_df))
 stations_df$Species <- NA
 stations_df$Species[stations_df$Station %in% stations_table[1:a]] <- "Mytilus edulis"
 stations_df$Species[stations_df$Station %in% stations_table[(a+1):b]] <- "Gadus morhua"
+stations_df$Species[stations_df$Station %in% "33F"] <- "Platichthys flesus"
 stations_df$Species[stations_df$Station %in% stations_table[c]] <- "Somateria mollissima"
 stations_df$Species[stations_df$Station %in% stations_table[d]] <- "N. lapillus / L. littorea"
 stations_df$Species[stations_df$Station %in% stations_table[(d+1):e]] <- "Nucella lapillus"
 
 # stations_df$Tissue <- NA
 # stations_df$Tissue[stations_df$Station %in% stations_table[1:a]] <- "Whole soft body"
-# stations_df$Tissue[i_cod_liver] <- "Lever"
-# stations_df$Tissue[i_cod_muscle] <- "Muskel"
+# stations_df$Tissue[i_fish_liver] <- "Lever"
+# stations_df$Tissue[i_fish_muscle] <- "Muskel"
 # stations_df$Tissue[i_eider_blood] <- "Blod"
 # stations_df$Tissue[i_eider_egg] <- "Egg homogenate of yolk and albumin"
 # stations_df$Tissue[i_snails] <- "Whole soft body"
 
 stations_df$Tissue <- NA
 stations_df$Tissue[stations_df$Station %in% stations_table[1:a]] <- "Whole soft body"
-stations_df$Tissue[i_cod_liver] <- "Liver"
-stations_df$Tissue[i_cod_muscle] <- "Muscle"
+stations_df$Tissue[i_fish_liver] <- "Liver"
+stations_df$Tissue[i_fish_muscle] <- "Muscle"
 stations_df$Tissue[i_eider_blood] <- "Blood"
 stations_df$Tissue[i_eider_egg] <- "Egg"
 stations_df$Tissue[i_snails] <- "Whole soft body"
@@ -334,6 +341,7 @@ We don't care about the flatfish here
 ```{r}
 df_english_name <- matrix(c(
   "Gadus morhua", "Cod",
+  "Platichthys flesus", "Flounder",
   "Mytilus edulis", "Blue mussel",
   "Somateria mollissima", "Eider duck",
   "Nucella lapillus", "Dog whelk",
@@ -377,6 +385,7 @@ for (i in 1:N)
 
 rows_per_station <- 1:length(summaries_list) %>% 
   map_df(~tibble(i = ., STATION_CODE = stations_df$Station[.], nrow = nrow(summaries_list[[.]])))
+
 # rows_per_station
 if (sum(rows_per_station$nrow==0) > 0){
   message("Stations not found:")
@@ -436,19 +445,13 @@ cat("File \n  ", fn, "\nwritten to folder \n  ", resultfolder)
 Stations are the same
 ```{r}
 
-par_table_eqs <- c("BDE6S", "BDE47", "SCCP", "MCCP", "DDEPP", "DD_SS", 
-  "HBCDA", "HCB", "HCBD", "HCHG", "HG", "4-N-NP", "4-T-NP", "4-N-OP", "4-T-OP", 
-  "QCB", "PFOA", "PFOS", 
-  "ANT", "BAA", "BAP", "FLU", "CB_S7", "TBT",
-  "TCDDN", "TCDD", "TE_DFI05", "TE_CBNOI05")
-
 # Deleted "DD_SS", "TCDDN", "TE_DFI05", "TE_CBNOI05"
 par_table_eqs <- c("BDE6S", "BDE47", "SCCP", "MCCP", "DDEPP", 
   "HBCDA", "HCB", "HCBD", "HCHG", "HG", "4-N-NP", "4-T-NP", "4-N-OP", "4-T-OP", 
   "QCB", "PFOA", "PFOS", 
   "ANT", "BAA", "BAP", "FLU", "NAP", 
   "CB_S7", 
-  "TBT", "TPTIN", 
+  "TBT", "TPT", 
   "D5")
 
 # Order 'par_table_eqs' following 'df_param_order':
@@ -492,7 +495,30 @@ for (i in 1:N)
 
 # Check result
 # summaries_list_eqs[[65]] %>% head()
+# summaries_list_eqs[[9]] %>% select(PARAM, STATION_CODE, LATIN_NAME, TISSUE_NAME, Yr_2019, Q95, EQS)
 
+#
+# Remove members of 'summaries_list_eqs' that have no data the current year  
+# (in other words, delete stations with no data in the current year)
+#
+# function
+get_n_param_current_year <- function(X){
+  value_column <- paste0("Yr_", current_year)
+  sum(!is.na(X[[value_column]]))
+}
+# test
+# get_n_param_current_year(summaries_list_eqs[[9]])
+
+# get number of parameters
+n_param_current_year <- summaries_list_eqs %>% 
+  map_int(get_n_param_current_year)
+
+# keep those with data
+summaries_list_eqs <- summaries_list_eqs[n_param_current_year > 0]
+
+#
+# Are all stations in stations_df found?
+#
 rows_per_station <- 1:length(summaries_list_eqs) %>% 
   map_df(~tibble(i = ., STATION_CODE = stations_df$Station[.], nrow = nrow(summaries_list_eqs[[.]])))
 # rows_per_station
@@ -508,17 +534,20 @@ if (sum(rows_per_station$nrow==0) > 0){
 
 ## 10. Write excel table  
 ```{r}
+# Change 'par_table_eqs' from factor to character 
+par_table_eqs <- levels(par_table_eqs)[as.numeric(par_table_eqs)]
 
 fn <- paste0("Summarytable_EQS from R version ", 
              version_no, ".xlsx")
 
 fn_full <- paste0(resultfolder, "/", fn)
+# fn_full <- paste0(resultfolder, "/", "test_EQS.xlsx")
 
 write_excel_summarytable_proref_eqs(
   summaries_list_eqs, 
   fn_full, 
   param_names = par_table_eqs,
-  varname_median = "Yr_2018"
+  varname_median = paste0("Yr_", current_year)
   )
 
 cat("File \n  ", fn, "\nwritten to folder \n  ", resultfolder)
