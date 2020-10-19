@@ -8,7 +8,7 @@ output: html_document
 
 ### a. Which kind of csv file do you want to make?     
   
-It will be imporrted into Excel, so set set   
+The resulting file will be imported into Excel, so set set   
 * decimal_comma = TRUE of you use European-style Excel (`,` for decimal numbers, columns separated by semicolon)   
 * decimal_comma = FALSE of you use American-style Excel (`.` for decimal numbers, columns separated by comma)   
 ```{r}
@@ -74,6 +74,7 @@ data_med2 <- data_list$data
 file_date <- data_list$file_date
 
 ```
+
 
 ```{r}
 
@@ -197,7 +198,7 @@ dat_ddi <- list_and_read_rds_file(
 ```
 
 
-### e. Other data   
+### e1. Other data   
 1. Trends for second last year   
 2. Individual data for this year (for SD)   
 3. Second last year's table   
@@ -314,7 +315,7 @@ dat_nstring <- readRDS("Data/111_Nstring_updated_2020-08-05.rds")
 
 ```
 
-### e. Station coordinates   
+### e2. Station coordinates   
 Makes 'data_coordinates', added after less-than columns (section 6)
 ```{r}
 
@@ -573,11 +574,6 @@ EQS_limits <- read.xlsx("Input_data/EQS_limits.xlsx", "EQS")[,1:8] %>%
   filter(!is.na(PARAM))
 EQS_limits <- fact2char_df(EQS_limits)  # changes all factor variables to character variables
 EQS_limits$Limit <- as.numeric(EQS_limits[["Grense.brukt"]])
-# Add limit for TPT
-EQS_limits <- EQS_limits %>%
-  bind_rows(
-    tibble(PARAM = "TPT", Limit = 152)
-  )
 
 # Make table based on 'data_xlvalues'
 data_EQS <- data_xlvalues
@@ -1894,10 +1890,10 @@ if (FALSE){
   # Check header
   readLines(fn, n = 1)
   
-  # read csv
+  # read csv (slow)
   check <- read.csv2(file = fn)
   
-  # read R data
+  # read R data (fast)
   check <- readRDS(file = sub(".csv", ".rds", fn, fixed = TRUE))
   
   # All column names
@@ -1912,7 +1908,7 @@ if (FALSE){
 
   # Check all data for one snail station
   check %>%
-    filter(Basis == "WW" & STATION_CODE == "11G") %>%
+    filter(Basis == "WW" & STATION_CODE == "71G") %>%
     select(PARAM, Substance.Group, LATIN_NAME, TISSUE_NAME, STATION_CODE, Basis, 
          Yr_2003, Yr_2010, Yr_2014, Yr_2018, Yr_2019, N_string, SD_last, EQS) %>%
     View("11G")
