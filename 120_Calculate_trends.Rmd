@@ -5,9 +5,12 @@ output: html_document
 
 Note: Ca 35 minutes run time for running all trends    
 
-This procedure uses data from script 110 and creates creates two data.frames: 120_result_10yr and 120_result_long  
+This procedure uses data from script 110 and creates creates two data.frames: 120_result_10yr_[last_year] and 120_result_long_[last_year]
+
+Note 1: This can be run twice, using different values for last_year (e.g. 2018 and 2019 if we make the report in 2020) 
+to get both "newest" and "last year's" trends  
   
-Note: If you want to add or replace a few time series, and don't want to run this for 35 minutes:    
+Note 2: If you want to add or replace a few time series, and don't want to run this for 35 minutes:    
 - go to the "SPECIAL" part below  
 - set add_extra_series to TRUE  
 - modify the filtering of df_series  
@@ -28,10 +31,14 @@ Note: If you want to add or replace a few time series, and don't want to run thi
 add_extra_series <- FALSE
 # add_extra_series <- TRUE
 
+last_year <- 2019
+
 ```
   
 ## 1. Libraries and functions  
 ```{r, results='hide', message=FALSE, warning=FALSE}
+
+# install.packages("lubridate")
 
 library(dplyr)
 library(purrr)
@@ -215,9 +222,9 @@ args <- args[c("station", "tissue", "species", "param", "basis")]
 
 # Run models
 result_list_10yr <- args %>% pmap(model_from_medians_stat_s, 
-                                  yrs = 2010:2019, data_medians = data_med)
+                                  yrs = seq(last_year-9, last_year), data_medians = data_med)
 result_list_long <- args %>% pmap(model_from_medians_stat_s, 
-                                  yrs = 1980:2019, data_medians = data_med)
+                                  yrs = seq(1980, last_year), data_medians = data_med)
 
 # Turn error messages on again
 # options(old_options)
@@ -371,9 +378,9 @@ sink(zz, type = "message")             # Redirect error/warning messages
                                        # - error messages  will be sent to the temp.txt file 
 
 result_list_10yr <- args %>% pmap(model_from_medians_stat_s, 
-                                  yrs = 2010:2019, data_medians = data_med)  # ca 15-20 minutes
+                                  yrs = seq(last_year-9, last_year), data_medians = data_med)  # ca 15-20 minutes
 result_list_long <- args %>% pmap(model_from_medians_stat_s, 
-                                  yrs = 1980:2019, data_medians = data_med)  # ca 15-20 minutes
+                                  yrs = seq(1980, last_year), data_medians = data_med)  # ca 15-20 minutes
 
 sink()                                 # Turn off redirection of messages   
 t1 <- Sys.time()                                                            # Start time for procedure
@@ -416,10 +423,13 @@ result_long <- bind_rows(result_list_long_t$result[no_error])
 
 cat("'add_extra_series' set to", add_extra_series, "\n\n")
 
+pattern_10yr <- paste0("120_result_10yr_", last_year, "_")
+pattern_long <- paste0("120_result_long_", last_year, "_")
+
 if (!add_extra_series){   # this is the normal case - we have calculated trends for all series
 
-  fn1 <- paste0("120_result_10yr_", file_date, ".rds")
-  fn2 <- paste0("120_result_long_", file_date, ".rds")
+  fn1 <- paste0(pattern_10yr, file_date, ".rds")
+  fn2 <- paste0(pattern_long, file_date, ".rds")
   
   saveRDS(result_10yr, paste0("Data/", fn1))
   saveRDS(result_long, paste0("Data/", fn2))
@@ -448,8 +458,8 @@ if (!add_extra_series){   # this is the normal case - we have calculated trends 
   #
 
   # Find newest existing
-  fn_existing_1 <- dir("Data", pattern = "120_result_10yr_") %>% tail(1)
-  fn_existing_2 <- dir("Data", pattern = "120_result_long_") %>% tail(1)
+  fn_existing_1 <- dir("Data", pattern = pattern_10yr) %>% tail(1)
+  fn_existing_2 <- dir("Data", pattern = pattern_long) %>% tail(1)
   
   # Date
   date_existing_1 <- substr(fn_existing_1, 17, 26)
@@ -507,17 +517,17 @@ if (!add_extra_series){   # this is the normal case - we have calculated trends 
   }
   
   # Filenames that will be used for saving data
-  fn1 <- paste0("120_result_10yr_", file_date, ".rds")
-  fn2 <- paste0("120_result_long_", file_date, ".rds")
+  fn1 <- paste0(pattern_10yr, file_date, ".rds")
+  fn2 <- paste0(pattern_long, file_date, ".rds")
   
   # If the saved data already exists, we will make a backup named "_OLD"
   #   before overwriting the file (case 2 above)
   if (date_existing_1 == file_date){
-    fn1_old <- paste0("120_result_10yr_", file_date, "_OLD.rds")
+    fn1_old <- paste0(pattern_10yr, file_date, "_OLD.rds")
     file.copy(paste0("Data/", fn1), paste0("Data/", fn1_old))
   }
   if (date_existing_2 == file_date){
-    fn2_old <- paste0("120_result_long_", file_date, "_OLD.rds")
+    fn2_old <- paste0(pattern_long, file_date, "_OLD.rds")
     file.copy(paste0("Data/", fn2), paste0("Data/", fn2_old))
   }
   
@@ -545,8 +555,8 @@ if (FALSE){
   # Read and reformat the most recent data (by default)  
   
   # Find files and sort with the newest first
-  files1 <- dir("Data", pattern = "120_result_10yr") %>% rev()
-  files2 <- dir("Data", pattern = "120_result_long") %>% rev()
+  files1 <- dir("Data", pattern = pattern_10yr) %>% rev()
+  files2 <- dir("Data", pattern = pattern_long) %>% rev()
   
   # Print for user
   cat("Trend estimates - reading the last files produced:")
