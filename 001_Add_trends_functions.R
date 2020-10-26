@@ -411,7 +411,7 @@ statistics_for_excel <- function(obj, regr_results, gam = FALSE){
     SE1 <- head(regr_results$mod_nonlin$yFit$SE,1)
     SE2 <- tail(regr_results$mod_nonlin$yFit$SE,1)
     mean_SE <- sqrt(SE1^2 + SE2^2)
-    gam_p <- pt((x2-x1)/mean_SE, nrow(regr_results$mod_nonlin$yFit))
+    gam_p <- 1 - pt((x2-x1)/mean_SE, nrow(regr_results$mod_nonlin$yFit))
     df_stat <- data.frame(
       Year1 = min(obj$df_med_st$MYEAR[obj$sel_ts]),
       Year2 = max(obj$df_med_st$MYEAR[obj$sel_ts]),
