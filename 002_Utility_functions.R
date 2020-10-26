@@ -69,7 +69,7 @@ read_rds_file <- function(folder, files, filenumber, get_date = FALSE, time_sinc
   if (get_date){
     # Get the date part of the text (e.g., '2020-04-23')
     # This can be used later in the script, when we save the resulting file
-    pos1 <- regexpr("20[0-9][0-9]", filename)   # search for the first place "20" plus two numbers occurs inside filename
+    pos1 <- regexpr("20[0-9][0-9]\\-[0-9][0-9]\\-[0-9][0-9]", filename)   # search for the first place a date with this format occurs inside filename
     #   (Assuming the the date is sometime in the 2000s)
     if (pos1 > 0){
       pos2 <- pos1 + 9                            # Assuming format like '2020-04-23'  
