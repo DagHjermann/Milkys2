@@ -93,7 +93,7 @@ list_and_read_rds_file <- function(folder, pattern, extension,
   result <- data_list$data
   if (!is.null(check_date)){
     if (data_list$file_date != check_date){
-    stop("Date of", sQuote(pattern), "is different from check_date!")
+    stop("Date of ", sQuote(pattern), " is different from check_date!")
     }
   }
   
@@ -112,9 +112,19 @@ cat("======================================\n")
 cat("10 year trends \n")
 cat("======================================\n")
 
-result_10yr <- list_and_read_rds_file(
+pattern_10yr_last <- paste0("120_result_10yr_", last_year, "_", "[:date:]")
+pattern_10yr_seclast <- paste0("120_result_10yr_", last_year-1, "_", "[:date:]")
+
+result_10yr_last <- list_and_read_rds_file(
   folder = "Data", 
-  pattern = "120_result_10yr_[:date:]", 
+  pattern = pattern_10yr_last, 
+  extension = "rds",
+  check_date = data_list$file_date
+)
+
+result_10yr_seclast <- list_and_read_rds_file(
+  folder = "Data", 
+  pattern = pattern_10yr_seclast, 
   extension = "rds",
   check_date = data_list$file_date
 )
@@ -124,12 +134,24 @@ cat("======================================\n")
 cat("Long trends \n")
 cat("======================================\n")
 
-result_long <- list_and_read_rds_file(
+pattern_long_last <- paste0("120_result_long_", last_year, "_", "[:date:]")
+pattern_long_seclast <- paste0("120_result_long_", last_year-1, "_", "[:date:]")
+
+result_long_last <- list_and_read_rds_file(
   folder = "Data", 
-  pattern = "120_result_long_[:date:]", 
+  pattern = pattern_long_last, 
   extension = "rds",
   check_date = data_list$file_date
 )
+
+result_long_seclast <- list_and_read_rds_file(
+  folder = "Data", 
+  pattern = pattern_long_seclast, 
+  extension = "rds",
+  check_date = data_list$file_date
+)
+
+
 
 
 ```
@@ -1129,8 +1151,8 @@ cols <- c("PARAM", "LATIN_NAME", "TISSUE_NAME", "STATION_CODE", "Basis")
 # debugonce(set_symbol)
 
 # Make data frames with trend symbols 
-trend_long_for_excel <- make_trend_data_for_excel2(result_long, data_xl[,cols])
-trend_10yr_for_excel <- make_trend_data_for_excel2(result_10yr, data_xl[,cols])
+trend_long_for_excel <- make_trend_data_for_excel2(result_long_last, data_xl[,cols])
+trend_10yr_for_excel <- make_trend_data_for_excel2(result_10yr_last, data_xl[,cols])
 
 # head(trend_long_for_excel, 2)
 
@@ -1201,93 +1223,66 @@ cat("\nNumber of columns:", ncol(data_xl), "\n") # 124
 ```
 
 ### Trends from second last year - preparations  
-
 ```{r}
 
-#o#o#o#o#o#o#o#o#o#o#o#o#o#o
-### a. Get trends and change col. names
-#o#o#o#o#o#o#o#o#o#o#o#o#o#o
-
+# Key columns:
 cols <- c("PARAM", "LATIN_NAME", "TISSUE_NAME", "STATION_CODE", "Basis")
-trend_long_for_excel <- make_trend_data_for_excel2(result_long_prev, data_xl[,cols]) # Only change: Adding _prev here
-trend_10yr_for_excel <- make_trend_data_for_excel2(result_10yr_prev, data_xl[,cols]) # Only change: Adding _prev here
+# debugonce(set_symbol)
 
-# head(trend_long_for_excel, 2)
+# Make data frames with trend symbols 
+trend_long_for_excel_seclast <- make_trend_data_for_excel2(result_long_seclast, data_xl[,cols])
+trend_10yr_for_excel_seclast <- make_trend_data_for_excel2(result_10yr_seclast, data_xl[,cols])
+
+# head(trend_long_for_excel_seclast, 2)
 
 # Combine log + 10yr and prepare even more for Excel
-trends_for_excel <- combine_long_and_short_trends_for_excel2(trend_long_for_excel, trend_10yr_for_excel)
+trends_for_excel_seclast <- combine_long_and_short_trends_for_excel2(trend_long_for_excel_seclast, 
+                                                                     trend_10yr_for_excel_seclast)
 
-cat("'trends_for_excel', number of lines:", nrow(trends_for_excel), "\n\n")  # 29582
+cat("'trends_for_excel_seclast', number of lines:", nrow(trends_for_excel), "\n\n")  # 29582
 
-cat("'trends_for_excel', values: \n")  # 29582
-table(trends_for_excel$Trend.year)
+cat("'trends_for_excel_seclast', values: \n")  # 29582
+table(trends_for_excel_seclast$Trend.year)
 
-# head(trends_for_excel, 2)
-nrow(trends_for_excel)  # 29546
-
-
-#
-# Change names 10 columns
-#
-
-# colnames(trends_for_excel)
-
+# Existing names
 var2 <- c("Trend p(long)", "Detectable % change(long)", "First Year(long)", "Last Year(long)",
           "No of Years(long)", "Trend p(short)", "Detectable % change(short)", "First Year(short)", "Last Year(short)",
           "No of Years(short)")
-if (sum(colnames(trends_for_excel) %in% var2) != 10){
+if (sum(colnames(trends_for_excel_seclast) %in% var2) != 10){
   message("Warning: one of the names doesn't fit (should be 10 names fitting)")
 }
-var2_new <- c(paste(var2, last_year - 1))
 
 # Set new names
 for (i in 1:length(var2_new)){
-  sel <- colnames(trends_for_excel) == var2[i]
-  colnames(trends_for_excel)[sel] <- var2_new[i]
+  sel <- colnames(trends_for_excel_seclast) == var2[i]
+  colnames(trends_for_excel_seclast)[sel] <- var2_new[i]
 }
 
-# Change column 11
-colnumber <- which(colnames(trends_for_excel) %in% "Trend.year")
-colnames(trends_for_excel)[colnumber] <- paste0("Trends.", last_year - 1)
+# Change column name
+colnumber <- which(colnames(trends_for_excel_seclast) %in% "Trend.year")
+colnames(trends_for_excel_seclast)[colnumber] <- paste0("Trends.", last_year-1)
 # colnames(trends_for_excel)
 
-#o#o#o#o#o#o#o#o#o#o#o#o#o#o
-### b. Check duplicates
-#o#o#o#o#o#o#o#o#o#o#o#o#o#o
 
-check <- data_xl %>%
+check <- trends_for_excel_seclast %>%
   group_by(STATION_CODE, LATIN_NAME, TISSUE_NAME, PARAM, Basis) %>%
   summarise(N = n())
-cat("\n")
-cat("Number of duplicates in data_xl (should be zero):", sum(check$N > 1), "\n")   
+cat("Number of duplicates in 'trends_for_excel_seclast' (should be zero):", sum(check$N > 1), "\n")   
 
-if ( sum(check$N > 1)){
-  check %>% filter(N > 1) %>% head(10)
-  df1 <- check %>% filter(N > 1) %>% head(1)
-  xtabs(~STATION_CODE + PARAM , check %>% filter(N > 1))
-  check2 <- data_xl %>%
-    filter(STATION_CODE %in% df1$STATION_CODE, LATIN_NAME %in% df1$LATIN_NAME,
-           TISSUE_NAME %in% df1$TISSUE_NAME, PARAM %in% df1$PARAM, Basis %in% df1$Basis)
-  check2
-}
-
-check <- trends_for_excel %>%
-  group_by(STATION_CODE, LATIN_NAME, TISSUE_NAME, PARAM, Basis) %>%
-  summarise(N = n())
-cat("Number of duplicates in 'trends_for_excel' (should be zero):", sum(check$N > 1), "\n")   
-
+# If there are duplicates, check data:
 if ( sum(check$N > 1)){
   table(check$N)
   check %>% filter(N > 1) %>% head(10)
   df1 <- check %>% filter(N > 1) %>% head(1)
-  check2 <- trends_for_excel %>% 
+  check2 <- trends_for_excel_seclast %>% 
     filter(STATION_CODE %in% df1$STATION_CODE, LATIN_NAME %in% df1$LATIN_NAME, 
            TISSUE_NAME %in% df1$TISSUE_NAME, PARAM %in% df1$PARAM, Basis %in% df1$Basis)
   check2
 }
 
-
 ```
+
+
 
 ### Trends from second last year - add columns to data
 
