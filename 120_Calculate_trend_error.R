@@ -139,9 +139,19 @@ trend_10yr_for_excel <- make_trend_data_for_excel2(df_10yr_2018, df_long_2018[,c
 # Combine log + 10yr and prepare even more for Excel
 trends_for_excel <- combine_long_and_short_trends_for_excel2(trend_long_for_excel, trend_10yr_for_excel)
 
+# Add to our previous results
+df1_comb2 <- df1_comb %>%
+  rename(CHANGE_2019_correction = CHANGE) %>%
+  left_join(trends_for_excel %>% 
+              select(PARAM, LATIN_NAME, TISSUE_NAME, STATION_CODE, Basis, Trend.year) %>%
+              rename(Trends.2018 = Trend.year)) %>%
+  mutate(Change_2018_2019 = (Trends.2019 != Trends.2018))
+
+df1_comb2 %>% head()
+
 # Save
-df1_comb %>% 
-  writexl::write_xlsx("Data/120_Recalculated_trends.xlsx")
+df1_comb2 %>% 
+  writexl::write_xlsx("Data/120_Recalculated_trends2.xlsx")
 
 
 
