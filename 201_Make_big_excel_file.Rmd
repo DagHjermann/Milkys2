@@ -194,7 +194,7 @@ data_med2 %>%
 ```
 
 ### d. N-string, SD and DDI
-```{r}
+```{r, results='hold'}
 
 cat("======================================\n")
 cat("N string (sample size) \n")
@@ -429,7 +429,7 @@ cat(sum(sel), "tissue names containing 'Egg' changed to the exact word 'Egg' \n"
 ## 3. Some checking   
 
 ### a. One problematic species, one problematic station, one problematic parameter
-```{r}
+```{r, results='hold'}
 cat("==================================\n")
 cat("Eider duck\n")
 cat("----------------------------------\n")
@@ -485,7 +485,7 @@ for (i in 1:nrow(check)){
 
 ### a. Make 'data_xlvalues'  
 
-```{r}
+```{r, results='hold'}
 
 # This data set is used only for making select_data
 data_for_select_data <- data_med2 %>%
@@ -512,7 +512,7 @@ cat("Number of medians, selected, in wide format:", nrow(data_xlvalues), "\n")
 ```
 
 ### b. Make less-than columns (as TRUE/FALSE)  
-```{r}
+```{r, results='hold'}
 
 
 data_lessthans <- data_med2[select_data,] %>%
@@ -707,7 +707,7 @@ colnames(df_stationinfo)[2] <- "Station.Name"
 ```
 
 ### Prepare parameter columns
-```{r}
+```{r, results='hold'}
 
 colnames(df_par)[1] <- "PARAM"
 
@@ -1157,7 +1157,7 @@ cat("\nNumber of columns:", ncol(data_xl), "\n") # 113
 ```
 
 ### Trends for last year - preparations
-```{r}
+```{r, results='hold'}
 
 # Key columns:
 cols <- c("PARAM", "LATIN_NAME", "TISSUE_NAME", "STATION_CODE", "Basis")
@@ -1236,7 +1236,7 @@ cat("\nNumber of columns:", ncol(data_xl), "\n") # 124
 ```
 
 ### Trends from second last year - preparations  
-```{r}
+```{r, results='hold'}
 
 # Key columns:
 cols <- c("PARAM", "LATIN_NAME", "TISSUE_NAME", "STATION_CODE", "Basis")
