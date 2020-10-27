@@ -142,6 +142,7 @@ model_from_medians("TBT", "Nucella lapillus", "Whole soft body", "227G1", "DW", 
 # Some other examples:  
 if (FALSE){
   model_from_medians("HG", "Gadus morhua", "Muskel", "30B", "DW", 1980:2018, data_med)$statistics
+  model_from_medians("HG", "Gadus morhua", "Muskel", "30B", "DW", 1980:2019, data_med)$statistics
   model_from_medians("HG", "Gadus morhua", "Muskel", "30B", "WW", 2009:2018, data_med)$statistics
   model_from_medians("CB_S7", "Gadus morhua", "Lever", "30B", "WW", 2009:2018, data_med)$statistics
   model_from_medians("TBT", "N. lapillus / L. littorea", "Whole soft body", "71G", "WW", 2009:2018, data_med)$statistics
@@ -191,12 +192,16 @@ For 20 random series
 # The new function, called 'model_from_medians_stat_s', is created using the 'safely' function. (More info below.)
 model_from_medians_stat_s <- safely(model_from_medians_stat)
 
-# Pick 20 random series
-df_series_random <- df_series %>% 
-  sample_n(20)        # 20 random series
+# Pick some random series - 15 random and some non-random
+df_series_random <- bind_rows(
+  df_series %>% sample_n(15),        # 15 random series
+  df_series %>% filter(PARAM == "HG" & STATION_CODE == "30B" & TISSUE_NAME == "Muskel" & Basis %in% c("WW","WWa")),
+  df_series %>% filter(PARAM == "CB_S7" & STATION_CODE == "30B" & TISSUE_NAME == "Lever" & Basis %in% c("WW","WWa")),
+  df_series %>% filter(PARAM == "CB_S7" & STATION_CODE == "I133" & Basis %in% c("WW"))
+)
   
 # Turn into list
-args <- df_series_random[1:100,] %>% 
+args <- df_series_random %>% 
   as.list()
 # names(args) 
 
@@ -313,6 +318,7 @@ if (add_extra_series){
     df_series <- df_series %>% filter(STATION_CODE %in% "71G" & PARAM == "VDSI/Intersex")
   
   if (TRUE){
+    df_recalculate_trends <- readRDS("Data/120_df_recalculate_trends.rds")
     df_series <- df_series %>%
       inner_join(df_recalculate_trends %>% select(-Basis) %>% mutate(Recalc = TRUE)) %>%
       filter(!is.na(Recalc))
@@ -491,13 +497,13 @@ if (!add_extra_series){   # this is the normal case - we have calculated trends 
   cat("result_long: ", nrow(result_long_original), "after removing overlapping time series")
   
   # Add the newly made series
-  result_10yr <- bind_rows(result_10yr_original, result_10yr)
-  result_long <- bind_rows(result_long_original, result_long)
+  result_10yr_new <- bind_rows(result_10yr_original, result_10yr)
+  result_long_new <- bind_rows(result_long_original, result_long)
   
   cat("\n")
   cat("Final number of data sets (after adding/replacing series): \n")
-  cat("result_10yr: ", nrow(result_10yr), "rows \n")
-  cat("result_long: ", nrow(result_long), "rows \n")
+  cat("result_10yr_new: ", nrow(result_10yr_new), "rows \n")
+  cat("result_long_new: ", nrow(result_long_new), "rows \n")
 
   # Check that series are unique
   check1 <- result_long_original %>%
@@ -531,8 +537,8 @@ if (!add_extra_series){   # this is the normal case - we have calculated trends 
     file.copy(paste0("Data/", fn2), paste0("Data/", fn2_old))
   }
   
-  saveRDS(result_10yr, paste0("Data/", fn1, ".rds"))
-  saveRDS(result_long, paste0("Data/", fn2, ".rds"))
+  saveRDS(result_10yr_new, paste0("Data/", fn1, ".rds"))
+  saveRDS(result_long_new, paste0("Data/", fn2, ".rds"))
   
   cat("\n")
   cat("=========================================================================\n")
