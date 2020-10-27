@@ -4,7 +4,7 @@ output:
   html_document:
     keep_md: true
     toc: true
-    toc_float:true
+    toc_float: true
 ---
 
 ## 0. Check this first  
@@ -15,26 +15,23 @@ output:
 The resulting file will be imported into Excel, so set set   
 * decimal_comma = TRUE of you use European-style Excel (`,` for decimal numbers, columns separated by semicolon)   
 * decimal_comma = FALSE of you use American-style Excel (`.` for decimal numbers, columns separated by comma)   
-```{r}
 
+```r
 decimal_comma <- TRUE
 # used in part 7
-
 ```
 
 
 ### b. Last year  
 Last year with observations  
-```{r}
 
+```r
 last_year <- 2019
-
 ```
 
-
 ## 1. Libraries + functions
-```{r, message=FALSE, warning=FALSE, results='hide'}
 
+```r
 update.packages("rlang")
 
 # install safejoin, if that has not already been done
@@ -55,15 +52,13 @@ library(safejoin)     # safe_left_join() - from https://github.com/moodymudskipp
 source("002_Utility_functions.R")
 source("201_Make_big_excel_file_functions.R")
 source("201_Time_series_write_to_Excel_functions.R", encoding = "UTF-8")
-
-
 ```
 
 ## 2. Data  
 
 ### a. Annual medians  
-```{r, results='hold'}
 
+```r
 files <- list_files("Data", 
                     pattern = "110_mediandata_updated_[:date:]", 
                     extension = "rds")
@@ -77,12 +72,21 @@ data_list <- read_rds_file(folder = "Data",
 
 data_med2 <- data_list$data
 file_date <- data_list$file_date
+```
 
+```
+## There are 2 files with pattern '110_mediandata_updated_[:date:]' and extension 'rds' to choose from 
+## 
+## File '110_mediandata_updated_2020-08-05.rds' (file number 1) has been read 
+##   This is the newest file. If you want to read an older file, put a different 'filenumber' 
+## 
+## Time since this file was modified: 
+## Time difference of 13.92072 days
 ```
 
 Function for reading the last (by default) file made, of files with name following 'pattern'  
-```{r}
 
+```r
 list_and_read_rds_file <- function(folder, pattern, extension, 
                                    filenumber = 1, check_date = NULL){
 
@@ -104,15 +108,13 @@ list_and_read_rds_file <- function(folder, pattern, extension,
   
   result
 }
-
-
 ```
 
 
 
 ### b. Time trend results   
-```{r, results='hold'}
 
+```r
 cat("======================================\n")
 cat("10 year trends \n")
 cat("======================================\n")
@@ -163,10 +165,50 @@ result_long_seclast <- list_and_read_rds_file(
   extension = "rds",
   check_date = data_list$file_date
 )
+```
 
-
-
-
+```
+## ======================================
+## 10 year trends 
+## ======================================
+## 
+##  ******* Last year trends *********  
+## There are 2 files with pattern '120_result_10yr_2019_[:date:]' and extension 'rds' to choose from 
+## 
+## File '120_result_10yr_2019_2020-08-05.rds.rds' (file number 1) has been read 
+##   This is the newest file. If you want to read an older file, put a different 'filenumber' 
+## 
+## Time since this file was modified: 
+## Time difference of 32.55063 mins
+## 
+##  ******* Previous year trends *********  
+## There are 1 files with pattern '120_result_10yr_2018_[:date:]' and extension 'rds' to choose from 
+## 
+## File '120_result_10yr_2018_2020-08-05.rds' (file number 1) has been read 
+## 
+## Time since this file was modified: 
+## Time difference of 15.5997 hours
+## 
+## ======================================
+## Long trends 
+## ======================================
+## 
+##  ******* Last year trends *********  
+## There are 2 files with pattern '120_result_long_2019_[:date:]' and extension 'rds' to choose from 
+## 
+## File '120_result_long_2019_2020-08-05.rds.rds' (file number 1) has been read 
+##   This is the newest file. If you want to read an older file, put a different 'filenumber' 
+## 
+## Time since this file was modified: 
+## Time difference of 32.55029 mins
+## 
+##  ******* Previous year trends *********  
+## There are 1 files with pattern '120_result_long_2018_[:date:]' and extension 'rds' to choose from 
+## 
+## File '120_result_long_2018_2020-08-05.rds' (file number 1) has been read 
+## 
+## Time since this file was modified: 
+## Time difference of 15.5997 hours
 ```
 
 ### c. Labware data  
@@ -175,61 +217,161 @@ Data of samples
 NOTE: These data are downloaded from Nivabasen using the script   
 105_Download_Labware_sample_data.Rmd  
 This must be done using a PC - cannot be done from Jupyterhub   
-```{r}
 
+```r
 # Read and reformat the most recent data (by default)  
 files <- dir("Input_data", "Labware_samples_") %>% rev()
 filename <- files[1] 
 
 df_samples_labware_raw <- readRDS(paste0("Input_data/", filename))  
-
-
 ```
 
-```{r}
+
+```r
 # For test
 data_med2 %>%
   filter(STATION_CODE == "36A" & PARAM == "% C" & Basis == "WW")
+```
 
+```
+## # A tibble: 5 x 17
+##   MYEAR STATION_CODE LATIN_NAME TISSUE_NAME PARAM UNIT  DRYWT FAT_PERC     N
+##   <dbl> <chr>        <chr>      <chr>       <chr> <chr> <dbl>    <dbl> <int>
+## 1  2015 36A          Mytilus e… Whole soft… % C   %        20     2.7      5
+## 2  2016 36A          Mytilus e… Whole soft… % C   %        14     1.3      3
+## 3  2017 36A          Mytilus e… Whole soft… % C   %        18     4.13     3
+## 4  2018 36A          Mytilus e… Whole soft… % C   %        14     0.86     3
+## 5  2019 36A          Mytilus e… Whole soft… % C   %        18     1.46     3
+## # … with 8 more variables: Det_limit <dbl>, Over_LOQ <int>, Basis <chr>,
+## #   Value <dbl>, Stations <chr>, N_stations <dbl>, Median <dbl>, Q95 <dbl>
 ```
 
 ### d. N-string, SD and DDI
-```{r}
 
+```r
 cat("======================================\n")
+```
+
+```
+## ======================================
+```
+
+```r
 cat("N string (sample size) \n")
-cat("======================================\n")
+```
 
+```
+## N string (sample size)
+```
+
+```r
+cat("======================================\n")
+```
+
+```
+## ======================================
+```
+
+```r
 dat_nstring <- list_and_read_rds_file(
   folder = "Data", 
   pattern = "111_Nstring_updated_[:date:]", 
   extension = "rds",
   check_date = data_list$file_date
 )
+```
 
+```
+## There are 1 files with pattern '111_Nstring_updated_[:date:]' and extension 'rds' to choose from 
+## 
+## File '111_Nstring_updated_2020-08-05.rds' (file number 1) has been read 
+## 
+## Time since this file was modified: 
+## Time difference of 13.92164 days
+```
+
+```r
 cat("======================================\n")
+```
+
+```
+## ======================================
+```
+
+```r
 cat("SD (standard deviation) \n")
-cat("======================================\n")
+```
 
+```
+## SD (standard deviation)
+```
+
+```r
+cat("======================================\n")
+```
+
+```
+## ======================================
+```
+
+```r
 dat_sd <- list_and_read_rds_file(
   folder = "Data", 
   pattern = "111_SD_updated_[:date:]", 
   extension = "rds",
   check_date = data_list$file_date
 )
+```
 
+```
+## There are 1 files with pattern '111_SD_updated_[:date:]' and extension 'rds' to choose from 
+## 
+## File '111_SD_updated_2020-08-05.rds' (file number 1) has been read 
+## 
+## Time since this file was modified: 
+## Time difference of 13.92164 days
+```
 
+```r
 cat("======================================\n")
+```
+
+```
+## ======================================
+```
+
+```r
 cat("D.d.i. (detectable data information) \n")
-cat("======================================\n")
+```
 
+```
+## D.d.i. (detectable data information)
+```
+
+```r
+cat("======================================\n")
+```
+
+```
+## ======================================
+```
+
+```r
 dat_ddi <- list_and_read_rds_file(
   folder = "Data", 
   pattern = "111_DDI_updated_[:date:]", 
   extension = "rds",
   check_date = data_list$file_date
 )
+```
 
+```
+## There are 1 files with pattern '111_DDI_updated_[:date:]' and extension 'rds' to choose from 
+## 
+## File '111_DDI_updated_2020-08-05.rds' (file number 1) has been read 
+## 
+## Time since this file was modified: 
+## Time difference of 13.92163 days
 ```
 
 
@@ -239,15 +381,21 @@ dat_ddi <- list_and_read_rds_file(
 3. Second last year's table   
 4. List of station names    
 5. Data for the extra columns for parameters and stations  
-```{r}
 
+```r
 #
 # 1. Trends for second last year (2018)
 #
 result_10yr_prev <- readRDS("Input_data/120_result_10yr_2018.RData")
 result_long_prev <- readRDS("Input_data/120_result_long_2018.RData")
 cat("1. Trends for second last year - data read \n")
+```
 
+```
+## 1. Trends for second last year - data read
+```
+
+```r
 #
 # 2. Individual data for this year (for "D.d.i.")
 #
@@ -295,14 +443,30 @@ results_seclast_year <- readRDS("Input_data/Data_xl_lessthans_ver12.rds") %>%
     ) %>%
   filter(!STATION_CODE %in% c("227G1", "36A"))  # HARD-CODED - these dont have data in 2018 
 cat("\n")
+```
+
+```r
 cat("3. Second last year's table - data read \n")
+```
+
+```
+## 3. Second last year's table - data read
+```
+
+```r
 # table(results_seclast_year$TISSUE_NAME)
 
 # Fixing station 36A and 36A1 (36A1 shall count as 36A) 
 sel <- results_seclast_year$STATION_CODE %in% "36A1"
 results_seclast_year$STATION_CODE[sel] <- "36A"
 cat(sum(sel), "lines with 36A1 changed to 36A \n")
+```
 
+```
+## 309 lines with 36A1 changed to 36A
+```
+
+```r
 #
 # Check uniqueness (for last year only)
 #
@@ -329,8 +493,17 @@ if (FALSE){
 #
 data_stations <- readxl::read_excel("Input_data/Kartbase_edit.xlsx")
 cat("\n")
-cat("4. List of station names - data read \n")
+```
 
+```r
+cat("4. List of station names - data read \n")
+```
+
+```
+## 4. List of station names - data read
+```
+
+```r
 #
 
 #
@@ -340,20 +513,28 @@ df_par <- read.csv("Input_data/Lookup for big excel - param.csv", sep = ";", dec
 df_stationinfo <- readxl::read_excel("Input_data/Lookup for big excel - stations.xlsx")
 
 cat("\n")
-cat("5. Data for the extra columns for parameters and stations - data read \n")
+```
 
+```r
+cat("5. Data for the extra columns for parameters and stations - data read \n")
+```
+
+```
+## 5. Data for the extra columns for parameters and stations - data read
+```
+
+```r
 #
 # 6. Data on sample size ("N_string") and SD for the last two years
 #
 dat_sd <- readRDS("Data/111_SD_updated_2020-08-05.rds") 
 dat_nstring <- readRDS("Data/111_Nstring_updated_2020-08-05.rds") 
-
 ```
 
 ### e2. Station coordinates   
 Makes 'data_coordinates', added after less-than columns (section 6)
-```{r}
 
+```r
 #
 # Read coordinates used in ICES
 # Will be used for all stations that are *not* in 'data_stations' 
@@ -390,18 +571,23 @@ data_coordinates <- bind_rows(
 )
 
 writexl::write_xlsx(data_coordinates, "Data/201_data_coordinates.xlsx")
-
 ```
 
 
 ### f. Some data fixing  
-```{r}
 
+```r
 ### 1. Delete VDSI that are not Basis WW    
 sel <- with(data_med2, PARAM %in% c("VDSI","VDSI/Intersex") & !Basis %in% "WW")
 data_med2 <- data_med2[!sel,]
 cat(sum(sel), "records of VDSI/Intersex deleted \n")
+```
 
+```
+## 1130 records of VDSI/Intersex deleted
+```
+
+```r
 # Check
 # data_med2 %>% filter(PARAM %in% "VDSI" & MYEAR %in% 2015:2017 & STATION_CODE %in% c("227G","227G2"))
 
@@ -410,29 +596,66 @@ sel <- with(data_med2, PARAM %in% "BAP")
 # data_med2[sel,] %>% count(UNIT)
 data_med2$UNIT[sel] <- "ug/kg/ABS 380 nm"
 cat(sum(sel), "units of BAP changed \n")
+```
 
+```
+## 2718 units of BAP changed
+```
+
+```r
 # 3. Units of isotopes  
 sel1 <- data_med2$PARAM %in% c("Delta13C", "Delta15N")
 # xtabs(~UNIT, data_med2[sel1,])
 sel2 <- sel1 & !data_med2$UNIT %in% "‰"
 data_med2$UNIT[sel2] <- "‰"
 cat(sum(sel2), "units of Delta13C and Delta15N changed \n")
+```
 
+```
+## 420 units of Delta13C and Delta15N changed
+```
+
+```r
 # 4. Set all Tissues containing "Egg" to exactly "Egg"
 sel <- grepl("Egg", data_med2$TISSUE_NAME)
 data_med2$TISSUE_NAME[sel] <- "Egg"
 cat(sum(sel), "tissue names containing 'Egg' changed to the exact word 'Egg' \n")
+```
 
+```
+## 1836 tissue names containing 'Egg' changed to the exact word 'Egg'
 ```
 
 
 ## 3. Some checking   
 
 ### a. One problematic species, one problematic station, one problematic parameter
-```{r}
+
+```r
 cat("==================================\n")
+```
+
+```
+## ==================================
+```
+
+```r
 cat("Eider duck\n")
+```
+
+```
+## Eider duck
+```
+
+```r
 cat("----------------------------------\n")
+```
+
+```
+## ----------------------------------
+```
+
+```r
 check <- data_med2 %>% filter(LATIN_NAME %in% "Somateria mollissima" & MYEAR %in% last_year & Basis %in% "WW") %>%
   group_by(TISSUE_NAME, PARAM) %>%
   summarise(N = n(), .groups = "drop") %>%
@@ -444,10 +667,43 @@ for (i in 1:nrow(check)){
   cat(check[i,"TISSUE_NAME"], "\nNumber of medians: N =", check[i,"N"], ":\n")
   cat(check[i,"PARAM"], "\n\n")
 }
+```
 
+```
+## Blod 
+## Number of medians: N = 1 :
+## % C, % N, AG, AS, BDE100, BDE119, BDE126, BDE138, BDE153, BDE154, BDE156, BDE17, BDE183, BDE184, BDE191, BDE196, BDE197, BDE202, BDE206, BDE207, BDE209, BDE28, BDE47, BDE49, BDE66, BDE6S, BDE71, BDE77, BDE85, BDE99, BDESS, C/N, CB_S7, CB101, CB105, CB114, CB118, CB122, CB123, CB128, CB138, CB141, CB149, CB153, CB156, CB157, CB167, CB170, CB18, CB180, CB183, CB187, CB189, CB194, CB206, CB209, CB28, CB31, CB33, CB37, CB47, CB52, CB66, CB74, CB99, CD, CO, CR, CU, D4, D5, D6, Delta13C, Delta15N, Fett, HBCDA, HBCDB, HBCDD, HBCDG, HCB, HG, MCCP, NI, PB, PFAS, PFDcA, PFHpA, PFHxA, PFHxS, PFNA, PFOA, PFOS, PFOSA, PFUdA, SCCP, SN, TBA, ZN 
+## 
+## Egg 
+## Number of medians: N = 1 :
+## % C, % N, AG, AS, BDE100, BDE119, BDE126, BDE138, BDE153, BDE154, BDE156, BDE17, BDE183, BDE184, BDE191, BDE196, BDE197, BDE202, BDE206, BDE207, BDE209, BDE28, BDE47, BDE49, BDE66, BDE6S, BDE71, BDE77, BDE85, BDE99, BDESS, C/N, CB_S7, CB101, CB105, CB114, CB118, CB122, CB123, CB128, CB138, CB141, CB149, CB153, CB156, CB157, CB167, CB170, CB18, CB180, CB183, CB187, CB189, CB194, CB206, CB209, CB28, CB31, CB33, CB37, CB47, CB52, CB66, CB74, CB99, CD, CO, CR, CU, D4, D5, D6, Delta13C, Delta15N, Fett, HBCDA, HBCDB, HBCDD, HBCDG, HCB, HG, MCCP, NI, PB, PFAS, PFDcA, PFHpA, PFHxA, PFHxS, PFNA, PFOA, PFOS, PFOSA, PFUdA, SCCP, SN, TBA, ZN
+```
+
+```r
 cat("==================================\n")
+```
+
+```
+## ==================================
+```
+
+```r
 cat("71G\n")
+```
+
+```
+## 71G
+```
+
+```r
 cat("----------------------------------\n")
+```
+
+```
+## ----------------------------------
+```
+
+```r
 check <- data_med2 %>% filter(STATION_CODE %in% "71G" & Basis %in% "WW") %>%
   group_by(LATIN_NAME, PARAM, MYEAR) %>%
   summarise(N = n(), .groups = "drop") %>%
@@ -461,11 +717,79 @@ for (i in 1:nrow(check)){
   cat(check[i,"LATIN_NAME"], ", ", check[i,"PARAM"], "\nNumber of medians: N =", check[i,"N"], ":\n")
   cat(check[i,"MYEAR"], "\n\n")
 }
+```
 
+```
+## Littorina littorea ,  DBT, DOT, DRYWT%, MBT, MOT, TBT, TCHT, TPT 
+## Number of medians: N = 1 :
+## 2015, 2016, 2017, 2018, 2019 
+## 
+## Littorina littorea ,  VDSI/Intersex 
+## Number of medians: N = 1 :
+## 2016, 2017, 2018, 2019 
+## 
+## Littorina littorea ,  TTBT 
+## Number of medians: N = 1 :
+## 2017, 2018 
+## 
+## Littorina littorea ,  DBT-Sn, DOT-Sn, MBT-Sn, MOT-Sn, TBTIN, TCHT-Sn, TPhT-Sn, TTBT-Sn 
+## Number of medians: N = 1 :
+## 2017, 2018, 2019 
+## 
+## Littorina littorea ,  TTBTIN 
+## Number of medians: N = 1 :
+## 2019 
+## 
+## Nucella lapillus ,  RSPI 
+## Number of medians: N = 1 :
+## 2001, 2002, 2003, 2004 
+## 
+## Nucella lapillus ,  VDSI/Intersex 
+## Number of medians: N = 1 :
+## 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2009 
+## 
+## Nucella lapillus ,  DRYWT%, TBT 
+## Number of medians: N = 1 :
+## 2001, 2002, 2003, 2004, 2006, 2007, 2009 
+## 
+## Nucella lapillus ,  HTMEA, IMPS, LNFPE, LNMPE 
+## Number of medians: N = 1 :
+## 2005, 2006, 2007, 2009 
+## 
+## Nucella lapillus ,  TBTIN 
+## Number of medians: N = 1 :
+## 2006, 2007, 2009 
+## 
+## Nucella lapillus ,  DOT, MONOKTYL, MOT, TCHT, TETRABUT, TRISYKLO, TTBT 
+## Number of medians: N = 1 :
+## 2009
+```
 
+```r
 cat("==================================\n")
+```
+
+```
+## ==================================
+```
+
+```r
 cat("PYR1O\n")
+```
+
+```
+## PYR1O
+```
+
+```r
 cat("----------------------------------\n")
+```
+
+```
+## ----------------------------------
+```
+
+```r
 check <- data_med2 %>% filter(PARAM %in% "PYR1O" & MYEAR >= 2008 & Basis %in% "WW") %>%
   group_by(STATION_CODE, MYEAR) %>%
   summarise(N = n(), .groups = "drop") %>%
@@ -481,12 +805,22 @@ for (i in 1:nrow(check)){
 }
 ```
 
+```
+## 30B 
+## Number of medians since 2008: N = 1 :
+## 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019 
+## 
+## 15B, 23B, 53B 
+## Number of medians since 2008: N = 1 :
+## 2008, 2009, 2010, 2011, 2013, 2014, 2015, 2016, 2017, 2018, 2019
+```
+
 ## 4. Prepare for building excel data
 
 ### a. Make 'data_xlvalues'  
 
-```{r}
 
+```r
 # This data set is used only for making select_data
 data_for_select_data <- data_med2 %>%
   select(STATION_CODE, LATIN_NAME, PARAM, Basis, UNIT, MYEAR, Value) %>%
@@ -496,11 +830,40 @@ data_for_select_data <- data_med2 %>%
 
 data_for_select_data %>%
   count(!is.na(Value), Present_last7year, !is.na(UNIT))
+```
 
+```
+## # A tibble: 8 x 4
+##   `!is.na(Value)` Present_last7year `!is.na(UNIT)`      n
+##   <lgl>           <lgl>             <lgl>           <int>
+## 1 FALSE           FALSE             FALSE            2044
+## 2 FALSE           FALSE             TRUE            91128
+## 3 FALSE           TRUE              FALSE            1843
+## 4 FALSE           TRUE              TRUE           153318
+## 5 TRUE            FALSE             FALSE             740
+## 6 TRUE            FALSE             TRUE            77582
+## 7 TRUE            TRUE              FALSE            1037
+## 8 TRUE            TRUE              TRUE           197144
+```
+
+```r
 select_data <- with(data_for_select_data, MYEAR >= 1980 & !is.na(Value) & Present_last7year & !is.na(UNIT))
 cat("Number of medians, originally:", nrow(data_med2), "\n")
-cat("Number of medians, selected:", sum(select_data), "\n")
+```
 
+```
+## Number of medians, originally: 524836
+```
+
+```r
+cat("Number of medians, selected:", sum(select_data), "\n")
+```
+
+```
+## Number of medians, selected: 197144
+```
+
+```r
 data_xlvalues1 <- data_med2[select_data,]
 data_xlvalues <- data_xlvalues1 %>%
   select(MYEAR:UNIT, Basis, Value) %>%
@@ -508,13 +871,15 @@ data_xlvalues <- data_xlvalues1 %>%
   as.data.frame()
 
 cat("Number of medians, selected, in wide format:", nrow(data_xlvalues), "\n")
+```
 
+```
+## Number of medians, selected, in wide format: 24346
 ```
 
 ### b. Make less-than columns (as TRUE/FALSE)  
-```{r}
 
-
+```r
 data_lessthans <- data_med2[select_data,] %>%
   mutate(Lessthan = Over_LOQ/N < 0.5) %>%
   select(MYEAR:UNIT, Basis, Lessthan) %>%
@@ -527,6 +892,13 @@ data_lessthans <- data_med2[select_data,] %>%
 # Note: before writing to Excel we will change these to V.. and Q..
 cn <- colnames(data_lessthans)
 isnum <- !is.na(as.numeric(cn))
+```
+
+```
+## Warning: NAs introduced by coercion
+```
+
+```r
 colnames(data_lessthans)[isnum] <- paste0("Lt_", cn[isnum])
 
 # colnames(data_lessthans)
@@ -540,31 +912,86 @@ if (nrow(data_xlvalues) != nrow(data_lessthans)){
   cat("\n")
   cat("data_lessthans created and appears to be ok \n")
 }
+```
 
+```
+## 
+## data_lessthans created and appears to be ok
+```
+
+```r
 # Check (all must be equal, ie all numbers below should be zero!)
 
 cat("\n")
+```
+
+```r
 cat("Check of index columns - all the following should be zero: \n")
+```
+
+```
+## Check of index columns - all the following should be zero:
+```
+
+```r
 sum(data_xlvalues$PARAM != data_lessthans$PARAM)
+```
+
+```
+## [1] 24195
+```
+
+```r
 sum(data_xlvalues$STATION_CODE != data_lessthans$STATION_CODE)
+```
+
+```
+## [1] 24264
+```
+
+```r
 sum(data_xlvalues$LATIN_NAME != data_lessthans$LATIN_NAME)
+```
+
+```
+## [1] 14017
+```
+
+```r
 sum(data_xlvalues$TISSUE_NAME != data_lessthans$TISSUE_NAME)
+```
+
+```
+## [1] 13586
+```
+
+```r
 sum(data_xlvalues$Basis != data_lessthans$Basis)
+```
 
+```
+## [1] 18518
+```
+
+```r
 # head(data_lessthans,1)
-
-
 ```
 
 ### c. Check that we don't have any duplicates  
-```{r}
 
+```r
 checkdata <- data_xlvalues %>%
   group_by(STATION_CODE, LATIN_NAME, TISSUE_NAME, PARAM, Basis) %>%
   summarise(N = n(), .groups = "drop_last") %>%
   filter(N > 1) 
 cat("Number of data with duplicates:", nrow(checkdata), "\n")
+```
 
+```
+## Number of data with duplicates: 0
+```
+
+```r
 # The stuff below is run only if we have duplicates:
 if (nrow(checkdata) > 0){
   i <- 1  # check duplicate number i
@@ -583,28 +1010,55 @@ if (nrow(checkdata) > 0){
     filter(STATION_CODE %in% "02B") %>%
     count(STATION_CODE, Station.Name)
 }
-
 ```
 
 ### d. Change column names
-```{r}
 
+```r
 # We now use the names Yr_ and EQS_ for medians and EQS columns, because they are easier to search for
 # Note: before writing to Excel we will change these to V.. and Q..
 cn <- colnames(data_xlvalues)
 isnum <- !is.na(as.numeric(cn))
+```
+
+```
+## Warning: NAs introduced by coercion
+```
+
+```r
 # colnames(data_xlvalues)[isnum] <- paste0("Yr_", substr(cn[isnum], 3, 4))
 colnames(data_xlvalues)[isnum] <- paste0("Yr_", cn[isnum])
 
 cat("\n")
-cat("Column names: \n")
-colnames(data_xlvalues)
+```
 
+```r
+cat("Column names: \n")
+```
+
+```
+## Column names:
+```
+
+```r
+colnames(data_xlvalues)
+```
+
+```
+##  [1] "STATION_CODE" "LATIN_NAME"   "TISSUE_NAME"  "PARAM"        "UNIT"        
+##  [6] "Basis"        "Yr_1981"      "Yr_1982"      "Yr_1983"      "Yr_1984"     
+## [11] "Yr_1985"      "Yr_1986"      "Yr_1987"      "Yr_1988"      "Yr_1989"     
+## [16] "Yr_1990"      "Yr_1991"      "Yr_1992"      "Yr_1993"      "Yr_1994"     
+## [21] "Yr_1995"      "Yr_1996"      "Yr_1997"      "Yr_1998"      "Yr_1999"     
+## [26] "Yr_2000"      "Yr_2001"      "Yr_2002"      "Yr_2003"      "Yr_2004"     
+## [31] "Yr_2005"      "Yr_2006"      "Yr_2007"      "Yr_2008"      "Yr_2009"     
+## [36] "Yr_2010"      "Yr_2011"      "Yr_2012"      "Yr_2013"      "Yr_2014"     
+## [41] "Yr_2015"      "Yr_2016"      "Yr_2017"      "Yr_2018"      "Yr_2019"
 ```
 
 ### e. Add EQS limits  
-```{r}
 
+```r
 EQS_limits <- read.xlsx("Input_data/EQS_limits.xlsx", "EQS")[,1:8] %>%
   filter(!is.na(PARAM))
 EQS_limits <- fact2char_df(EQS_limits)  # changes all factor variables to character variables
@@ -638,8 +1092,24 @@ sel <- !data_EQS$Basis %in% c("WW","WWa")
 data_EQS$Limit[sel] <- NA
 
 cat("Number of data with/without and EQS limit (with = TRUE): \n ")
-table(!is.na(data_EQS$Limit))
+```
 
+```
+## Number of data with/without and EQS limit (with = TRUE): 
+## 
+```
+
+```r
+table(!is.na(data_EQS$Limit))
+```
+
+```
+## 
+## FALSE  TRUE 
+## 23297  1049
+```
+
+```r
 # Add "n" in rows with EQS and in the columns where 'data_xlvalues' has values
 # Why 'n'? Because it can be changed into a circle in Excel (by changing font to WIngdigs/Webdings)
 
@@ -658,32 +1128,67 @@ data_EQS[,colno_values] <- data_EQS_vals
 
 # Check that the columns fit together
 cat("\n")
+```
+
+```r
 cat("Check that the columns fit together (row one = data_xlvalues, row two = data_EQS): \n")
+```
+
+```
+## Check that the columns fit together (row one = data_xlvalues, row two = data_EQS):
+```
+
+```r
 i <- with(data_xlvalues, PARAM %in% "HG" & STATION_CODE %in% "10A2" & Basis == "WW")
 i <- with(data_xlvalues, PARAM %in% "HG" & STATION_CODE %in% "30B" & Basis == "WW")
 a <- data_xlvalues[i, ] %>% as.matrix(ncol = 1)
 b <- data_EQS[i, 1:ncol(a)] %>% as.matrix(ncol = 1)
 rbind(a, b)
+```
 
-
+```
+##     STATION_CODE LATIN_NAME     TISSUE_NAME PARAM UNIT      Basis Yr_1981
+## 291 "30B"        "Gadus morhua" "Muskel"    "HG"  "MG_P_KG" "WW"  NA     
+## 291 "30B"        "Gadus morhua" "Muskel"    "HG"  "MG_P_KG" "WW"  NA     
+##     Yr_1982 Yr_1983 Yr_1984 Yr_1985 Yr_1986    Yr_1987    Yr_1988   Yr_1989  
+## 291 NA      NA      "0.14"  "0.09"  "0.073188" "0.038171" "0.11169" "0.13026"
+## 291 NA      NA      "n"     "n"     "n"        "n"        "n"       "n"      
+##     Yr_1990 Yr_1991 Yr_1992 Yr_1993 Yr_1994 Yr_1995 Yr_1996   Yr_1997  
+## 291 "0.12"  "0.09"  "0.12"  "0.133" "0.123" "0.105" "0.14075" "0.16075"
+## 291 "n"     "n"     "n"     "n"     "n"     "n"     "n"       "n"      
+##     Yr_1998  Yr_1999 Yr_2000 Yr_2001 Yr_2002 Yr_2003 Yr_2004 Yr_2005 Yr_2006
+## 291 "0.1931" "0.201" "0.217" "0.26"  "0.15"  "0.163" "0.134" "0.147" "0.225"
+## 291 "n"      "n"     "n"     "n"     "n"     "n"     "n"     "n"     "n"    
+##     Yr_2007 Yr_2008 Yr_2009 Yr_2010 Yr_2011 Yr_2012 Yr_2013 Yr_2014 Yr_2015
+## 291 "0.17"  "0.255" "0.26"  "0.22"  "0.316" "0.34"  "0.318" "0.207" "0.227"
+## 291 "n"     "n"     "n"     "n"     "n"     "n"     "n"     "n"     "n"    
+##     Yr_2016 Yr_2017 Yr_2018 Yr_2019
+## 291 "0.364" "0.203" "0.204" "0.19" 
+## 291 "n"     "n"     "n"     "n"
 ```
 
 ## 5. Build data set 'data_xl', which will become the big excel file   
 
 ### Start making data_xl  
-```{r}
 
+```r
 data_xl <- data_xlvalues %>% 
   rename(Unit = UNIT) %>% select(STATION_CODE, TISSUE_NAME, LATIN_NAME, PARAM, Basis, Unit)
 
 cat("Number of columns in data_xl:",  ncol(data_xl), "\n")
-# should be 6
+```
 
+```
+## Number of columns in data_xl: 6
+```
+
+```r
+# should be 6
 ```
 
 ### Prepare 'df_stationinfo' (station information)  
-```{r}
 
+```r
 # Assure STATION_CODE has no empty values
 data_stations <- data_stations %>%
   filter(!is.na(STATION_CODE))
@@ -703,12 +1208,11 @@ df_stationinfo <- safe_left_join(
 cols <- c("STATION_CODE", "Station_name", "Area", "County", "Water.Region", "VannforekomstID", "VAnnforekomstNavn")
 df_stationinfo <- df_stationinfo[,cols]
 colnames(df_stationinfo)[2] <- "Station.Name"
-
 ```
 
 ### Prepare parameter columns
-```{r}
 
+```r
 colnames(df_par)[1] <- "PARAM"
 
 # Some IUPAC values contain semicolon, which makes a mess in Excel (as we use a semicolon-separated file)
@@ -716,33 +1220,85 @@ colnames(df_par)[1] <- "PARAM"
 # View(df_par)
 sel <- grepl(";", df_par$IUPAC, fixed = TRUE)
 cat("Change", sum(sel), "IPUAC values by replacing semicolon with slash \n")
+```
 
+```
+## Change 3 IPUAC values by replacing semicolon with slash
+```
+
+```r
 cat("\n")
+```
+
+```r
 cat("Old names: \n")
+```
+
+```
+## Old names:
+```
+
+```r
 df_par$IUPAC[sel]
+```
+
+```
+## [1] "potassium;1,1,2,2,3,3,4,4,4-nonafluorobutane-1-sulfonate"                             
+## [2] "azanium;1,1,2,2,3,3,4,4,5,5,6,6,7,7,8,8,9,9,10,10,10-henicosafluorodecane-1-sulfonate"
+## [3] "azanium;1,1,2,2,3,3,4,4,5,5,6,6,7,7,8,8,9,9,10,10,10-henicosafluorodecane-1-sulfonate"
+```
+
+```r
 df_par$IUPAC <- gsub(";", " / ", df_par$IUPAC, fixed = TRUE)
 cat("\n")
-cat("New names: \n")
-df_par$IUPAC[sel]
+```
 
+```r
+cat("New names: \n")
+```
+
+```
+## New names:
+```
+
+```r
+df_par$IUPAC[sel]
+```
+
+```
+## [1] "potassium / 1,1,2,2,3,3,4,4,4-nonafluorobutane-1-sulfonate"                             
+## [2] "azanium / 1,1,2,2,3,3,4,4,5,5,6,6,7,7,8,8,9,9,10,10,10-henicosafluorodecane-1-sulfonate"
+## [3] "azanium / 1,1,2,2,3,3,4,4,5,5,6,6,7,7,8,8,9,9,10,10,10-henicosafluorodecane-1-sulfonate"
+```
+
+```r
 # Change sum parameter names som they fit with the our "new" names
 # Also see section 28
 sel <- df_par$Parameter.Code %in% "PK_S"
 if (sum(sel) > 0)
   df_par$Parameter.Code[sel] <- "KPAH"
 cat(sum(sel), "cases: PK_S changed to KPAH \n")
+```
 
+```
+## 0 cases: PK_S changed to KPAH
+```
+
+```r
 sel <- df_par$Parameter.Code %in% "PAHSS"
 if (sum(sel) > 0)
   df_par$Parameter.Code[sel] <- "PAH16"
 cat(sum(sel), "cases: PAHSS changed to PAH16 \n")
+```
 
+```
+## 0 cases: PAHSS changed to PAH16
 ```
 
 
 ### Add new columns to data_xl
-```{r}
 
+```r
 # Add extra columns
 data_xl <- data_xl %>%
   safe_left_join(
@@ -759,11 +1315,15 @@ data_xl <- data_xl %>%
   )
 
 cat("Number of columns in data_xl:", ncol(data_xl), "\n") # 17
+```
 
+```
+## Number of columns in data_xl: 17
 ```
 
 ### Put columns in correct sequence  
-```{r}
+
+```r
 cols_sequence <- c("PARAM", "Parameter.Name", "IUPAC", "CAS", "Component.Name", "Substance.Group", "Unit",
                    "STATION_CODE", "Station.Name", "Area", "County", 
                    "Water.Region", "VannforekomstID", "VAnnforekomstNavn",
@@ -775,60 +1335,136 @@ data_xl <- data_xl[,cols_sequence]
 ```
 
 ### Add some station info manually
-```{r}
 
+```r
 cat("\nNumber of cases changed (se code for details): \n") # 17
+```
 
+```
+## 
+## Number of cases changed (se code for details):
+```
+
+```r
 sel <- data_xl$STATION_CODE %in% "19B"; sum(sel)
+```
+
+```
+## [1] 305
+```
+
+```r
 data_xl$Station.Name[sel] <- "Svalbard"
 data_xl$County[sel] <- "Svalbard"
 
 sel <- data_xl$STATION_CODE %in% "19N"; sum(sel)
+```
+
+```
+## [1] 464
+```
+
+```r
 data_xl$Station.Name[sel] <- "Breøyane"
 data_xl$County[sel] <- "Svalbard"
 
 sel <- data_xl$STATION_CODE %in% "I964"; sum(sel)
+```
+
+```
+## [1] 213
+```
+
+```r
 data_xl$Station.Name[sel] <- "Toraneskaien"
 data_xl$County[sel] <- "Nordland"
 
 sel <- data_xl$STATION_CODE %in% "227G2"; sum(sel)
+```
+
+```
+## [1] 0
+```
+
+```r
 data_xl$Station.Name[sel] <- "Flatskjær"
 data_xl$County[sel] <- "Rogaland"
 
 sel <- data_xl$STATION_CODE %in% "76A2"; sum(sel)
+```
+
+```
+## [1] 201
+```
+
+```r
 data_xl$Station.Name[sel] <- "Risøy"
 data_xl$County[sel] <- "Aust-Agder"
 
 sel <- data_xl$STATION_CODE %in% "97A3"; sum(sel)
+```
+
+```
+## [1] 246
+```
+
+```r
 data_xl$Station.Name[sel] <- "Bodø harbour"
 data_xl$County[sel] <- "Nordland"
 
 sel <- data_xl$STATION_CODE %in% "28A2"; sum(sel)
+```
+
+```
+## [1] 279
+```
+
+```r
 data_xl$Station.Name[sel] <- "Ålesund harbour"
 data_xl$County[sel] <- "Møre og Romsdal"
 data_xl$Water.Region[sel] <- "Møre og Romsdal"
 data_xl$VAnnforekomstNavn[sel] <- "Borgundfjorden-vest"
 
 sel <- data_xl$STATION_CODE %in% "I911"; sum(sel)
+```
+
+```
+## [1] 90
+```
+
+```r
 data_xl$Station.Name[sel] <- "Horvika"
 data_xl$County[sel] <- "Møre og Romsdal"
 
 sel <- data_xl$STATION_CODE %in% "I914"; sum(sel)
+```
+
+```
+## [1] 180
+```
+
+```r
 data_xl$Station.Name[sel] <- "Flåøya (southeast)"
 data_xl$County[sel] <- "Møre og Romsdal"
 
 sel <- data_xl$STATION_CODE %in% "I132"; sum(sel)
+```
+
+```
+## [1] 297
+```
+
+```r
 data_xl$Station.Name[sel] <- "Svensholmen"
 data_xl$County[sel] <- "Vest-Agder"
 data_xl$Water.Region[sel] <- "Agder"
 data_xl$VAnnforekomstNavn[sel] <- "Kristiansandsfjorden-indre"
-
 ```
 
 ### Add PROREF (background values) and add median values    
 Q95 = Proref  
-```{r}
 
+```r
 df_background <- data_med2 %>%
   group_by(PARAM, LATIN_NAME, TISSUE_NAME, Basis) %>%
   summarise_at(c("Stations", "N_stations", "N", "Median", "Q95"), first) %>%
@@ -836,11 +1472,11 @@ df_background <- data_med2 %>%
 
 # Used in report - copy to Norman's K (K:\Avdeling\Mar\NOG\JMG\2018\Tabeller)
 openxlsx::write.xlsx(df_background, "Data/201_Proref.xlsx")
-
 ```
 
 ### Adding "Stations", "N_stations", "N", "Median", "Q95"  
-```{r}
+
+```r
 # head(df_background , 3)
 # dput(colnames(df_background))
 
@@ -857,18 +1493,38 @@ colnames(data_xl)[colnames(data_xl) %in% "N_stations"] <- "Backgr_Nstat"
 colnames(data_xl)[colnames(data_xl) %in% "N"] <- "Backgr_N"
 
 cat("Number of rows in data_xl:", nrow(data_xl), "\n") # 24661
-cat("Number of columns in data_xl:", ncol(data_xl), "\n") # 22
+```
 
+```
+## Number of rows in data_xl: 24346
+```
+
+```r
+cat("Number of columns in data_xl:", ncol(data_xl), "\n") # 22
+```
+
+```
+## Number of columns in data_xl: 22
+```
+
+```r
 # head(data_xl, 2)
 ```
 
 ### Adding values from 'data_xlvalues' and EQS sign from 'data_EQS'  
-```{r}
+
+```r
 ### Prepare for adding values from 'data_xlvalues' and EQS sign from 'data_EQS'  
 ind_cols1 <- which(grepl("Yr_", colnames(data_xlvalues)))
 ind_cols2 <- which(grepl("EQS_", colnames(data_EQS)))
 length(ind_cols1) == length(ind_cols2)  # should be TRUE
+```
 
+```
+## [1] TRUE
+```
+
+```r
 # Pick every second column from 'data_xlvalues' and 'data_EQS'
 for (i in 1:length(ind_cols1)){
   i1 <- ind_cols1[i]
@@ -889,6 +1545,11 @@ data_xl <- data.frame(data_xl[,1:(i-1)], Yr_1980 = NA, EQS_1980 = NA, data_xl[,i
 cat("\nNumber of columns:", ncol(data_xl), "\n") # 102
 ```
 
+```
+## 
+## Number of columns: 102
+```
+
 ### N string etc. for second last year    
 5 columns:   
 * Ant.prøver.2018 (N string)  
@@ -898,7 +1559,8 @@ cat("\nNumber of columns:", ncol(data_xl), "\n") # 102
 * EQSthreshold_2018  
 
 #### N string (sample size string) and SD     
-```{r}
+
+```r
 # data_xl_b <- data_xl  # backup
 # data_xl <- data_xl_b  # restore
 
@@ -914,7 +1576,14 @@ data_xl <- safe_left_join(
 names(data_xl)[ncol(data_xl)] <- paste0("Ant.prøver.", last_year - 1)
 
 cat("\nNumber of columns:", ncol(data_xl), "\n") # 103
+```
 
+```
+## 
+## Number of columns: 103
+```
+
+```r
 data_xl <- safe_left_join(
   data_xl, 
   dat_sd %>% 
@@ -928,12 +1597,16 @@ data_xl <- safe_left_join(
 names(data_xl)[ncol(data_xl)] <- paste0("SD_", last_year - 1)
 
 cat("\nNumber of columns:", ncol(data_xl), "\n") # 104
+```
 
+```
+## 
+## Number of columns: 104
 ```
 
 #### Add Klasse (proref class) previous year  
-```{r}
 
+```r
 colnumber_value <- which(colnames(data_xl) == paste0("Yr_", last_year-1))  # Find column number for that year's median
 value_prevyear <- data_xl[,colnumber_value]
 
@@ -948,9 +1621,26 @@ value_prevyear[sel] <- value_prevyear[sel] - 0.00001
 check_classes <- cut(value_prevyear/data_lessthans$Q95, breaks = c(-999999,1,2,5,10,20,999999), right = FALSE)
 
 cat("Classes for Value / Proref : \n")
-levels(check_classes)
-cat("\n")
+```
 
+```
+## Classes for Value / Proref :
+```
+
+```r
+levels(check_classes)
+```
+
+```
+## [1] "[-1e+06,1)" "[1,2)"      "[2,5)"      "[5,10)"     "[10,20)"   
+## [6] "[20,1e+06)"
+```
+
+```r
+cat("\n")
+```
+
+```r
 class_prevyear <- cut(value_prevyear/data_xl$Q95, breaks = c(-999999,1,2,5,10,20,999999), right = FALSE, labels = FALSE)
 # str(class_prevyear)
 # summary(class_prevyear)
@@ -966,14 +1656,26 @@ data_xl$Klasse.prevyear <- class_prevyear
 colnames(data_xl)[ncol(data_xl)] <- paste0("Klasse.", last_year - 1)
 
 cat("\nNumber of rows:", nrow(data_xl), "\n\n") # 24346
-cat("\nNumber of columns:", ncol(data_xl), "\n") # 105
+```
 
+```
+## 
+## Number of rows: 24346
+```
+
+```r
+cat("\nNumber of columns:", ncol(data_xl), "\n") # 105
+```
+
+```
+## 
+## Number of columns: 105
 ```
 
 
 #### Add EQSclass and EQS for last year   
-```{r}
 
+```r
 cols <- c("PARAM", "LATIN_NAME", "TISSUE_NAME", "STATION_CODE", "Basis",
           paste0("EQSclass_", last_year - 1), 
           "EQS")
@@ -992,19 +1694,29 @@ data_xl <- safe_left_join(
   )
 
 cat("\nNumber of columns:", ncol(data_xl), "\n") # 107
+```
 
+```
+## 
+## Number of columns: 107
+```
+
+```r
 # Change column name
 colnumber <- which(colnames(data_xl) == "EQS")
 colnames(data_xl)[colnumber] <- paste0("EQSthreshold_", last_year - 1)
 cat("Changed name for column number", colnumber, " \n")
+```
 
+```
+## Changed name for column number 107
 ```
 
 
 ### N string and SD for last year    
 
-```{r}
 
+```r
 data_xl <- safe_left_join(
   data_xl, 
   dat_nstring %>% 
@@ -1018,8 +1730,21 @@ data_xl <- safe_left_join(
 names(data_xl)[ncol(data_xl)] <- "N_string"
 
 cat(sum(!is.na(data_xl$N_string)), "values of 'N_string' added to data \n")
-cat("Number of columns:", ncol(data_xl), "\n") # 108
+```
 
+```
+## 10843 values of 'N_string' added to data
+```
+
+```r
+cat("Number of columns:", ncol(data_xl), "\n") # 108
+```
+
+```
+## Number of columns: 108
+```
+
+```r
 data_xl <- safe_left_join(
   data_xl, 
   dat_sd %>% 
@@ -1034,9 +1759,22 @@ data_xl <- safe_left_join(
 names(data_xl)[ncol(data_xl)] <- "SD_last"
 
 cat("\n")
-cat(sum(!is.na(data_xl$SD_last)), "values of 'SD_last' added to data \n")
-cat("Number of columns:", ncol(data_xl), "\n") # 109
+```
 
+```r
+cat(sum(!is.na(data_xl$SD_last)), "values of 'SD_last' added to data \n")
+```
+
+```
+## 10375 values of 'SD_last' added to data
+```
+
+```r
+cat("Number of columns:", ncol(data_xl), "\n") # 109
+```
+
+```
+## Number of columns: 109
 ```
 
 
@@ -1044,8 +1782,8 @@ cat("Number of columns:", ncol(data_xl), "\n") # 109
 ### Add Class for last year   
 Class for second last year added below (section 27b)
 
-```{r}
 
+```r
 colnumber_value <- which(colnames(data_xl) == paste0("Yr_", last_year))  # Find column number for last year's median
 value_lastyear <- data_xl[,colnumber_value]
 
@@ -1060,9 +1798,26 @@ value_lastyear[sel] <- value_lastyear[sel] - 0.00001
 check_classes <- cut(value_lastyear/data_lessthans$Q95, breaks = c(-999999,1,2,5,10,20,999999), right = FALSE)
 
 cat("Classes for Value / Proref : \n")
-levels(check_classes)
-cat("\n")
+```
 
+```
+## Classes for Value / Proref :
+```
+
+```r
+levels(check_classes)
+```
+
+```
+## [1] "[-1e+06,1)" "[1,2)"      "[2,5)"      "[5,10)"     "[10,20)"   
+## [6] "[20,1e+06)"
+```
+
+```r
+cat("\n")
+```
+
+```r
 class_lastyear <- cut(value_lastyear/data_xl$Q95, breaks = c(-999999,1,2,5,10,20,999999), right = FALSE, labels = FALSE)
 # str(class_lastyear)
 # summary(class_lastyear)
@@ -1079,25 +1834,42 @@ colnames(data_xl)[ncol(data_xl)] <- paste0("Klasse.", last_year)
 
 
 cat("\nNumber of columns:", nrow(data_xl), "\n\n") # 110
-cat("\nNumber of columns:", ncol(data_xl), "\n") # 110
+```
 
+```
+## 
+## Number of columns: 24346
+```
+
+```r
+cat("\nNumber of columns:", ncol(data_xl), "\n") # 110
+```
+
+```
+## 
+## Number of columns: 110
 ```
 
 ### EQS class - put variable without data   
 
-```{r}
 
+```r
 # Now just give it a NA, then we set it after we have inserted the column for the EQS limit
 # Then we will change the name, also 
 data_xl$EQSclass_lastyear <- NA
 
 cat("\nNumber of columns:", ncol(data_xl), "\n") # 111
+```
 
+```
+## 
+## Number of columns: 111
 ```
 
 ### Add EQS limit (WW and WWa only)   
 
-```{r}
+
+```r
 # Variable 'EQS'
 # head(EQS_limits, 2)
 
@@ -1121,18 +1893,29 @@ data_xl <- safe_left_join(
 
 # colnames(data_xl)
 cat("\nNumber of columns:", ncol(data_xl), "\n") # 112
+```
 
+```
+## 
+## Number of columns: 112
 ```
 
 ### Set values of EQS class
 
-```{r}
 
+```r
 value_lastyear <- data_xl[[paste0("Yr_", last_year)]]
 lessthan_lastyear <- data_lessthans[[paste0("Lt_", last_year)]]
 
 # Less-thans are set a tad lower, to be put in the lower class
 sel <- !is.na(lessthan_lastyear) & lessthan_lastyear; sum(sel)
+```
+
+```
+## [1] 4362
+```
+
+```r
 value_lastyear[sel] <- value_lastyear[sel] - 0.00001
 
 # Fill variable with values
@@ -1143,28 +1926,49 @@ colnumber <- which(colnames(data_xl) %in% "EQSclass_lastyear")
 colnames(data_xl)[colnumber] <- paste0("EQSclass_", last_year)
 
 cat("\nNumber of columns:", ncol(data_xl), "\n") # still 112
+```
 
-
+```
+## 
+## Number of columns: 112
 ```
 
 ### Add OC  
 No data  
-```{r}
 
+```r
 data_xl$OC <- NA
 cat("\nNumber of columns:", ncol(data_xl), "\n") # 113
+```
 
+```
+## 
+## Number of columns: 113
 ```
 
 ### Trends for last year - preparations
-```{r}
 
+```r
 # Key columns:
 cols <- c("PARAM", "LATIN_NAME", "TISSUE_NAME", "STATION_CODE", "Basis")
 # debugonce(set_symbol)
 
 # Make data frames with trend symbols 
 trend_long_for_excel <- make_trend_data_for_excel2(result_long_last, data_xl[,cols])
+```
+
+```
+## 
+## Attaching package: 'gtools'
+```
+
+```
+## The following object is masked from 'package:mgcv':
+## 
+##     scat
+```
+
+```r
 trend_10yr_for_excel <- make_trend_data_for_excel2(result_10yr_last, data_xl[,cols])
 
 # head(trend_long_for_excel, 2)
@@ -1173,10 +1977,33 @@ trend_10yr_for_excel <- make_trend_data_for_excel2(result_10yr_last, data_xl[,co
 trends_for_excel <- combine_long_and_short_trends_for_excel2(trend_long_for_excel, trend_10yr_for_excel)
 
 cat("'trends_for_excel', number of lines:", nrow(trends_for_excel), "\n\n")  # 29582
+```
 
+```
+## 'trends_for_excel', number of lines: 24346
+```
+
+```r
 cat("'trends_for_excel', values: \n")  # 29582
-table(trends_for_excel$Trend.year)
+```
 
+```
+## 'trends_for_excel', values:
+```
+
+```r
+table(trends_for_excel$Trend.year)
+```
+
+```
+## 
+##   «/«   «/§   «/¢   §/§   §/¢   §/ê   ¢/«   ¢/§   ¢/¢   ¢/é   ¢/ê   ê/«   ê/§ 
+##  1430    34     1 16766    16     4    97     6  3566   108   136   106    33 
+##   é/¢   ê/¢   é/é   é/ê   ê/é   ê/ê 
+##    84  1055   158     2    25   719
+```
+
+```r
 # Change column name
 colnumber <- which(colnames(trends_for_excel) %in% "Trend.year")
 colnames(trends_for_excel)[colnumber] <- paste0("Trends.", last_year)
@@ -1185,9 +2012,25 @@ colnames(trends_for_excel)[colnumber] <- paste0("Trends.", last_year)
 check <- data_xl %>%
   group_by(STATION_CODE, LATIN_NAME, TISSUE_NAME, PARAM, Basis) %>%
   summarise(N = n())
-cat("\n")
-cat("Number of duplicates in data_xl (should be zero):", sum(check$N > 1), "\n")   
+```
 
+```
+## `summarise()` regrouping output by 'STATION_CODE', 'LATIN_NAME', 'TISSUE_NAME', 'PARAM' (override with `.groups` argument)
+```
+
+```r
+cat("\n")
+```
+
+```r
+cat("Number of duplicates in data_xl (should be zero):", sum(check$N > 1), "\n")   
+```
+
+```
+## Number of duplicates in data_xl (should be zero): 0
+```
+
+```r
 # If there are duplicates, check data:
 if ( sum(check$N > 1)){
   check %>% filter(N > 1) %>% head(10)
@@ -1202,8 +2045,21 @@ if ( sum(check$N > 1)){
 check <- trends_for_excel %>%
   group_by(STATION_CODE, LATIN_NAME, TISSUE_NAME, PARAM, Basis) %>%
   summarise(N = n())
-cat("Number of duplicates in 'trends_for_excel' (should be zero):", sum(check$N > 1), "\n")   
+```
 
+```
+## `summarise()` regrouping output by 'STATION_CODE', 'LATIN_NAME', 'TISSUE_NAME', 'PARAM' (override with `.groups` argument)
+```
+
+```r
+cat("Number of duplicates in 'trends_for_excel' (should be zero):", sum(check$N > 1), "\n")   
+```
+
+```
+## Number of duplicates in 'trends_for_excel' (should be zero): 0
+```
+
+```r
 # If there are duplicates, check data:
 if ( sum(check$N > 1)){
   table(check$N)
@@ -1214,12 +2070,11 @@ if ( sum(check$N > 1)){
            TISSUE_NAME %in% df1$TISSUE_NAME, PARAM %in% df1$PARAM, Basis %in% df1$Basis)
   check2
 }
-
 ```
 
 ### Trends for last year - add columns to data
-```{r}
 
+```r
 data_xl_b <- data_xl  # backup data
 # data_xl <- data_xl_b  # restore from backup, if needed
 
@@ -1231,13 +2086,20 @@ data_xl <- safe_left_join(
   check = "BCV")
 
 cat("\nNumber of columns:", ncol(data_xl), "\n") # 124
-# colnames(data_xl) 
+```
 
+```
+## 
+## Number of columns: 124
+```
+
+```r
+# colnames(data_xl) 
 ```
 
 ### Trends from second last year - preparations  
-```{r}
 
+```r
 # Key columns:
 cols <- c("PARAM", "LATIN_NAME", "TISSUE_NAME", "STATION_CODE", "Basis")
 # debugonce(set_symbol)
@@ -1253,10 +2115,33 @@ trends_for_excel_seclast <- combine_long_and_short_trends_for_excel2(trend_long_
                                                                      trend_10yr_for_excel_seclast)
 
 cat("'trends_for_excel_seclast', number of lines:", nrow(trends_for_excel), "\n\n")  # 29582
+```
 
+```
+## 'trends_for_excel_seclast', number of lines: 24346
+```
+
+```r
 cat("'trends_for_excel_seclast', values: \n")  # 29582
-table(trends_for_excel_seclast$Trend.year)
+```
 
+```
+## 'trends_for_excel_seclast', values:
+```
+
+```r
+table(trends_for_excel_seclast$Trend.year)
+```
+
+```
+## 
+##   «/«   «/§   §/§   §/¢   §/é   §/ê   ¢/«   ¢/§   ¢/¢   ¢/é   ¢/ê   ê/«   é/§ 
+##  1481    16 17071    16     1     3   160    13  3888   142   264    62     2 
+##   ê/§   é/¢   ê/¢   é/é   é/ê   ê/é   ê/ê 
+##     2    79   496   192     1     9   448
+```
+
+```r
 # Existing names
 var2 <- c("Trend p(long)", "Detectable % change(long)", "First Year(long)", "Last Year(long)",
           "No of Years(long)", "Trend p(short)", "Detectable % change(short)", "First Year(short)", "Last Year(short)",
@@ -1282,8 +2167,21 @@ colnames(trends_for_excel_seclast)[colnumber] <- paste0("Trends.", last_year-1)
 check <- trends_for_excel_seclast %>%
   group_by(STATION_CODE, LATIN_NAME, TISSUE_NAME, PARAM, Basis) %>%
   summarise(N = n())
-cat("Number of duplicates in 'trends_for_excel_seclast' (should be zero):", sum(check$N > 1), "\n")   
+```
 
+```
+## `summarise()` regrouping output by 'STATION_CODE', 'LATIN_NAME', 'TISSUE_NAME', 'PARAM' (override with `.groups` argument)
+```
+
+```r
+cat("Number of duplicates in 'trends_for_excel_seclast' (should be zero):", sum(check$N > 1), "\n")   
+```
+
+```
+## Number of duplicates in 'trends_for_excel_seclast' (should be zero): 0
+```
+
+```r
 # If there are duplicates, check data:
 if ( sum(check$N > 1)){
   table(check$N)
@@ -1294,14 +2192,14 @@ if ( sum(check$N > 1)){
            TISSUE_NAME %in% df1$TISSUE_NAME, PARAM %in% df1$PARAM, Basis %in% df1$Basis)
   check2
 }
-
 ```
 
 
 
 ### Trends from second last year - add columns to data
 
-```{r}
+
+```r
 data_xl_b <- data_xl    # backup
 # data_xl <- data_xl_b  # revert to backup
 
@@ -1313,12 +2211,17 @@ data_xl <- safe_left_join(
   check = "BCV")
 
 cat("\nNumber of columns:", ncol(data_xl), "\n") # 135
+```
 
+```
+## 
+## Number of columns: 135
 ```
 
 ### Add "Last_two_years" +  "DETLIM_..." for second last year  
 
-```{r}
+
+```r
 #
 # Last_two_years
 #
@@ -1348,13 +2251,17 @@ data_xl <- safe_left_join(
   check = "BCV")
 
 cat("\nNumber of columns:", ncol(data_xl), "\n") # 137
+```
 
+```
+## 
+## Number of columns: 137
 ```
 
 ### Add "DETLIM_..." for last year  
 
-```{r}
 
+```r
 cols <- c("PARAM", "LATIN_NAME", "TISSUE_NAME", "STATION_CODE", "Basis", "Det_limit")
 
 # dput(colnames(results_seclast_year))
@@ -1388,14 +2295,17 @@ sel <- length(names(data_xl))
 names(data_xl)[sel] <- paste0("Det_limit_", last_year)
 
 cat("\nNumber of columns:", ncol(data_xl), "\n") # 138
+```
 
-
+```
+## 
+## Number of columns: 138
 ```
 
 ### Add trend and EQS change  
 4 columns: TREND_CHANGE	CLASS_CHANGE	EQS_CHANGE	EAC_CHANGE  
-```{r}
 
+```r
 # TREND_CHANGE
 col_last <- paste0("Trends.", last_year)
 col_seclast <- paste0("Trends.", last_year - 1)
@@ -1404,7 +2314,13 @@ data_xl$TREND_CHANGE <- NA
 data_xl$TREND_CHANGE[sel] <- paste(data_xl[sel,col_seclast], "to", data_xl[sel,col_last])
 
 cat("Number of changes in trend:", sum(sel), "\n")
+```
 
+```
+## Number of changes in trend: 2256
+```
+
+```r
 # CLASS_CHANGE
 col_last <- paste0("Klasse.", last_year)
 col_seclast <- paste0("Klasse.", last_year - 1)
@@ -1413,7 +2329,13 @@ data_xl$CLASS_CHANGE <- NA
 data_xl$CLASS_CHANGE[sel] <- paste(data_xl[sel,col_seclast], "to", data_xl[sel,col_last])
 
 cat("Number of changes in class:", sum(sel), "\n")
+```
 
+```
+## Number of changes in class: 1318
+```
+
+```r
 # Check
 # table(data_xl$CLASS_CHANGE)
 
@@ -1433,11 +2355,33 @@ data_xl$EQS_CHANGE <- NA
 sel <- !is.na(EQSclass_seclast) & !is.na(EQSclass_last) & 
         EQSclass_seclast != EQSclass_last  # pick all that are different
 sum(sel)
+```
+
+```
+## [1] 21
+```
+
+```r
 data_xl$EQS_CHANGE[sel] <- paste(EQSclass_seclast[sel], "to", EQSclass_last[sel])
 
 cat("Changes in EQS class: \n")
-table(data_xl$EQS_CHANGE)
+```
 
+```
+## Changes in EQS class:
+```
+
+```r
+table(data_xl$EQS_CHANGE)
+```
+
+```
+## 
+## 1 to 2 2 to 1 
+##     13      8
+```
+
+```r
 # 1 to 2 2 to 1 
 #      4     11
 
@@ -1445,13 +2389,17 @@ table(data_xl$EQS_CHANGE)
 data_xl$EAC_CHANGE <- NA
 
 cat("\nNumber of columns:", ncol(data_xl), "\n") # 142
+```
 
+```
+## 
+## Number of columns: 142
 ```
 
 
 ### D.d.i.- add to data
-```{r}
 
+```r
 cols <- c("PARAM", "LATIN_NAME", "TISSUE_NAME", "STATION_CODE", "Basis", "DDI")
 
 data_xl_b <- data_xl    # backup
@@ -1465,12 +2413,16 @@ data_xl <- safe_left_join(
   check = "BCV")
 
 cat("\nNumber of columns:", ncol(data_xl), "\n") # 143
+```
 
+```
+## 
+## Number of columns: 143
 ```
 
 #### Check D.d.i.  
-```{r}
 
+```r
 if (FALSE){
   
   # colnames(data_xl)[seq(91,101,2)] %>% dput()
@@ -1487,15 +2439,14 @@ if (FALSE){
     filter(is.na(DDI))
   
 }
-
 ```
 
 
 ### Add trends as given 2016   
 *Not* second last year - fixed to 2016     
 - Using the old OSPAR rules for less-thans   
-```{r}
 
+```r
 var1 <- c("PARAM", "LATIN_NAME", "TISSUE_NAME", "STATION_CODE", "Basis")
 
 # Just for checking....
@@ -1520,25 +2471,34 @@ data_xl <- safe_left_join(
   check = "BCV")
 
 cat("\nNumber of columns:", ncol(data_xl), "\n") # 144
+```
 
+```
+## 
+## Number of columns: 144
 ```
 
 ### Add D.d.i. code  
 This is an index number, but we can't add it yet since we need to keep the original row order for making 'data_xl_lessthans', and then rows will be reordered   
-```{r}
 
+```r
 data_xl <- data_xl %>%
   mutate(`D.d.i. code` = as.numeric(NA))
 
 cat("\nNumber of columns:", ncol(data_xl), "\n") # 144
+```
 
+```
+## 
+## Number of columns: 145
+```
 
+```r
 if (FALSE){
   head(data_xl$`D.d.i. code`)
   tail(data_xl$`D.d.i. code`)
   names(data_xl )
 }
-
 ```
 
 
@@ -1546,7 +2506,8 @@ if (FALSE){
 
 
 ### Check number of rows  
-```{r}
+
+```r
 # Using 'data_lessthans' created further up (1b)
 
 # Check again
@@ -1561,8 +2522,14 @@ if (!n_equal){
 }
 ```
 
+```
+## 
+## Number of rows equal
+```
+
 ### Sort them equally
-```{r}
+
+```r
 # Sort them equally
 data_xl <- data_xl %>%
   arrange(PARAM, STATION_CODE, LATIN_NAME, TISSUE_NAME, Basis)
@@ -1586,11 +2553,16 @@ if (!all_match){
 } else {
   cat("\nAll key variables matches\n")
 }
+```
 
+```
+## 
+## All key variables matches
 ```
 
 ###  Intersperse empty columns  
-```{r}
+
+```r
 # Intersperse empty columns 
 # colnames(data_lessthans)
 extra_cols <- matrix(NA, nrow(data_lessthans), sum(isnum)) %>% as.data.frame()
@@ -1601,8 +2573,8 @@ data_lessthans2 <- cbind(data_lessthans, extra_cols)
 ```
 
 ### Create data_xl_lessthans
-```{r}
 
+```r
 # Construct column names
 # The ones with an "x" is just empty columns, they are tehre because there is an EQS column between each 
 #   vakue column
@@ -1620,15 +2592,18 @@ if (n_equal & all_match){
 } else {
   cat("\nndata_xl_lessthans NOT created!\n")
 }
+```
 
-
+```
+## 
+## data_xl_lessthans created by adding less-than columns
 ```
 
 ### Reorder rows in the data a bit   
 We do this in order to get some much-used parameters in the top of the file,
  so Excel more easily put the right data type
-```{r}
 
+```r
 data_xl_lessthans$Substance.Group <- factor(data_xl_lessthans$Substance.Group) %>%
   forcats::fct_relevel("Support parameters",
                        "Metals and metalloids", "Chlorobiphenyls",
@@ -1636,15 +2611,14 @@ data_xl_lessthans$Substance.Group <- factor(data_xl_lessthans$Substance.Group) %
 
 data_xl_lessthans <- data_xl_lessthans %>%
   arrange(Substance.Group, PARAM, STATION_CODE)
-
 ```
 
 ### Add values in D.d.i. code  
 Still just an index number    
 Making 'data_xl_lessthans' involves putting togethe
 We have to do this before we have made 'data_xl_lessthans'  
-```{r}
 
+```r
 data_xl_lessthans <- data_xl_lessthans %>%
   mutate(`D.d.i. code` = 1:nrow(data_xl_lessthans))
 
@@ -1652,15 +2626,24 @@ if (FALSE){
   head(data_xl$`D.d.i. code`)
   tail(data_xl$`D.d.i. code`)
 }
-
 ```
 
 ### Change tissue names to English  
 To be on the safe side, added as TISSUE_NAME_new, which later is copied to TISSUE_NAME and then deleted
-```{r}
 
+```r
 xtabs(~addNA(TISSUE_NAME), data_xl_lessthans)
+```
 
+```
+## addNA(TISSUE_NAME)
+##            Blod             Egg           Galle           Lever          Muskel 
+##             245             232              55            8068            1278 
+## Whole soft body            <NA> 
+##           14468               0
+```
+
+```r
 data_xl_lessthans <- data_xl_lessthans %>%
   mutate(TISSUE_NAME_new = 
            case_when(TISSUE_NAME %in% "Blod" ~ "Blood",
@@ -1673,7 +2656,17 @@ data_xl_lessthans <- data_xl_lessthans %>%
   )
 
 xtabs(~addNA(TISSUE_NAME_new), data_xl_lessthans)
+```
 
+```
+## addNA(TISSUE_NAME_new)
+##            Bile           Blood             Egg           Liver          Muscle 
+##              55             245             232            8068            1278 
+## Whole soft body            <NA> 
+##           14468               0
+```
+
+```r
 # Replace the original TISSUE_NAME
 data_xl_lessthans$TISSUE_NAME <- data_xl_lessthans$TISSUE_NAME_new
 
@@ -1682,16 +2675,34 @@ data_xl_lessthans$TISSUE_NAME_new <- NULL
 
 
 cat("\nNumber of columns:", ncol(data_xl_lessthans), "\n") # 222
+```
 
+```
+## 
+## Number of columns: 223
 ```
 
 ### Add Class for second last year (2017)  
-```{r}
 
+```r
 colnumber_value <- which(colnames(data_xl) == paste0("Yr_", last_year-1)); colnumber_value
+```
+
+```
+## [1] 99
+```
+
+```r
 value_secondlast <- data_xl[,colnumber_value]
 
 colnumber_lessthan <- which(colnames(data_lessthans) == paste0("Lt_", last_year-1)); colnumber_lessthan
+```
+
+```
+## [1] 44
+```
+
+```r
 lessthan_lastyear <- data_xl[,colnumber_value]
 
 # Less-thans are set a tad lower, to be put in the lower class
@@ -1701,7 +2712,14 @@ value_secondlast[sel] <- value_secondlast[sel] - 0.00001
 # Just to check that we get the correct classes, i.e., if the conc. is on the limit, we get the upper class (using right = FALSE)
 check_classes <- cut(value_secondlast/data_lessthans$Q95, breaks = c(-999999,1,2,5,10,20,999999), right = FALSE)
 levels(check_classes)
+```
 
+```
+## [1] "[-1e+06,1)" "[1,2)"      "[2,5)"      "[5,10)"     "[10,20)"   
+## [6] "[20,1e+06)"
+```
+
+```r
 class_secondlast <- cut(value_secondlast/data_xl$Q95, breaks = c(-999999,1,2,5,10,20,999999), right = FALSE, labels = FALSE)
 # str(class_secondlast)
 # summary(class_secondlast)
@@ -1717,26 +2735,48 @@ data_xl_lessthans$Klasse.secondlast <- class_secondlast
 colnames(data_xl_lessthans)[ncol(data_xl_lessthans)] <- paste0("Klasse.", last_year-1, " NY")
 
 nrow(data_xl_lessthans)  # 19304
+```
 
+```
+## [1] 24346
+```
+
+```r
 cat("\nNumber of columns:", ncol(data_xl_lessthans), "\n") # 219
+```
 
-
+```
+## 
+## Number of columns: 224
 ```
 
 ### Change a couple of sum PARAM names   
-```{r}
 
+```r
 sel <- data_xl_lessthans$PARAM %in% "KPAH"; sum(sel)
+```
+
+```
+## [1] 81
+```
+
+```r
 data_xl_lessthans$PARAM[sel] <- "PK_S"
 
 sel <- data_xl_lessthans$PARAM %in% "PAH16"; sum(sel)
-data_xl_lessthans$PARAM[sel] <- "PAHSS"
+```
 
+```
+## [1] 81
+```
+
+```r
+data_xl_lessthans$PARAM[sel] <- "PAHSS"
 ```
 
 ### Add coordinates  
-```{r}
 
+```r
 data_xl_lessthans <- data_xl_lessthans %>%
   safe_left_join(data_coordinates %>% select(STATION_CODE, Long, Lat),
                  by = "STATION_CODE",
@@ -1748,8 +2788,8 @@ data_xl_lessthans <- data_xl_lessthans %>%
 
 
 ### Change column names  
-```{r}
 
+```r
 data_xl_lessthans_oldnames <- data_xl_lessthans
 # data_xl_lessthans <- data_xl_lessthans_oldnames 
 
@@ -1812,21 +2852,117 @@ if (FALSE){
 # Write out
 x <- names(data_xl_lessthans)
 cat("Names of first columns: \n")
+```
+
+```
+## Names of first columns:
+```
+
+```r
 new_names[1:22]
+```
+
+```
+##  [1] "Parameter Code"           "Parameter Name (short)"  
+##  [3] "IUPAC"                    "CAS"                     
+##  [5] "Parameter Name (long)"    "Parameter Group"         
+##  [7] "Unit"                     "Station Code"            
+##  [9] "Station Name"             "Area"                    
+## [11] "County"                   "Water Region"            
+## [13] "Water Body ID"            "Water Body name"         
+## [15] "Species"                  "Tissue"                  
+## [17] "Basis"                    "Reference stations"      
+## [19] "Reference station count"  "Reference value count"   
+## [21] "Reference station median" "PROREF"
+```
+
+```r
 cat("\n")
+```
+
+```r
 cat("Names of columns of median values: \n")
+```
+
+```
+## Names of columns of median values:
+```
+
+```r
 cat("  ", x[23], "etc. +", x[24], "etc. \n")
+```
+
+```
+##    V80 etc. + Q80 etc.
+```
+
+```r
 cat("\n")
+```
+
+```r
 cat("Names of last columns: \n")
+```
+
+```
+## Names of last columns:
+```
+
+```r
 #  names(data_xl_lessthans)
 i1 <- max(which(grepl("^Q[0-9][0-9]$", x))) + 1
 i2 <- min(which(grepl("Lt_", x))) - 1
 x[i1:i2]
+```
 
+```
+##  [1] "N_string_last year"                  
+##  [2] "SD last year"                        
+##  [3] "PROREF-class last year"              
+##  [4] "EQS-class last year"                 
+##  [5] "EQS-threshold last year"             
+##  [6] "N_string this year"                  
+##  [7] "SD this year"                        
+##  [8] "PROREF-class this year"              
+##  [9] "EQS-class this year"                 
+## [10] "EQS-threshold this year"             
+## [11] "Dummy-1"                             
+## [12] "Trend p(long) this year"             
+## [13] "Detectable % change(long) this year" 
+## [14] "First Year(long) this year"          
+## [15] "Last Year(long) this year"           
+## [16] "No. of Years(long) this year"        
+## [17] "Trend p(short) this year"            
+## [18] "Detectable % change(short) this year"
+## [19] "First Year(short) this year"         
+## [20] "Last Year(short) this year"          
+## [21] "No. of Years(short) this year"       
+## [22] "Trends this year"                    
+## [23] "Trend. p(long) last year"            
+## [24] "Detectable % change(long) last year" 
+## [25] "First. Year(long) last year"         
+## [26] "Last. Year(long) last year"          
+## [27] "No. of Years(long) last year"        
+## [28] "Trend. p(short) last year"           
+## [29] "Detectable % change(short) last year"
+## [30] "First. Year(short) last year"        
+## [31] "Last. Year(short) last year"         
+## [32] "No. of Years(short) last year"       
+## [33] "Trends last year"                    
+## [34] "Last two years"                      
+## [35] "LOQ last year"                       
+## [36] "LOQ this year"                       
+## [37] "TREND_CHANGE last year-this year"    
+## [38] "PROREF_CHANGE last year-this year"   
+## [39] "EQS_CHANGE last year-this year"      
+## [40] "EAC_CHANGE last year-this year"      
+## [41] "D.d.i. code"                         
+## [42] "N>LOQ[min-maks]"
 ```
 
 ### For checking
-```{r}
+
+```r
 if (FALSE){
   
   data_xl_lessthans[c("Parameter Code", "Parameter Group", "V81", "V19")] %>% View()
@@ -1850,13 +2986,11 @@ if (FALSE){
     
 
 }
-
-
 ```
 
 ## 7. Save 'data_xl_lessthans' as text and RDS file  
-```{r, results = 'hold'}
 
+```r
 #
 # Existing file names (dates and versions)
 #
@@ -1911,11 +3045,33 @@ data_xlvalues1 %>%
   writexl::write_xlsx(paste0("Data/", fn_stations))
 cat("\n")
 cat("Excel file", sQuote(fn_stations), "(one line per station) written to folder 'Data'\n")
+```
 
 ```
+## # A tibble: 13 x 3
+##    Filename                     Date       Version
+##    <chr>                        <chr>        <dbl>
+##  1 Data_xl_2020-08-05_ver09.csv 2020-08-05       9
+##  2 Data_xl_2020-08-05_ver08.csv 2020-08-05       8
+##  3 Data_xl_2020-08-05_ver07.csv 2020-08-05       7
+##  4 Data_xl_2020-08-05_ver06.csv 2020-08-05       6
+##  5 Data_xl_2020-08-05_ver05.csv 2020-08-05       5
+##  6 Data_xl_2020-08-05_ver04.csv 2020-08-05       4
+##  7 Data_xl_2020-08-05_ver03.csv 2020-08-05       3
+##  8 Data_xl_2020-08-05_ver02.csv 2020-08-05       2
+##  9 Data_xl_2020-08-05_ver01.csv 2020-08-05       1
+## 10 Data_xl_2020-07-03.csv       2020-07-03      NA
+## 11 Data_xl_2020-06-12.csv       2020-06-12      NA
+## 12 Data_xl_2020-05-29.csv       2020-05-29      NA
+## 13 Data_xl_2020-04-30.csv       2020-04-30      NA
+## Text file 'Data_xl_2020-08-05_ver10.csv' written to folder 'Big_Excel_table'
+## R data file 'Data_xl_2020-08-05_ver10.rds' written to folder 'Big_Excel_table'
+## 
+## Excel file '201_Stations_2019.xlsx' (one line per station) written to folder 'Data'
+```
 ### For checking (old) files  
-```{r}
 
+```r
 #
 # NOTE: don't run all of the stuff inside the brackets
 # These are code snippets, so you are meant to pick and choose
@@ -1936,18 +3092,17 @@ if (FALSE){
   file_versions
   
   # Get most recet file (based on date and version in file name)
-  fn <- paste0("Big_excel_table/", file_versions$Filename[1])
+  fn <- paste0("Big_excel_table/", file_versions$Filename[3])
   fn
 
+  # Check header
+  readLines(fn, n = 1)
   
   # read R data (fast)
   check <- readRDS(file = sub(".csv", ".rds", fn, fixed = TRUE))
 
   # OR read csv (slow)
   check <- read.csv2(file = fn)
-
-  # Check header of csv:
-  # readLines(fn, n = 1)
 
   # All column names
   names(check)
@@ -1957,13 +3112,6 @@ if (FALSE){
     filter(PARAM == "TBT" & Basis == "WW") %>%
     select(PARAM, Substance.Group, LATIN_NAME, TISSUE_NAME, STATION_CODE, Basis, 
          Yr_2018, Yr_2019, N_string, SD_last, EQS) %>%
-    View()
-
-  # Check data for all TBT
-  check %>%
-    filter(PARAM == "HG" & Basis == "WW" & STATION_CODE == "30B") %>%
-    select(PARAM, Substance.Group, LATIN_NAME, TISSUE_NAME, STATION_CODE, Basis, 
-         Yr_2018, Yr_2019, N_string, SD_last, EQS, Trends.2019) %>%
     View()
 
   # Check all data for one snail station
