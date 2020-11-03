@@ -27,6 +27,7 @@ homogenize_series <- function(data){
               STATION_CODE %in% "71G" & PARAM %in% c("VDSI","Intersex"))
   # xtabs(~MYEAR + PARAM, data[sel,])
   data$PARAM[sel] <- "VDSI/Intersex"
+  data$LATIN_NAME[sel] <- "N. lapillus / L. littorea"
   cat("- changed PARAM for", sum(sel), "rows of data \n\n") 
   
   data
