@@ -96,3 +96,63 @@ if (FALSE){
   X$file_date                # "2020-05-29"
   
 }
+
+#
+# Change trend symbols used in Excel into actual trend symbols that can be read in R
+#   (arrows etc.) 
+#
+
+symbol_from_text <- function(txt){
+  # Note tha not all encodings found in unicode-search.net works. 
+  # For instance, "\u1F805" should be "upwards arrow with medium triangle arrowhead", but isn't
+  result <- gsub("é", "\u2191", txt)     # arrow up
+  result <- gsub("ê", "\u2193", result)  # arrow down
+  result <- gsub("¢", "\u25CB", result)  # circle
+  result <- gsub("§", "\u2605", result)  # star
+  gsub("«", "\u25A2", result)            # square
+}
+
+if (FALSE){
+  # Reproducible example
+  readRDS("Big_excel_table/Data_xl_2020-08-05_ver15.rds") %>%
+    filter(PARAM == "HG" & TISSUE_NAME == "Muscle" & Basis == "WW") %>%
+    .[c("PARAM", "LATIN_NAME", "TISSUE_NAME", "STATION_CODE", "Basis", "Trends.2019")] %>%
+    mutate(Trends.2019 = symbol_from_text(Trends.2019)) %>%
+    View()
+}
+
+
+#
+# "Round" p-values (returns text)
+#
+round_p <- function(x, stars = FALSE){
+  text <- case_when(
+    x >= 0.2 ~ sprintf("%.1f", x),
+    x >= 0.06 ~ sprintf("%.2f", x),
+    x >= 0.001 ~ sprintf("%.3f", x),
+    x >= 0.0001 ~ sprintf("%.4f", x),
+    x < 0.0001 ~ "<0.0001"
+  )
+  if (stars){
+    text <- case_when(
+      text <= 0.001 ~ paste(text, "***"),
+      text <= 0.01 ~ paste(text, "**"),
+      text <= 0.05 ~ paste(text, "*"),
+      text <= 0.1 ~ paste(text, "(*)"),
+      text > 0.1 ~ text
+    ) 
+  }
+  text
+}
+
+# TEST
+if (FALSE){
+  round_p(0.121232)
+  round_p(0.0121232)
+  round_p(0.00121232)
+  round_p(0.000121232)
+  round_p(0.121232, stars = TRUE)
+  round_p(0.0121232, stars = TRUE)
+  round_p(0.00121232, stars = TRUE)
+  round_p(0.000121232, stars = TRUE)
+}

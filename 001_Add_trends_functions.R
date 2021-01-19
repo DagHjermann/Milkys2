@@ -34,29 +34,30 @@
 # calc_models_several_determ 
 # make_localformat_csv 
 
-# How 'calc_models_several_determ' works:
-#
-# calc_models_several_determ 
-# - for each determinand, calls 
-#   'calc_models_all_stations'
-#   - runs 'get_medians_all_stations' 
-#   - for each station, calls 
-#     'calc_models_one_station'
-#     - runs 'get_medians_for_regression'
-#     - then runs 'select_for_regr_a()' and 'select_for_regr_b'
-#   - results in a list of objects
 
-# model_from_leveldata
-# - picks data from 'rawdata'
-# - extracts median
-# - calls 'calc_models_one_station2()'
+# model_from_medians
+# - takes data from file of annual medians (df_med), not raw data
+# - also: gam = TRUE by default (in contrast to model_from_leveldata)
+
+# model_from_medians
+# - subsets data
+# - sets log_transform = TRUE or FALSE
+# - runs calc_models_one_station2
 #     - runs 'select_for_regr_a()' and 'select_for_regr_b'
-#     - runs 'calc_models'
+#     - runs 'calc_models_gam' (or 'calc_models', if gam = FALSE)
 #     - runs 'add_model_fits'
 #     - runs 'statistics_for_excel'
 # - the result is 'result_object' containing 'statistics_for_file' and  'data_object'
 #     - if calc_models_one_station2 fails, 'statistics_for_excel_empty' is run to result in 'result_stat'
 # - picks 'statistics_for_file' from this (calls it 'result_stat'), adds PARAM, LATIN_NAME etc. and returns this as a one-line dataframe
+
+
+
+
+
+
+source("002_Utility_functions.R")
+
 
 #
 # pick_data_yr
@@ -382,7 +383,10 @@ data_for_excel <- function(df_med, station, yrs = 1990:2016){
 }
 
 
-
+#
+# Called from 'calc_models_one_station2'  
+# Uses the medians (obj) + the results from calc_models_gam (regr_results)  
+#
 statistics_for_excel <- function(obj, regr_results, gam = FALSE){
   if (sum(obj$sel_ts) > 0 & !(gam & regr_results$status == "GAM OK")){
     df_stat <- data.frame(
@@ -411,7 +415,8 @@ statistics_for_excel <- function(obj, regr_results, gam = FALSE){
     SE1 <- head(regr_results$mod_nonlin$yFit$SE,1)
     SE2 <- tail(regr_results$mod_nonlin$yFit$SE,1)
     mean_SE <- sqrt(SE1^2 + SE2^2)
-    gam_p <- 1 - pt((x2-x1)/mean_SE, nrow(regr_results$mod_nonlin$yFit))
+    n_fit <- nrow(regr_results$mod_nonlin$yFit)
+    gam_p <- 2*(1 - pt(abs(x2-x1)/(1.5*mean_SE), n_fit))
     df_stat <- data.frame(
       Year1 = min(obj$df_med_st$MYEAR[obj$sel_ts]),
       Year2 = max(obj$df_med_st$MYEAR[obj$sel_ts]),
@@ -476,8 +481,17 @@ statistics_for_excel <- function(obj, regr_results, gam = FALSE){
   df_stat
 }
 
+# Result for 10-year series, 2019:
+#                              addNA(Dir_change)
+# addNA(Status)                      Down   Up <NA>
+#   GAM failed                    73    0    0    0
+#   GAM OK                      5153  857  297    0
+#   Linear regr. and GAM failed 1216    0    0    0
+#   No variation in data         186    0    0    0
+#   <NA>                           0    0    0    0
 
-select_model <- function(df_statistics){
+# Select 
+select_model <- function(df_statistics, nonlin_penalty = 0.05){
   if (df_statistics$Nplus <= 1){
     model <- "None"
   } else if (df_statistics$Nplus == 2 & df_statistics$N == 2){
@@ -487,7 +501,10 @@ select_model <- function(df_statistics){
   } else if (df_statistics$Nplus %in% 5:6){
     model <- "Linear"
   } else if (df_statistics$Nplus >= 7 & !is.na(df_statistics$AICc_nonlin)){
-    if (df_statistics$AICc_lin <= df_statistics$AICc_nonlin){
+    # We select the model with the lowest AIC after giving the non-linear model a little penalty
+    # The main reason for that penalty is to select the linear model if AICs are the same
+    #   (which is the case if the GAM odel in reality is linear)
+    if (df_statistics$AICc_lin <= (df_statistics$AICc_nonlin + nonlin_penalty)){
       model <- "Linear"
     } else {
       model <- "Nonlinear"
@@ -796,10 +813,31 @@ plot_models_one_station <- function(result_object, logdata = FALSE, logscale = T
   }
 }
 
-plot_models_one_station_gg <- function(result_object, title = "", log = TRUE){
+plot_models_one_station_gg <- function(result_object, result_stat, title = "", log = TRUE){
   df <- result_object$data_object$df_med_st
   df$Included_in_trend <- "Included"
   df$Included_in_trend[!result_object$data_object$sel_ts] <- "Not included"
+  subtitle1 = paste0(
+    "Number of years: ", result_stat$N, 
+    " (years with enough data over LOQ: ", result_stat$Nplus, ")")
+  subtitle2a = paste0(
+    "Linear model: p =", round_p(result_stat$p_linear, stars = TRUE))
+  subtitle2b = paste0(
+    "Non-lin model: p =", round_p(result_stat$p_nonlinear, stars = TRUE))
+  trendresult <- case_when(
+    result_stat$Dir_change == "Up" ~ "Upward trend",
+    result_stat$Dir_change == "Down" ~ "Downward trend",
+    result_stat$Dir_change == "" & result_stat$Status == "GAM OK" ~ "No time trend",
+    result_stat$Status != "GAM OK" ~ result_stat$Status,
+  )
+  subtitle3 = paste0(
+    "Best model: ", result_stat$Model_used, 
+    " (Difference in AIC: ", round(abs(result_stat$AICc_lin - result_stat$AICc_nonlin), 2), ")"
+  )
+  subtitle4 = paste0(
+    "Time trend result: ", trendresult, 
+    " (P for trend: ", round_p(result_stat$P_change, stars = TRUE), ")"
+  )
   if (log){
     gg <- ggplot(result_object$data_object$df_med_st, aes(MYEAR, log(Median)))
   } else {  
@@ -813,7 +851,8 @@ plot_models_one_station_gg <- function(result_object, title = "", log = TRUE){
     geom_line(data = result_object$modelresults$mod_nonlin$yFit, aes(x = Year, y = LowLimit), color = "darkred", linetype = 2) +
     geom_line(data = result_object$modelresults$mod_nonlin$yFit, aes(x = Year, y = HighLimit), color = "darkred", linetype = 2) +
     # geom_line(data = result_object$modelresults$mod_gam$yFit, aes(x = Year, y = Estimate), color = "blue", size = 2) +
-    ggtitle(title)
+    labs(title = title, 
+         subtitle = paste0(subtitle1, "\n", subtitle2a, "\n", subtitle2b, "\n", subtitle3, "\n", subtitle4))
   gg
 }
 
@@ -895,7 +934,7 @@ model_from_leveldata <- function(i, varname, yrs, leveldata, rawdata, plotname =
 # Hard-coded variable names that must ne in the fike of medians: 'Over_LOQ', 'N', 'SD'
 #
 
-model_from_medians <- function(param, species, tissue, station, basis, yrs, data_medians, varname = "Value", plotname = "", ggplot = FALSE, gam = TRUE){
+    model_from_medians <- function(param, species, tissue, station, basis, yrs, data_medians, varname = "Value", plotname = "", ggplot = FALSE, gam = TRUE){
   df_med <- subset(data_medians, 
                    PARAM %in% param & 
                      LATIN_NAME %in% species &
@@ -923,16 +962,16 @@ model_from_medians <- function(param, species, tissue, station, basis, yrs, data
     if (plotname != ""){
       if (plotname != "window"){
         fn <- paste0(plotname, "_", param, "_", substr(species, 1, 3), "_", substr(tissue, 1, 2), "_",
-                     station, "_", Basis, "_", head(yrs,1), "-", tail(yrs,1), ".png")
+                     station, "_", basis, "_", head(yrs,1), "-", tail(yrs,1), ".png")
         png2(fn, width = 7, height = 5)
       }
       tit <- paste0(param, ", ", species, ", ", tissue, ", ",
-                    station, ", ", Basis, ", ", head(yrs,1), "-", tail(yrs,1))
+                    station, ", ", basis, ", ", head(yrs,1), "-", tail(yrs,1))
       if (!ggplot){
         plot_models_one_station(result_object, title = tit, log = log_transform)
       } else {
         print(
-          plot_models_one_station_gg(result_object, title = tit, log = log_transform)
+          plot_models_one_station_gg(result_object, result_stat, title = tit, log = log_transform)
         )
       }
       if (plotname != "window")

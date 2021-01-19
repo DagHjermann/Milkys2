@@ -7,10 +7,9 @@ output: html_notebook
 Based on script '44_make_overview_trend_table' in H:/Documents/seksjon 212/Milkys 2017/Analyse  
   
 * Tables are written to folder 'Tables_for_report'  
-* File namse 'version' correspond to 'big excel table' version numbers
-
-* 3-7: make "trend" tables (name 'Summarytable_trend') - also includes PROREF shading   
-* 8-11: make "EQS" tables (name 'Summarytable_EQS')  
+* File namse 'version' correspond to 'big excel table' version numbers  
+* Part 3-7: make "trend" tables (name 'Summarytable_trend') - also includes PROREF shading   
+* Part 8-11: make "EQS" tables (name 'Summarytable_EQS')  
   
 ## 0. Load packages and functions
 ### Packages
@@ -64,8 +63,15 @@ cat("Tables made by this script will be written to folder \n  ",
     sQuote(version_no)
 )
 
+```
+```{r}
+
+data_xl_lessthans %>%
+  filter(PARAM %in% "SCCP" & STATION_CODE %in% "24B" & Basis == "WW") %>%
+  select(PARAM, STATION_CODE, Basis, Trends.2019)
 
 ```
+
 
 ### A couple of changes to the big excel data   
 ```{r}
@@ -133,6 +139,11 @@ if (FALSE){
     select(PARAM, STATION_CODE, LATIN_NAME, TISSUE_NAME, Yr_2018, Q95, EQS) %>%
     count(STATION_CODE, LATIN_NAME, TISSUE_NAME) %>%
     arrange(LATIN_NAME, TISSUE_NAME)   # 33F = skrubbe
+  
+  data_xl_lessthans %>%
+  filter(PARAM %in% "SCCP" & STATION_CODE %in% "24B" & Basis == "WW") %>%
+  select(PARAM, STATION_CODE, Basis, Trends.2019)
+  
 }
 
 ```
@@ -381,7 +392,8 @@ for (i in 1:N)
 # summaries_list[[1]] %>% head()
 # Check result 2:
 # i <- which(stations_df[,"Station"] == "36A1")
-# summaries_list[[i]] %>% select(PARAM, TISSUE_NAME, Yr_2018, EQSclass_2018, EQS, Trends.2018) %>% View()
+# i <- which(stations_df[,"Station"] == "24B" & stations_df[,"Tissue"] == "Liver")
+# summaries_list[[i]] %>% select(PARAM, TISSUE_NAME, Yr_2018, EQSclass_2018, EQS, Trends.2019) %>% View()
 
 rows_per_station <- 1:length(summaries_list) %>% 
   map_df(~tibble(i = ., STATION_CODE = stations_df$Station[.], nrow = nrow(summaries_list[[.]])))
@@ -423,8 +435,8 @@ fn_full <- paste0(resultfolder, "/", fn)
 write_excel_summarytable(summaries_list, 
                          fn_full, 
                          param_names = par_table,
-                         varname_trend = "Trends.2018",
-                         varname_median = "Yr_2018")
+                         varname_trend = paste0("Trends.", current_year),
+                         varname_median = paste0("Yr_", current_year))
 
 cat("File \n  ", fn, "\nwritten to folder \n  ", resultfolder)
 
@@ -488,9 +500,9 @@ for (i in 1:N)
     stations_df[i,"Species"],
     stations_df[i,"Tissue"], 
     par_table = par_table_eqs, data = data_xl_lessthans,
-    varname_median = "Yr_2018", 
-    varname_trends = "Trends.2018")
-
+    varname_median = paste0("Yr_", current_year), 
+    varname_trends = paste0("Trends.", current_year)
+  )
 
 
 # Check result

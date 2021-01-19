@@ -4,7 +4,7 @@ output:
   html_document:
     keep_md: true
     toc: true
-    toc_float:true
+    toc_float: true
 ---
 
 ## 0. Check this first  
@@ -35,7 +35,7 @@ last_year <- 2019
 ## 1. Libraries + functions
 ```{r, message=FALSE, warning=FALSE, results='hide'}
 
-update.packages("rlang")
+# update.packages("rlang")
 
 # install safejoin, if that has not already been done
 if (!"safejoin" %in% installed.packages()){
@@ -83,12 +83,14 @@ file_date <- data_list$file_date
 Function for reading the last (by default) file made, of files with name following 'pattern'  
 ```{r}
 
-list_and_read_rds_file <- function(folder, pattern, extension, 
+list_and_read_rds_file <- function(folder, pattern,  
                                    filenumber = 1, check_date = NULL){
+  
+  date_pattern <- "[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]"
+  pattern_mod <- sub("[:date:]", date_pattern, pattern, fixed = TRUE)
 
-  files <- list_files(folder = folder, 
-                      pattern = pattern,
-                      extension = extension)
+  files <- dir(path = folder, 
+               pattern = pattern_mod) %>% sort(decreasing = TRUE)
   cat("\n")
   data_list <- read_rds_file(folder = folder, 
                              files, 
@@ -113,56 +115,51 @@ list_and_read_rds_file <- function(folder, pattern, extension,
 ### b. Time trend results   
 ```{r, results='hold'}
 
+date_pattern <- "[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]"
+version_pattern <- "run[0-9][0-9]"
+
 cat("======================================\n")
-cat("10 year trends \n")
+cat(" Trends for last year \n")
 cat("======================================\n")
 
-pattern_10yr_last <- paste0("120_result_10yr_", last_year, "_", "[:date:]")
-pattern_10yr_seclast <- paste0("120_result_10yr_", last_year-1, "_", "[:date:]")
-
-cat("\n ******* Last year trends *********  \n")
+pattern_10yr_last <- paste0("^120_result_10yr_", last_year, "_", 
+                            date_pattern, "_", version_pattern, ".rds$")
+pattern_long_last <- paste0("^120_result_long_", last_year, "_", 
+                            date_pattern, "_", version_pattern, ".rds$")
 
 result_10yr_last <- list_and_read_rds_file(
   folder = "Data", 
   pattern = pattern_10yr_last, 
-  extension = "rds",
+  check_date = data_list$file_date
+)
+result_long_last <- list_and_read_rds_file(
+  folder = "Data", 
+  pattern = pattern_long_last, 
   check_date = data_list$file_date
 )
 
-cat("\n ******* Previous year trends *********  \n")
+
+cat("======================================\n")
+cat(" Trends for second last year \n")
+cat("======================================\n")
+
+pattern_10yr_seclast <- paste0("^120_result_10yr_", last_year - 1, "_", 
+                            date_pattern, "_", version_pattern, ".rds$")
+pattern_long_seclast <- paste0("^120_result_long_", last_year - 1, "_", 
+                            date_pattern, "_", version_pattern, ".rds$")
+
 
 result_10yr_seclast <- list_and_read_rds_file(
   folder = "Data", 
   pattern = pattern_10yr_seclast, 
-  extension = "rds",
   check_date = data_list$file_date
 )
-
-cat("\n")
-cat("======================================\n")
-cat("Long trends \n")
-cat("======================================\n")
-
-pattern_long_last <- paste0("120_result_long_", last_year, "_", "[:date:]")
-pattern_long_seclast <- paste0("120_result_long_", last_year-1, "_", "[:date:]")
-
-cat("\n ******* Last year trends *********  \n")
-
-result_long_last <- list_and_read_rds_file(
-  folder = "Data", 
-  pattern = pattern_long_last, 
-  extension = "rds",
-  check_date = data_list$file_date
-)
-
-cat("\n ******* Previous year trends *********  \n")
-
 result_long_seclast <- list_and_read_rds_file(
   folder = "Data", 
   pattern = pattern_long_seclast, 
-  extension = "rds",
   check_date = data_list$file_date
 )
+
 
 
 
@@ -202,8 +199,7 @@ cat("======================================\n")
 
 dat_nstring <- list_and_read_rds_file(
   folder = "Data", 
-  pattern = "111_Nstring_updated_[:date:]", 
-  extension = "rds",
+  pattern = "^111_Nstring_updated_[:date:].rds$", 
   check_date = data_list$file_date
 )
 
@@ -213,8 +209,7 @@ cat("======================================\n")
 
 dat_sd <- list_and_read_rds_file(
   folder = "Data", 
-  pattern = "111_SD_updated_[:date:]", 
-  extension = "rds",
+  pattern = "^111_SD_updated_[:date:].rds$", 
   check_date = data_list$file_date
 )
 
@@ -225,8 +220,7 @@ cat("======================================\n")
 
 dat_ddi <- list_and_read_rds_file(
   folder = "Data", 
-  pattern = "111_DDI_updated_[:date:]", 
-  extension = "rds",
+  pattern = "^111_DDI_updated_[:date:].rds$", 
   check_date = data_list$file_date
 )
 
@@ -605,10 +599,11 @@ colnames(data_xlvalues)
 ### e. Add EQS limits  
 ```{r}
 
-EQS_limits <- read.xlsx("Input_data/EQS_limits.xlsx", "EQS")[,1:8] %>%
-  filter(!is.na(PARAM))
+EQS_limits <- read_excel("Input_data/EQS_limits.xlsx", "EQS")[1:8] %>%
+  filter(!is.na(PARAM)) %>%
+  as.data.frame()
 EQS_limits <- fact2char_df(EQS_limits)  # changes all factor variables to character variables
-EQS_limits$Limit <- as.numeric(EQS_limits[["Grense.brukt"]])
+EQS_limits$Limit <- as.numeric(EQS_limits$`Grense brukt`)
 
 # Make table based on 'data_xlvalues'
 data_EQS <- data_xlvalues
@@ -1847,7 +1842,6 @@ if (FALSE){
   data_xl_lessthans_oldnames %>% 
     select(PARAM, LATIN_NAME, TISSUE_NAME, Basis, Yr_2019, N_string, SD_last) %>%
     View()
-    
 
 }
 
@@ -1876,7 +1870,7 @@ file_versions
 # - if file with same date does not exist, we set version to 1
 fn_version <- case_when(
   file_date == file_versions$Date[1] ~ file_versions$Version[1] + 1,
-  file_date == file_versions$Date[1] ~ 1
+  file_date != file_versions$Date[1] ~ 1
 )
 fn_version_txt <- sprintf("%02i", fn_version)
 
@@ -1973,6 +1967,12 @@ if (FALSE){
          Yr_2003, Yr_2010, Yr_2014, Yr_2018, Yr_2019, N_string, SD_last, EQS) %>%
     View("11G")
 
+  check %>%
+    filter(Basis == "WW" & STATION_CODE == "30B" & PARAM == "HG") %>%
+    select(PARAM, Substance.Group, LATIN_NAME, TISSUE_NAME, STATION_CODE, Basis, 
+           Yr_2003, Yr_2010, Yr_2014, Yr_2018, Yr_2019, N_string, SD_last, EQS, Trends.2019) %>%
+    View("check")
+  
   # Read older version (check2) and compare number of rows and column 1:22 between check and check2: 
   fn2 <- paste0("Big_excel_table/", file_versions$Filename[2])
   check2 <- read.csv2(file = fn2)

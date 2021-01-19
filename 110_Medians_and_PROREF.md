@@ -58,7 +58,7 @@ filename <- files[1]
 cat("Time since this file was modified: \n")
 ## Time since this file was modified:
 Sys.time() - file.info(paste0("Data/", filename))$mtime
-## Time difference of 4.277902 days
+## Time difference of 25.02326 days
 
 data_all <- readRDS(paste0("Data/", filename))
 
@@ -205,7 +205,7 @@ Sys.time() - t0  # 19 secs (took 0.19 sec with data.table)
 ```
 
 ```
-## Time difference of 20.32298 secs
+## Time difference of 17.52247 secs
 ```
 
 
@@ -227,7 +227,7 @@ Sys.time() - t0  # 4 secs
 ```
 
 ```
-## Time difference of 3.974387 secs
+## Time difference of 3.333287 secs
 ```
 
 

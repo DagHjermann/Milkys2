@@ -16,8 +16,9 @@ Note 2: If you want to add or replace a few time series, and don't want to run t
 - modify the filtering of df_series  
 - the "save data" section will then automatically add the new series to the existing time trends  
 
-
+## 0. Will you add/change series in an existing file, or make a new file?   
 ```{r}
+
 # ============ NOTE ============
 #
 # If 'add_extra_series' below is set to FALSE
@@ -43,7 +44,7 @@ last_year <- 2019
 library(dplyr)
 library(purrr)
 library(lubridate)
-library(openxlsx)
+library(readxl)
 library(mgcv)
 library(AICcmodavg)   # AICc()
 library(ggplot2)
@@ -94,7 +95,7 @@ file_date <- substr(filename, 24, 33)    # pick out the part of the text from ch
 ### b. Substance groups
 ```{r}
 
-df_substancegroups <- read.xlsx("Input_data/Lookup table - substance groups.xlsx")
+df_substancegroups <- read_excel("Input_data/Lookup table - substance groups.xlsx")
 
 ```
 
@@ -118,7 +119,9 @@ pars <- c(pars, c("CB_S7", "BDE6S", "PFAS", "HBCDD", "BDESS", "VDSI/Intersex", "
 
 ```
 
-## 3. Test - a single series     
+## 3. Testing 'model_from_medians'   
+  
+### a. Test - single series     
 Just one example of the output of `model_from_medians()`   
 The output includes  
 - N = number of years with data  
@@ -137,19 +140,48 @@ The AICc decides whether we use the linear or the non-linear model.
 - P_change: p_linear and p_nonlinear, depending on Model_used   
 ```{r}
 
-model_from_medians("TBT", "Nucella lapillus", "Whole soft body", "227G1", "DW", 1980:2018, data_med)$statistics
+model_from_medians("HG", "Gadus morhua", "Muskel", 
+                   "10B", "WWa", 1980:2019, data_med, plotname = "window", ggplot = TRUE)$statistics %>%
+  select(Nplus, p_linear:Status)
 
 # Some other examples:  
 if (FALSE){
-  model_from_medians("HG", "Gadus morhua", "Muskel", "30B", "DW", 1980:2018, data_med)$statistics
-  model_from_medians("HG", "Gadus morhua", "Muskel", "30B", "DW", 1980:2019, data_med)$statistics
-  model_from_medians("HG", "Gadus morhua", "Muskel", "30B", "WW", 2009:2018, data_med)$statistics
-  model_from_medians("CB_S7", "Gadus morhua", "Lever", "30B", "WW", 2009:2018, data_med)$statistics
-  model_from_medians("TBT", "N. lapillus / L. littorea", "Whole soft body", "71G", "WW", 2009:2018, data_med)$statistics
-  model_from_medians("VDSI/Intersex", "N. lapillus / L. littorea", "Whole soft body", "71G", "WW", 1980:2018, data_med)$statistics
+  # A short (5 year) series with downwards trend  
+  model_from_medians("SCCP", "Gadus morhua", "Lever", 
+                     "24B", "WW", 1980:2019, data_med,
+                     plotname = "window", ggplot = TRUE)$statistics %>%
+    select(Nplus, p_linear:Status)
+  # A short (5 year) series with no trend  
+  model_from_medians("SCCP", "Gadus morhua", "Lever", 
+                     "23B", "WW", 1980:2019, data_med)$statistics %>%
+    select(Nplus, p_linear:Status)
+  # TBT  
+  model_from_medians("TBT", "Nucella lapillus", "Whole soft body", 
+                     "227G1", "DW", 1980:2018, data_med)$statistics
+  # Mercury, Oslo, last year and this year
+  model_from_medians("HG", "Gadus morhua", "Muskel", 
+                     "30B", "DW", 1980:2018, data_med)$statistics
+  model_from_medians("HG", "Gadus morhua", "Muskel", 
+                     "30B", "DW", 1980:2019, data_med)$statistics
+  model_from_medians("HG", "Gadus morhua", "Muskel", 
+                     "30B", "WW", 1980:2019, data_med)$statistics
+  model_from_medians("CB_S7", "Gadus morhua", "Lever", 
+                     "30B", "WW", 2009:2018, data_med)$statistics
+  model_from_medians("CB_S7", "Limanda limanda", "Lever", 
+                     "36F", "WW", 1980:2019, data_med)$statistics
+  model_from_medians("TBT", "N. lapillus / L. littorea", "Whole soft body", 
+                     "71G", "WW", 2009:2018, data_med)$statistics
+  model_from_medians("VDSI/Intersex", "N. lapillus / L. littorea", "Whole soft body", 
+                     "71G", "WW", 1980:2018, data_med)$statistics
+  model_from_medians("VDSI", "Nucella lapillus", "Whole soft body", 
+                   "131G", "WW", 1980:2018, data_med)$statistics %>%
+  select(Nplus, p_linear:Status)
 }
 
 ```
+
+
+
 
 ## 4. Prepare analysis  
   
@@ -199,6 +231,9 @@ df_series_random <- bind_rows(
   df_series %>% filter(PARAM == "CB_S7" & STATION_CODE == "30B" & TISSUE_NAME == "Lever" & Basis %in% c("WW","WWa")),
   df_series %>% filter(PARAM == "CB_S7" & STATION_CODE == "I133" & Basis %in% c("WW"))
 )
+
+df_series_random <- df_series %>%
+  filter(STATION_CODE == "36F")
   
 # Turn into list
 args <- df_series_random %>% 
@@ -312,20 +347,26 @@ if (add_extra_series){
   if (FALSE)
     df_series <- df_series %>% filter(STATION_CODE %in% "C/N") 
 
-  # Example 2: we want to add 'VDSI' to existing trends for station   
-  # We filter df_series to get 'TPTIN' only:
+  # Example 2: VDSI/intersex
   if (FALSE)
     df_series <- df_series %>% filter(STATION_CODE %in% "71G" & PARAM == "VDSI/Intersex")
   
-  if (TRUE){
+  if (FALSE){
     df_recalculate_trends <- readRDS("Data/120_df_recalculate_trends.rds")
     df_series <- df_series %>%
       inner_join(df_recalculate_trends %>% select(-Basis) %>% mutate(Recalc = TRUE)) %>%
       filter(!is.na(Recalc))
   }
+  
+  if (TRUE){
+    df_series <- df_retest_2017 # %>% filter(Basis %in% c("WW", "WWa"))
+  }
   #
   # Filter df_series END
   # 
+  if (FALSE){
+    df_series <- df_comb4   # defined in "120_Calculate_trend_error"  
+  }
 
   cat("Number of time series after filtering df_series:\n")
   cat("  ", nrow(df_series), "\n")
@@ -337,7 +378,7 @@ if (add_extra_series){
 
 ## 5. Analyse all time series    
   
-### Prepare 'args' list    
+### a. Prepare 'args' list    
 ```{r}
 
 args <- df_series %>% 
@@ -355,11 +396,15 @@ args <- args[c("station", "tissue", "species", "param", "basis")]
 ```
 
 
-### Calculation procedure   
+### b. Calculation procedure   
   
-**NOTE: This takes ca. 35 minutes**    
+**NOTE: For all time series, this takes ca. 35 minutes**    
   
 ```{r, result = 'hide', message=FALSE, warning=FALSE, error=FALSE}
+
+# Make results a little reproducible
+# However, 
+set.seed(1814)
 
 # Turn 'model_from_medians_stat' into a 'safe' function
 #   The new function 'model_from_medians_stat_s' returns a list with two elements,
@@ -394,13 +439,13 @@ t1 <- Sys.time()                                                            # St
 
 ```
 
-### Time used  
+### c. Time used  
 ```{r}
 cat("Procedure finished. \n")
 print(t1 - t0)
 ```
 
-### Change output into data frames   
+### d. Change output into data frames   
 
 ```{r}
 
@@ -412,7 +457,6 @@ result_list_10yr_t <- purrr::transpose(result_list_10yr)
 result_list_long_t <- purrr::transpose(result_list_long)
 
 # Combine list 1 to data frame
-
 no_error <- result_list_10yr_t$error %>% map_lgl(is.null)
 result_10yr <- bind_rows(result_list_10yr_t$result[no_error])
 
@@ -420,23 +464,110 @@ result_10yr <- bind_rows(result_list_10yr_t$result[no_error])
 no_error <- result_list_long_t$error %>% map_lgl(is.null)
 result_long <- bind_rows(result_list_long_t$result[no_error])
 
+if (FALSE){
+  result_long %>% filter(STATION_CODE %in% "30B" & Basis == "WW" & PARAM == "HG") %>% View()
+}
+
+```
+
+
+### e. Only if needed: save just these results  
+Only used in special cases  
+```{r}
+
+if (FALSE){
+  
+  saveRDS(result_10yr, paste0("Data/120_10yr_", last_year, "_rerun.rds"))
+  saveRDS(result_long, paste0("Data/120_long_", last_year, "_rerun.rds"))
+
+}
+
 ```
 
 
 ## 6. Save or update the result file    
 
+### a. Pattern for finding files 
 ```{r}
 
-cat("'add_extra_series' set to", add_extra_series, "\n\n")
+date_pattern <- "[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]"
+version_pattern <- "run[0-9][0-9]"
+pattern_10yr <- paste0("^120_result_10yr_", last_year, "_", 
+                       date_pattern, "_", version_pattern, ".rds$")
+pattern_long <- paste0("^120_result_long_", last_year, "_", 
+                       date_pattern, "_", version_pattern, ".rds$")
 
-pattern_10yr <- paste0("120_result_10yr_", last_year, "_")
-pattern_long <- paste0("120_result_long_", last_year, "_")
+# Character numbers - used to extract date/version (see test below)
+charnumber_date <- nchar("120_result_10yr_20xx_") + c(1,10)
+charnumber_vers <- nchar("120_result_10yr_20xx_yyyy-mm-dd_run") + c(1,2)
+
+# test
+if (FALSE){
+  dir("Data", pattern_10yr)
+  dir("Data", pattern_long)
+  dir("Data", pattern_10yr) %>% substr(charnumber_date[1], charnumber_date[2])
+  dir("Data", pattern_10yr) %>% substr(charnumber_vers[1], charnumber_vers[2])
+}
+
+```
+
+### b. Find newest existing file
+```{r, results = 'hold'}
+
+cat("Latest files for trends until", last_year, ": \n")
+fn_existing_1 <- dir("Data", pattern = pattern_10yr) %>% tail(1)
+fn_existing_2 <- dir("Data", pattern = pattern_long) %>% tail(1)
+
+cat("  ", fn_existing_1, "\n")
+cat("  ", fn_existing_2, "\n")
+
+date_existing_1 <- fn_existing_1 %>% substr(charnumber_date[1], charnumber_date[2])
+date_existing_2 <- fn_existing_2 %>% substr(charnumber_date[1], charnumber_date[2])
+
+vers_existing_1 <- fn_existing_1 %>% substr(charnumber_vers[1], charnumber_vers[2])
+vers_existing_2 <- fn_existing_2 %>% substr(charnumber_vers[1], charnumber_vers[2])
+
+```
+
+### c. Make file names to use  
+```{r}
+
+# Version number to use
+# - if file with same date exists in the folder, we increase the version by 1
+# - if file with same date does not exist, we set version to 1
+fn_version_1 <- case_when(
+  file_date == date_existing_1 ~ as.numeric(vers_existing_1) + 1,
+  file_date != date_existing_1 ~ 1
+) %>% 
+  sprintf("%02i", .)  # put on text format 
+
+fn_version_2 <- case_when(
+  file_date == date_existing_2 ~ as.numeric(vers_existing_2) + 1,
+  file_date != date_existing_2 ~ 1
+) %>% 
+  sprintf("%02i", .)  # put on text format 
+
+# File names to use
+fn1 <- paste0("120_result_10yr_", last_year, "_", 
+              file_date, "_run", fn_version_1, ".rds")
+fn2 <- paste0("120_result_long_", last_year, "_", 
+              file_date, "_run", fn_version_2, ".rds")
+
+cat("File names that will be used: \n")
+cat(" ", fn1, "\n")
+cat(" ", fn2, "\n")
+cat("in folder 'Data'")
+
+```
+
+
+### d. Saving if add_extra_series = FALSE
+```{r, results = 'hold'}
+
+cat("'add_extra_series' set to", add_extra_series, "\n")
 
 if (!add_extra_series){   # this is the normal case - we have calculated trends for all series
 
-  fn1 <- paste0(pattern_10yr, file_date, ".rds")
-  fn2 <- paste0(pattern_long, file_date, ".rds")
-  
   saveRDS(result_10yr, paste0("Data/", fn1))
   saveRDS(result_long, paste0("Data/", fn2))
   
@@ -444,101 +575,95 @@ if (!add_extra_series){   # this is the normal case - we have calculated trends 
   cat(" ", fn1, "\n")
   cat(" ", fn2, "\n")
   cat("in folder 'Data'")
-                  
-} else if (add_extra_series){  # the case where we will update case - we have calculated trends for all series
+
+} else {
+  
+  cat("This part is therefore not run \n")
+  
+}
+
+```
+
+### e. Saving if add_extra_series = TRUE (1)
+```{r}
+# the case where we will update case - we have calculated trends for all series
+if (add_extra_series){  
 
   #
   # Will be run only if we are adding series to existing (saved) series 
   #   ('original' below), or replacing existing series 
   #
-  # Regarding file names, there are two scenarios:
-  #
-  # 1) The existing file was made with data from e.g. January 1st ("120_result_10yr_2020-01-01.rds")
-  #    The extra series were made  with data from e.g. January 5st 
-  #    -> The updated file of time trends will be named "120_result_10yr_2020-01-05.rds"
-  #
-  # 2) The existing file was made with data from e.g. January 1st ("120_result_10yr_2020-01-01.rds")
-  #    The extra series were made with data from the same date (original data updated the same day, or more parameters added) 
-  #    -> The old file of time trends will be renamed "120_result_10yr_2020-01-01_OLD.rds"
-  #    -> The updated file of time trends will be named "120_result_10yr_2020-01-01.rds"
-  #
 
-  # Find newest existing
-  fn_existing_1 <- dir("Data", pattern = pattern_10yr) %>% tail(1)
-  fn_existing_2 <- dir("Data", pattern = pattern_long) %>% tail(1)
-  
-  # Date
-  date_existing_1 <- substr(fn_existing_1, 17, 26)
-  date_existing_2 <- substr(fn_existing_2, 17, 26)
-  
   # Read saved 10 year series...
   result_10yr_original <- readRDS(paste0("Data/", fn_existing_1))
   cat("result_10yr: ", nrow(result_10yr_original), "rows originally \n")
 
-  result_10yr_original <- result_10yr_original %>%
+  result_10yr_kept <- result_10yr_original %>%
     # Remove all series already present in result_10yr:
     safe_anti_join(result_10yr, 
                    by = c("STATION_CODE", "PARAM", "LATIN_NAME", "TISSUE_NAME", "Basis"),
                    na_matches = "never",
                    check = "BUV")
-  cat("result_10yr: ", nrow(result_10yr_original), "after removing overlapping time series")
+  cat("result_10yr: ", nrow(result_10yr_kept), "after removing overlapping time series")
 
   cat("\n")
+
   # Read saved 'long' series...
   result_long_original <- readRDS(paste0("Data/", fn_existing_2))
   cat("result_long: ", nrow(result_long_original), "rows originally \n")
   
   # Remove all series already present in result_long:
-  result_long_original <- result_long_original %>%
+  result_long_kept <- result_long_original %>%
     safe_anti_join(result_long, 
                  by = c("STATION_CODE", "PARAM", "LATIN_NAME", "TISSUE_NAME", "Basis"),
                  na_matches = "never",
                  check = "BUV")
-  cat("result_long: ", nrow(result_long_original), "after removing overlapping time series")
+  cat("result_long: ", nrow(result_long_kept), "after removing overlapping time series")
   
   # Add the newly made series
-  result_10yr_new <- bind_rows(result_10yr_original, result_10yr)
-  result_long_new <- bind_rows(result_long_original, result_long)
+  result_10yr_new <- bind_rows(result_10yr_kept, result_10yr)
+  result_long_new <- bind_rows(result_long_kept, result_long)
   
-  cat("\n")
-  cat("Final number of data sets (after adding/replacing series): \n")
+  cat("\n\n")
+  cat("Final data sets (after adding/replacing series): \n")
   cat("result_10yr_new: ", nrow(result_10yr_new), "rows \n")
   cat("result_long_new: ", nrow(result_long_new), "rows \n")
+}
+```
+### f. Saving if add_extra_series = TRUE (2)
+```{r}
 
-  # Check that series are unique
-  check1 <- result_long_original %>%
+# the case where we will update case - we have calculated trends for all series
+if (add_extra_series){  
+  # Check that series are uniquely defined
+  check1 <- result_long_new %>%
     count(STATION_CODE, PARAM, LATIN_NAME, TISSUE_NAME, Basis) %>%
-    filter(n > 1) %>%
-    nrow()
+    filter(n > 1)
 
-  check2 <- result_10yr_original %>%
+  check2 <- result_10yr_new %>%
     count(STATION_CODE, PARAM, LATIN_NAME, TISSUE_NAME, Basis) %>%
-    filter(n > 1) %>%
-    nrow()
+    filter(n > 1)
 
-  if (check1 == 0 & check2 == 0){
+  if (nrow(check1) == 0 & nrow(check2) == 0){
     cat("Series are unique\n")
   } else {
-    stop("ERROR: Series are not unique! This must be fixed.\n")
+    stop("ERROR: Series are not unique! This must be fixed. Check duplicates in check1 and/or check2. \n")
   }
+}
+
+``` 
+
+### g. Saving if add_extra_series = TRUE (3)
+```{r}
+
+if (add_extra_series){  
+
+  saveRDS(result_10yr_new, paste0("Data/", fn1))
+  saveRDS(result_long_new, paste0("Data/", fn2))
   
-  # Filenames that will be used for saving data
-  fn1 <- paste0(pattern_10yr, file_date, ".rds")
-  fn2 <- paste0(pattern_long, file_date, ".rds")
-  
-  # If the saved data already exists, we will make a backup named "_OLD"
-  #   before overwriting the file (case 2 above)
-  if (date_existing_1 == file_date){
-    fn1_old <- paste0(pattern_10yr, file_date, "_OLD.rds")
-    file.copy(paste0("Data/", fn1), paste0("Data/", fn1_old))
-  }
-  if (date_existing_2 == file_date){
-    fn2_old <- paste0(pattern_long, file_date, "_OLD.rds")
-    file.copy(paste0("Data/", fn2), paste0("Data/", fn2_old))
-  }
-  
-  saveRDS(result_10yr_new, paste0("Data/", fn1, ".rds"))
-  saveRDS(result_long_new, paste0("Data/", fn2, ".rds"))
+  cat("Data saved in 'Data' as \n")
+  cat("  ", fn1, "\n")
+  cat("  ", fn2, "\n")
   
   cat("\n")
   cat("=========================================================================\n")
@@ -552,17 +677,32 @@ if (!add_extra_series){   # this is the normal case - we have calculated trends 
 
 
 ## 7. Appendix  
+
 Use the code below (run the part inside the `{}`) for reading the produced data    
 ```{r}
 
 if (FALSE){
   
+  date_pattern <- "[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]"
+  version_pattern <- "run[0-9][0-9]"
+  pattern_10yr <- paste0("^120_result_10yr_", last_year, "_", 
+                         date_pattern, "_", version_pattern, ".rds$")
+  pattern_long <- paste0("^120_result_long_", last_year, "_", 
+                         date_pattern, "_", version_pattern, ".rds$")
+
   # Trends - most recent estimate 
   # Read and reformat the most recent data (by default)  
+
+  pattern_10yr <- paste0("120_result_10yr_", last_year, "_")
+  pattern_long <- paste0("120_result_long_", last_year, "_")
   
   # Find files and sort with the newest first
   files1 <- dir("Data", pattern = pattern_10yr) %>% rev()
   files2 <- dir("Data", pattern = pattern_long) %>% rev()
+  
+  cat("Latest files: \n")
+  cat(files1[1], "\n")
+  cat(files2[1], "\n")
   
   # Print for user
   cat("Trend estimates - reading the last files produced:")
@@ -573,8 +713,10 @@ if (FALSE){
   result_10yr <- readRDS(paste0("Data/", files1[1]))
   result_long <- readRDS(paste0("Data/", files2[1]))
   
+  result_10yr %>% 
+    filter(PARAM == "SCCP" & STATION_CODE %in% "24B")
+  
 }
 
+
 ```
-
-

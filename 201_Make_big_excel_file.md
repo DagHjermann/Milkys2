@@ -29,6 +29,7 @@ Last year with observations
 last_year <- 2019
 ```
 
+
 ## 1. Libraries + functions
 
 ```r
@@ -81,18 +82,20 @@ file_date <- data_list$file_date
 ##   This is the newest file. If you want to read an older file, put a different 'filenumber' 
 ## 
 ## Time since this file was modified: 
-## Time difference of 13.92072 days
+## Time difference of 1.63589 hours
 ```
 
 Function for reading the last (by default) file made, of files with name following 'pattern'  
 
 ```r
-list_and_read_rds_file <- function(folder, pattern, extension, 
+list_and_read_rds_file <- function(folder, pattern,  
                                    filenumber = 1, check_date = NULL){
+  
+  date_pattern <- "[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]"
+  pattern_mod <- sub("[:date:]", date_pattern, pattern, fixed = TRUE)
 
-  files <- list_files(folder = folder, 
-                      pattern = pattern,
-                      extension = extension)
+  files <- dir(path = folder, 
+               pattern = pattern_mod)
   cat("\n")
   data_list <- read_rds_file(folder = folder, 
                              files, 
@@ -119,15 +122,17 @@ cat("======================================\n")
 cat("10 year trends \n")
 cat("======================================\n")
 
-pattern_10yr_last <- paste0("120_result_10yr_", last_year, "_", "[:date:]")
-pattern_10yr_seclast <- paste0("120_result_10yr_", last_year-1, "_", "[:date:]")
+pattern_10yr_last <- paste0("^120_result_10yr_", last_year, "_[:date:].rds$")
+pattern_10yr_seclast <- paste0("^120_result_10yr_", last_year-1, "_[:date:].rds$")
+
+dir("Data", pattern = pattern_10yr_last)
 
 cat("\n ******* Last year trends *********  \n")
 
+# debugonce(list_and_read_rds_file)
 result_10yr_last <- list_and_read_rds_file(
   folder = "Data", 
   pattern = pattern_10yr_last, 
-  extension = "rds",
   check_date = data_list$file_date
 )
 
@@ -136,7 +141,6 @@ cat("\n ******* Previous year trends *********  \n")
 result_10yr_seclast <- list_and_read_rds_file(
   folder = "Data", 
   pattern = pattern_10yr_seclast, 
-  extension = "rds",
   check_date = data_list$file_date
 )
 
@@ -145,15 +149,14 @@ cat("======================================\n")
 cat("Long trends \n")
 cat("======================================\n")
 
-pattern_long_last <- paste0("120_result_long_", last_year, "_", "[:date:]")
-pattern_long_seclast <- paste0("120_result_long_", last_year-1, "_", "[:date:]")
+pattern_long_last <- paste0("^120_result_long_", last_year, "_[:date:].rds$")
+pattern_long_seclast <- paste0("^120_result_long_", last_year-1, "_[:date:].rds$")
 
 cat("\n ******* Last year trends *********  \n")
 
 result_long_last <- list_and_read_rds_file(
   folder = "Data", 
   pattern = pattern_long_last, 
-  extension = "rds",
   check_date = data_list$file_date
 )
 
@@ -162,7 +165,6 @@ cat("\n ******* Previous year trends *********  \n")
 result_long_seclast <- list_and_read_rds_file(
   folder = "Data", 
   pattern = pattern_long_seclast, 
-  extension = "rds",
   check_date = data_list$file_date
 )
 ```
@@ -171,44 +173,39 @@ result_long_seclast <- list_and_read_rds_file(
 ## ======================================
 ## 10 year trends 
 ## ======================================
+## character(0)
 ## 
 ##  ******* Last year trends *********  
-## There are 2 files with pattern '120_result_10yr_2019_[:date:]' and extension 'rds' to choose from 
 ## 
-## File '120_result_10yr_2019_2020-08-05.rds.rds' (file number 1) has been read 
-##   This is the newest file. If you want to read an older file, put a different 'filenumber' 
+## File '120_result_10yr_2019_2020-08-05.rds' (file number 1) has been read 
 ## 
 ## Time since this file was modified: 
-## Time difference of 32.55063 mins
+## Time difference of 1.669147 mins
 ## 
 ##  ******* Previous year trends *********  
-## There are 1 files with pattern '120_result_10yr_2018_[:date:]' and extension 'rds' to choose from 
 ## 
 ## File '120_result_10yr_2018_2020-08-05.rds' (file number 1) has been read 
 ## 
 ## Time since this file was modified: 
-## Time difference of 15.5997 hours
+## Time difference of 14.76122 hours
 ## 
 ## ======================================
 ## Long trends 
 ## ======================================
 ## 
 ##  ******* Last year trends *********  
-## There are 2 files with pattern '120_result_long_2019_[:date:]' and extension 'rds' to choose from 
 ## 
-## File '120_result_long_2019_2020-08-05.rds.rds' (file number 1) has been read 
-##   This is the newest file. If you want to read an older file, put a different 'filenumber' 
+## File '120_result_long_2019_2020-08-05.rds' (file number 1) has been read 
 ## 
 ## Time since this file was modified: 
-## Time difference of 32.55029 mins
+## Time difference of 1.668996 mins
 ## 
 ##  ******* Previous year trends *********  
-## There are 1 files with pattern '120_result_long_2018_[:date:]' and extension 'rds' to choose from 
 ## 
 ## File '120_result_long_2018_2020-08-05.rds' (file number 1) has been read 
 ## 
 ## Time since this file was modified: 
-## Time difference of 15.5997 hours
+## Time difference of 14.7612 hours
 ```
 
 ### c. Labware data  
@@ -250,128 +247,62 @@ data_med2 %>%
 
 ```r
 cat("======================================\n")
-```
-
-```
-## ======================================
-```
-
-```r
 cat("N string (sample size) \n")
-```
-
-```
-## N string (sample size)
-```
-
-```r
 cat("======================================\n")
-```
 
-```
-## ======================================
-```
-
-```r
 dat_nstring <- list_and_read_rds_file(
   folder = "Data", 
-  pattern = "111_Nstring_updated_[:date:]", 
-  extension = "rds",
+  pattern = "^111_Nstring_updated_[:date:].rds$", 
+  check_date = data_list$file_date
+)
+
+cat("======================================\n")
+cat("SD (standard deviation) \n")
+cat("======================================\n")
+
+dat_sd <- list_and_read_rds_file(
+  folder = "Data", 
+  pattern = "^111_SD_updated_[:date:].rds$", 
+  check_date = data_list$file_date
+)
+
+
+cat("======================================\n")
+cat("D.d.i. (detectable data information) \n")
+cat("======================================\n")
+
+dat_ddi <- list_and_read_rds_file(
+  folder = "Data", 
+  pattern = "^111_DDI_updated_[:date:].rds$", 
   check_date = data_list$file_date
 )
 ```
 
 ```
-## There are 1 files with pattern '111_Nstring_updated_[:date:]' and extension 'rds' to choose from 
+## ======================================
+## N string (sample size) 
+## ======================================
 ## 
 ## File '111_Nstring_updated_2020-08-05.rds' (file number 1) has been read 
 ## 
 ## Time since this file was modified: 
-## Time difference of 13.92164 days
-```
-
-```r
-cat("======================================\n")
-```
-
-```
+## Time difference of 20.81439 days
 ## ======================================
-```
-
-```r
-cat("SD (standard deviation) \n")
-```
-
-```
-## SD (standard deviation)
-```
-
-```r
-cat("======================================\n")
-```
-
-```
+## SD (standard deviation) 
 ## ======================================
-```
-
-```r
-dat_sd <- list_and_read_rds_file(
-  folder = "Data", 
-  pattern = "111_SD_updated_[:date:]", 
-  extension = "rds",
-  check_date = data_list$file_date
-)
-```
-
-```
-## There are 1 files with pattern '111_SD_updated_[:date:]' and extension 'rds' to choose from 
 ## 
 ## File '111_SD_updated_2020-08-05.rds' (file number 1) has been read 
 ## 
 ## Time since this file was modified: 
-## Time difference of 13.92164 days
-```
-
-```r
-cat("======================================\n")
-```
-
-```
+## Time difference of 20.81439 days
 ## ======================================
-```
-
-```r
-cat("D.d.i. (detectable data information) \n")
-```
-
-```
-## D.d.i. (detectable data information)
-```
-
-```r
-cat("======================================\n")
-```
-
-```
+## D.d.i. (detectable data information) 
 ## ======================================
-```
-
-```r
-dat_ddi <- list_and_read_rds_file(
-  folder = "Data", 
-  pattern = "111_DDI_updated_[:date:]", 
-  extension = "rds",
-  check_date = data_list$file_date
-)
-```
-
-```
-## There are 1 files with pattern '111_DDI_updated_[:date:]' and extension 'rds' to choose from 
 ## 
 ## File '111_DDI_updated_2020-08-05.rds' (file number 1) has been read 
 ## 
 ## Time since this file was modified: 
-## Time difference of 13.92163 days
+## Time difference of 20.81439 days
 ```
 
 
@@ -633,29 +564,8 @@ cat(sum(sel), "tissue names containing 'Egg' changed to the exact word 'Egg' \n"
 
 ```r
 cat("==================================\n")
-```
-
-```
-## ==================================
-```
-
-```r
 cat("Eider duck\n")
-```
-
-```
-## Eider duck
-```
-
-```r
 cat("----------------------------------\n")
-```
-
-```
-## ----------------------------------
-```
-
-```r
 check <- data_med2 %>% filter(LATIN_NAME %in% "Somateria mollissima" & MYEAR %in% last_year & Basis %in% "WW") %>%
   group_by(TISSUE_NAME, PARAM) %>%
   summarise(N = n(), .groups = "drop") %>%
@@ -667,43 +577,10 @@ for (i in 1:nrow(check)){
   cat(check[i,"TISSUE_NAME"], "\nNumber of medians: N =", check[i,"N"], ":\n")
   cat(check[i,"PARAM"], "\n\n")
 }
-```
 
-```
-## Blod 
-## Number of medians: N = 1 :
-## % C, % N, AG, AS, BDE100, BDE119, BDE126, BDE138, BDE153, BDE154, BDE156, BDE17, BDE183, BDE184, BDE191, BDE196, BDE197, BDE202, BDE206, BDE207, BDE209, BDE28, BDE47, BDE49, BDE66, BDE6S, BDE71, BDE77, BDE85, BDE99, BDESS, C/N, CB_S7, CB101, CB105, CB114, CB118, CB122, CB123, CB128, CB138, CB141, CB149, CB153, CB156, CB157, CB167, CB170, CB18, CB180, CB183, CB187, CB189, CB194, CB206, CB209, CB28, CB31, CB33, CB37, CB47, CB52, CB66, CB74, CB99, CD, CO, CR, CU, D4, D5, D6, Delta13C, Delta15N, Fett, HBCDA, HBCDB, HBCDD, HBCDG, HCB, HG, MCCP, NI, PB, PFAS, PFDcA, PFHpA, PFHxA, PFHxS, PFNA, PFOA, PFOS, PFOSA, PFUdA, SCCP, SN, TBA, ZN 
-## 
-## Egg 
-## Number of medians: N = 1 :
-## % C, % N, AG, AS, BDE100, BDE119, BDE126, BDE138, BDE153, BDE154, BDE156, BDE17, BDE183, BDE184, BDE191, BDE196, BDE197, BDE202, BDE206, BDE207, BDE209, BDE28, BDE47, BDE49, BDE66, BDE6S, BDE71, BDE77, BDE85, BDE99, BDESS, C/N, CB_S7, CB101, CB105, CB114, CB118, CB122, CB123, CB128, CB138, CB141, CB149, CB153, CB156, CB157, CB167, CB170, CB18, CB180, CB183, CB187, CB189, CB194, CB206, CB209, CB28, CB31, CB33, CB37, CB47, CB52, CB66, CB74, CB99, CD, CO, CR, CU, D4, D5, D6, Delta13C, Delta15N, Fett, HBCDA, HBCDB, HBCDD, HBCDG, HCB, HG, MCCP, NI, PB, PFAS, PFDcA, PFHpA, PFHxA, PFHxS, PFNA, PFOA, PFOS, PFOSA, PFUdA, SCCP, SN, TBA, ZN
-```
-
-```r
 cat("==================================\n")
-```
-
-```
-## ==================================
-```
-
-```r
 cat("71G\n")
-```
-
-```
-## 71G
-```
-
-```r
 cat("----------------------------------\n")
-```
-
-```
-## ----------------------------------
-```
-
-```r
 check <- data_med2 %>% filter(STATION_CODE %in% "71G" & Basis %in% "WW") %>%
   group_by(LATIN_NAME, PARAM, MYEAR) %>%
   summarise(N = n(), .groups = "drop") %>%
@@ -717,79 +594,11 @@ for (i in 1:nrow(check)){
   cat(check[i,"LATIN_NAME"], ", ", check[i,"PARAM"], "\nNumber of medians: N =", check[i,"N"], ":\n")
   cat(check[i,"MYEAR"], "\n\n")
 }
-```
 
-```
-## Littorina littorea ,  DBT, DOT, DRYWT%, MBT, MOT, TBT, TCHT, TPT 
-## Number of medians: N = 1 :
-## 2015, 2016, 2017, 2018, 2019 
-## 
-## Littorina littorea ,  VDSI/Intersex 
-## Number of medians: N = 1 :
-## 2016, 2017, 2018, 2019 
-## 
-## Littorina littorea ,  TTBT 
-## Number of medians: N = 1 :
-## 2017, 2018 
-## 
-## Littorina littorea ,  DBT-Sn, DOT-Sn, MBT-Sn, MOT-Sn, TBTIN, TCHT-Sn, TPhT-Sn, TTBT-Sn 
-## Number of medians: N = 1 :
-## 2017, 2018, 2019 
-## 
-## Littorina littorea ,  TTBTIN 
-## Number of medians: N = 1 :
-## 2019 
-## 
-## Nucella lapillus ,  RSPI 
-## Number of medians: N = 1 :
-## 2001, 2002, 2003, 2004 
-## 
-## Nucella lapillus ,  VDSI/Intersex 
-## Number of medians: N = 1 :
-## 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2009 
-## 
-## Nucella lapillus ,  DRYWT%, TBT 
-## Number of medians: N = 1 :
-## 2001, 2002, 2003, 2004, 2006, 2007, 2009 
-## 
-## Nucella lapillus ,  HTMEA, IMPS, LNFPE, LNMPE 
-## Number of medians: N = 1 :
-## 2005, 2006, 2007, 2009 
-## 
-## Nucella lapillus ,  TBTIN 
-## Number of medians: N = 1 :
-## 2006, 2007, 2009 
-## 
-## Nucella lapillus ,  DOT, MONOKTYL, MOT, TCHT, TETRABUT, TRISYKLO, TTBT 
-## Number of medians: N = 1 :
-## 2009
-```
 
-```r
 cat("==================================\n")
-```
-
-```
-## ==================================
-```
-
-```r
 cat("PYR1O\n")
-```
-
-```
-## PYR1O
-```
-
-```r
 cat("----------------------------------\n")
-```
-
-```
-## ----------------------------------
-```
-
-```r
 check <- data_med2 %>% filter(PARAM %in% "PYR1O" & MYEAR >= 2008 & Basis %in% "WW") %>%
   group_by(STATION_CODE, MYEAR) %>%
   summarise(N = n(), .groups = "drop") %>%
@@ -806,6 +615,63 @@ for (i in 1:nrow(check)){
 ```
 
 ```
+## ==================================
+## Eider duck
+## ----------------------------------
+## Blod 
+## Number of medians: N = 1 :
+## % C, % N, AG, AS, BDE100, BDE119, BDE126, BDE138, BDE153, BDE154, BDE156, BDE17, BDE183, BDE184, BDE191, BDE196, BDE197, BDE202, BDE206, BDE207, BDE209, BDE28, BDE47, BDE49, BDE66, BDE6S, BDE71, BDE77, BDE85, BDE99, BDESS, C/N, CB_S7, CB101, CB105, CB114, CB118, CB122, CB123, CB128, CB138, CB141, CB149, CB153, CB156, CB157, CB167, CB170, CB18, CB180, CB183, CB187, CB189, CB194, CB206, CB209, CB28, CB31, CB33, CB37, CB47, CB52, CB66, CB74, CB99, CD, CO, CR, CU, D4, D5, D6, Delta13C, Delta15N, Fett, HBCDA, HBCDB, HBCDD, HBCDG, HCB, HG, MCCP, NI, PB, PFAS, PFDcA, PFHpA, PFHxA, PFHxS, PFNA, PFOA, PFOS, PFOSA, PFUdA, SCCP, SN, TBA, ZN 
+## 
+## Egg 
+## Number of medians: N = 1 :
+## % C, % N, AG, AS, BDE100, BDE119, BDE126, BDE138, BDE153, BDE154, BDE156, BDE17, BDE183, BDE184, BDE191, BDE196, BDE197, BDE202, BDE206, BDE207, BDE209, BDE28, BDE47, BDE49, BDE66, BDE6S, BDE71, BDE77, BDE85, BDE99, BDESS, C/N, CB_S7, CB101, CB105, CB114, CB118, CB122, CB123, CB128, CB138, CB141, CB149, CB153, CB156, CB157, CB167, CB170, CB18, CB180, CB183, CB187, CB189, CB194, CB206, CB209, CB28, CB31, CB33, CB37, CB47, CB52, CB66, CB74, CB99, CD, CO, CR, CU, D4, D5, D6, Delta13C, Delta15N, Fett, HBCDA, HBCDB, HBCDD, HBCDG, HCB, HG, MCCP, NI, PB, PFAS, PFDcA, PFHpA, PFHxA, PFHxS, PFNA, PFOA, PFOS, PFOSA, PFUdA, SCCP, SN, TBA, ZN 
+## 
+## ==================================
+## 71G
+## ----------------------------------
+## Littorina littorea ,  DBT, DOT, DRYWT%, MBT, MOT, TBT, TCHT, TPT 
+## Number of medians: N = 1 :
+## 2015, 2016, 2017, 2018, 2019 
+## 
+## Littorina littorea ,  TTBT 
+## Number of medians: N = 1 :
+## 2017, 2018 
+## 
+## Littorina littorea ,  DBT-Sn, DOT-Sn, MBT-Sn, MOT-Sn, TBTIN, TCHT-Sn, TPhT-Sn, TTBT-Sn 
+## Number of medians: N = 1 :
+## 2017, 2018, 2019 
+## 
+## Littorina littorea ,  TTBTIN 
+## Number of medians: N = 1 :
+## 2019 
+## 
+## N. lapillus / L. littorea ,  VDSI/Intersex 
+## Number of medians: N = 1 :
+## 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2009, 2016, 2017, 2018, 2019 
+## 
+## Nucella lapillus ,  RSPI 
+## Number of medians: N = 1 :
+## 2001, 2002, 2003, 2004 
+## 
+## Nucella lapillus ,  DRYWT%, TBT 
+## Number of medians: N = 1 :
+## 2001, 2002, 2003, 2004, 2006, 2007, 2009 
+## 
+## Nucella lapillus ,  HTMEA, IMPS, LNFPE, LNMPE 
+## Number of medians: N = 1 :
+## 2005, 2006, 2007, 2009 
+## 
+## Nucella lapillus ,  TBTIN 
+## Number of medians: N = 1 :
+## 2006, 2007, 2009 
+## 
+## Nucella lapillus ,  DOT, MONOKTYL, MOT, TCHT, TETRABUT, TRISYKLO, TTBT 
+## Number of medians: N = 1 :
+## 2009 
+## 
+## ==================================
+## PYR1O
+## ----------------------------------
 ## 30B 
 ## Number of medians since 2008: N = 1 :
 ## 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019 
@@ -830,6 +696,18 @@ data_for_select_data <- data_med2 %>%
 
 data_for_select_data %>%
   count(!is.na(Value), Present_last7year, !is.na(UNIT))
+
+select_data <- with(data_for_select_data, MYEAR >= 1980 & !is.na(Value) & Present_last7year & !is.na(UNIT))
+cat("Number of medians, originally:", nrow(data_med2), "\n")
+cat("Number of medians, selected:", sum(select_data), "\n")
+
+data_xlvalues1 <- data_med2[select_data,]
+data_xlvalues <- data_xlvalues1 %>%
+  select(MYEAR:UNIT, Basis, Value) %>%
+  tidyr::pivot_wider(names_from = "MYEAR", values_from = "Value") %>%
+  as.data.frame()
+
+cat("Number of medians, selected, in wide format:", nrow(data_xlvalues), "\n")
 ```
 
 ```
@@ -841,39 +719,11 @@ data_for_select_data %>%
 ## 3 FALSE           TRUE              FALSE            1843
 ## 4 FALSE           TRUE              TRUE           153318
 ## 5 TRUE            FALSE             FALSE             740
-## 6 TRUE            FALSE             TRUE            77582
+## 6 TRUE            FALSE             TRUE            77574
 ## 7 TRUE            TRUE              FALSE            1037
-## 8 TRUE            TRUE              TRUE           197144
-```
-
-```r
-select_data <- with(data_for_select_data, MYEAR >= 1980 & !is.na(Value) & Present_last7year & !is.na(UNIT))
-cat("Number of medians, originally:", nrow(data_med2), "\n")
-```
-
-```
-## Number of medians, originally: 524836
-```
-
-```r
-cat("Number of medians, selected:", sum(select_data), "\n")
-```
-
-```
-## Number of medians, selected: 197144
-```
-
-```r
-data_xlvalues1 <- data_med2[select_data,]
-data_xlvalues <- data_xlvalues1 %>%
-  select(MYEAR:UNIT, Basis, Value) %>%
-  tidyr::pivot_wider(names_from = "MYEAR", values_from = "Value") %>%
-  as.data.frame()
-
-cat("Number of medians, selected, in wide format:", nrow(data_xlvalues), "\n")
-```
-
-```
+## 8 TRUE            TRUE              TRUE           197152
+## Number of medians, originally: 524836 
+## Number of medians, selected: 197152 
 ## Number of medians, selected, in wide format: 24346
 ```
 
@@ -912,69 +762,30 @@ if (nrow(data_xlvalues) != nrow(data_lessthans)){
   cat("\n")
   cat("data_lessthans created and appears to be ok \n")
 }
+
+# Check (all must be equal, ie all numbers below should be zero!)
+
+cat("\n")
+cat("Check of index columns - all the following should be zero: \n")
+sum(data_xlvalues$PARAM != data_lessthans$PARAM)
+sum(data_xlvalues$STATION_CODE != data_lessthans$STATION_CODE)
+sum(data_xlvalues$LATIN_NAME != data_lessthans$LATIN_NAME)
+sum(data_xlvalues$TISSUE_NAME != data_lessthans$TISSUE_NAME)
+sum(data_xlvalues$Basis != data_lessthans$Basis)
+
+# head(data_lessthans,1)
 ```
 
 ```
 ## 
-## data_lessthans created and appears to be ok
-```
-
-```r
-# Check (all must be equal, ie all numbers below should be zero!)
-
-cat("\n")
-```
-
-```r
-cat("Check of index columns - all the following should be zero: \n")
-```
-
-```
-## Check of index columns - all the following should be zero:
-```
-
-```r
-sum(data_xlvalues$PARAM != data_lessthans$PARAM)
-```
-
-```
+## data_lessthans created and appears to be ok 
+## 
+## Check of index columns - all the following should be zero: 
 ## [1] 24195
-```
-
-```r
-sum(data_xlvalues$STATION_CODE != data_lessthans$STATION_CODE)
-```
-
-```
 ## [1] 24264
-```
-
-```r
-sum(data_xlvalues$LATIN_NAME != data_lessthans$LATIN_NAME)
-```
-
-```
-## [1] 14017
-```
-
-```r
-sum(data_xlvalues$TISSUE_NAME != data_lessthans$TISSUE_NAME)
-```
-
-```
-## [1] 13586
-```
-
-```r
-sum(data_xlvalues$Basis != data_lessthans$Basis)
-```
-
-```
-## [1] 18518
-```
-
-```r
-# head(data_lessthans,1)
+## [1] 14020
+## [1] 13588
+## [1] 17223
 ```
 
 ### c. Check that we don't have any duplicates  
@@ -1220,71 +1031,22 @@ colnames(df_par)[1] <- "PARAM"
 # View(df_par)
 sel <- grepl(";", df_par$IUPAC, fixed = TRUE)
 cat("Change", sum(sel), "IPUAC values by replacing semicolon with slash \n")
-```
 
-```
-## Change 3 IPUAC values by replacing semicolon with slash
-```
-
-```r
 cat("\n")
-```
-
-```r
 cat("Old names: \n")
-```
-
-```
-## Old names:
-```
-
-```r
 df_par$IUPAC[sel]
-```
-
-```
-## [1] "potassium;1,1,2,2,3,3,4,4,4-nonafluorobutane-1-sulfonate"                             
-## [2] "azanium;1,1,2,2,3,3,4,4,5,5,6,6,7,7,8,8,9,9,10,10,10-henicosafluorodecane-1-sulfonate"
-## [3] "azanium;1,1,2,2,3,3,4,4,5,5,6,6,7,7,8,8,9,9,10,10,10-henicosafluorodecane-1-sulfonate"
-```
-
-```r
 df_par$IUPAC <- gsub(";", " / ", df_par$IUPAC, fixed = TRUE)
 cat("\n")
-```
-
-```r
 cat("New names: \n")
-```
-
-```
-## New names:
-```
-
-```r
 df_par$IUPAC[sel]
-```
 
-```
-## [1] "potassium / 1,1,2,2,3,3,4,4,4-nonafluorobutane-1-sulfonate"                             
-## [2] "azanium / 1,1,2,2,3,3,4,4,5,5,6,6,7,7,8,8,9,9,10,10,10-henicosafluorodecane-1-sulfonate"
-## [3] "azanium / 1,1,2,2,3,3,4,4,5,5,6,6,7,7,8,8,9,9,10,10,10-henicosafluorodecane-1-sulfonate"
-```
-
-```r
 # Change sum parameter names som they fit with the our "new" names
 # Also see section 28
 sel <- df_par$Parameter.Code %in% "PK_S"
 if (sum(sel) > 0)
   df_par$Parameter.Code[sel] <- "KPAH"
 cat(sum(sel), "cases: PK_S changed to KPAH \n")
-```
 
-```
-## 0 cases: PK_S changed to KPAH
-```
-
-```r
 sel <- df_par$Parameter.Code %in% "PAHSS"
 if (sum(sel) > 0)
   df_par$Parameter.Code[sel] <- "PAH16"
@@ -1292,6 +1054,18 @@ cat(sum(sel), "cases: PAHSS changed to PAH16 \n")
 ```
 
 ```
+## Change 3 IPUAC values by replacing semicolon with slash 
+## 
+## Old names: 
+## [1] "potassium;1,1,2,2,3,3,4,4,4-nonafluorobutane-1-sulfonate"                             
+## [2] "azanium;1,1,2,2,3,3,4,4,5,5,6,6,7,7,8,8,9,9,10,10,10-henicosafluorodecane-1-sulfonate"
+## [3] "azanium;1,1,2,2,3,3,4,4,5,5,6,6,7,7,8,8,9,9,10,10,10-henicosafluorodecane-1-sulfonate"
+## 
+## New names: 
+## [1] "potassium / 1,1,2,2,3,3,4,4,4-nonafluorobutane-1-sulfonate"                             
+## [2] "azanium / 1,1,2,2,3,3,4,4,5,5,6,6,7,7,8,8,9,9,10,10,10-henicosafluorodecane-1-sulfonate"
+## [3] "azanium / 1,1,2,2,3,3,4,4,5,5,6,6,7,7,8,8,9,9,10,10,10-henicosafluorodecane-1-sulfonate"
+## 0 cases: PK_S changed to KPAH 
 ## 0 cases: PAHSS changed to PAH16
 ```
 
@@ -1733,7 +1507,7 @@ cat(sum(!is.na(data_xl$N_string)), "values of 'N_string' added to data \n")
 ```
 
 ```
-## 10843 values of 'N_string' added to data
+## 10842 values of 'N_string' added to data
 ```
 
 ```r
@@ -1977,33 +1751,10 @@ trend_10yr_for_excel <- make_trend_data_for_excel2(result_10yr_last, data_xl[,co
 trends_for_excel <- combine_long_and_short_trends_for_excel2(trend_long_for_excel, trend_10yr_for_excel)
 
 cat("'trends_for_excel', number of lines:", nrow(trends_for_excel), "\n\n")  # 29582
-```
 
-```
-## 'trends_for_excel', number of lines: 24346
-```
-
-```r
 cat("'trends_for_excel', values: \n")  # 29582
-```
-
-```
-## 'trends_for_excel', values:
-```
-
-```r
 table(trends_for_excel$Trend.year)
-```
 
-```
-## 
-##   «/«   «/§   «/¢   §/§   §/¢   §/ê   ¢/«   ¢/§   ¢/¢   ¢/é   ¢/ê   ê/«   ê/§ 
-##  1430    34     1 16766    16     4    97     6  3566   108   136   106    33 
-##   é/¢   ê/¢   é/é   é/ê   ê/é   ê/ê 
-##    84  1055   158     2    25   719
-```
-
-```r
 # Change column name
 colnumber <- which(colnames(trends_for_excel) %in% "Trend.year")
 colnames(trends_for_excel)[colnumber] <- paste0("Trends.", last_year)
@@ -2020,17 +1771,8 @@ check <- data_xl %>%
 
 ```r
 cat("\n")
-```
-
-```r
 cat("Number of duplicates in data_xl (should be zero):", sum(check$N > 1), "\n")   
-```
 
-```
-## Number of duplicates in data_xl (should be zero): 0
-```
-
-```r
 # If there are duplicates, check data:
 if ( sum(check$N > 1)){
   check %>% filter(N > 1) %>% head(10)
@@ -2053,13 +1795,7 @@ check <- trends_for_excel %>%
 
 ```r
 cat("Number of duplicates in 'trends_for_excel' (should be zero):", sum(check$N > 1), "\n")   
-```
 
-```
-## Number of duplicates in 'trends_for_excel' (should be zero): 0
-```
-
-```r
 # If there are duplicates, check data:
 if ( sum(check$N > 1)){
   table(check$N)
@@ -2070,6 +1806,20 @@ if ( sum(check$N > 1)){
            TISSUE_NAME %in% df1$TISSUE_NAME, PARAM %in% df1$PARAM, Basis %in% df1$Basis)
   check2
 }
+```
+
+```
+## 'trends_for_excel', number of lines: 24346 
+## 
+## 'trends_for_excel', values: 
+## 
+##   «/«   «/§   «/¢   «/ê   §/§     /   ¢/«   ¢/§   ¢/¢   ¢/é   ¢/ê   ê/«   é/§ 
+##  2388    24    19     3 16380     2    74    15  3112   111   145   108     1 
+##   ê/§   é/¢   ê/¢   é/é   ê/é   ê/ê 
+##     6    48   953   158    32   767 
+## 
+## Number of duplicates in data_xl (should be zero): 0 
+## Number of duplicates in 'trends_for_excel' (should be zero): 0
 ```
 
 ### Trends for last year - add columns to data
@@ -2115,33 +1865,10 @@ trends_for_excel_seclast <- combine_long_and_short_trends_for_excel2(trend_long_
                                                                      trend_10yr_for_excel_seclast)
 
 cat("'trends_for_excel_seclast', number of lines:", nrow(trends_for_excel), "\n\n")  # 29582
-```
 
-```
-## 'trends_for_excel_seclast', number of lines: 24346
-```
-
-```r
 cat("'trends_for_excel_seclast', values: \n")  # 29582
-```
-
-```
-## 'trends_for_excel_seclast', values:
-```
-
-```r
 table(trends_for_excel_seclast$Trend.year)
-```
 
-```
-## 
-##   «/«   «/§   §/§   §/¢   §/é   §/ê   ¢/«   ¢/§   ¢/¢   ¢/é   ¢/ê   ê/«   é/§ 
-##  1481    16 17071    16     1     3   160    13  3888   142   264    62     2 
-##   ê/§   é/¢   ê/¢   é/é   é/ê   ê/é   ê/ê 
-##     2    79   496   192     1     9   448
-```
-
-```r
 # Existing names
 var2 <- c("Trend p(long)", "Detectable % change(long)", "First Year(long)", "Last Year(long)",
           "No of Years(long)", "Trend p(short)", "Detectable % change(short)", "First Year(short)", "Last Year(short)",
@@ -2175,13 +1902,7 @@ check <- trends_for_excel_seclast %>%
 
 ```r
 cat("Number of duplicates in 'trends_for_excel_seclast' (should be zero):", sum(check$N > 1), "\n")   
-```
 
-```
-## Number of duplicates in 'trends_for_excel_seclast' (should be zero): 0
-```
-
-```r
 # If there are duplicates, check data:
 if ( sum(check$N > 1)){
   table(check$N)
@@ -2192,6 +1913,18 @@ if ( sum(check$N > 1)){
            TISSUE_NAME %in% df1$TISSUE_NAME, PARAM %in% df1$PARAM, Basis %in% df1$Basis)
   check2
 }
+```
+
+```
+## 'trends_for_excel_seclast', number of lines: 24346 
+## 
+## 'trends_for_excel_seclast', values: 
+## 
+##   «/«   «/§   «/¢   «/ê   §/§     /   ¢/«   ¢/§   ¢/¢   ¢/é   ¢/ê   ê/«   é/§ 
+##  2388    24    19     3 16380     2    74    15  3112   111   145   108     1 
+##   ê/§   é/¢   ê/¢   é/é   ê/é   ê/ê 
+##     6    48   953   158    32   767 
+## Number of duplicates in 'trends_for_excel_seclast' (should be zero): 0
 ```
 
 
@@ -2317,7 +2050,7 @@ cat("Number of changes in trend:", sum(sel), "\n")
 ```
 
 ```
-## Number of changes in trend: 2256
+## Number of changes in trend: 0
 ```
 
 ```r
@@ -2983,7 +2716,6 @@ if (FALSE){
   data_xl_lessthans_oldnames %>% 
     select(PARAM, LATIN_NAME, TISSUE_NAME, Basis, Yr_2019, N_string, SD_last) %>%
     View()
-    
 
 }
 ```
@@ -3048,24 +2780,26 @@ cat("Excel file", sQuote(fn_stations), "(one line per station) written to folder
 ```
 
 ```
-## # A tibble: 13 x 3
+## # A tibble: 15 x 3
 ##    Filename                     Date       Version
 ##    <chr>                        <chr>        <dbl>
-##  1 Data_xl_2020-08-05_ver09.csv 2020-08-05       9
-##  2 Data_xl_2020-08-05_ver08.csv 2020-08-05       8
-##  3 Data_xl_2020-08-05_ver07.csv 2020-08-05       7
-##  4 Data_xl_2020-08-05_ver06.csv 2020-08-05       6
-##  5 Data_xl_2020-08-05_ver05.csv 2020-08-05       5
-##  6 Data_xl_2020-08-05_ver04.csv 2020-08-05       4
-##  7 Data_xl_2020-08-05_ver03.csv 2020-08-05       3
-##  8 Data_xl_2020-08-05_ver02.csv 2020-08-05       2
-##  9 Data_xl_2020-08-05_ver01.csv 2020-08-05       1
-## 10 Data_xl_2020-07-03.csv       2020-07-03      NA
-## 11 Data_xl_2020-06-12.csv       2020-06-12      NA
-## 12 Data_xl_2020-05-29.csv       2020-05-29      NA
-## 13 Data_xl_2020-04-30.csv       2020-04-30      NA
-## Text file 'Data_xl_2020-08-05_ver10.csv' written to folder 'Big_Excel_table'
-## R data file 'Data_xl_2020-08-05_ver10.rds' written to folder 'Big_Excel_table'
+##  1 Data_xl_2020-08-05_ver11.csv 2020-08-05      11
+##  2 Data_xl_2020-08-05_ver10.csv 2020-08-05      10
+##  3 Data_xl_2020-08-05_ver09.csv 2020-08-05       9
+##  4 Data_xl_2020-08-05_ver08.csv 2020-08-05       8
+##  5 Data_xl_2020-08-05_ver07.csv 2020-08-05       7
+##  6 Data_xl_2020-08-05_ver06.csv 2020-08-05       6
+##  7 Data_xl_2020-08-05_ver05.csv 2020-08-05       5
+##  8 Data_xl_2020-08-05_ver04.csv 2020-08-05       4
+##  9 Data_xl_2020-08-05_ver03.csv 2020-08-05       3
+## 10 Data_xl_2020-08-05_ver02.csv 2020-08-05       2
+## 11 Data_xl_2020-08-05_ver01.csv 2020-08-05       1
+## 12 Data_xl_2020-07-03.csv       2020-07-03      NA
+## 13 Data_xl_2020-06-12.csv       2020-06-12      NA
+## 14 Data_xl_2020-05-29.csv       2020-05-29      NA
+## 15 Data_xl_2020-04-30.csv       2020-04-30      NA
+## Text file 'Data_xl_2020-08-05_ver12.csv' written to folder 'Big_Excel_table'
+## R data file 'Data_xl_2020-08-05_ver12.rds' written to folder 'Big_Excel_table'
 ## 
 ## Excel file '201_Stations_2019.xlsx' (one line per station) written to folder 'Data'
 ```
@@ -3092,17 +2826,18 @@ if (FALSE){
   file_versions
   
   # Get most recet file (based on date and version in file name)
-  fn <- paste0("Big_excel_table/", file_versions$Filename[3])
+  fn <- paste0("Big_excel_table/", file_versions$Filename[1])
   fn
 
-  # Check header
-  readLines(fn, n = 1)
   
   # read R data (fast)
   check <- readRDS(file = sub(".csv", ".rds", fn, fixed = TRUE))
 
   # OR read csv (slow)
   check <- read.csv2(file = fn)
+
+  # Check header of csv:
+  # readLines(fn, n = 1)
 
   # All column names
   names(check)
@@ -3114,6 +2849,13 @@ if (FALSE){
          Yr_2018, Yr_2019, N_string, SD_last, EQS) %>%
     View()
 
+  # Check data for all TBT
+  check %>%
+    filter(PARAM == "HG" & Basis == "WW" & STATION_CODE == "30B") %>%
+    select(PARAM, Substance.Group, LATIN_NAME, TISSUE_NAME, STATION_CODE, Basis, 
+         Yr_2018, Yr_2019, N_string, SD_last, EQS, Trends.2019) %>%
+    View()
+
   # Check all data for one snail station
   check %>%
     filter(Basis == "WW" & STATION_CODE == "71G") %>%
@@ -3121,6 +2863,12 @@ if (FALSE){
          Yr_2003, Yr_2010, Yr_2014, Yr_2018, Yr_2019, N_string, SD_last, EQS) %>%
     View("11G")
 
+  check %>%
+    filter(Basis == "WW" & STATION_CODE == "30B" & PARAM == "HG") %>%
+    select(PARAM, Substance.Group, LATIN_NAME, TISSUE_NAME, STATION_CODE, Basis, 
+           Yr_2003, Yr_2010, Yr_2014, Yr_2018, Yr_2019, N_string, SD_last, EQS, Trends.2019) %>%
+    View("check")
+  
   # Read older version (check2) and compare number of rows and column 1:22 between check and check2: 
   fn2 <- paste0("Big_excel_table/", file_versions$Filename[2])
   check2 <- read.csv2(file = fn2)
