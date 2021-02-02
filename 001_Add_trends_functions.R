@@ -931,10 +931,15 @@ model_from_leveldata <- function(i, varname, yrs, leveldata, rawdata, plotname =
 # As 'model_from_leveldata' but takes data from file of annual medians (df_med), not raw data
 # Note: here gam = TRUE by default (in contrast to model_from_leveldata)
 #
-# Hard-coded variable names that must ne in the fike of medians: 'Over_LOQ', 'N', 'SD'
+# Variable names:
+# Hard-coded variable names that must be in the file of medians: 
+#   PARAM, LATIN_NAME, TISSUE_NAME, STATION_CODE, Basis, MYEAR
+#   'Over_LOQ', 'N', 'SD'
+#     ('SD' is used in 'statistics_for_excel_empty' only)
+# Variable for median concentration can be chosen using 'varname' (default = 'Value')
 #
 
-    model_from_medians <- function(param, species, tissue, station, basis, yrs, data_medians, varname = "Value", plotname = "", ggplot = FALSE, gam = TRUE){
+model_from_medians <- function(param, species, tissue, station, basis, yrs, data_medians, varname = "Value", plotname = "", ggplot = FALSE, gam = TRUE){
   df_med <- subset(data_medians, 
                    PARAM %in% param & 
                      LATIN_NAME %in% species &
