@@ -1,0 +1,51 @@
+---
+title: "510_Industry_molluscs"
+output: html_document
+---
+
+## 1. Packages
+```{r, message=FALSE, warning=FALSE, results='hide'}
+
+# 
+library(readxl)
+library(tidyr)
+library(dplyr, warn.conflicts = FALSE)
+library(purrr)
+
+source("110_Medians_and_PROREF_functions.R")
+source("510_Industry_molluscs_functions.R")
+
+```
+
+
+
+
+## 2. Read data (individual level, with VALUE_WW etc.)
+```{r}
+
+last_file_list <- read_last_file(folder = "Data", pattern = "109_adjusted_data")
+data_all <- last_file_list$data
+
+```
+
+## 3. Summarise data by medians and add proref  
+
+### Summarise by median for each year/station/parameter  
+```{r}
+
+data_medians_temp <- calculate_medians(data_all)
+
+```
+
+### Add Proref values    
+```{r}
+
+df_proref <- get_proref(folder = "Input_data")
+
+data_medians <- data_medians_temp %>%
+  left_join(df_proref, by = c("LATIN_NAME", "TISSUE_NAME", "PARAM", "Basis"))
+
+```
+
+##4. 
+
