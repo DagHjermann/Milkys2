@@ -121,6 +121,17 @@ if (FALSE){
     View()
 }
 
+#
+# Change all factor variables to characters
+#
+fact2char_df <- function(df){
+  for (i in 1:length(df)){
+    if (class(df[[i]])[1] %in% "factor")
+      df[[i]] <- fact2char(df[[i]])
+  }
+  df
+}
+
 
 #
 # "Round" p-values (returns text)
