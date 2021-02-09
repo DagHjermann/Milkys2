@@ -11,9 +11,29 @@ library(readxl)
 library(tidyr)
 library(dplyr, warn.conflicts = FALSE)
 library(purrr)
+library(lubridate)
+library(mgcv)
+library(AICcmodavg)   # AICc()
+library(ggplot2)
+library(safejoin)     # installed from https://github.com/moodymudskipper/safejoin   
 
+source("001_Add_trends_functions.R")  # Copied from '16_Trend_functions.R' in Milkys_2018
+source("002_Utility_functions.R")
 source("110_Medians_and_PROREF_functions.R")
 source("510_Industry_molluscs_functions.R")
+
+last_year <- 2019
+
+
+#
+# Define a couple of extra functions for shortening code
+#
+get_stats <- function(df){
+  calc_models_one_station2(df, gam = TRUE, log = TRUE)$statistics_for_file
+}
+
+model_from_medians_stat <- function(...)
+  model_from_medians(...)$statistics
 
 ```
 
@@ -33,7 +53,7 @@ data_all <- last_file_list$data
 ### Summarise by median for each year/station/parameter  
 ```{r}
 
-data_medians_temp <- calculate_medians(data_all)
+data_med_temp <- calculate_medians(data_all)
 
 ```
 
@@ -42,10 +62,127 @@ data_medians_temp <- calculate_medians(data_all)
 
 df_proref <- get_proref(folder = "Input_data")
 
-data_medians <- data_medians_temp %>%
-  left_join(df_proref, by = c("LATIN_NAME", "TISSUE_NAME", "PARAM", "Basis"))
+data_med <- data_med_temp %>%
+  left_join(df_proref %>% select(-N) %>% rename(Proref_median = Median), 
+            by = c("LATIN_NAME", "TISSUE_NAME", "PARAM", "Basis"))
 
 ```
 
-##4. 
+
+## 4. Time trend analysis   
+
+### Testing  
+```{r}
+
+model_from_medians("HG", "Gadus morhua", "Muskel", 
+                   "30B", "WWa", 1980:2019, data_med, plotname = "window", 
+                   ggplot = TRUE)$statistics %>%
+  select(Nplus, p_linear:Status)
+
+```
+
+## 5. Make standard plots   
+
+### Medians 
+```{r}
+
+source("401 Plot time series functions.R", encoding = "UTF-8")
+
+data_med2 <- data_med
+
+
+
+
+```
+
+### Station names  
+```{r}
+
+data_stations <- readxl::read_excel("Input_data/Kartbase.xlsx")
+
+df_stationnames <- data_stations %>%
+  select(stasjonskode, `catch LAT...40`, `catch LONG...41`, stasjonsnavn, `Til Rapport`) %>%
+  rename(STATION_CODE = stasjonskode,
+         Lat = `catch LAT...40`, Long = `catch LONG...41`, 
+         Station_name = stasjonsnavn,
+         Report_version_name = `Til Rapport`) %>%
+  filter(!is.na(STATION_CODE)) %>%
+  filter(!Station_name %in% "Risøy, Østerfjord")  # One duplicate (different names), we just remove 
+
+# Check stations that might be missing
+df_stationnames %>% filter(STATION_CODE %in% c("28A2","97A3","227G","19B","19N"))
+
+# Add missing station
+df_stationnames <- df_stationnames %>%
+  bind_rows(
+    tibble(STATION_CODE = "227G",
+           Report_version_name = "Flatskjær (St. 227G)")
+    )
+
+# Check some other stations
+df_stationnames %>% filter(STATION_CODE %in% c("I714", "I133"))
+
+
+```
+
+### Parameter and species names for graphs
+Used in 'plot_single_series_medians_data' (see '_functions' file)  
+```{r}
+
+df_paramnames <- readxl::read_excel(
+  "Input_data/Lookup table - parameter names for plots.xlsx")
+
+df_speciesnames <- tibble(
+  LATIN_NAME = c("Gadus morhua", "Mytilus edulis", "Nucella lapillus"),
+  Species_name = c("Cod", "Blue mussel", "Dog whelk")
+  )
+
+```
+
+### Get EQS limits  
+```{r}
+
+EQS_limits <- read_excel("Input_data/EQS_limits.xlsx", "EQS")[1:8] %>%
+  filter(!is.na(PARAM)) %>%
+  as.data.frame()
+EQS_limits <- fact2char_df(EQS_limits)  # changes all factor variables to character variables
+EQS_limits$Limit <- as.numeric(EQS_limits$`Grense brukt`)
+
+EQS_limits <- EQS_limits %>%
+  select(PARAM, Limit) %>% 
+  filter(!is.na(PARAM))
+
+```
+
+### Big excel  
+```{r}
+
+fns <- dir("Big_excel_table", pattern = "Data_xl_.+.rds") %>% rev()
+fns_date <- substr(fns, 9, 18)
+fns_ver <- stringr::str_extract(fns, "ver[0-9]+") %>% stringr::str_extract("[0-9]+") %>% as.numeric()
+file_versions <- tibble(Filename = fns, Date = fns_date, Version = fns_ver) %>%
+  arrange(desc(Date), desc(Version))
+# file_versions
+
+# Picks the first 'Filename' in 'file_versions' - this should be the latest 'excel' file:
+data_xl_name <- file_versions$Filename[1]
+data_xl_lessthans <- readRDS(paste0("Big_excel_table/", data_xl_name))
+
+cat("Read big excel table", sQuote(data_xl_name))
+
+```
+
+### Test 1
+```{r}
+
+source("401 Plot time series functions.R")
+type <- "line"
+ymax <- 0.45
+# debugonce(plot_medians_and_trends)
+plot_medians_and_trends(c("HG", "Gadus morhua", "Muskel", "30B",  "WW"), 
+                             eqs_type = "line", xlim = c(1980, 2020), ylim = c(0, ymax))
+
+```
+
+
 
