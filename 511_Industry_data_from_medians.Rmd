@@ -1,0 +1,428 @@
+---
+title: "510_Industry_molluscs"
+output: html_document
+---
+
+## 1. Packages
+```{r, message=FALSE, warning=FALSE, results='hide'}
+
+# 
+library(readxl)
+library(tidyr)
+library(dplyr, warn.conflicts = FALSE)
+library(purrr)
+library(lubridate)
+library(mgcv)
+library(AICcmodavg)   # AICc()
+library(ggplot2)
+library(safejoin)     # installed from https://github.com/moodymudskipper/safejoin   
+
+source("001_Add_trends_functions.R")  # Copied from '16_Trend_functions.R' in Milkys_2018
+source("002_Utility_functions.R")
+source("110_Medians_and_PROREF_functions.R")
+source("510_Industry_data_functions.R")
+source("401 Plot time series functions.R", encoding = "UTF-8")
+
+last_year <- 2019
+
+
+#
+# Define a couple of extra functions for shortening code
+#
+get_stats <- function(df){
+  calc_models_one_station2(df, gam = TRUE, log = TRUE)$statistics_for_file
+}
+
+model_from_medians_stat <- function(...)
+  model_from_medians(...)$statistics
+
+```
+
+### Parameter and species names for graphs
+Used in 'plot_single_series_medians_data' (see '_functions' file)  
+```{r}
+
+df_paramnames <- readxl::read_excel(
+  "Input_data/Lookup table - parameter names for plots.xlsx")
+
+df_speciesnames <- tibble(
+  LATIN_NAME = c("Gadus morhua", "Mytilus edulis", "Nucella lapillus"),
+  Species_name = c("Cod", "Blue mussel", "Dog whelk")
+  )
+
+```
+
+### PROREF values  
+```{r}
+df_proref <- get_proref(folder = "Input_data")
+
+
+```
+
+
+### Get EQS limits  
+```{r}
+
+df_EQS <- read_excel("Input_data/EQS_limits.xlsx", "EQS")[1:8] %>%
+  filter(!is.na(PARAM)) %>%
+  as.data.frame()
+df_EQS <- fact2char_df(df_EQS)  # changes all factor variables to character variables
+df_EQS$Limit <- as.numeric(df_EQS$`Grense brukt`)
+
+df_EQS <- df_EQS %>%
+  select(PARAM, Limit) %>% 
+  filter(!is.na(PARAM))
+
+```
+
+## -- AORDAL -- 
+
+## 2. Read data (individual level, with VALUE_WW etc.)   
+*Not needed here*      
+
+## 3. Summarise data by medians and add proref  
+
+### Summarise by median for each year/station/parameter   
+*Not needed here*      
+
+### Read median data    
+```{r}
+
+  data_med_temp <- readRDS(
+    "Input_data/510_Industry_data/Industry_data_aardal_(script_02).rds")
+  
+  names(data_med_temp)
+  unique(data_med_temp$Basis)   # DW  DWa   FB  FBa   WW  WWa 
+
+
+```
+
+
+### Add Proref values    
+```{r}
+
+data_med <- data_med_temp %>%
+  left_join(df_proref %>% select(-N) %>% rename(Proref_median = Median), 
+            by = c("LATIN_NAME", "TISSUE_NAME", "PARAM", "Basis"))
+
+```
+
+
+## 4. Time trend analysis   
+
+### Testing trend analysis   
+Including simple plot  
+```{r}
+
+
+model_from_medians("PAH16", "Mytilus edulis", "Whole soft body", 
+                   "G1", "WW", 2015:2020, data_med, plotname = "window", 
+                   ggplot = TRUE)$statistics %>%
+  select(Nplus, p_linear:Status)
+
+```
+
+
+
+## 5. Get ready for plotting     
+
+### Station names  
+```{r}
+
+#
+# Hand-made
+#
+
+if (TRUE){
+  df_stationnames <- data.frame(
+    STATION_CODE = c("G1", "G5", "G6", "G7", "G8"),
+    Report_version_name = c("Hundshammar (G1)", "Kolnosi (G5)",
+                            "Naddvik (G6)", "Kvitingsagi (G7)", "Ytre Offerdal (G8)"),
+    stringsAsFactors = FALSE)
+}
+
+#
+# Or read from excel file
+#
+
+if (FALSE){
+  
+  data_stations <- readxl::read_excel("Input_data/Kartbase.xlsx")
+  
+  df_stationnames <- data_stations %>%
+    select(stasjonskode, `catch LAT...40`, `catch LONG...41`, stasjonsnavn, `Til Rapport`) %>%
+    rename(STATION_CODE = stasjonskode,
+           Lat = `catch LAT...40`, Long = `catch LONG...41`, 
+           Station_name = stasjonsnavn,
+           Report_version_name = `Til Rapport`) %>%
+    filter(!is.na(STATION_CODE)) %>%
+    filter(!Station_name %in% "Risøy, Østerfjord")  # One duplicate (different names), we just remove 
+  
+  # Check stations that might be missing
+  df_stationnames %>% filter(STATION_CODE %in% c("28A2","97A3","227G","19B","19N"))
+  
+  # Add missing station
+  df_stationnames <- df_stationnames %>%
+    bind_rows(
+      tibble(STATION_CODE = "227G",
+             Report_version_name = "Flatskjær (St. 227G)")
+    )
+  
+  # Check some other stations
+  df_stationnames %>% filter(STATION_CODE %in% c("I714", "I133"))
+  
+}
+
+```
+
+
+
+### Test 1
+```{r}
+# debugonce(model_from_medians)
+# debugonce(statistics_for_excel)
+
+X <- model_from_medians("BAP", "Mytilus edulis", "Whole soft body", "G1", "WW", 
+                                        2016:2020,  
+                                        data_medians = data_med, 
+                                        ggplot = TRUE)
+X$statistics
+
+```
+
+
+### Test 2
+```{r}
+
+source("401 Plot time series functions.R")
+type <- "line"
+ymax <- 0.45
+# debugonce(plot_medians_and_trends2)
+# debugonce(plot_medians_color)
+
+# debugonce(plot_medians_and_trends2)
+X <- plot_medians_and_trends2(c("BAP", "Mytilus edulis", "Whole soft body", "G1", "WW"), 
+                         eqs_type = "line", xlim = c(2004, 2020), 
+                         data_medians = data_med, data_proref = df_proref, 
+                         data_eqs = df_EQS)
+
+save_trendplot(X, "Input_data/510_Industry_data/Plots_Årdal_2020")
+X$gg
+
+
+```
+
+
+## 6. All plots   
+
+### Select series (parameter + station) to plot  
+```{r}
+
+tab <- xtabs(~ PARAM + STATION_CODE, data_med)
+# tab
+
+df_series <- data_med %>%
+  count(PARAM, STATION_CODE) %>%
+  filter(n >= 2)
+
+
+
+```
+
+### Plot all  
+```{r}
+
+folder <- "Input_data/510_Industry_data/Plots_Årdal_2020"
+
+for (i in seq_len(nrow(df_series))){
+  
+  # i <- 1
+  X <- try(
+    plot_medians_and_trends2(c(df_series$PARAM[i], "Mytilus edulis", "Whole soft body", 
+                               df_series$STATION_CODE[i], "WW"), 
+                             eqs_type = "line", xlim = c(2004, 2020), 
+                             data_medians = data_med, data_proref = df_proref, 
+                             data_eqs = df_EQS)
+  )
+  if (class(X) != "try-error"){
+    save_trendplot(X, folder)
+  }
+  
+}
+
+```
+
+
+## -- 15B FARSUND ---
+
+### 1. Read data   
+Median data produced by script 11    
+```{r}
+
+files <- dir("Data", pattern = "110_mediandata_updated_") %>% rev()
+
+cat("Reading the last file downloaded:")
+cat("\n", files[1])
+cat("\n")
+cat("If you want to read a different file, replace 'files[1]' with the file you want")
+cat("\n")
+
+filename <- paste0("Data/", files[1]) 
+
+# Medians
+data_med2 <- readRDS(file = filename) %>%
+  rename(Proref_median = Median,
+         Median = Value) 
+
+```
+
+#### Station names  
+```{r}
+
+  
+  data_stations <- readxl::read_excel("Input_data/Kartbase.xlsx")
+  
+  df_stationnames <- data_stations %>%
+    select(stasjonskode, `catch LAT...40`, `catch LONG...41`, stasjonsnavn, `Til Rapport`) %>%
+    rename(STATION_CODE = stasjonskode,
+           Lat = `catch LAT...40`, Long = `catch LONG...41`, 
+           Station_name = stasjonsnavn,
+           Report_version_name = `Til Rapport`) %>%
+    filter(!is.na(STATION_CODE)) %>%
+    filter(!Station_name %in% "Risøy, Østerfjord")  # One duplicate (different names), we just remove 
+  
+
+```
+
+### 2. Test plot     
+```{r}
+
+source("401 Plot time series functions.R")
+type <- "line"
+ymax <- 0.45
+# debugonce(plot_medians_and_trends2)
+# debugonce(plot_medians_color)
+
+# debugonce(plot_medians_and_trends2)
+X <- plot_medians_and_trends2(c("CD", "Gadus morhua", "Lever", "15B", "WW"), 
+                         eqs_type = "line", xlim = c(2004, 2020), 
+                         data_medians = data_med2, data_proref = df_proref, 
+                         data_eqs = df_EQS)
+
+save_trendplot(X, "Input_data/510_Industry_data/Plots_Lista_2019")
+X$gg
+
+
+```
+
+
+
+### 3. Plot all metals
+```{r}
+
+# CD
+debugonce(plot_medians_and_trends2)
+X <- plot_medians_and_trends2(c("CD", "Gadus morhua", "Lever", "15B", "WW"), 
+                         eqs_type = "line", xlim = c(1982, 2020), 
+                         ylim_proref = 1,
+                         data_medians = data_med2, data_proref = df_proref, 
+                         data_eqs = df_EQS)
+
+save_trendplot(X, "Input_data/510_Industry_data/Plots_Lista_2019")
+X$gg
+
+
+# AG
+X <- plot_medians_and_trends2(c("AG", "Gadus morhua", "Lever", "15B", "WW"), 
+                         eqs_type = "line", xlim = c(1982, 2020), 
+                         data_medians = data_med2, data_proref = df_proref, 
+                         ylim = c(0, 2),
+                         data_eqs = df_EQS)
+save_trendplot(X, "Input_data/510_Industry_data/Plots_Lista_2019")
+X$gg
+
+# CR
+X <- plot_medians_and_trends2(c("CR", "Gadus morhua", "Lever", "15B", "WW"), 
+                         eqs_type = "line", xlim = c(1982, 2020), 
+                         data_medians = data_med2, data_proref = df_proref, 
+                         # ylim = c(0, 2),
+                         data_eqs = df_EQS)
+save_trendplot(X, "Input_data/510_Industry_data/Plots_Lista_2019")
+X$gg
+
+
+# CU
+X <- plot_medians_and_trends2(c("CU", "Gadus morhua", "Lever", "15B", "WW"), 
+                         eqs_type = "line", xlim = c(1982, 2020), 
+                         data_medians = data_med2, data_proref = df_proref, 
+                         ylim = c(0, 18),
+                         data_eqs = df_EQS)
+save_trendplot(X, "Input_data/510_Industry_data/Plots_Lista_2019")
+X$gg
+
+# NI
+X <- plot_medians_and_trends2(c("NI", "Gadus morhua", "Lever", "15B", "WW"), 
+                         eqs_type = "line", xlim = c(1982, 2020), 
+                         data_medians = data_med2, data_proref = df_proref, 
+                         # ylim = c(0, 18),
+                         data_eqs = df_EQS)
+save_trendplot(X, "Input_data/510_Industry_data/Plots_Lista_2019")
+X$gg
+
+# PB
+X <- plot_medians_and_trends2(c("PB", "Gadus morhua", "Lever", "15B", "WW"), 
+                         eqs_type = "line", xlim = c(1982, 2020), 
+                         data_medians = data_med2, data_proref = df_proref, 
+                         ylim = c(0, 0.15),
+                         data_eqs = df_EQS)
+save_trendplot(X, "Input_data/510_Industry_data/Plots_Lista_2019")
+X$gg
+
+# SN
+X <- plot_medians_and_trends2(c("SN", "Gadus morhua", "Lever", "15B", "WW"), 
+                         eqs_type = "line", xlim = c(1982, 2020), 
+                         data_medians = data_med2, data_proref = df_proref, 
+                         ylim = c(0, 0.4),
+                         data_eqs = df_EQS)
+save_trendplot(X, "Input_data/510_Industry_data/Plots_Lista_2019")
+X$gg
+
+
+# ZN
+X <- plot_medians_and_trends2(c("ZN", "Gadus morhua", "Lever", "15B", "WW"), 
+                         eqs_type = "line", xlim = c(1982, 2020), 
+                         data_medians = data_med2, data_proref = df_proref, 
+                         ylim = c(0, 65),
+                         data_eqs = df_EQS)
+save_trendplot(X, "Input_data/510_Industry_data/Plots_Lista_2019")
+X$gg
+
+
+# PYR1OH
+# Since there is no PROREF for PYR1OH, we add a reference level based on Bømlo 
+# debugonce(plot_medians_and_trends2)
+X <- plot_medians_and_trends2(c("PYR1OH", "Gadus morhua", "Galle", "15B", "WW"), 
+                         eqs_type = "line", xlim = c(1982, 2020), 
+                         data_medians = data_med2, data_proref = df_proref, 
+                         # ylim = c(0, 65),
+                         data_eqs = df_EQS)
+# save_trendplot(X, "Input_data/510_Industry_data/Plots_Lista_2019")
+# X$gg
+# Reference level: max of the annual medians at Bømlo 
+reference_level <- data_med2 %>% 
+  filter(PARAM %in% "PYR1OH" & STATION_CODE %in% "23B" & MYEAR >= 2010 & Basis == "WW") %>% # View()
+  pull(Median) %>%
+  max()
+# Modify graph
+X$gg <- X$gg +
+  geom_hline(yintercept = reference_level, linetype = 2, col = "grey25") +
+  annotate("text", x = 1982, y = reference_level, label = "Maximum of reference station (2015-2019)", 
+           hjust = 0, vjust = -0.5, size = 4)
+save_trendplot(X, "Input_data/510_Industry_data/Plots_Lista_2019")
+X$gg
+
+
+```
+
+
+
