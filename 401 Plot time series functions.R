@@ -536,9 +536,13 @@ get_dfbig <- function(param, species, tissue = NULL, station, basis = "WW"){
 # Saving plots
 # 
 
-save_trendplot <- function(plot_single_result, folder){
+save_trendplot <- function(plot_single_result, folder, suffix = ""){
   fn <- paste0(folder, "/", plot_single_result$fn)
+  # Add suffix to file name (note: works only on png and jpg!)
+  fn <- sub(".png", paste0(suffix, ".png"), fn)
+  fn <- sub(".jpg", paste0(suffix, ".jpg"), fn)
   ggsave(fn, plot_single_result$gg, height = 4.4, width = 5.6, dpi = 450)
+  invisible(fn)   # returns file name invisibly
 }
 
 # save_trendplot(X, "Figures_41")
