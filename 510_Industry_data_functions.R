@@ -352,4 +352,37 @@ plot_medians_and_trends2 <- function(ser, x_rel = 0.8, y_rel = 0.9, xlim = NULL,
 # X$gg
 
 
+#
+# Function for setting symbol
+# Differs from set_symbol(), which returns the single ASCII sign
+#
+# up = é      ascii 233  Increasing concentration
+# down = ê    ascii 234  Decreasing concentration
+# circle = ¢  ascii 162  No significant time trend
+# square = §  ascii 167  Too few years to make time trend
+# star = «    ascii 171  Too few years with data over LOQ to make time trend
+
+set_symbol_word <- function(data){
+  result <- rep("", nrow(data))
+  sel <- with(data, !Model_used %in% c("Linear", "Nonlinear") & (is.na(N_data) | N_data < 5))
+  result[sel] <- "filledsquare"
+  # result[sel] <- chr(167)
+  sel <- with(data, !Model_used %in% c("Linear", "Nonlinear") & N_data >= 5)
+  result[sel] <- "star"
+  # result[sel] <- chr(171)
+  sel <- with(data, Model_used %in% c("Linear", "Nonlinear") & P_change > 0.05)
+  result[sel] <- "circle"
+  if ("Status" %in% names(data)) {  # if this column exists
+    sel <- with(data, Status %in% "No variation in data")
+    result[sel] <- "circle"
+  }
+  # result[sel] <- chr(162)
+  sel <- with(data, Model_used %in% c("Linear", "Nonlinear") & P_change <= 0.05 & Dir_change %in% "Up")
+  result[sel] <- "arrowup"
+  # result[sel] <- chr(233)
+  sel <- with(data, Model_used %in% c("Linear", "Nonlinear") & P_change <= 0.05 & Dir_change %in% "Down")
+  result[sel] <- "arrowdown"
+  # result[sel] <- chr(234)
+  result
+}
 
