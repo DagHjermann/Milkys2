@@ -1,0 +1,28 @@
+---
+title: "991_Stuff_to_install"
+output: html_document
+---
+
+
+```{r}
+
+# Updating
+update.packages("rlang") # update rlang before dplyr, to be on the safe side
+update.packages(c("dplyr", "fuzzyjoin", "glue",  "ellipsis", "pillar", "vctrs", "tidyselect", "sp", "stringdist", "tidyr"))
+
+# Script 001
+install.packages("DiagrammeR")
+
+# Script 100
+install.packages("svDialogs")
+install.packages("getPass")
+
+# Script 109 and 110
+devtools::install_github(repo = "moodymudskipper/safejoin")
+
+# Script 501
+install.packages("writexl")
+
+
+```
+

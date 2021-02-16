@@ -1,0 +1,400 @@
+---
+title: "915_Check_PFAS"
+output: 
+  html_document:
+    keep_md: true
+    toc: true
+    toc_float: true
+---
+
+## 1. Packages  
+```{r}
+
+library(dplyr)
+library(purrr)
+library(ggplot2)
+library(forcats)
+library(plotly)
+
+```
+
+## 2. Data 
+
+### Main data  
+Read and reformat the most recent data (by default)  
+```{r, collapse=TRUE}
+
+files <- dir("Data", pattern = "109_adjusted_data") %>% rev()
+
+cat("Reading the last file downloaded:")
+cat("\n", files[1])
+cat("\n")
+cat("If you want to read a different file, replace 'files[1]' with the file you want")
+cat("\n\n")
+
+filename <- files[1]
+cat("Time since this file was modified: \n")
+Sys.time() - file.info(paste0("Data/", filename))$mtime
+
+data_all <- readRDS(paste0("Data/", filename))
+
+# We save the date part of the text (e.g., '2020-04-23')
+# This will be used in part 10, when we save the resulting file
+pos1 <- regexpr("20", filename)[1]   # search for the first place "20" occurs inside filename
+pos2 <- pos1 + 9
+file_date <- substr(filename, pos1, pos2)    # pick out the part of the text from character no. 17 to no. 26
+
+```
+
+## 3. Percentage over LOQ, all stations    
+
+### Table    
+```{r}
+
+df1 <- data_all %>% 
+  filter(substr(PARAM, 1, 2) == "PF") %>%
+  group_by(PARAM, MYEAR) %>%
+  summarise(
+    Over_LOQ = round(100*mean(is.na(FLAG1)),0)
+    )# regrouping output by 'PARAM'
+
+# For correct oredring of PARAM
+# The same ordering used for Indre Oslofjord also  
+df_param <- df1 %>%    
+  # the 'mutate' and 'arrange' below is only for setting factors ('fct_inorder')    
+  summarise(
+    Over_LOQ_mean = mean(Over_LOQ, na.rm = TRUE)) %>%   
+  arrange(desc(Over_LOQ_mean))
+
+df1 <- df1 %>%
+  mutate(
+    PARAM = factor(PARAM, levels = df_param$PARAM)
+  )
+# levels(df1$PARAM)
+
+df2 <- df1 %>%
+  arrange(PARAM, MYEAR) %>%
+  tidyr::pivot_wider(names_from = PARAM, values_from = Over_LOQ) %>%
+  arrange(MYEAR)
+
+df2
+
+```
+
+### Plot 
+
+The most common ones  
+```{r}
+
+gg <- df1 %>%
+  filter(PARAM %in% c("PFAS", "PFOS", "PFOSA")) %>%
+  ggplot(aes(MYEAR, Over_LOQ, color = PARAM)) +
+  geom_line() +
+  geom_point()
+
+gg
+
+plotly::ggplotly(gg)  
+
+```
+The less common ones  
+```{r}
+
+gg <- df1 %>%
+  filter(!PARAM %in% c("PFAS", "PFOS", "PFOSA")) %>%
+  ggplot(aes(MYEAR, Over_LOQ, color = PARAM)) +
+  geom_line() +
+  geom_point()
+
+gg
+
+plotly::ggplotly(gg)  
+
+```
+
+
+### Table    
+```{r}
+
+df1 <- data_all %>% 
+  filter(substr(PARAM, 1, 2) == "PF") %>%
+  group_by(PARAM, MYEAR) %>%
+  summarise(
+    Over_LOQ = round(100*mean(is.na(FLAG1)),0)
+    )# regrouping output by 'PARAM'
+
+# For correct oredring of PARAM
+df_param <- df1 %>%    
+  # the 'mutate' and 'arrange' below is only for setting factors ('fct_inorder')    
+  summarise(
+    Over_LOQ_mean = mean(Over_LOQ, na.rm = TRUE)) %>%   
+  arrange(desc(Over_LOQ_mean))
+
+df1 <- df1 %>%
+  mutate(
+    PARAM = factor(PARAM, levels = df_param$PARAM)
+  )
+# levels(df1$PARAM)
+
+df2 <- df1 %>%
+  arrange(PARAM, MYEAR) %>%
+  tidyr::pivot_wider(names_from = PARAM, values_from = Over_LOQ) %>%
+  arrange(MYEAR)
+
+df2
+
+```
+
+
+## 4. Percentage over LOQ, Oslo  
+
+### Table    
+```{r}
+
+# Same ordering as for 'all stations' ('df_param' from part 3)
+
+df1 <- data_all %>% 
+  filter(substr(PARAM, 1, 2) == "PF" & STATION_CODE == "30B") %>%
+  group_by(PARAM, MYEAR) %>%
+  summarise(
+    Over_LOQ = round(100*mean(is.na(FLAG1)),0)
+    )  %>% # regrouping output by 'PARAM'
+  mutate(
+    PARAM = factor(PARAM, levels = df_param$PARAM)
+  )
+# levels(df1$PARAM)
+
+df2 <- df1 %>%
+  arrange(PARAM, MYEAR) %>%
+  tidyr::pivot_wider(names_from = PARAM, values_from = Over_LOQ) %>%
+  arrange(MYEAR)
+
+df2
+
+```
+
+### Plot 
+
+The most common ones  
+```{r}
+
+gg <- df1 %>%
+  filter(PARAM %in% c("PFAS", "PFOS", "PFOSA")) %>%
+  ggplot(aes(MYEAR, Over_LOQ, color = PARAM)) +
+  geom_line() +
+  geom_point()
+
+gg
+
+plotly::ggplotly(gg)  
+
+```
+The less common ones  
+```{r}
+
+gg <- df1 %>%
+  filter(!PARAM %in% c("PFAS", "PFOS", "PFOSA")) %>%
+  ggplot(aes(MYEAR, Over_LOQ, color = PARAM)) +
+  geom_line() +
+  geom_point()
+
+gg
+
+plotly::ggplotly(gg)  
+
+```
+
+
+## 5. Concentrations, all stations    
+
+### Data      
+```{r}
+
+# Same ordering as for 'all stations' ('df_param' from part 3)
+
+df1 <- data_all %>% 
+  filter(substr(PARAM, 1, 2) == "PF") %>%
+  mutate(Conc = case_when(
+    is.na(FLAG1) ~ VALUE_WW,
+    !is.na(FLAG1) ~ VALUE_WW/2)) %>%
+  group_by(PARAM, STATION_CODE, MYEAR) %>%
+  summarise(
+    Mean_concentration = mean(Conc, na.rm = TRUE),
+    Median_concentration = median(Conc, na.rm = TRUE),
+    Max_concentration = max(Conc, na.rm = TRUE),
+    LOQ = median(VALUE_WW[!is.na(FLAG1)], na.rm = TRUE)
+    )  %>% # regrouping output by 'PARAM'
+  mutate(
+    PARAM = factor(PARAM, levels = df_param$PARAM),
+    N_years = length(unique(MYEAR))                # per PARAM, STATION_CODE
+  )
+# levels(df1$PARAM)
+
+
+```
+
+
+### Plot the most common ones, mean    
+```{r}
+
+gg <- df1 %>%
+  filter(PARAM %in% c("PFAS", "PFOS", "PFOSA") & N_years >= 5) %>%
+  ggplot(aes(MYEAR, Mean_concentration, color = PARAM)) +
+  geom_line() +
+  geom_point() +
+  facet_wrap(vars(STATION_CODE))
+
+gg
+
+# plotly::ggplotly(gg)  
+
+```
+
+The most common ones, mean since 2009    
+```{r}
+
+gg <- df1 %>%
+  filter(PARAM %in% c("PFAS", "PFOS", "PFOSA") & N_years >= 5 & MYEAR >= 2009) %>%
+  ggplot(aes(MYEAR, Mean_concentration, color = PARAM)) +
+  geom_line() +
+  geom_point() +
+  facet_wrap(vars(STATION_CODE))
+
+gg
+
+# plotly::ggplotly(gg)  
+
+```
+
+
+### Plot the less common ones, mean    
+
+* Strongly affected by high LOQ for PFOA and PFBS 2008, so these are deleted  
+```{r}
+
+gg1 <- df1 %>%
+  filter(!PARAM %in% c("PFAS", "PFOS", "PFOSA") & N_years >= 5) %>%  
+  ggplot(aes(MYEAR, Mean_concentration, color = PARAM)) +
+  geom_line() +
+  geom_point() +
+  facet_wrap(vars(STATION_CODE))
+
+plotly::ggplotly(gg1)  
+
+
+
+```
+### Plot less commons since 2009  
+```{r}
+gg2 <- df1 %>%
+  filter(!PARAM %in% c("PFAS", "PFOS", "PFOSA") & N_years >= 5) %>%  
+  filter(MYEAR >= 2009) %>%  
+  ggplot(aes(MYEAR, Mean_concentration, color = PARAM)) +
+  geom_line() +
+  geom_point() +
+  facet_wrap(vars(STATION_CODE))
+
+gg2
+
+```
+
+
+## 6. Concentrations, Oslo  
+
+### Data      
+```{r}
+
+# Same ordering as for 'all stations' ('df_param' from part 3)
+
+df1 <- data_all %>% 
+  filter(substr(PARAM, 1, 2) == "PF" & STATION_CODE == "30B") %>%
+  mutate(Conc = case_when(
+    is.na(FLAG1) ~ VALUE_WW,
+    !is.na(FLAG1) ~ VALUE_WW/2)) %>%
+  group_by(PARAM, MYEAR) %>%
+  summarise(
+    Mean_concentration = mean(Conc, na.rm = TRUE),
+    Median_concentration = median(Conc, na.rm = TRUE),
+    Max_concentration = max(Conc, na.rm = TRUE),
+    LOQ = median(VALUE_WW[!is.na(FLAG1)], na.rm = TRUE)
+    )  %>% # regrouping output by 'PARAM'
+  mutate(
+    PARAM = factor(PARAM, levels = df_param$PARAM)
+  )
+# levels(df1$PARAM)
+
+df2 <- df1 %>%
+  select(PARAM, MYEAR, Mean_concentration) %>%
+  arrange(PARAM, MYEAR) %>%
+  tidyr::pivot_wider(names_from = PARAM, values_from = Mean_concentration) %>%
+  arrange(MYEAR)
+
+df2
+
+```
+
+### LOQ   
+2008 has very high LOQ sepcecially for PFOA and PFBS, but also for PFOS  
+```{r}
+df1 %>%
+  select(PARAM, MYEAR, Mean_concentration) %>%
+  arrange(PARAM, MYEAR) %>%
+  tidyr::pivot_wider(names_from = PARAM, values_from = Mean_concentration) %>%
+  arrange(MYEAR)
+```
+
+
+### Plot the most common ones, mean    
+```{r}
+
+gg <- df1 %>%
+  filter(PARAM %in% c("PFAS", "PFOS", "PFOSA")) %>%
+  ggplot(aes(MYEAR, Mean_concentration, color = PARAM)) +
+  geom_line() +
+  geom_point()
+
+gg
+
+plotly::ggplotly(gg)  
+
+```
+
+The most common ones, max    
+```{r}
+
+gg <- df1 %>%
+  filter(PARAM %in% c("PFAS", "PFOS", "PFOSA")) %>%
+  ggplot(aes(MYEAR, Max_concentration, color = PARAM)) +
+  geom_line() +
+  geom_point()
+
+gg
+
+plotly::ggplotly(gg)  
+
+```
+
+### Plot the less common ones, mean    
+
+* Strongly affected by high LOQ for PFOA and PFBS 2008, so these are deleted  
+```{r}
+
+gg1 <- df1 %>%
+  filter(!PARAM %in% c("PFAS", "PFOS", "PFOSA")) %>%  
+  ggplot(aes(MYEAR, Mean_concentration, color = PARAM)) +
+  geom_line() +
+  geom_point()
+
+plotly::ggplotly(gg1)  
+
+gg2 <- df1 %>%
+  filter(!PARAM %in% c("PFAS", "PFOS", "PFOSA")) %>%  
+  filter(MYEAR >= 2009) %>%  
+  ggplot(aes(MYEAR, Mean_concentration, color = PARAM)) +
+  geom_line() +
+  geom_point()
+
+gg2
+
+```
+

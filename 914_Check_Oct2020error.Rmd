@@ -1,0 +1,26 @@
+---
+title: "914_Check_Oct2020error"
+output: html_document
+---
+
+Check effects of the error discovered in Oct. 2020   
+* Error in trends   
+* P-value given as 1 - p-value   
+* In effect since the analysis of 2016 data   
+
+## 1. Libraries  
+```{r}
+
+library(dplyr)
+library(ggplot2)
+library(glue)
+
+```
+
+## 2. Check VDSI trends  
+```{r}
+
+
+
+```
+

@@ -1,0 +1,159 @@
+---
+title: "913_Compare_trends_between_bigexcel"
+output: html_document
+---
+
+## 1. Libraries  
+```{r}
+
+library(dplyr)
+library(ggplot2)
+library(glue)
+
+```
+
+## 2. Read big excel files  
+```{r}
+
+if (FALSE){
+  # Check which files we have
+  dir("Big_excel_table", pattern = "Data_xl_.+.csv")
+}
+
+fn1 <- "Big_excel_table/Data_xl_2020-08-05_ver08.rds"
+fn2 <- "Big_excel_table/Data_xl_2020-08-05_ver10.rds"
+
+df1 <- readRDS(fn1)
+df2 <- readRDS(fn2)
+
+# Note that column names differ between RDS and CSV files (see script 201 part 6 "Change column names")
+# names(df1)
+```
+
+
+```{r}
+# Column that we will compare
+colname <- "Trends.2018"
+
+# All columns  
+allcols1 <- c("PARAM", "Parameter.Name", "LATIN_NAME", "TISSUE_NAME", "STATION_CODE", "Basis", colname)
+allcols2 <- c("PARAM", "Parameter.Name", "LATIN_NAME", "TISSUE_NAME", "STATION_CODE", "Basis", colname,
+              "Trends.2019", "Yr_2016", "Yr_2017", "Yr_2018", "Yr_2019", "EQSthreshold_2018", "EQS", "Q95")
+
+df1_selcols <- df1[allcols1] %>% 
+  rename(Trends.2018.uncorrected = Trends.2018)   # HARD-CODED 
+
+df2_selcols <- df2[allcols2] %>% 
+  rename(Trends.2018.corrected = Trends.2018)     # HARD-CODED
+
+nrow(df1)
+nrow(df2)
+
+df_comb <- full_join(df1_selcols, df2_selcols) %>%
+  filter(Trends.2018.uncorrected != Trends.2018.corrected & !(PARAM %in% "DRYWT%") & !is.na(Yr_2018)) %>%
+  mutate(
+    Proref_ratio = Yr_2018/Q95,
+    EQS_ratio_2018 = Yr_2018/EQSthreshold_2018)
+
+nrow(df_comb)
+
+xtabs(~Trends.2018.uncorrected + Trends.2018.corrected, df_comb)
+
+```
+
+### Last year of data  
+```{r}
+
+# vars <- c("PARAM", "LATIN_NAME", "TISSUE_NAME", "STATION_CODE", "Basis", "Yr_2016", "Yr_2017", "Yr_2018", "Yr_2019")
+# df_lastyear <- df_comb[vars]
+  
+
+```
+
+
+Set some readable kind of symbol
+```{r}
+
+# up = é      ascii 233  Increasing concentration
+# down = ê    ascii 234  Decreasing concentration
+# circle = ¢  ascii 162  No significant time trend
+# square = §  ascii 167  Too few years to make time trend
+# star = «    ascii 171  # up = é      ascii 233  Increasing concentration
+
+
+
+
+symbol_from_text <- function(txt){
+  result <- gsub("é","🠅",txt)
+  result <- gsub("ê","v", result)
+  result <- gsub("¢","-", result)
+  result <- gsub("§","■", result)
+  gsub("«","★", result)
+}
+
+
+```
+
+
+```{r}
+df_comb <- df_comb %>%
+  mutate(Trends.2018.uncorrected_s = symbol_from_text(Trends.2018.uncorrected),
+         Trends.2018.corrected_s = symbol_from_text(Trends.2018.corrected))
+
+```
+
+
+```{r}
+xtabs(~Trends.2018.uncorrected + Trends.2018.corrected, df_comb_sel1)
+xtabs(~Trends.2018.uncorrected_s + Trends.2018.corrected_s, df_comb_sel1)
+
+```
+
+```{r}
+
+# "Too few years with data over LOQ" to "Too few years" 
+
+df_comb_sel2 <- df_comb %>%
+  filter(!(Trends.2018.uncorrected == "«/«" & Trends.2018.corrected == "§/§"))
+nrow(df_comb_sel2)
+
+```
+
+```{r}
+
+ggplot(df_comb_sel2, aes(Proref_ratio)) + 
+  geom_histogram(binwidth = 1)
+
+```
+
+```{r}
+
+df_comb_sel2 %>%
+  filter(Proref_ratio >= 2) %>%
+  xtabs(~Trends.2018.uncorrected_s + Trends.2018.corrected_s, .)
+
+```
+
+```{r}
+
+df_comb_sel2 <- df_comb_sel2 %>%
+  mutate(
+    Over_proref2_or_over_EQS = (Proref_ratio >= 2) | (EQS_ratio_2018 > 1)
+    )
+
+df_comb_sel2 %>%
+  filter(Basis %in% c("WW","WWa")) %>%
+  xtabs(~Trends.2018.uncorrected_s + Trends.2018.corrected_s, .)
+
+```
+
+
+```{r}
+
+write.csv2(
+  df_comb_sel2, %>% select(-Trends.2018.uncorrected_s, -Trends.2018.corrected_s) 
+  file = "Data/913_Compare_trends_corrected23csv", 
+  quote = FALSE, na = "", row.names = FALSE)
+
+```
+
