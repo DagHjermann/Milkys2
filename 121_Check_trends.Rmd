@@ -1,0 +1,284 @@
+---
+title: "121_Check_trends"
+output: 
+  html_document:
+    keep_md: true
+    toc: true  
+    toc_float: true
+    
+---
+
+## 0. Year  
+```{r}
+
+last_year <- 2019
+
+```
+
+
+## 1. Libraries and functions  
+```{r, results='hide', message=FALSE, warning=FALSE, echo=FALSE}
+
+# install.packages("lubridate")
+
+library(dplyr)
+library(purrr)
+library(lubridate)
+library(readxl)
+library(mgcv)
+library(AICcmodavg)   # AICc()
+library(ggplot2)
+library(safejoin)     # installed from https://github.com/moodymudskipper/safejoin   
+source("001_Add_trends_functions.R")  # Copied from '16_Trend_functions.R' in Milkys_2018
+
+#
+# Define a couple of extra functions for shortening code
+#
+get_stats <- function(df){
+  calc_models_one_station2(df, gam = TRUE, log = TRUE)$statistics_for_file
+}
+
+# model_from_medians - get statistic summary only
+model_from_medians_stat <- function(...)
+  model_from_medians(...)$statistics
+
+# PLotting graph only
+model_from_medians_graph <- function(...){
+  invisible(model_from_medians(...))
+}
+
+
+```
+
+## 2. Get data    
+
+### a. Medians per year   
+```{r, echo = FALSE, results='hold'}
+# Medians
+# Read and reformat the most recent data (by default)  
+files <- dir("Data", pattern = "110_mediandata_updated") %>% rev()
+
+cat("Reading the last file downloaded:")
+cat("\n", files[1])
+cat("\n")
+cat("If you want to read a different file, replace 'files[1]' with the file you want")
+cat("\n\n")
+
+filename <- files[1]   
+cat("Time since this file was modified: \n")
+Sys.time() - file.info(paste0("Data/", filename))$mtime
+
+data_med <- readRDS(paste0("Data/", filename)) %>%
+  rename(Proref_median = Median,
+         Median = Value) 
+
+# We save the date part of the text (e.g., '2020-04-23')
+# This will be used in part 10, when we save the resulting file
+file_date <- substr(filename, 24, 33)    # pick out the part of the text from character no. 17 to no. 26
+
+```
+
+
+### b. Calculated time trend results        
+```{r, echo=FALSE, results='hold'}
+
+date_pattern <- "[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]"
+version_pattern <- "run[0-9][0-9]"
+pattern_10yr <- paste0("^120_result_10yr_", last_year, "_", 
+                       date_pattern, "_", version_pattern, ".rds$")
+pattern_long <- paste0("^120_result_long_", last_year, "_", 
+                       date_pattern, "_", version_pattern, ".rds$")
+
+# Find files and sort with the newest first
+files1 <- dir("Data", pattern = pattern_10yr) %>% rev()
+files2 <- dir("Data", pattern = pattern_long) %>% rev()
+
+if (FALSE){
+  cat("Latest files: \n")
+  cat(files1[1], "\n")
+  cat(files2[1], "\n")
+}
+
+# Print for user
+cat("Trend estimates - reading the last files produced:")
+cat("\n ", files1[1])
+cat("\n ", files2[1])
+
+# Read files
+result_10yr <- readRDS(paste0("Data/", files1[1]))
+result_long <- readRDS(paste0("Data/", files2[1]))
+
+# Set as factor  
+levels_status <- c("GAM OK", "GAM failed", "Linear regr. and GAM failed", "No variation in data")
+result_10yr <- result_10yr %>% mutate(Status = factor(Status, levels = levels_status))
+result_long <- result_long %>% mutate(Status = factor(Status, levels = levels_status))
+
+```
+
+
+## 3. Time trends calculated - tables  
+
+### Calculation of time trends   
+```{r, echo = FALSE}
+
+left_join(result_long %>% count(Status) %>% rename(`Long-term trend` = n),
+          result_10yr %>% count(Status) %>% rename(`10-year trend` = n),
+          by = c("Status")
+) %>%
+  knitr::kable()
+```
+
+
+### Time trend results  
+```{r, echo = FALSE}
+
+left_join(result_long %>% 
+            filter(Status == "GAM OK") %>%
+            mutate(Dir_change = ifelse(Dir_change=="", "No trend", Dir_change)) %>%
+            count(Model_used, Dir_change) %>% rename(`Long-term trend` = n),
+          result_10yr %>% 
+            filter(Status == "GAM OK") %>%
+            mutate(Dir_change = ifelse(Dir_change=="", "No trend", Dir_change)) %>%
+            count(Model_used, Dir_change) %>% rename(`10-year trend` = n),
+          by = c("Model_used", "Dir_change")) %>%
+  knitr::kable()
+
+```
+
+## 4. Results where linear and non-linear results differs  
+
+**Checking p-values**   
+
+* E.g., 'linear p > 0.20, non-lin p < 0.05' indicates that the *non-linear* model a quite signinficant, while in contrast the *linear* model was quite 'non-signinficant'     
+  
+```{r, echo = FALSE, results='hide'}
+
+result_deviance_nonlinear_long <- result_long %>% 
+  filter(Model_used %in% c("Linear","Nonlinear") & Basis %in% c("WW","WWa") & Year1 < 2010) %>%
+  filter(p_nonlinear < 0.05 & p_linear > 0.2) 
+# cat("Long-term trend: linear p > 0.20, non-lin p < 0.05:",
+#     nrow(result_deviance_nonlinear_long), "cases \n")
+
+result_deviance_linear_long <- result_long %>% 
+  filter(Model_used %in% c("Linear","Nonlinear") & Basis %in% c("WW","WWa") & Year1 < 2010) %>%
+  filter(p_linear < 0.05 & p_nonlinear > 0.2) 
+# cat("Long-term trend: linear p < 0.05, non-lin p > 0.20:",
+#     nrow(result_deviance_linear_long), "cases \n")
+
+result_deviance_nonlinear_10yr <- result_10yr %>% 
+  filter(Model_used %in% c("Linear","Nonlinear") & Basis %in% c("WW","WWa")) %>%
+  filter(p_nonlinear < 0.05 & p_linear > 0.2) 
+# cat("10-year trend: linear p > 0.20, non-lin p < 0.05:",
+#     nrow(result_deviance_nonlinear_10yr), "cases \n")
+
+result_deviance_linear_10yr <- result_10yr %>% 
+  filter(Model_used %in% c("Linear","Nonlinear") & Basis %in% c("WW","WWa")) %>%
+  filter(p_linear < 0.05 & p_nonlinear > 0.2) 
+# cat("10-year trend: linear p < 0.05, non-lin p > 0.20:",
+#     nrow(result_deviance_linear_10yr), "cases \n")
+
+```
+
+### Long-term trend: linear p > 0.20, non-linear p < 0.05  
+```{r, echo = FALSE, warning = FALSE, fig.width=6, fig.height=4}
+
+for (i in 1:nrow(result_deviance_nonlinear_long)){
+  
+  stat <- with(result_deviance_nonlinear_long,
+       model_from_medians_stat(
+         PARAM[i], LATIN_NAME[i], TISSUE_NAME[i], 
+         STATION_CODE[i], Basis[i], 1980:2019, data_med)
+  )
+  
+  if (stat$p_linear > 0.2 & stat$p_nonlinear < 0.05){
+    
+    with(result_deviance_nonlinear_long,
+         model_from_medians_graph(
+           PARAM[i], LATIN_NAME[i], TISSUE_NAME[i], 
+           STATION_CODE[i], Basis[i], 1980:2019, data_med, 
+           plotname = "window", ggplot = TRUE)
+    )
+  }
+
+}
+
+```
+
+### Long-term trend: linear p < 0.05, non-linear p > 0.20    
+```{r, echo = FALSE, warning = FALSE, fig.width=6, fig.height=4}
+
+for (i in 1:nrow(result_deviance_linear_long)){
+  
+  stat <- with(result_deviance_linear_long,
+       model_from_medians_stat(
+         PARAM[i], LATIN_NAME[i], TISSUE_NAME[i], 
+         STATION_CODE[i], Basis[i], 1980:2019, data_med)
+  )
+  
+  if (stat$p_linear < 0.05 & stat$p_nonlinear > 0.2){
+    
+    with(result_deviance_linear_long,
+         model_from_medians_graph(
+           PARAM[i], LATIN_NAME[i], TISSUE_NAME[i], 
+           STATION_CODE[i], Basis[i], 1980:2019, data_med, 
+           plotname = "window", ggplot = TRUE)
+    )
+  }
+  
+}
+
+```
+
+### 10-year trend: linear p > 0.20, non-linear p < 0.05  
+```{r, echo = FALSE, warning = FALSE, fig.width=6, fig.height=4}
+
+for (i in 1:nrow(result_deviance_nonlinear_10yr)){
+  
+  stat <- with(result_deviance_nonlinear_10yr,
+       model_from_medians_stat(
+         PARAM[i], LATIN_NAME[i], TISSUE_NAME[i], 
+         STATION_CODE[i], Basis[i], 2010:2019, data_med)
+  )
+  
+  if (stat$p_linear > 0.2 & stat$p_nonlinear < 0.05){
+    
+    with(result_deviance_nonlinear_10yr,
+         model_from_medians_graph(
+           PARAM[i], LATIN_NAME[i], TISSUE_NAME[i], 
+           STATION_CODE[i], Basis[i], 2010:2019, data_med, 
+           plotname = "window", ggplot = TRUE)
+    )
+  }
+  
+}
+
+```
+
+### 10-year trend: linear p < 0.05, non-linear p > 0.20    
+```{r, echo = FALSE, warning = FALSE, fig.width=6, fig.height=4}
+
+for (i in 1:nrow(result_deviance_linear_10yr)){
+  
+  stat <- with(result_deviance_linear_10yr,
+       model_from_medians_stat(
+         PARAM[i], LATIN_NAME[i], TISSUE_NAME[i], 
+         STATION_CODE[i], Basis[i], 2010:2019, data_med)
+  )
+  
+  if (stat$p_linear < 0.05 & stat$p_nonlinear > 0.20){
+    
+    with(result_deviance_linear_10yr,
+         model_from_medians_graph(
+           PARAM[i], LATIN_NAME[i], TISSUE_NAME[i], 
+           STATION_CODE[i], Basis[i], 2010:2019, data_med, 
+           plotname = "window", ggplot = TRUE)
+    )
+  }
+  
+}
+
+```
+
+
+
+
