@@ -3,7 +3,10 @@ title: "510_Industry_molluscs"
 output: html_document
 ---
 
-## 1. Packages
+## 0. -- COMMON CODE ---  
+This code is used by teh parts for each area below  
+
+### Packages
 ```{r, message=FALSE, warning=FALSE, results='hide'}
 
 # 
@@ -255,7 +258,7 @@ for (i in seq_len(nrow(df_series))){
 
 ## -- 15B FARSUND ---
 
-### 1. Read data   
+## 1. Read data   
 Median data produced by script 11    
 ```{r}
 
@@ -276,7 +279,7 @@ data_med2 <- readRDS(file = filename) %>%
 
 ```
 
-#### Station names  
+### Station names  
 ```{r}
 
   
@@ -294,7 +297,7 @@ data_med2 <- readRDS(file = filename) %>%
 
 ```
 
-### 2. Test plot     
+## 2. Test plot     
 ```{r}
 
 source("401 Plot time series functions.R")
@@ -317,18 +320,29 @@ X$gg
 
 
 
-### 3. Plot all metals
+## 3. Plot all  
+### Metals
 ```{r}
 
-# CD
-debugonce(plot_medians_and_trends2)
+# debugonce(plot_medians_and_trends2)
+
+# CD, showing the PROREF level
 X <- plot_medians_and_trends2(c("CD", "Gadus morhua", "Lever", "15B", "WW"), 
                          eqs_type = "line", xlim = c(1982, 2020), 
                          ylim_proref = 1,
                          data_medians = data_med2, data_proref = df_proref, 
                          data_eqs = df_EQS)
 
-save_trendplot(X, "Input_data/510_Industry_data/Plots_Lista_2019")
+save_trendplot(X, "Input_data/510_Industry_data/Plots_Lista_2019", suffix = "_ver1")
+X$gg
+
+# CD, not showing PROREF level
+X <- plot_medians_and_trends2(c("CD", "Gadus morhua", "Lever", "15B", "WW"), 
+                         eqs_type = "line", xlim = c(1982, 2020), 
+                         data_medians = data_med2, data_proref = df_proref, 
+                         data_eqs = df_EQS)
+
+save_trendplot(X, "Input_data/510_Industry_data/Plots_Lista_2019", suffix = "_ver2")
 X$gg
 
 
@@ -398,31 +412,73 @@ save_trendplot(X, "Input_data/510_Industry_data/Plots_Lista_2019")
 X$gg
 
 
-# PYR1OH
+```
+
+
+### OH-pyren
+
+```{r}
+
+# PYR1OH - non-nomalised OH-pyren
+
 # Since there is no PROREF for PYR1OH, we add a reference level based on Bømlo 
-# debugonce(plot_medians_and_trends2)
-X <- plot_medians_and_trends2(c("PYR1OH", "Gadus morhua", "Galle", "15B", "WW"), 
-                         eqs_type = "line", xlim = c(1982, 2020), 
-                         data_medians = data_med2, data_proref = df_proref, 
-                         # ylim = c(0, 65),
-                         data_eqs = df_EQS)
-# save_trendplot(X, "Input_data/510_Industry_data/Plots_Lista_2019")
-# X$gg
 # Reference level: max of the annual medians at Bømlo 
 reference_level <- data_med2 %>% 
   filter(PARAM %in% "PYR1OH" & STATION_CODE %in% "23B" & MYEAR >= 2010 & Basis == "WW") %>% # View()
   pull(Median) %>%
   max()
-# Modify graph
+
+X <- plot_medians_and_trends2(c("PYR1OH", "Gadus morhua", "Galle", "15B", "WW"), 
+                         eqs_type = "line", xlim = c(1982, 2020), 
+                         data_medians = data_med2, data_proref = df_proref, 
+                         # ylim = c(0, 65),
+                         data_eqs = df_EQS)
+# Modify graph to add reference level
 X$gg <- X$gg +
   geom_hline(yintercept = reference_level, linetype = 2, col = "grey25") +
-  annotate("text", x = 1982, y = reference_level, label = "Maximum of reference station (2015-2019)", 
-           hjust = 0, vjust = -0.5, size = 4)
+  annotate("text", x = 1982, y = reference_level, label = "Reference station max. (2015-2019)", 
+           hjust = 0, vjust = -0.5, size = 3.5)
 save_trendplot(X, "Input_data/510_Industry_data/Plots_Lista_2019")
 X$gg
 
 
+
+#
+# PYR1O - normalised OH_pyren
+#
+
+# As above, jsut ith PYR1O
+reference_level <- data_med2 %>% 
+  filter(PARAM %in% "PYR1O" & STATION_CODE %in% "23B" & MYEAR >= 2010 & Basis == "WW") %>% # View()
+  pull(Median) %>%
+  max()
+
+# 2. PYR10 (saved as version 1)
+X <- plot_medians_and_trends2(c("PYR1O", "Gadus morhua", "Galle", "15B", "WW"), 
+                         eqs_type = "line", xlim = c(1982, 2020), 
+                         data_medians = data_med2, data_proref = df_proref, 
+                         # ylim = c(0, 65),
+                         data_eqs = df_EQS)
+
+# Modify graph to add reference level
+X$gg <- X$gg +
+  geom_hline(yintercept = reference_level, linetype = 2, col = "grey25") +
+  annotate("text", x = 1982, y = reference_level, label = "Reference station max. (2015-2019)", 
+           hjust = 0, vjust = -0.5, size = 3.5)
+save_trendplot(X, "Input_data/510_Industry_data/Plots_Lista_2019", suffix = "_ver1")
+X$gg
+
+#
+# 3. PYR1O, with max limit = 35 (saved as version 2)
+#
+X <- plot_medians_and_trends2(c("PYR1O", "Gadus morhua", "Galle", "15B", "WW"), 
+                         eqs_type = "line", xlim = c(1982, 2020), 
+                         data_medians = data_med2, data_proref = df_proref, 
+                         ylim = c(0, 35),
+                         data_eqs = df_EQS)
+save_trendplot(X, "Input_data/510_Industry_data/Plots_Lista_2019", suffix = "_ver2")
+X$gg
+
+
 ```
-
-
 
