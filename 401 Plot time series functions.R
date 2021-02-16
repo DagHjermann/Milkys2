@@ -60,7 +60,7 @@
 #   returns plot (gg) and file name (fn) 
 
 
-plot_medians_and_trends <- function(ser, x_rel = 0.8, y_rel = 0.9, xlim = NULL, ylim = NULL, 
+plot_medians_and_trends <- function(ser, x_rel = 0.8, y_rel = 0.9, xlim = NULL, ylim = 1.15, 
                                     titlesize = 0.85, trend_years = NULL, ...){
   
   if (is.null(trend_years) & !is.null(xlim))
@@ -94,7 +94,9 @@ plot_medians_and_trends <- function(ser, x_rel = 0.8, y_rel = 0.9, xlim = NULL, 
   if (is.null(xlim))
     xlim <- c(start_yr,2020) - 2  # to make room for PROREF text
   if (is.null(ylim))
-    ylim <- c(0, max(X$df_data$Median)*1.15)
+    if (length(ylim) == 1){
+      ylim <- c(0, max(X$df_data$Median)*ylim)
+    }
   
   # This is making the right tissue to use in the plot title
   X$tissue <- case_when(
@@ -464,20 +466,38 @@ add_trend <- function(gg,
   y_pos <- yr[1] + y_rel*yd
   # For Windows PCs
   if (windows){
+    # txt <- case_when(
+    #   trendsymbols == "arrowup" ~ "h",
+    #   trendsymbols == "arrowdown" ~ "i",
+    #   trendsymbols == "circle" ~ "\u2B58"
+    # )
+    # fontfamily <- case_when(
+    #   trendsymbols == "arrowup" ~ "Wingdings 3",
+    #   trendsymbols == "arrowdown" ~ "Wingdings 3",
+    #   trendsymbols == "circle" ~ "Wingdings 1"
+    # )
     txt <- case_when(
-      trendsymbols == "arrowup" ~ "h",
-      trendsymbols == "arrowdown" ~ "i",
-      trendsymbols == "circle" ~ "\u2B58"
+      trendsymbols == "arrowup" ~ "\u2191",    # Wingdings 3, h
+      trendsymbols == "arrowdown" ~ "\u2193",  # Wingdings 3, i
+      trendsymbols == "circle" ~ "\u26AA",     # Wingdings, U+2B58 
+      trendsymbols == "star" ~ "\u2606",
+      trendsymbols == "square" ~ "\u25FE"
     )
-    fontfamily <- case_when(
-      trendsymbols == "arrowup" ~ "Wingdings 3",
-      trendsymbols == "arrowdown" ~ "Wingdings 3",
-      trendsymbols == "circle" ~ "Wingdings 1"
+    fontsize_rel <- case_when(
+      trendsymbols == "arrowup" ~ 0.8,
+      trendsymbols == "arrowdown" ~ 0.8,
+      trendsymbols == "circle" ~ 0.7,
+      trendsymbols == "star" ~ 1,
+      trendsymbols == "square" ~ 1.3
     )
-    gg <- gg +
-      annotate("text", x = x_pos[1], y = y_pos, label = txt[1], hjust = 0.5, vjust = 0.5, size = fontsize, family = fontfamily[1]) +
-      annotate("text", x = x_pos[2], y = y_pos, label = "/", hjust = 0.5, vjust = 0.5, size = fontsize) +
-      annotate("text", x = x_pos[3], y = y_pos, label = txt[2], hjust = 0.5,  vjust = 0.5, size = fontsize, family = fontfamily[2])
+    # gg <- gg +
+    #   annotate("text", x = x_pos[1], y = y_pos, label = txt[1], hjust = 0.5, vjust = 0.5, size = fontsize, family = fontfamily[1]) +
+    #   annotate("text", x = x_pos[2], y = y_pos, label = "/", hjust = 0.5, vjust = 0.5, size = fontsize) +
+    #   annotate("text", x = x_pos[3], y = y_pos, label = txt[2], hjust = 0.5,  vjust = 0.5, size = fontsize, family = fontfamily[2])
+    gg +
+      annotate("text", x = x_abs[1], y = y_abs, label = txt[1], adj = 0.5, size = fontsize*fontsize_rel[1]) +
+      annotate("text", x = x_abs[2], y = y_abs, label = "/", adj = 0.5, size = fontsize) +
+      annotate("text", x = x_abs[3], y = y_abs, label = txt[2], adj = 0.5, size = fontsize*fontsize_rel[2])
     
     
     # For Linux (e.g. Jupyterhub)
@@ -493,9 +513,9 @@ add_trend <- function(gg,
       TRUE ~ 1
     )
     gg <- gg +
-      annotate("text", x = x_pos[1], y = y_pos, label = txt[1], hjust = 0.5, vjust = 0.5, size = fontsize*relsize) +
+      annotate("text", x = x_pos[1], y = y_pos, label = txt[1], hjust = 0.5, vjust = 0.5, size = fontsize*relsize[1]) +
       annotate("text", x = x_pos[2], y = y_pos, label = "/", hjust = 0.5, vjust = 0.7, size = round(fontsize*0.8, 0)) +
-      annotate("text", x = x_pos[3], y = y_pos, label = txt[2], hjust = 0.5, vjust = 0.5, size = fontsize*relsize)
+      annotate("text", x = x_pos[3], y = y_pos, label = txt[2], hjust = 0.5, vjust = 0.5, size = fontsize*relsize[2])
   
     }
   gg
