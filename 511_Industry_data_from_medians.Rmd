@@ -78,7 +78,9 @@ df_EQS <- df_EQS %>%
 
 ```
 
+## .
 ## -- AORDAL -- 
+## .
 
 ## 2. Read data (individual level, with VALUE_WW etc.)   
 *Not needed here*      
@@ -89,6 +91,7 @@ df_EQS <- df_EQS %>%
 *Not needed here*      
 
 ### Read median data    
+From script 02 in 'NIVA-R-examples' project  
 ```{r}
 
   data_med_temp <- readRDS(
@@ -256,7 +259,9 @@ for (i in seq_len(nrow(df_series))){
 ```
 
 
+## .
 ## -- 15B FARSUND ---
+## .
 
 ## 1. Read data   
 Median data produced by script 11    
@@ -415,11 +420,12 @@ X$gg
 ```
 
 
-### OH-pyren
+### OH-pyren 1 - Bømlo as reference level  
 
 ```{r}
 
-# PYR1OH - non-nomalised OH-pyren
+
+# PYR1OH - non-normalised OH-pyren
 
 # Since there is no PROREF for PYR1OH, we add a reference level based on Bømlo 
 # Reference level: max of the annual medians at Bømlo 
@@ -481,4 +487,507 @@ X$gg
 
 
 ```
+
+
+
+### OH-pyren 1 - OSPAR BAC (= 21) as reference level     
+https://ocean.ices.dk/ohat/trDocuments/2020/help_ac_biota_metabolites.html   
+```{r}
+
+
+# For 2001-2004, we have PYR10 but lack PYR1OH (non-normalised OH-pyren) data   
+# We estimate PYR1OH form PYR1O   
+data_to_add <- data_med2 %>% 
+  filter(PARAM %in% "PYR1O" & STATION_CODE %in% "15B" & MYEAR %in% 2001:2004 & Basis == "WW") 
+
+# Find mean PYR1OH/PYR1O ratio 2005-2007
+ratios <- data_med2 %>% 
+  filter(PARAM %in% c("PYR1OH","PYR1O") & STATION_CODE %in% "15B" & MYEAR %in% 2005:2007 & Basis == "WW") %>%
+  pivot_wider(names_from = "PARAM", values_from = "Median") %>%
+  mutate(Ratio = PYR1OH/PYR1O)
+mean(ratios$Ratio)
+
+# Mean ra
+data_to_add$PARAM <- "PYR1OH"
+data_to_add$Median <- data_to_add$Median*mean(ratios$Ratio)
+
+data_for_plot1 <- bind_rows(data_med2, data_to_add)
+
+# debugonce(plot_medians_and_trends2)
+# debugonce(get_plotdata)
+X <- plot_medians_and_trends2(c("PYR1OH", "Gadus morhua", "Galle", "15B", "WW"), 
+                         eqs_type = "line", xlim = c(1997, 2020), 
+                         data_medians = data_for_plot1 %>% filter(MYEAR >= 2000),
+                         data_proref = df_proref, 
+                         # ylim = c(0, 65),
+                         data_eqs = df_EQS)
+
+# Modify graph to add reference level
+X$gg <- X$gg +
+  geom_hline(yintercept = reference_level, linetype = 2, col = "red2") +
+  annotate("text", x = 1997, y = 21, label = "OSPAR BAC", 
+           hjust = 0, vjust = -0.8, size = 5, col = "red2")
+
+X$gg  
+save_trendplot(X, "Input_data/510_Industry_data/Plots_Lista_2019", suffix = "_ver2")
+
+
+
+
+```
+
+```{r}
+
+
+
+    
+# PYR1OH - non-nomalised OH-pyren
+   
+# Since there is no PROREF for PYR1OH, we add a reference level based on Bømlo 
+# Reference level: max of the annual medians at Bømlo 
+reference_level <- data_med2 %>% 
+  filter(PARAM %in% "PYR1OH" & STATION_CODE %in% "23B" & MYEAR >= 2010 & Basis == "WW") %>% # View()
+  pull(Median) %>%
+  max()
+
+X <- plot_medians_and_trends2(c("PYR1OH", "Gadus morhua", "Galle", "15B", "WW"), 
+                         eqs_type = "line", xlim = c(1982, 2020), 
+                         data_medians = data_med2, data_proref = df_proref, 
+                         # ylim = c(0, 65),
+                         data_eqs = df_EQS)
+# Modify graph to add reference level
+X$gg <- X$gg +
+  geom_hline(yintercept = reference_level, linetype = 2, col = "grey25") +
+  annotate("text", x = 1982, y = reference_level, label = "Reference station max. (2015-2019)", 
+           hjust = 0, vjust = -0.5, size = 3.5)
+save_trendplot(X, "Input_data/510_Industry_data/Plots_Lista_2019")
+X$gg
+
+
+
+#
+# PYR1O - normalised OH_pyren
+#
+
+# As above, jsut ith PYR1O
+reference_level <- data_med2 %>% 
+  filter(PARAM %in% "PYR1O" & STATION_CODE %in% "23B" & MYEAR >= 2010 & Basis == "WW") %>% # View()
+  pull(Median) %>%
+  max()
+
+# 2. PYR10 (saved as version 1)
+X <- plot_medians_and_trends2(c("PYR1O", "Gadus morhua", "Galle", "15B", "WW"), 
+                         eqs_type = "line", xlim = c(1982, 2020), 
+                         data_medians = data_med2, data_proref = df_proref, 
+                         # ylim = c(0, 65),
+                         data_eqs = df_EQS)
+
+# Modify graph to add reference level
+X$gg <- X$gg +
+  geom_hline(yintercept = reference_level, linetype = 2, col = "grey25") +
+  annotate("text", x = 1982, y = reference_level, label = "Reference station max. (2015-2019)", 
+           hjust = 0, vjust = -0.5, size = 3.5)
+save_trendplot(X, "Input_data/510_Industry_data/Plots_Lista_2019", suffix = "_ver1")
+X$gg
+
+#
+# 3. PYR1O, with max limit = 35 (saved as version 2)
+#
+X <- plot_medians_and_trends2(c("PYR1O", "Gadus morhua", "Galle", "15B", "WW"), 
+                         eqs_type = "line", xlim = c(1982, 2020), 
+                         data_medians = data_med2, data_proref = df_proref, 
+                         ylim = c(0, 35),
+                         data_eqs = df_EQS)
+save_trendplot(X, "Input_data/510_Industry_data/Plots_Lista_2019", suffix = "_ver2")
+X$gg
+
+
+```
+
+
+## .
+## -- KRISTIANSAND --  
+## .
+
+
+
+### 1. Read data medians      
+From script 994 in 'Milkys' project  
+```{r}
+
+# [1] "STATION_CODE" "STATION_NAME" "LATIN_NAME"   "TISSUE_NAME"  "PARAM"        "UNIT"         "MYEAR"       
+# [8] "N"            "Median"       "Over_LOQ"     "Min"          "Max"          "Basis" 
+
+# dir("Input_data/510_Industry_data")
+
+# Measurement level  
+data_med_temp <- readRDS(
+  "Input_data/510_Industry_data/data_chem_industry_kristiansand_med(script_994).rds")
+
+
+```
+
+
+### Add Proref values    
+```{r}
+
+data_med <- data_med_temp %>%
+  left_join(df_proref %>% select(-N) %>% rename(Proref_median = Median), 
+            by = c("LATIN_NAME", "TISSUE_NAME", "PARAM", "Basis"))
+
+```
+
+
+## 4. Time trend analysis   
+
+### Testing trend analysis   
+Including simple plot  
+```{r}
+
+# xtabs(~STATION_CODE, data_med)
+
+model_from_medians("CD", "Mytilus edulis", "Whole soft body", 
+                   "St. 1", "WW", 2015:2020, data_med, plotname = "window", 
+                   ggplot = TRUE)$statistics %>%
+  select(Nplus, p_linear:Status)
+
+model_from_medians("BAP", "Mytilus edulis", "Whole soft body", 
+                   "St. 4", "WW", 2008:2020, data_med, plotname = "window", 
+                   ggplot = TRUE)$statistics %>%
+  select(Nplus, p_linear:Status)
+
+```
+
+
+
+## 5. Get ready for plotting     
+
+### Station names  
+```{r}
+
+#
+# Hand-made
+#
+
+if (TRUE){
+  df_stationnames <- data.frame(
+    STATION_CODE = c("St. 1", "St. 2", "St. 3", "St. 4", "St. 5"),
+    Report_version_name = c("St. 1 (Lumber)", "St. 2 (Fiskå)", "St. 3 (Timlingen)",
+                            "St. 4 (Svensholmen)", "St. 5 (Flekkerøygapet)"),
+    stringsAsFactors = FALSE)
+}
+
+#
+# Or read from excel file
+#
+
+if (FALSE){
+  
+  data_stations <- readxl::read_excel("Input_data/Kartbase.xlsx")
+  
+  df_stationnames <- data_stations %>%
+    select(stasjonskode, `catch LAT...40`, `catch LONG...41`, stasjonsnavn, `Til Rapport`) %>%
+    rename(STATION_CODE = stasjonskode,
+           Lat = `catch LAT...40`, Long = `catch LONG...41`, 
+           Station_name = stasjonsnavn,
+           Report_version_name = `Til Rapport`) %>%
+    filter(!is.na(STATION_CODE)) %>%
+    filter(!Station_name %in% "Risøy, Østerfjord")  # One duplicate (different names), we just remove 
+  
+  # Check stations that might be missing
+  df_stationnames %>% filter(STATION_CODE %in% c("28A2","97A3","227G","19B","19N"))
+  
+  # Add missing station
+  df_stationnames <- df_stationnames %>%
+    bind_rows(
+      tibble(STATION_CODE = "227G",
+             Report_version_name = "Flatskjær (St. 227G)")
+    )
+  
+  # Check some other stations
+  df_stationnames %>% filter(STATION_CODE %in% c("I714", "I133"))
+  
+}
+
+```
+
+
+
+### Test 1
+```{r}
+# debugonce(model_from_medians)
+# debugonce(statistics_for_excel)
+
+X <- model_from_medians("CD", "Mytilus edulis", "Whole soft body", 
+                        "St. 1", "WW", 2015:2020,  
+                        data_medians = data_med, 
+                        ggplot = TRUE)
+X$statistics
+
+```
+
+
+### Test 2
+```{r}
+
+source("401 Plot time series functions.R")
+type <- "line"
+ymax <- 0.45
+# debugonce(plot_medians_and_trends2)
+# debugonce(plot_medians_color)
+
+# debugonce(plot_medians_and_trends2)
+X <- plot_medians_and_trends2(c("CD", "Mytilus edulis", "Whole soft body", "St. 4", "WW", 2015:2020), 
+                         eqs_type = "line", xlim = c(2007, 2020), 
+                         data_medians = data_med, data_proref = df_proref, 
+                         data_eqs = df_EQS)
+
+# save_trendplot(X, "Input_data/510_Industry_data/Plots_Kristiansand_2020")
+X$gg
+
+
+```
+
+
+## 6. All plots   
+
+### Select series (parameter + station) to plot  
+```{r}
+
+data_med$PARAM <- sub("%", "", data_med$PARAM)
+
+tab <- xtabs(~ PARAM + STATION_CODE, data_med)
+# tab
+
+df_series <- data_med %>%
+  filter(MYEAR >= 2016) %>%
+  count(PARAM, STATION_CODE) %>%
+  filter(n >= 2)
+
+
+```
+
+### Plot all  
+```{r}
+
+folder <- "Input_data/510_Industry_data/Plots_Kristiansand_2020"
+
+df_series[71,]
+# nrow(df_series)
+# for (i in seq_len(nrow(df_series))){
+for (i in seq(71, nrow(df_series))){
+  
+  # i <- 1
+  X <- try(
+    plot_medians_and_trends2(c(df_series$PARAM[i], "Mytilus edulis", "Whole soft body", 
+                               df_series$STATION_CODE[i], "WW"), 
+                             eqs_type = "line", xlim = c(2007, 2020), 
+                             data_medians = data_med, data_proref = df_proref, 
+                             data_eqs = df_EQS)
+  )
+  if (class(X) != "try-error"){
+    save_trendplot(X, folder)
+  }
+  
+}
+
+```
+
+
+
+
+
+## .
+## -- RANFJORDEN --  
+## .
+
+
+
+### 1. Read data medians      
+From script 994 in 'Milkys' project  
+```{r}
+
+# [1] "STATION_CODE" "STATION_NAME" "LATIN_NAME"   "TISSUE_NAME"  "PARAM"        "UNIT"         "MYEAR"       
+# [8] "N"            "Median"       "Over_LOQ"     "Min"          "Max"          "Basis" 
+
+# dir("Input_data/510_Industry_data")
+
+# Measurement level  
+data_med_temp <- readRDS(
+  "Input_data/510_Industry_data/data_chem_industry_ranfjorden_med(script_994).rds")
+
+
+xtabs(~MYEAR + STATION_CODE, data_med_temp)
+
+```
+
+
+### Add Proref values    
+```{r}
+
+data_med <- data_med_temp %>%
+  left_join(df_proref %>% select(-N) %>% rename(Proref_median = Median), 
+            by = c("LATIN_NAME", "TISSUE_NAME", "PARAM", "Basis"))
+
+```
+
+
+## 4. Time trend analysis   
+
+### Testing trend analysis   
+Including simple plot  
+```{r}
+
+# xtabs(~STATION_CODE, data_med)
+
+model_from_medians("CD", "Mytilus edulis", "Whole soft body", 
+                   "I969", "WW", 2000:2020, data_med, plotname = "window", 
+                   ggplot = TRUE)$statistics %>%
+  select(Nplus, p_linear:Status)
+
+model_from_medians("PAH16_woLOQ", "Mytilus edulis", "Whole soft body", 
+                   "I965", "WW", 2000:2020, data_med, plotname = "window", 
+                   ggplot = TRUE)$statistics %>%
+  select(Nplus, p_linear:Status)
+
+```
+
+
+
+## 5. Get ready for plotting     
+
+### Station names  
+```{r}
+
+#
+# Hand-made
+#
+
+if (TRUE){
+  df_stationnames <- data.frame(
+    STATION_CODE = c("I964/I964b", "I965", "I969"),
+    Report_version_name = c("Toraneskaien (I964/I964b)", "Moholmen (I965)", "Bjørnbærviken (I969)"),
+    stringsAsFactors = FALSE)
+}
+
+#
+# Or read from excel file
+#
+
+if (FALSE){
+  
+  data_stations <- readxl::read_excel("Input_data/Kartbase.xlsx")
+  
+  df_stationnames <- data_stations %>%
+    select(stasjonskode, `catch LAT...40`, `catch LONG...41`, stasjonsnavn, `Til Rapport`) %>%
+    rename(STATION_CODE = stasjonskode,
+           Lat = `catch LAT...40`, Long = `catch LONG...41`, 
+           Station_name = stasjonsnavn,
+           Report_version_name = `Til Rapport`) %>%
+    filter(!is.na(STATION_CODE)) %>%
+    filter(!Station_name %in% "Risøy, Østerfjord")  # One duplicate (different names), we just remove 
+  
+  # Check stations that might be missing
+  df_stationnames %>% filter(STATION_CODE %in% c("28A2","97A3","227G","19B","19N"))
+  
+  # Add missing station
+  df_stationnames <- df_stationnames %>%
+    bind_rows(
+      tibble(STATION_CODE = "227G",
+             Report_version_name = "Flatskjær (St. 227G)")
+    )
+  
+  # Check some other stations
+  df_stationnames %>% filter(STATION_CODE %in% c("I714", "I133"))
+  
+}
+
+```
+
+
+
+### Test 1   
+```{r}
+# debugonce(model_from_medians)
+# debugonce(statistics_for_excel)
+
+X <- model_from_medians("CD", "Mytilus edulis", "Whole soft body", 
+                        "I965", "WW", 2010:2020,  
+                        data_medians = data_med, 
+                        ggplot = TRUE)
+X$statistics
+
+```
+
+
+### Test 2
+```{r}
+
+source("401 Plot time series functions.R")
+type <- "line"
+ymax <- 0.45
+# debugonce(plot_medians_and_trends2)
+# debugonce(plot_medians_color)
+
+# debugonce(plot_medians_and_trends2)
+X <- plot_medians_and_trends2(c("ACNE", "Mytilus edulis", "Whole soft body", 
+                                "I964/I964b", "WW", 2010:2020), 
+                         eqs_type = "line", xlim = c(2007, 2020), 
+                         data_medians = data_med, data_proref = df_proref, 
+                         data_eqs = df_EQS)
+
+# save_trendplot(X, "Input_data/510_Industry_data/Plots_Kristiansand_2020")
+X$gg
+
+```
+
+
+## 6. All plots   
+
+### Select series (parameter + station) to plot  
+```{r}
+
+# Dry weight  
+data_med$PARAM <- sub("%", "", data_med$PARAM)
+
+tab <- xtabs(~ PARAM + STATION_CODE, data_med)
+# tab
+
+df_series <- data_med %>%
+  filter(MYEAR >= 2016) %>%
+  count(PARAM, STATION_CODE) %>%
+  filter(n >= 2)
+
+
+```
+
+### Plot all  
+```{r}
+
+folder <- "Input_data/510_Industry_data/Plots_Ranfjorden_2020"
+
+# nrow(df_series)
+# for (i in seq_len(nrow(df_series))){
+for (i in seq(1, nrow(df_series))){
+  
+  # i <- 1
+  X <- try(
+    plot_medians_and_trends2(c(df_series$PARAM[i], "Mytilus edulis", "Whole soft body", 
+                               df_series$STATION_CODE[i], "WW"), 
+                             eqs_type = "line", xlim = c(2007, 2020), 
+                             data_medians = data_med, data_proref = df_proref, 
+                             data_eqs = df_EQS)
+    
+  )
+  if (class(X) != "try-error"){
+    # We need to avoid slash in filenames....:
+    X$fn <- sub("I964/I964b", "I964", X$fn, fixed = TRUE)
+    # Save
+    save_trendplot(X, folder)
+  }
+  
+}
+
+```
+
 
