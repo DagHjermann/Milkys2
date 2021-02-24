@@ -624,6 +624,9 @@ From script 994 in 'Milkys' project
 data_med_temp <- readRDS(
   "Input_data/510_Industry_data/data_chem_industry_kristiansand_med(script_994).rds")
 
+data_med_temp %>%
+  filter(PARAM %in% "BAP") %>%
+  xtabs(~STATION_CODE + MYEAR, .)
 
 ```
 
@@ -646,8 +649,12 @@ Including simple plot
 
 # xtabs(~STATION_CODE, data_med)
 
+# data_med_temp %>%
+#   filter(PARAM %in% "CD") %>%
+#   select(PARAM, LATIN_NAME, TISSUE_NAME, STATION_CODE, Basis, Median)
+
 model_from_medians("CD", "Mytilus edulis", "Whole soft body", 
-                   "St. 1", "WW", 2015:2020, data_med, plotname = "window", 
+                   "St. 1", "WW", 2008:2020, data_med, plotname = "window", 
                    ggplot = TRUE)$statistics %>%
   select(Nplus, p_linear:Status)
 
@@ -737,7 +744,7 @@ ymax <- 0.45
 # debugonce(plot_medians_color)
 
 # debugonce(plot_medians_and_trends2)
-X <- plot_medians_and_trends2(c("CD", "Mytilus edulis", "Whole soft body", "St. 4", "WW", 2015:2020), 
+X <- plot_medians_and_trends2(c("BAP", "Mytilus edulis", "Whole soft body", "St. 1", "WW", 2015:2020), 
                          eqs_type = "line", xlim = c(2007, 2020), 
                          data_medians = data_med, data_proref = df_proref, 
                          data_eqs = df_EQS)
@@ -767,15 +774,20 @@ df_series <- data_med %>%
 
 ```
 
+### Plot folder  
+```{r}
+folder <- "Input_data/510_Industry_data/Plots_Kristiansand_2020"
+
+```
+
+
 ### Plot all  
 ```{r}
 
-folder <- "Input_data/510_Industry_data/Plots_Kristiansand_2020"
-
 df_series[71,]
 # nrow(df_series)
-# for (i in seq_len(nrow(df_series))){
-for (i in seq(71, nrow(df_series))){
+for (i in 1:70){
+# for (i in seq(1, nrow(df_series))){
   
   # i <- 1
   X <- try(
@@ -795,6 +807,95 @@ for (i in seq(71, nrow(df_series))){
 
 
 
+#### Improve BAP (benzo[a]pyren) plots  
+```{r}
+
+param <- "BAP"
+stations <- unique(df_series$STATION_CODE)
+
+for (station in stations){
+  
+  if (station == "St. 1"){
+    
+    X <- plot_medians_and_trends2(c(param, "Mytilus edulis", "Whole soft body", station, "WW"), 
+                             eqs_x = 2006.5, proref_x = 2008, show_proref = 5,
+                             eqs_type = "line", xlim = c(2006, 2020), eqs_label_transparent = FALSE,
+                             data_medians = data_med, data_proref = df_proref, 
+                             data_eqs = df_EQS)
+    
+  } else if (station == "St. 4"){
+    
+    X <- plot_medians_and_trends2(c(param, "Mytilus edulis", "Whole soft body", station, "WW"), 
+                             eqs_x = 1991.5, proref_x = 1994, 
+                             eqs_type = "line", xlim = c(1992, 2020), eqs_label_transparent = FALSE,
+                             data_medians = data_med, data_proref = df_proref, 
+                             data_eqs = df_EQS)
+    
+    
+  } else {
+    
+    X <- plot_medians_and_trends2(c(param, "Mytilus edulis", "Whole soft body", station, "WW"), 
+                             eqs_x = 2006.5, proref_x = 2008, 
+                             eqs_type = "line", xlim = c(2006, 2020), eqs_label_transparent = FALSE,
+                             data_medians = data_med, data_proref = df_proref, 
+                             data_eqs = df_EQS)
+    
+    
+  }
+  
+  print(X$gg)
+  
+  save_trendplot(X, folder)
+
+}
+
+  
+```
+
+#### Improve PAH16 plots  
+```{r}
+
+param <- "PAH16"
+stations <- unique(df_series$STATION_CODE)
+
+for (station in stations){
+  
+  if (station == "St. 1"){
+    
+    X <- plot_medians_and_trends2(c(param, "Mytilus edulis", "Whole soft body", station, "WW"), 
+                             eqs_x = 2006.5, proref_x = 2006.5, show_proref = 5,
+                             eqs_type = "line", xlim = c(2006, 2020), eqs_label_transparent = FALSE,
+                             data_medians = data_med, data_proref = df_proref, 
+                             data_eqs = df_EQS)
+    
+  } else if (station == "St. 4"){
+    
+    X <- plot_medians_and_trends2(c(param, "Mytilus edulis", "Whole soft body", station, "WW"), 
+                             eqs_x = 1991.5, proref_x = 1993, 
+                             eqs_type = "line", xlim = c(1992, 2020), eqs_label_transparent = FALSE,
+                             data_medians = data_med, data_proref = df_proref, 
+                             data_eqs = df_EQS)
+    
+    
+  } else {
+    
+    X <- plot_medians_and_trends2(c(param, "Mytilus edulis", "Whole soft body", station, "WW"), 
+                             eqs_x = 2006.5, proref_x = 2006.5, 
+                             eqs_type = "line", xlim = c(2006, 2020), eqs_label_transparent = FALSE,
+                             data_medians = data_med, data_proref = df_proref, 
+                             data_eqs = df_EQS)
+    
+    
+  }
+  
+  print(X$gg)
+  
+  # save_trendplot(X, folder)
+
+}
+
+  
+```
 
 
 ## .
