@@ -314,6 +314,8 @@ plot_medians_color <- function(X, proref,
                  points_color_loq = "black", points_fill_loq = "#a6cee3", points_size_loq = 3, points_shape_loq = 25,  # light blue
                  eqs = NULL, eqs_type = "line",                                           # eqs and type of EQS to show (background or line)
                  eqs_x = proref_x,                                                        # x position of the text "EQS" 
+                 eqs_label_transparent = TRUE,                                            # if TRUE, 'EQS' will be on a white rectangle 
+                 proref_label_transparent = TRUE,                                         # if TRUE, 'PROREF ...' will be on a white rectangle 
                  color_eqs_line = "#e31a1c",                                              # color of EQS line (background)
                  color_below_eqs = "#c6dbef", color_above_eqs = "#fc9272",                # color of EQS rectangles (background)
                  points_color_eqs_under = "black", points_fill_eqs_under = "#377eb8",     # blue
@@ -412,22 +414,34 @@ plot_medians_color <- function(X, proref,
     geom_hline(yintercept = eqs, color = color_eqs_line, size = rel(2)) +
     # 'EQS' label 
     # - note that 'vjust' determines the height above the EQS line (more negative = higher)
+    if (eqs_label_transparent){
     annotate("text", x = eqs_x, y = eqs, label = "EQS", hjust = 0, vjust = -0.5, size = 5, 
              color = color_eqs_line)
+    } else {
+      annotate("label", x = eqs_x, y = eqs, label = "EQS", hjust = 0, vjust = -0.5, size = 5, 
+               color = color_eqs_line, label.padding = unit(0.1, "lines"), label.size = 0)
+    }
   
   # PROREF lines
-  if (!is.na(proref))
-    gg <- gg +
-      geom_hline(yintercept = proref, linetype = 2, col = "grey25") + 
-      geom_hline(yintercept = proref*2, linetype = 2, col = "grey25") + 
-      geom_hline(yintercept = proref*5, linetype = 2, col = "grey25") + 
-      geom_hline(yintercept = proref*10, linetype = 2, col = "grey25") + 
-      geom_hline(yintercept = proref*20, linetype = 2, col = "grey25") +
-      geom_text(data = txt_lim[show_proref,], aes(y = Median, label = txt), hjust = 0, vjust = -0.5, size = 3)
+  if (!is.na(proref) & proref_label_transparent){
+    for (i in show_proref){
+      gg <- gg +
+        geom_hline(yintercept = txt_lim[i, "Median"], linetype = 2, col = "grey25") +
+        geom_text(data = txt_lim[show_proref,], aes(y = Median, label = txt), hjust = 0, vjust = -0.5, size = 3)
+    }
+      
+    } else if (!is.na(proref) & !proref_label_transparent){
+      for (i in show_proref){
+        gg <- gg +
+          geom_hline(yintercept = txt_lim[i, "Median"], linetype = 2, col = "grey25") +
+          geom_label(data = txt_lim[show_proref,], aes(y = Median, label = txt), hjust = 0, vjust = -0.5, size = 3, label.size = 0)
+      }
+    }
   
-  gg
-  
-}
+    gg
+    
+  }
+
 # debugonce(test)
 
 # gg <- gg + 
