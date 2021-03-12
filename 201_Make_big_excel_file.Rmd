@@ -527,23 +527,29 @@ colnames(data_lessthans)[isnum] <- paste0("Lt_", cn[isnum])
 # str(data_lessthans)
 
 if (nrow(data_xlvalues) != nrow(data_lessthans)){
-  cat("\n")
-  cat("WARNING! data_xlvalues and data_lessthans has different number of lines! \n")
-  cat("Don't continue, the results will be wrong. \n")
+  cat("\n\n\n")
+  stop("ERROR! 'data_xlvalues' and 'data_lessthans' has different number of lines!")
 } else {
-  cat("\n")
-  cat("data_lessthans created and appears to be ok \n")
+  cat("\n\n")
+  cat("'data_lessthans' created and appears to be ok \n")
 }
 
 # Check (all must be equal, ie all numbers below should be zero!)
 
+ch <- rep(NA, 5)
+ch[1] <- sum(data_xlvalues$PARAM != data_lessthans$PARAM)
+ch[2] <- sum(data_xlvalues$STATION_CODE != data_lessthans$STATION_CODE)
+ch[3] <- sum(data_xlvalues$LATIN_NAME != data_lessthans$LATIN_NAME)
+ch[4] <- sum(data_xlvalues$TISSUE_NAME != data_lessthans$TISSUE_NAME)
+ch[5] <- sum(data_xlvalues$Basis != data_lessthans$Basis)
+
+for (i in 1:5){
+  if (ch[i] > 0)
+    stop("ERROR! The rows of 'data_xlvalues' and 'data_lessthans' must be ordered in the same way")
+}
+
 cat("\n")
-cat("Check of index columns - all the following should be zero: \n")
-sum(data_xlvalues$PARAM != data_lessthans$PARAM)
-sum(data_xlvalues$STATION_CODE != data_lessthans$STATION_CODE)
-sum(data_xlvalues$LATIN_NAME != data_lessthans$LATIN_NAME)
-sum(data_xlvalues$TISSUE_NAME != data_lessthans$TISSUE_NAME)
-sum(data_xlvalues$Basis != data_lessthans$Basis)
+cat("Index columns of 'data_xlvalues' and 'data_lessthans' has been checked and is OK \n")  
 
 # head(data_lessthans,1)
 
