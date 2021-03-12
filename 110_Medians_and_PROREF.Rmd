@@ -139,6 +139,22 @@ proref_updated02 <- proref_updated01 %>%
 
 ```
 
+### Fix (remove) some values with one station and PROREF = 0  
+CB81, CB126 and CB169 in blue mussel   
+```{r}
+
+sel <- with(proref_updated02, Q95 %in% 0 & N_stations %in% 1)
+# proref_updated02[sel,]
+proref_updated02$Q95[sel] <- NA
+proref_updated02$Stations[sel] <- NA
+proref_updated02$N_stations[sel] <- NA
+proref_updated02$N[sel] <- NA
+
+cat(sum(sel), "values set to NA \n")
+
+```
+
+
 ### Check Proref  
 ```{r}
 
@@ -234,7 +250,7 @@ proref_updated03 <- bind_rows(
 
 ```
 
-### Add PROREF data to medians ----
+### Add PROREF data to medians   
 ```{r}
 
 data_med_2 <- data_med_1 %>%
@@ -245,7 +261,9 @@ data_med_2 <- data_med_1 %>%
   mutate(Basis = stringr::str_sub(Basis, start = 7))
 
 data_med_3 <- data_med_2 %>%
-  left_join(proref_updated03 %>% select(-N), by = c("LATIN_NAME", "TISSUE_NAME", "PARAM", "Basis"))
+  rename(N_median = N) %>%
+  left_join(proref_updated03 %>% rename(Proref_N = N), 
+            by = c("LATIN_NAME", "TISSUE_NAME", "PARAM", "Basis"))
 
 nrow(data_med_2)  # 525960
 nrow(data_med_3)  # 525960
