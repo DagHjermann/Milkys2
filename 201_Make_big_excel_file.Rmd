@@ -42,6 +42,7 @@ if (!"safejoin" %in% installed.packages()){
   devtools::install_github(repo = "moodymudskipper/safejoin")
 }
 
+library(readxl)
 library(dplyr)        
 library(tidyr)        # gather()
 library(purrr)        # map_ functions
@@ -508,12 +509,11 @@ cat("Number of medians, selected, in wide format:", nrow(data_xlvalues), "\n")
 ### b. Make less-than columns (as TRUE/FALSE)  
 ```{r, results='hold'}
 
-
 data_lessthans <- data_med2[select_data,] %>%
-  mutate(Lessthan = Over_LOQ/N < 0.5) %>%
+  mutate(Lessthan = Over_LOQ/N_median < 0.5) %>%
   select(MYEAR:UNIT, Basis, Lessthan) %>%
   # select(-STATION_NAME) %>%     # Some station names varies, e.g. 02B (Kirkøy nord or 'Kirkøy (north)')
-  spread(MYEAR, Lessthan) %>%
+  tidyr::pivot_wider(names_from = "MYEAR", values_from = "Lessthan") %>%
   as.data.frame()
 
 # Change column names 
@@ -826,7 +826,7 @@ Q95 = Proref
 
 df_background <- data_med2 %>%
   group_by(PARAM, LATIN_NAME, TISSUE_NAME, Basis) %>%
-  summarise_at(c("Stations", "N_stations", "N", "Median", "Q95"), first) %>%
+  summarise_at(c("Stations", "N_stations", "Proref_N", "Median", "Q95"), first) %>%
   ungroup()
 
 # Used in report - copy to Norman's K (K:\Avdeling\Mar\NOG\JMG\2018\Tabeller)
@@ -834,7 +834,7 @@ openxlsx::write.xlsx(df_background, "Data/201_Proref.xlsx")
 
 ```
 
-### Adding "Stations", "N_stations", "N", "Median", "Q95"  
+### Adding "Stations", "N_stations", "Proref_N", "Median", "Q95"  
 ```{r}
 # head(df_background , 3)
 # dput(colnames(df_background))
@@ -849,7 +849,7 @@ data_xl <- safe_left_join(
 # Change some column names
 colnames(data_xl)[colnames(data_xl) %in% "Stations"] <- "Backgr_stations"
 colnames(data_xl)[colnames(data_xl) %in% "N_stations"] <- "Backgr_Nstat"
-colnames(data_xl)[colnames(data_xl) %in% "N"] <- "Backgr_N"
+colnames(data_xl)[colnames(data_xl) %in% "Proref_N"] <- "Backgr_N"
 
 cat("Number of rows in data_xl:", nrow(data_xl), "\n") # 24661
 cat("Number of columns in data_xl:", ncol(data_xl), "\n") # 22
