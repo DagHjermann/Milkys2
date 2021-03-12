@@ -104,7 +104,10 @@ fat basis
 **Figures_401** - Figure files (usually jpg) produced by script 401  
 
 
+
 ## Overview of data flow
+
+If you don't see a graph here, click the small "Trust HTML" button in the top left corner of this window.
 
 ```{r, echo=FALSE, message=FALSE, warning=FALSE, results='hide'}
 install.packages("DiagrammeR")
