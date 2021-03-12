@@ -2045,14 +2045,15 @@ NOTE 1 (IMPORTANT!): Some variables in the macros must be adjusted EVERY YEAR, i
   
 NOTE 2: Step 1 requires Notepad++, which can be downloaded for free from https://notepad-plus-plus.org/    
   
-1. Download the produced file, named "Data_xl_[some date].csv", from Juputerhub to your own computer (in Jupyterlab, right click the file and "download"). For instance: Data_xl_2020-07-03.csv  
+1. Download the produced file, named "Data_xl_[some date]_[some version].csv", from Juputerhub to your own computer (in Jupyterlab, right click the file and "download"). For instance: Data_xl_2020-08-05_ver16.csv (   
+    * This file should be in folder 'Big_excel_table'   
     * ...if you wondered, [some date] means the date of the latest file, e.g. '2020-07-03' 
-    * Also download the file , if you haven't done so before  
+    * Also download the 'Data_xl_TEMPLATE.xlsm' file , if you haven't done so before  
     * Both should be put in the same directory. For DHJ: 'Milkys_pc/Files_from_Jupyterhub_2019/Big_excel_table'
 2. Open the file in Excel in the following way:   
     * First, make a copy of 'Data_xl_TEMPLATE.xlsm' (Ctrl-C, Ctrl-V) and rename it with the same name as your csv file, except that you replace .csv by .xlsm (mark the csv file and press F2, Ctrl-C; mark the xlsm file and press F2, Ctrl-V)    
-    * Open this file (in Excel)    
-    * Open the csv file (the one from step 1) in Notepad++ (right-click and select Notepad++)
+    * Open the xlsm file in Excel      
+    * Open the csv file (the one from step 1) in Notepad++ (right-click in File Explorer, select Notepad++)
     * Mark all (Ctrl-A) and copy it (Ctrl-C)  
     * Paste (Ctrl-V) it into the top left cell in an empty sheet (e.g. sheet "X") in the Excel file  
     * (The reason for this seemingly pointless detour is to handle encodings for Norwegian characters)
@@ -2064,7 +2065,7 @@ NOTE 2: Step 1 requires Notepad++, which can be downloaded for free from https:/
     * Click "Advanced" and make sure that decimal separetor is ",".  Click OK and hit "Finish".   
 4. Go to View:Macros (may also be in Developer:Macros, depending on Excel setup) and run the macros given below (mark the macro you want and click "Run").
 NOTE: if you have filtered the data, turn OFF all filtering of data before running any of the macros, or Excel may crash...
-    * __Format_Cells_Lessthan_Shade_EQS__. This takes ca. 5 minutes
+    * __Format_Cells_Lessthan_Shade_EQS__. This takes ca. 5 minutes (a pop-up will tell you when it has finished)
       (this formats cells with less-than values, shades cells according to Proref,
       and formats/and sets colors for the EQS dots)   
     * Mark the first cell in the Trends.2019 column (col. DT) and
@@ -2073,6 +2074,7 @@ NOTE: if you have filtered the data, turn OFF all filtering of data before runni
     * Mark the first cell in the TREND_CHANGE column (col. EI) and
       run __'Set_character_1_3_8_and_10_to_Wingdings'__  
 5. Save excel file  
+6. Copy it to K - in 2020 (2019 data) we used 'K:\Avdeling\Mar\NOG\JMG\2019\Tabeller'  
 
   
 EXPECTED COLUMN POSITIONS FOR EXCEL MACROS TO WORK   
