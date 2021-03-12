@@ -32,7 +32,11 @@ last_year <- 2019
 ```
 
 
+
 ## 1. Libraries + functions
+
+
+
 ```{r, message=FALSE, warning=FALSE, results='hide'}
 
 # update.packages("rlang")
@@ -60,7 +64,11 @@ source("201_Time_series_write_to_Excel_functions.R", encoding = "UTF-8")
 
 ```
 
+
+
 ## 2. Data  
+
+
 
 ### a. Annual medians  
 ```{r, results='hold'}
@@ -421,7 +429,10 @@ cat(sum(sel), "tissue names containing 'Egg' changed to the exact word 'Egg' \n"
 ```
 
 
+
 ## 3. Some checking   
+
+
 
 ### a. One problematic species, one problematic station, one problematic parameter
 ```{r, results='hold'}
@@ -476,7 +487,12 @@ for (i in 1:nrow(check)){
 }
 ```
 
+
+
+
 ## 4. Prepare for building excel data
+
+
 
 ### a. Make 'data_xlvalues'  
 
@@ -669,7 +685,12 @@ rbind(a, b)
 
 ```
 
+
+
+
 ## 5. Build data set 'data_xl', which will become the big excel file   
+
+
 
 ### Start making data_xl  
 ```{r}
@@ -1543,6 +1564,8 @@ if (FALSE){
 ```
 
 
+
+
 ## 6. Add less-than columns   
 
 
@@ -1854,7 +1877,14 @@ if (FALSE){
 
 ```
 
+
+
+
 ## 7. Save 'data_xl_lessthans' as text and RDS file  
+
+
+
+
 ```{r, results = 'hold'}
 
 #
