@@ -888,11 +888,12 @@ for (station in stations){
     
   }
   
-  print(X$gg)
   
-  # save_trendplot(X, folder)
+  save_trendplot(X, folder)
 
-}
+  print(X$gg)
+
+  }
 
   
 ```

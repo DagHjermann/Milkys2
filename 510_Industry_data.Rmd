@@ -20,7 +20,7 @@ library(safejoin)     # installed from https://github.com/moodymudskipper/safejo
 source("001_Add_trends_functions.R")  # Copied from '16_Trend_functions.R' in Milkys_2018
 source("002_Utility_functions.R")
 source("110_Medians_and_PROREF_functions.R")
-source("510_Industry_molluscs_functions.R")
+source("510_Industry_data_functions.R")
 
 last_year <- 2019
 
@@ -41,16 +41,94 @@ model_from_medians_stat <- function(...)
 
 
 ## 2. Read data (individual level, with VALUE_WW etc.)
+
+### Legacy data until 2019  
 ```{r}
 
 last_file_list <- read_last_file(folder = "Data", pattern = "109_adjusted_data")
-data_all <- last_file_list$data
+data_legacy <- last_file_list$data
+
+tab <- xtabs(~STATION_CODE + MYEAR, data_new)
 
 ```
 
+### Data downloaded on PC    
+Origin: `C:\Data\seksjon 212\Milkys\Data` (DHJ's pc)    
+```{r}
+
+data_new <- readRDS("Input_data/510_Industry_data/data_chem_industry_(script_994).rds") %>%
+  mutate(STATION_CODE = case_when(
+    STATION_CODE == "I964b" ~ "I964",
+    TRUE ~ STATION_CODE))
+
+data_new2 <- readRDS("Input_data/510_Industry_data/02_df_biota.rds") %>%
+  rename(STATION_CODE = StationCode,
+         SAMPLE_NO2 = ReplicateNo,
+         VALUE_WW = Conc,
+         FLAG1 = Flag,
+         MYEAR = Year,
+         PARAM = Param)
+
+cat("Stations in new data: \n")
+tab <- xtabs(~STATION_CODE + MYEAR, data_new)
+tab
+cat("\n")
+
+cat("Stations in new data 2: \n")
+tab <- xtabs(~STATION_CODE + MYEAR, data_new2)
+tab
+cat("\n")
+
+cat("Stations in legacy data: \n")
+sts <- unique(data_legacy$STATION_CODE)
+sts_sel <- sts[sts %in% rownames(tab)]
+tab <- xtabs(~STATION_CODE + MYEAR, data_legacy %>% filter(STATION_CODE %in% sts_sel))
+tab
+cat("\n")
+
+names(data_new)
+```
+
+```{r}
+
+dat_new %>%
+  filter(STATION_CODE == "I969") %>%
+  
+
+```
+
+### Combine  
+```{r}
+
+data_all <- data_new %>%
+  mutate(VALUE_WWa = NA,
+         VALUE_DWa = NA,
+         VALUE_FBa = NA)
+
+if (FALSE){
+  
+  n1 <- names(data_legacy)
+  n2 <- names(data_new)
+  sel <- n1 %in% n2
+  
+  # How many and which columns do  
+  mean(sel)
+  n1[!sel]
+  
+  data_all <- bind_rows(
+    data_legacy,
+    data_new[n2 %in% n1]   # we pick only columns that already exist in 
+  )
+  
+}
+
+```
+
+
 ## 3. Summarise data by medians and add proref  
 
-### Summarise by median for each year/station/parameter  
+### Summarise by median for each year/station/parameter   
+Ca. 20 seconds  
 ```{r}
 
 data_med_temp <- calculate_medians(data_all)
@@ -71,11 +149,12 @@ data_med <- data_med_temp %>%
 
 ## 4. Time trend analysis   
 
-### Testing  
+### Testing trend analysis   
+Including simple plot  
 ```{r}
 
 model_from_medians("HG", "Gadus morhua", "Muskel", 
-                   "30B", "WWa", 1980:2019, data_med, plotname = "window", 
+                   "15B", "WW", 1980:2019, data_med, plotname = "window", 
                    ggplot = TRUE)$statistics %>%
   select(Nplus, p_linear:Status)
 
@@ -89,8 +168,6 @@ model_from_medians("HG", "Gadus morhua", "Muskel",
 source("401 Plot time series functions.R", encoding = "UTF-8")
 
 data_med2 <- data_med
-
-
 
 
 ```
@@ -142,13 +219,13 @@ df_speciesnames <- tibble(
 ### Get EQS limits  
 ```{r}
 
-EQS_limits <- read_excel("Input_data/EQS_limits.xlsx", "EQS")[1:8] %>%
+df_EQS <- read_excel("Input_data/EQS_limits.xlsx", "EQS")[1:8] %>%
   filter(!is.na(PARAM)) %>%
   as.data.frame()
-EQS_limits <- fact2char_df(EQS_limits)  # changes all factor variables to character variables
-EQS_limits$Limit <- as.numeric(EQS_limits$`Grense brukt`)
+df_EQS <- fact2char_df(df_EQS)  # changes all factor variables to character variables
+df_EQS$Limit <- as.numeric(df_EQS$`Grense brukt`)
 
-EQS_limits <- EQS_limits %>%
+df_EQS <- df_EQS %>%
   select(PARAM, Limit) %>% 
   filter(!is.na(PARAM))
 
@@ -178,11 +255,25 @@ cat("Read big excel table", sQuote(data_xl_name))
 source("401 Plot time series functions.R")
 type <- "line"
 ymax <- 0.45
-# debugonce(plot_medians_and_trends)
-plot_medians_and_trends(c("HG", "Gadus morhua", "Muskel", "30B",  "WW"), 
-                             eqs_type = "line", xlim = c(1980, 2020), ylim = c(0, ymax))
+# debugonce(plot_medians_and_trends2)
+# debugonce(plot_medians_color)
+plot_medians_and_trends2(c("HG", "Gadus morhua", "Muskel", "15B",  "WW"), 
+                         eqs_type = "line", xlim = c(1980, 2020), ylim = c(0, ymax),
+                         data_medians = data_med, data_proref = df_proref, 
+                         data_eqs = df_EQS)
+                    
 
 ```
 
+### Ranfjorden plots   
+
+```{r}  
+
+plot_medians_and_trends2(c("CU", "Mytilus edulis", "Whole soft body", "I969",  "WW"), 
+                         eqs_type = "line", xlim = c(1980, 2020), ylim = c(0, ymax),
+                         data_medians = data_med, data_proref = df_proref, 
+                         data_eqs = df_EQS)
+
+```
 
 
