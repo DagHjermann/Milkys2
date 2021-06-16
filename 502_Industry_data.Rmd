@@ -1,0 +1,39 @@
+---
+title: "502_Industry_data"
+output: html_document
+---
+
+  
+```{r, echo = FALSE, results='hide', warning=FALSE, message=FALSE}
+
+### 0. Libraries   
+
+library(dplyr)
+library(purrr)
+library(ggplot2)
+library(lubridate)
+library(readxl)
+library(tidyr)
+library(knitr)         
+library(RColorBrewer)
+
+# library(niRvana)
+
+source('500_Nivadatabase_functions.R')  # Used to read from Nivadatabase
+
+library(niRvana)
+
+knitr::opts_chunk$set(results = 'hold', echo = FALSE)
+
+# RColorBrewer::display.brewer.all()
+```
+
+
+```{r, echo = FALSE}
+
+### Set Nivadabase password 
+
+# Do this once:
+# set_credentials()
+
+```
