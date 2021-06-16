@@ -33,7 +33,7 @@ library(readxl)
 library(readr)
 
 # Load self-made functions
-source("100_Download_Aquamonitor_data_R_functions.R")
+source("002_Utility_functions.R")
 source("101_Combine_with_legacy_data_functions.R")
 
 ```
@@ -116,15 +116,22 @@ df_nivabase1 %>%
 The data go up to 2017 and combines data from the Access database (up to 2015) and NIVAbasen (2016-17). 
 ```{r}
 
-data_legacy <- readRDS("Input_data/Data_through_2018.rds") 
+# Files 
+files <- list_files("Data", pattern = "101_data_updated")
+# files
+
+# Pick manually most recent data from last year
+data_legacy <- readRDS("Data/101_data_updated_2020-08-05.rds") 
 
 ```
+
 
 
 ## 3. Reformat recent data to conform with legacy data  
 
 ### a. Define lookup tables  
 ```{r}
+
 # TaxonName to LATIN_NAME
 lookup_latin_name <- data.frame(
   TaxonName = c("Storstrandsnegl", "Purpursnegl", "Skrubbe", 
