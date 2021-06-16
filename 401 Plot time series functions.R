@@ -381,7 +381,7 @@ plot_medians_color <- function(X, proref,
       geom_line(data = X$mod_est, aes(x=x, y=y), color = trend_color, size = trend_size)
     
   }
-  sel_detlimit <- with(X$df_data, Over_LOQ <= N*0.5) 
+  sel_detlimit <- with(X$df_data, Over_LOQ <= N_median*0.5) 
   if (!is.null(eqs)){
     sel_over_eqs <- X$df_data$Median > eqs
   } else {
