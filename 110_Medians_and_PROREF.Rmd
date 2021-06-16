@@ -113,7 +113,7 @@ if (FALSE){
 We do not update Proref values, as we don't want to have a "moving target". However, a selection of wet-weight Proref values were re-estimated for the Proref paper, so we need to use these. Thus we use a combination of   
 - proref_old, which are the Proref values used in the report for the 2017 data - is used for all parameter/basis combinattions that are not in proref_paper  
 - proref_paper, which are the Proref values used in the Proref paper (a selection of parameters, and wet weigth only)  
-These are combined to proref_updated02, which added to the data in part 4  
+These are combined to proref_updated02, which added to the data in part 4    
 ```{r}
 
 # Old ones 
@@ -138,6 +138,25 @@ proref_updated02 <- proref_updated01 %>%
   )
 
 ```
+  
+For Norman:  
+1.	Hvilke stasjoner inngikk A (trengs ikke for B): 
+    - 'Stations'   
+2.	Antall stasjoner for A og B  
+    - A: 'N_stations', B: mangler     
+3.	Antall verdier for A og B   
+    - A: 'N', B: Mangler   
+4.	Antall verdier over LOQ for A og B    
+    - Mangler  
+5.	PROREF verdien (gjelder bare A selvfølgelig)    
+    - 
+```{r}
+
+proref_old %>% names()
+
+```
+
+
 
 ### Fix (remove) some values with one station and PROREF = 0  
 CB81, CB126 and CB169 in blue mussel   
