@@ -41,11 +41,11 @@ source("101_Combine_with_legacy_data_functions.R")
 ### Set year  
 Note: there are still some hard-coded "2019" given in the code  
 ```{r}
-year <- 2019
+lastyear <- 2019
 ```
 
 
-## 2. Data  
+## 2. Data    
 ### a. Recently downloaded data  
 - Read and reformat the most recent data (by default)   
 - This contains all years, but only 2019 data will be used (some of which are marked 2020)   
@@ -662,7 +662,7 @@ df_extra <- df_extra %>%
     PARAM %in% "Fettinnhold" ~ "Fett",
     TRUE ~ PARAM)
     ) %>%
-  mutate(MYEAR = year,            # year defined in section 1 of scriot  
+  mutate(MYEAR = lastyear,            # lastyear defined in section 1 of scriot  
          SAMPLE_NO2 = SAMPLE_NO,
          BASIS = "W")             # hard-coded
 
@@ -690,7 +690,7 @@ dat_new2b %>%
 
 df_uncert <- df_nivabase2 %>%
   mutate(
-    MYEAR = year,            # year defined in section 1 of scriot  
+    MYEAR = lastyear,            # lastyear defined in section 1 of scriot  
     SAMPLE_NO2 = SAMPLE_NO,
     BASIS = "W") %>%
   distinct(MYEAR, STATION_CODE, LATIN_NAME, SAMPLE_NO2, TISSUE_NAME, PARAM, BASIS, 
@@ -1040,7 +1040,7 @@ data_imposex_vdsi <- data_imposex %>%
             .groups = "drop") %>%
   filter(PARAM == "VDSI" & Sex == "f") %>%
   mutate(
-    MYEAR = year,
+    MYEAR = lastyear,
     SAMPLE_NO2 = 1,
     TISSUE_NAME = "Whole soft body",
     BASIS = "W",
@@ -1056,7 +1056,7 @@ data_imposex_vdsi_extra <- tibble(
   PARAM = "Intersex",
   Sex = "f",
   VALUE = 0,
-  MYEAR = year,
+  MYEAR = lastyear,
   SAMPLE_NO2 = 1,
   TISSUE_NAME = "Whole soft body",
   BASIS = "W",
