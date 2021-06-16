@@ -41,62 +41,49 @@ source("101_Combine_with_legacy_data_functions.R")
 ### Set year  
 Note: there are still some hard-coded "2019" given in the code  
 ```{r}
-lastyear <- 2019
+lastyear <- 2020
 ```
 
 
 ## 2. Data    
-### a. Recently downloaded data  
+### a1. Recently downloaded data  
 - Read and reformat the most recent data (by default)   
-- This contains all years, but only 2019 data will be used (some of which are marked 2020)   
-- The reformatting is to change the data from 'wide' format (one column per substance) to 'long' format (two columns, 'Substance' and 'Value', plus columns for Flag ("<") and unit)     
-```{r}
+- In constrast to 2019 version, we use only data from NIVAbasen (2c in 2019 version)    
+- The file named '01_df_2019_notstandard_<date>' were made on DHJs PC using script 01 in project 'Milkys2_pc'  
+```{r, results='hold'}
 
-files <- dir("Data_Nivabasen", pattern = "Data_CEMP_Biota") %>% rev()
+filepattern <- "01_df_2020_notstandard_"  # entire file name except date and extension
+filenumber <- 1                           # filenumber = 1 means "read the newest file"
 
-cat("Reading the last file downloaded:")
-cat("\n", files[1])
+# Get available files, sorted from newest to oldest
+files <- dir("Input_data", pattern = filepattern) %>% rev()
+
+# Info for user
+cat("Reading file number ",  filenumber, ", sorted from newest to oldest files:", sep = "")
+cat("\n", files[filenumber])
 cat("\n")
 cat("If you want to read a different file, replace 'files[1]' with the file you want")
 cat("\n")
 
-filename <- files[1]
-dat_new1 <- AqMexport_read_chemistry_table(filename)
+# Get filename and its date part 
+filename <- files[filenumber]
+file_date <- substr(filename, nchar(filepattern) + 1, nchar(filepattern) + 10) # pick date part
 
-# We save the date part of 'filename' (e.g., '2020-04-23')
-# This will be used in part 10, when we save the resulting file
-file_date <- substr(filename, 17, 26)    # pick out the part of the text from character no. 17 to no. 26
+# The date part of 'filename' (e.g., '2020-04-23')
+# will be used in part 10, when we save the resulting file
+
+df_nivabase1 <- readRDS(paste0("Input_data/", filename))
 
 ```
 
-### a2. Check PCBs  
-Find that all 'Dutch 7' PCBs, excelpt PCB118, are lacking in 2019   
-This is fixed in part 3-c2 below   
-```{r}
 
-dat_new1 %>%
-  filter(Substance %in% c("CB28","CB52","CB101","CB118","CB138","CB153","CB180") &
-           year(CatchDateFirst) >= 2014) %>%
-  xtabs(~year(CatchDateFirst) + Substance, .)
-
-if (FALSE){
-  
-  # Check if they have some other names
-  dat_new1 %>%
-    filter(grepl("28", Substance) &
-             year(CatchDateFirst) >= 2014) %>%
-    xtabs(~year(CatchDateFirst) + Substance, .)
-  
-}
-    ```
-
-### a3. Check Fat and dry weight    
+### a2. Check Fat and dry weight    
 Seems ok  
 ```{r}
 
-dat_new1 %>%
-  filter(Substance %in% c("Fett", "TTS")) %>%
-  xtabs(~year(CatchDateFirst) + Substance, .)
+df_nivabase1 %>%
+  filter(NAME %in% c("Fettinnhold", "Tørrstoff %")) %>%
+  xtabs(~year(SAMPLE_DATE) + NAME, .)
 
 ```
 
