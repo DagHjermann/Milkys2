@@ -87,10 +87,9 @@ df_nivabase1 %>%
 
 ```
 
-### a4. Check of TBT  
-- The code below is only for information, and shows that what is given as "TBT" in Aquamonitor, actually is the atom weight of tin (TBTIN in Access, Tributyltinn (TBT)-Sn in Nivabasen), not the ion weight    
-- I.e., TBT in Aquamonitor must be multiplied by 2.44, while keeping the same code (`TBT`). This is done in 3c below.      
-   
+### a3. Check of TBT    
+* TBT given as 'Tributyltinn (TBT)' (ion weight) and 'Tributyltinn (TBT)-Sn' (tin weight)    
+
 **Explanation**  
 TBT is given by two measurements:  
 - ion weight of TBT, called:    
@@ -103,49 +102,21 @@ As reference to the ICES codes, see
 - https://vocab.ices.dk/?CodeID=33697  
 - http://vocab.ices.dk/?CodeID=78150   
 - See http://vocab.ices.dk/?ref=37 for vocabulary for DOME (version 3.2 Biota), record 10,parameter 'PARAM'  
+
 ```{r}
 
-station <- "11G"
-
-# Aquamonitor data  
-df1 <- dat_new1 %>%
-  filter(grepl("TBT", Substance) | grepl("tributyl", Substance, ignore.case = TRUE)) %>%
-  filter(!grepl("TTBT", Substance))
-df1 %>%
-  filter(year(CatchDateFirst) == 2019 & StationCode == station) %>%
-  select(StationCode, CatchDateFirst, Substance, Value, Flag, Unit)
-
-# Data from Nivabasen  
-# These data were read from PC, directly from the Nivabasen tables  
-df2a <- readRDS("Data_Nivabasen/01_df_2019_notstandard_2020-07-03.rds")  
-
-df2b <- df2a %>% 
-  filter(grepl("Tributyltinn", NAME) & STATION_CODE == station) %>%    # names()
-  select(STATION_CODE, SAMPLE_DATE, NAME, VALUE, FLAG1, UNIT)  
-df2b
-
+df_nivabase1 %>%
+  filter(grepl("Tributyltinn", NAME)) %>%
+  group_by(NAME, UNIT, TISSUE_NAME) %>%
+  summarise(Mean_value = mean(VALUE), N = n(), .groups = "drop")
 
 ```
-
 
 ### b. Read legacy data  
 The data go up to 2017 and combines data from the Access database (up to 2015) and NIVAbasen (2016-17). 
 ```{r}
 
-data_through_2018 <- readRDS("Input_data/Data_through_2018.rds") 
-
-```
-
-### c. Read 2019 data from NIVAbasen  
-Made using script 01 in the 'Milkys' R project(on DHJ's computer as well as on Github/NIVAnorge)   
-Note that we can do everything else in the procedure for the big Excel sheet _without_ these data.  
-This is used to   
-- add lacking parameters (see 3c4) 
-- add one station, 26A2 (3c4)
-- add variables UNCERTAINTY and QUANTIFICATION LIMIT (needed for submission of data to ICES)     
-```{r}
-
-df_nivabase <- readRDS("Input_data/01_df_2019_notstandard_2020-08-05.rds")
+data_legacy <- readRDS("Input_data/Data_through_2018.rds") 
 
 ```
 
@@ -182,7 +153,7 @@ if (FALSE){
   dat_new1 %>% 
     names() %>% paste(collapse = ", ")
   
-  data_through_2018 %>% 
+  data_legacy %>% 
     names() %>% paste(collapse = ", ") 
   
   xtabs(~Substance, dat_new1)
@@ -219,7 +190,7 @@ PHENYLTINS           |                                   |
 Triphenyltin (TPhT)  | TPTIN                             | Trifenyltinn (TPhT)-Sn   
   
 Some of these (e.g. DBTIN and TPTIN for ion weight) are illogical but need to be like this in 
-order to conform with legacy data (data_through_2018)   
+order to conform with legacy data (data_legacy)   
   
 Examples from 11G in 2019:   
 * Tributyltinn   
@@ -254,7 +225,7 @@ df_nivabase %>%
 # Note that not all parameters from report are not given in NIvabase, e.g. Sn weight of MBT
 
 # Check first station in report (but for 2018) - existing data that will be basis for analysis:  
-data_through_2018 %>%
+data_legacy %>%
   filter(STATION_CODE == "11G" & MYEAR %in% 2018) %>% 
   select(MYEAR, STATION_CODE, SAMPLE_NO2, PARAM, VALUE_WW, FLAG1)
 
@@ -273,7 +244,7 @@ if (FALSE){
              MYEAR %in% 2019:2020 & grepl("tin", NAME, ignore.case = TRUE)) %>% 
     select(MYEAR, STATION_CODE, SAMPLE_NO, NAME, VALUE, FLAG1)
   
-  data_through_2018 %>%
+  data_legacy %>%
     filter(STATION_CODE == "I965" & SAMPLE_NO2 == 1 & 
              MYEAR %in% 2018 & grepl("tin", PARAM, ignore.case = TRUE)) %>% 
     select(MYEAR, STATION_CODE, SAMPLE_NO2, PARAM, VALUE_WW, FLAG1)
@@ -706,11 +677,11 @@ if (n1 != n2)
 ### d. Check PARAM  
 ```{r}
 
-p1a <- data_through_2018 %>%
+p1a <- data_legacy %>%
   filter(MYEAR == 2017) %>%
   xtabs(~PARAM, .) %>% names()
 
-p1b <- data_through_2018 %>%
+p1b <- data_legacy %>%
   filter(MYEAR == 2018) %>%
   xtabs(~PARAM, .) %>% names()
 
@@ -1404,18 +1375,18 @@ if (nrow(df_duplicates) > 0){
 The variables lacking in dat_new6 (length-adjusted data) are just added with NA values  
 ```{r}
 
-data_through_2018 <- data_through_2018 %>%
+data_legacy <- data_legacy %>%
   select(-c(Flag_WW, Flag_DW, Flag_FB, Flag_WWa, Flag_DWa, Flag_FBa))
 
 # Check overlap of column names
 if (FALSE){
-  n1 <- names(data_through_2018)
+  n1 <- names(data_legacy)
   n2 <- names(dat_new6)
   n1[!n1 %in% n2]
   n2[!n2 %in% n1]
 }
 
-data_updated <- bind_rows(data_through_2018, dat_new6)
+data_updated <- bind_rows(data_legacy, dat_new6)
 
 ```
 
