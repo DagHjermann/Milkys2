@@ -30,6 +30,7 @@ library(tidyr)
 library(dplyr, warn.conflicts = FALSE)
 library(purrr)
 
+source("002_Utility_functions.R")
 source("110_Medians_and_PROREF_functions.R")
 
 ```
@@ -42,25 +43,25 @@ source("110_Medians_and_PROREF_functions.R")
 Read and reformat the most recent data (by default)  
 ```{r, collapse=TRUE}
 
-files <- dir("Data", pattern = "109_adjusted_data") %>% rev()
+# If we have NOT length-adjusted the last year's data:
+filepattern <- "101_data_updated_"         # entire file name except date and extension
 
-cat("Reading the last file downloaded:")
-cat("\n", files[1])
-cat("\n")
-cat("If you want to read a different file, replace 'files[1]' with the file you want")
-cat("\n\n")
+# Normally, if we have length-adjusted the last year's data:
+# filepattern <- "109_adjusted_data_"       # entire file name except date and extension
 
-filename <- files[1]
-cat("Time since this file was modified: \n")
-Sys.time() - file.info(paste0("Data/", filename))$mtime
+filenumber <- 1                           # filenumber = 1 means "read the newest file"
 
-data_all <- readRDS(paste0("Data/", filename))
+files <- dir("Data", pattern = filepattern) %>% rev()
 
-# We save the date part of the text (e.g., '2020-04-23')
-# This will be used in part 10, when we save the resulting file
-pos1 <- regexpr("20", filename)[1]   # search for the first place "20" occurs inside filename
-pos2 <- pos1 + 9
-file_date <- substr(filename, pos1, pos2)    # pick out the part of the text from character no. 17 to no. 26
+data_list <- read_rds_file("Data",
+                     files, 
+                     filenumber = filenumber,   # "1" gets the newest file   
+                     get_date = TRUE, time_since_modified = TRUE)
+
+data_all <- data_list$data
+
+# The file_date text will be used in part 10, when we save the resulting file
+cat("File date text:", data_list$file_date, "\n")
 
 ```
 
@@ -315,7 +316,7 @@ data_med_3 %>%
 ## 5. Save  
 ```{r}
 
-filename <- paste0("Data/110_mediandata_updated_", file_date, ".rds")
+filename <- paste0("Data/110_mediandata_updated_", data_list$file_date, ".rds")
 
 saveRDS(data_med_3, filename)
 
