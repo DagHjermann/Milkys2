@@ -32,7 +32,7 @@ Note 2: If you want to add or replace a few time series, and don't want to run t
 add_extra_series <- FALSE
 # add_extra_series <- TRUE
 
-last_year <- 2019
+last_year <- 2020
 
 ```
   
@@ -66,31 +66,27 @@ model_from_medians_stat <- function(...)
 ## 2. Read data  
 
 ### a. Medians per year   
-made in script 110  
-```{r}
-# Medians
-# Read and reformat the most recent data (by default)  
-files <- dir("Data", pattern = "110_mediandata_updated") %>% rev()
+Made in script 110  
+```{r, collapse=TRUE}
 
-cat("Reading the last file downloaded:")
-cat("\n", files[1])
-cat("\n")
-cat("If you want to read a different file, replace 'files[1]' with the file you want")
-cat("\n\n")
+filepattern <- "110_mediandata_updated_"         # entire file name except date and extension
+filenumber <- 1                           # filenumber = 1 means "read the newest file"
 
-filename <- files[1]   
-cat("Time since this file was modified: \n")
-Sys.time() - file.info(paste0("Data/", filename))$mtime
+files <- dir("Data", pattern = filepattern) %>% rev()
 
-data_med <- readRDS(paste0("Data/", filename)) %>%
+data_list <- read_rds_file("Data",
+                     files, 
+                     filenumber = filenumber,   # "1" gets the newest file   
+                     get_date = TRUE, time_since_modified = TRUE)
+
+data_med <- data_list$data%>%
   rename(Proref_median = Median,
          Median = Value) 
-
-# We save the date part of the text (e.g., '2020-04-23')
-# This will be used in part 10, when we save the resulting file
-file_date <- substr(filename, 24, 33)    # pick out the part of the text from character no. 17 to no. 26
+  
+cat("File date text:", data_list$file_date, "\n")
 
 ```
+
 
 ### b. Substance groups
 ```{r}
@@ -140,41 +136,44 @@ The AICc decides whether we use the linear or the non-linear model.
 - P_change: p_linear and p_nonlinear, depending on Model_used   
 ```{r}
 
+years_long <- 1980:last_year
+years_short <- (last_year-9):last_year
+
 model_from_medians("HG", "Gadus morhua", "Muskel", 
-                   "10B", "WWa", 1980:2019, data_med, plotname = "window", ggplot = TRUE)$statistics %>%
+                   "30B", "WW", years_long, data_med, plotname = "window", ggplot = TRUE)$statistics %>%
   select(Nplus, p_linear:Status)
 
 # Some other examples:  
 if (FALSE){
   # A short (5 year) series with downwards trend  
   model_from_medians("SCCP", "Gadus morhua", "Lever", 
-                     "24B", "WW", 1980:2019, data_med,
+                     "24B", "WW", years_long, data_med,
                      plotname = "window", ggplot = TRUE)$statistics %>%
     select(Nplus, p_linear:Status)
   # A short (5 year) series with no trend  
   model_from_medians("SCCP", "Gadus morhua", "Lever", 
-                     "23B", "WW", 1980:2019, data_med)$statistics %>%
+                     "23B", "WW", years_long, data_med)$statistics %>%
     select(Nplus, p_linear:Status)
   # TBT  
   model_from_medians("TBT", "Nucella lapillus", "Whole soft body", 
-                     "227G1", "DW", 1980:2018, data_med)$statistics
+                     "227G1", "DW", years_long, data_med)$statistics
   # Mercury, Oslo, last year and this year
   model_from_medians("HG", "Gadus morhua", "Muskel", 
-                     "30B", "DW", 1980:2018, data_med)$statistics
+                     "30B", "DW", years_long, data_med)$statistics
   model_from_medians("HG", "Gadus morhua", "Muskel", 
-                     "30B", "DW", 1980:2019, data_med)$statistics
+                     "30B", "DW", years_long, data_med)$statistics
   model_from_medians("HG", "Gadus morhua", "Muskel", 
-                     "30B", "WW", 1980:2019, data_med)$statistics
+                     "30B", "WW", years_long, data_med)$statistics
   model_from_medians("CB_S7", "Gadus morhua", "Lever", 
-                     "30B", "WW", 2009:2018, data_med)$statistics
+                     "30B", "WW", years_short, data_med)$statistics
   model_from_medians("CB_S7", "Limanda limanda", "Lever", 
-                     "36F", "WW", 1980:2019, data_med)$statistics
+                     "36F", "WW", years_long, data_med)$statistics
   model_from_medians("TBT", "N. lapillus / L. littorea", "Whole soft body", 
-                     "71G", "WW", 2009:2018, data_med)$statistics
+                     "71G", "WW", years_short, data_med)$statistics
   model_from_medians("VDSI/Intersex", "N. lapillus / L. littorea", "Whole soft body", 
-                     "71G", "WW", 1980:2018, data_med)$statistics
+                     "71G", "WW", years_long, data_med)$statistics
   model_from_medians("VDSI", "Nucella lapillus", "Whole soft body", 
-                   "131G", "WW", 1980:2018, data_med)$statistics %>%
+                   "131G", "WW", years_long, data_med)$statistics %>%
   select(Nplus, p_linear:Status)
 }
 
@@ -536,22 +535,22 @@ vers_existing_2 <- fn_existing_2 %>% substr(charnumber_vers[1], charnumber_vers[
 # - if file with same date exists in the folder, we increase the version by 1
 # - if file with same date does not exist, we set version to 1
 fn_version_1 <- case_when(
-  file_date == date_existing_1 ~ as.numeric(vers_existing_1) + 1,
-  file_date != date_existing_1 ~ 1
+  data_list$file_date == date_existing_1 ~ as.numeric(vers_existing_1) + 1,
+  data_list$file_date != date_existing_1 ~ 1
 ) %>% 
   sprintf("%02i", .)  # put on text format 
 
 fn_version_2 <- case_when(
-  file_date == date_existing_2 ~ as.numeric(vers_existing_2) + 1,
-  file_date != date_existing_2 ~ 1
+  data_list$file_date == date_existing_2 ~ as.numeric(vers_existing_2) + 1,
+  data_list$file_date != date_existing_2 ~ 1
 ) %>% 
   sprintf("%02i", .)  # put on text format 
 
 # File names to use
 fn1 <- paste0("120_result_10yr_", last_year, "_", 
-              file_date, "_run", fn_version_1, ".rds")
+              data_list$file_date, "_run", fn_version_1, ".rds")
 fn2 <- paste0("120_result_long_", last_year, "_", 
-              file_date, "_run", fn_version_2, ".rds")
+              data_list$file_date, "_run", fn_version_2, ".rds")
 
 cat("File names that will be used: \n")
 cat(" ", fn1, "\n")
