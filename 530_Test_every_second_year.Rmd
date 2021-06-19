@@ -1,0 +1,151 @@
+---
+title: "530_Test_every_second_year"
+output: html_document
+---
+
+Testing out the effect of using every second year
+
+Based on code from 120_Calculate_trends  
+
+
+
+## 1. Libraries and functions  
+```{r, results='hide', message=FALSE, warning=FALSE}
+
+# install.packages("lubridate")
+
+library(dplyr)
+library(purrr)
+library(lubridate)
+library(readxl)
+library(mgcv)
+library(AICcmodavg)   # AICc()
+library(ggplot2)
+library(safejoin)     # installed from https://github.com/moodymudskipper/safejoin   
+source("001_Add_trends_functions.R")  # Copied from '16_Trend_functions.R' in Milkys_2018
+
+#
+# Define a couple of extra functions for shortening code
+#
+get_stats <- function(df){
+  calc_models_one_station2(df, gam = TRUE, log = TRUE)$statistics_for_file
+}
+
+model_from_medians_stat <- function(...)
+  model_from_medians(...)$statistics
+
+```
+
+## 2. Read data  
+
+### a. Medians per year   
+Made in script 110  
+```{r, collapse=TRUE}
+
+filepattern <- "110_mediandata_updated_"         # entire file name except date and extension
+filenumber <- 1                           # filenumber = 1 means "read the newest file"
+
+files <- dir("Data", pattern = filepattern) %>% rev()
+
+data_list <- read_rds_file("Data",
+                     files, 
+                     filenumber = filenumber,   # "1" gets the newest file   
+                     get_date = TRUE, time_since_modified = TRUE)
+
+data_med <- data_list$data%>%
+  rename(Proref_median = Median,
+         Median = Value) 
+  
+cat("File date text:", data_list$file_date, "\n")
+
+```
+
+
+### b. Substance groups
+```{r}
+
+df_substancegroups <- read_excel("Input_data/Lookup table - substance groups.xlsx")
+
+```
+
+### c. Select substances   
+```{r}
+sel <- with(df_substancegroups,
+            !is.na(Parameter_group) &
+              Parameter_group != "Dioxins" & 
+              (Parameter_group != "TBT (tinnorganisk)" | PARAM == "TBT")
+)
+pars <- df_substancegroups$PARAM[sel]
+
+#
+# Check if we have all sum variables (we don't) 
+#
+# c("CB_S7", "BDE6S", "P_S", "PFAS", "HBCDD", "BDESS", "PAH16", "KPAH", "DDTEP") %in% pars
+# [1] FALSE FALSE  TRUE FALSE FALSE FALSE  TRUE  TRUE
+
+# Add sum variables and VDSI/Intersex
+pars <- c(pars, c("CB_S7", "BDE6S", "PFAS", "HBCDD", "BDESS", "VDSI/Intersex", "TPTIN"))
+
+```
+
+## 3. Testing 'model_from_medians'   
+  
+### a. Test - single series     
+Just one example of the output of `model_from_medians()`   
+The output includes  
+- N = number of years with data  
+- Nplus = number of years with median > LOQ   
+- p_linear and p_nonlinear = p-values for linear and non-linear (GAM) regression   
+- AICc - "model goodness". AIC decreases when the model fits the data better, but is "punished" by model complexity (non-linear is more complex than linear).
+The AICc decides whether we use the linear or the non-linear model.   
+- Lin_slope = slope of theh linear model (the non-linear has no fixed slope)    
+- Lin_yr1 and Lin_yr2 - the value of the linear model at the start and end of the time series  
+- Nonlin_yr1 and Nonlin_yr2 - the value of the non-linear model at the start and end of the time series   
+- Over_LOQ_yr2 - whether Lin_yr2/Nonlin_yr2 is above LOQ   
+- Model_used:  
+    - Mean - if Nplus = 2,3 or 4 and N >= 3   
+    - Nonlinear - if Nplus >= 7 and AICc_nonlin < AICc_lin  
+    - Linear - otherwise  
+- P_change: p_linear and p_nonlinear, depending on Model_used     
+```{r}
+
+years_long <- 1980:last_year
+years_short <- (last_year-9):last_year
+
+# With plot
+model_from_medians("HG", "Gadus morhua", "Muskel", 
+                   "30B", "WW", years_long, data_med, plotname = "window", ggplot = TRUE)$statistics %>%
+  select(Nplus, p_linear:Status)
+
+# Without plot
+model_from_medians("HG", "Gadus morhua", "Muskel", 
+                   "30B", "WW", years_short, data_med)$statistics %>%
+  select(Nplus, p_linear:Status)
+
+# Or 
+model_from_medians_stat("HG", "Gadus morhua", "Muskel", "30B", "WW", years_short, data_med) %>%
+  select(Nplus, p_linear:Status)
+
+```
+
+
+```{r}
+
+years_short_0 <- seq(last_year-9, last_year)
+years_short_1 <- c(seq(last_year-9, last_year-2), last_year)
+years_short_2 <- c(seq(last_year-9, last_year-4), last_year-2, last_year)
+years_short_3 <- c(seq(last_year-9, last_year-6), last_year-4, last_year-2, last_year)
+years_short_4 <- c(seq(last_year-9, last_year-8), last_year-6, last_year-4, last_year-2, last_year)
+
+years_list <- list(years_short_0, years_short_1, years_short_2, years_short_3, years_short_4)
+
+result <- 1:5 %>%
+  map_dfr(
+    ~model_from_medians_stat("HG", "Gadus morhua", "Muskel", "30B", "WW", 
+                             years_list[[.]], data_med)
+  )
+    
+result %>% select(Nplus, p_linear:Status)
+
+```
+
