@@ -27,7 +27,7 @@ decimal_comma <- TRUE
 Last year with observations  
 ```{r}
 
-last_year <- 2019
+last_year <- 2020
 
 ```
 
@@ -109,7 +109,9 @@ list_and_read_rds_file <- function(folder, pattern,
   result <- data_list$data
   if (!is.null(check_date)){
     if (data_list$file_date != check_date){
-    stop("Date of ", sQuote(pattern), " is different from check_date!")
+    stop("Date of this data =", data_list$file_date, "\n",
+         "Date of file in check_date =", check_date, "\n",
+         "They are different!")
     }
   }
   
@@ -136,6 +138,9 @@ pattern_10yr_last <- paste0("^120_result_10yr_", last_year, "_",
 pattern_long_last <- paste0("^120_result_long_", last_year, "_", 
                             date_pattern, "_", version_pattern, ".rds$")
 
+dir("Data", pattern = pattern_10yr_last)
+dir("Data", pattern = pattern_10yr_last)
+
 result_10yr_last <- list_and_read_rds_file(
   folder = "Data", 
   pattern = pattern_10yr_last, 
@@ -158,18 +163,52 @@ pattern_long_seclast <- paste0("^120_result_long_", last_year - 1, "_",
                             date_pattern, "_", version_pattern, ".rds$")
 
 
+# Checking date
+if (FALSE){
+  
+  result_10yr_seclast <- list_and_read_rds_file(
+    folder = "Data", 
+    pattern = pattern_10yr_seclast, 
+    check_date = data_list$file_date
+  )
+  result_long_seclast <- list_and_read_rds_file(
+    folder = "Data", 
+    pattern = pattern_long_seclast, 
+    check_date = data_list$file_date
+  )
+  
+  result_10yr_seclast <- list_and_read_rds_file(
+    folder = "Data", 
+    pattern = pattern_10yr_seclast, 
+    check_date = data_list$file_date
+  )
+  result_long_seclast <- list_and_read_rds_file(
+    folder = "Data", 
+    pattern = pattern_long_seclast, 
+    check_date = data_list$file_date
+  )
+  
+}
+
+# NOT Checking date
 result_10yr_seclast <- list_and_read_rds_file(
   folder = "Data", 
-  pattern = pattern_10yr_seclast, 
-  check_date = data_list$file_date
+  pattern = pattern_10yr_seclast)
+
+result_long_seclast <- list_and_read_rds_file(
+  folder = "Data", 
+  pattern = pattern_long_seclast 
 )
+
+result_10yr_seclast <- list_and_read_rds_file(
+  folder = "Data", 
+  pattern = pattern_10yr_seclast 
+)
+
 result_long_seclast <- list_and_read_rds_file(
   folder = "Data", 
   pattern = pattern_long_seclast, 
-  check_date = data_list$file_date
 )
-
-
 
 
 
@@ -188,6 +227,8 @@ files <- dir("Input_data", "Labware_samples_") %>% rev()
 filename <- files[1] 
 
 df_samples_labware_raw <- readRDS(paste0("Input_data/", filename))  
+
+cat("Read file", sQuote(filename), "\n")
 
 
 ```
@@ -240,16 +281,25 @@ dat_ddi <- list_and_read_rds_file(
 1. Trends for second last year   
 2. Individual data for this year (for SD)   
 3. Second last year's table   
-4. List of station names    
-5. Data for the extra columns for parameters and stations  
+4. List of station names     
+5. Data for the extra columns for parameters and stations   
+
+Set name of second last year's table
+```{r}
+fn_secondlastyear <- "Data_xl_2020-08-05_ver16.rds"
+```
+
+  
 ```{r}
 
 #
 # 1. Trends for second last year (2018)
 #
-result_10yr_prev <- readRDS("Input_data/120_result_10yr_2018.RData")
-result_long_prev <- readRDS("Input_data/120_result_long_2018.RData")
-cat("1. Trends for second last year - data read \n")
+
+# NOT USED, repaced by 'result_10yr_seclast' etc. above
+# result_10yr_prev <- readRDS("Input_data/120_result_10yr_2018.RData")
+# result_long_prev <- readRDS("Input_data/120_result_long_2018.RData")
+# cat("1. Trends for second last year - data read \n")
 
 #
 # 2. Individual data for this year (for "D.d.i.")
@@ -288,7 +338,7 @@ if (nrow(df) > 0)  # should result in zero
 # 3. Second last year's table
 #
 # results_seclast_year <- read.csv2("Input_data/Data_xl_lessthans_ver12.csv", encoding = "UTF-8")
-results_seclast_year <- readRDS("Input_data/Data_xl_lessthans_ver12.rds") %>%
+results_seclast_year <- readRDS(paste0("Big_excel_table/", fn_secondlastyear)) %>%
   mutate(TISSUE_NAME = case_when(
     TISSUE_NAME %in% "Liver" ~ "Lever",
     TISSUE_NAME %in% "Muscle" ~ "Muskel",
@@ -1772,17 +1822,19 @@ data_xl_lessthans <- data_xl_lessthans %>%
 
 
 ### Change column names  
+
 ```{r}
 
 data_xl_lessthans_oldnames <- data_xl_lessthans
+# This is a backup. For restoring data:
 # data_xl_lessthans <- data_xl_lessthans_oldnames 
 
-# Remove this column
+# Remove this column 
 data_xl_lessthans <- data_xl_lessthans %>%
   select(-Trends.2016.old)
 
 # lookup file
-df_colnames <- readxl::read_excel(
+df_colnames_orig <- readxl::read_excel(
   "Input_data/Column headings v0409_2020_edit.xlsx") %>%
   mutate(
     New_name = case_when(
@@ -1791,6 +1843,40 @@ df_colnames <- readxl::read_excel(
     Current = ifelse(Current == "SD.2018", "SD_2018", Current)
   ) %>%
   arrange(Col_no)  # this defines the order of the columns
+
+# Update column names of trends etc
+i <- 103:nrow(df_colnames_orig)
+df_colnames_orig$Current[i] <- sub("2019", last_year, df_colnames_orig$Current[i])
+df_colnames_orig$Current[i] <- sub("2018", last_year-1, df_colnames_orig$Current[i])
+
+# For adding new years after 2019 
+df_colnames_add <- data.frame(
+  Col_no = seq(102.01, by = 0.01, length = 2*(last_year-2020+1)),
+  Current = paste0(
+    rep(c("Yr_", "EQS_"), last_year-2020+1),
+    rep(2020:last_year, each = 2)
+  ),
+  New_name = paste0(
+    rep(c("V", "Q"), last_year-2020+1),
+    rep(2020:last_year, each = 2)
+  )
+)
+
+# Add new years after 2019 
+df_colnames <- bind_rows(df_colnames_orig, df_colnames_add) %>%
+  arrange(Col_no)  # this defines the order of the columns
+  
+#
+# For checking:
+#
+check_colnames <- data.frame(
+  Current = names(data_xl_lessthans)
+) %>%
+  left_join(df_colnames, by = "Current")
+
+# View(check_colnames)
+
+
 
 # Columns that will change names (and order) are all in the left part 
 
@@ -1807,8 +1893,9 @@ orig_names <- names(data_xl_lessthans)[n1:n2]   # Column names in left part of t
 # Check that all original names are found in lookup file
 check <- orig_names %in% as.data.frame(df_colnames)$Current
 if (sum(!check) > 0){
-  stop("Some column names are not found in the lookup file! ")
+  cat("\n\n****************************\ncolumn names are not found in the lookup file:")
   orig_names[!check]
+  stop("Some column names are not found in the lookup file! ")
 }
 
 # Pick and sort 
@@ -1881,9 +1968,6 @@ if (FALSE){
 
 
 ## 7. Save 'data_xl_lessthans' as text and RDS file  
-
-
-
 
 ```{r, results = 'hold'}
 
