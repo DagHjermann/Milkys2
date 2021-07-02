@@ -1858,7 +1858,7 @@ df_colnames_add <- data.frame(
   ),
   New_name = paste0(
     rep(c("V", "Q"), last_year-2020+1),
-    rep(2020:last_year, each = 2)
+    rep(2020:last_year-2000, each = 2)
   )
 )
 
@@ -2152,10 +2152,10 @@ NOTE: if you have filtered the data, turn OFF all filtering of data before runni
     * __Format_Cells_Lessthan_Shade_EQS__. This takes ca. 5 minutes (a pop-up will tell you when it has finished)
       (this formats cells with less-than values, shades cells according to Proref,
       and formats/and sets colors for the EQS dots)   
-    * Mark the first cell in the Trends.2019 column (col. DT) and
+    * Mark the first cell in the Trends.2019 column (col. DV) and
       run __'Set_character_1_and_3_to_Wingdings'__  
-    * Do the same for Trends.2018 (col. EE). Shortcut:  Ctrl+Y
-    * Mark the first cell in the TREND_CHANGE column (col. EI) and
+    * Do the same for Trends.2018 (col. EG). Shortcut:  Ctrl+Y
+    * Mark the first cell in the TREND_CHANGE column (col. EJ) and
       run __'Set_character_1_3_8_and_10_to_Wingdings'__  
 5. Save excel file  
 6. Copy it to K - in 2020 (2019 data) we used 'K:\Avdeling\Mar\NOG\JMG\2019\Tabeller'  
