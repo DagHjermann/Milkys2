@@ -24,7 +24,7 @@ As in script 110, some data series are 'homogenized'
 The year of the last data
 
 ```{r}
-last_year <- 2019
+last_year <- 2020
 ```
 
 
@@ -58,12 +58,20 @@ source("111_Nstring_SD_DDI_functions.R")
 Read and reformat the most recent data (by default)  
 ```{r, collapse=TRUE}
 
-files <- list_files("Data", pattern = "109_adjusted_data")
-data_list <- read_rds_file(folder = "Data", 
-                          files, 
-                          filenumber = 1, 
-                          get_date = TRUE,
-                          time_since_modified = TRUE)
+# If we have NOT length-adjusted the last year's data:
+filepattern <- "101_data_updated_"         # entire file name except date and extension
+
+# Normally, if we have length-adjusted the last year's data:
+# filepattern <- "109_adjusted_data_"       # entire file name except date and extension
+
+filenumber <- 1                           # filenumber = 1 means "read the newest file"
+
+files <- dir("Data", pattern = filepattern) %>% rev()
+
+data_list <- read_rds_file("Data",
+                     files, 
+                     filenumber = filenumber,   # "1" gets the newest file   
+                     get_date = TRUE, time_since_modified = TRUE)
 
 data_all <- data_list$data
 file_date <- data_list$file_date   
@@ -87,7 +95,8 @@ data_all <- homogenize_series(data_all)
 ```
 
 ### Labware data     
-Uses the most recent data (by default)    
+Uses the most recent data (by default)     
+* Made on the PC, project 'Milkys2_pc', using '801_Download_Labware_sample_data.Rmd'  
 ```{r, results='hold'}
 
 # Penultimate year:
