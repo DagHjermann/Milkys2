@@ -1,0 +1,290 @@
+---
+title: "Trend figures TEST"
+output: html_notebook
+---
+
+
+
+## 0. Lib and source
+```{r}
+library(dplyr)
+library(purrr)
+library(ggplot2)
+library(lubridate)
+library(openxlsx)
+library(mgcv)
+library(AICcmodavg)   # AICc()
+# font_import(pattern = "Wingdings.ttf")    # if not already installed on your PC
+```
+
+### Functions used  
+This loads the functions we need
+test fra BBE
+```{r}
+# source("16_Trend_functions.R")
+source("001_Add_trends_functions.R")
+source("401 Plot time series functions.R", encoding = "UTF-8")
+```
+
+
+## 1. Read data
+### a1. Median data produced by script 11    
+```{r}
+
+files <- dir("Data", pattern = "110_mediandata_updated_") %>% rev()
+
+cat("Reading the last file downloaded:")
+cat("\n", files[1])
+cat("\n")
+cat("If you want to read a different file, replace 'files[1]' with the file you want")
+cat("\n")
+
+filename <- paste0("Data/", files[1]) 
+
+# Medians
+data_med2 <- readRDS(file = filename) %>%
+  rename(Proref_median = Median,
+         Median = Value) 
+
+```
+
+
+### a2. Add VDSI (Actually Intersex) for 71G 2017   
+Is only performed if it is needed.   
+```{r}
+check <- sum(with(data_med2, PARAM %in% "VDSI/Intersex" & MYEAR == 2018 & STATION_CODE %in% "71G" & Basis %in% "WW"))
+
+check
+
+if (check == 0){   # add only if not already added
+  # Copy line to use
+  data_extra <- data_med2 %>% 
+    filter(PARAM %in% "VDSI" & MYEAR == 2016 & STATION_CODE %in% "71G" & Basis %in% "WW")
+  # Change that line
+  data_extra$MYEAR <- 2018
+  data_extra$Median <- 0    # manual entry of value 
+  data_med2 <- rbind(data_med2, data_extra)
+  rm(data_extra)
+}
+
+```
+
+```{r}
+# library(extrafont)
+# font_import(pattern = "Wingdings.ttf")
+
+```
+
+### a3. Read station names  
+Used in 'plot_single_series_medians_data' (see '_functions' file)  
+```{r}
+data_stations <- readxl::read_excel("Input_data/Kartbase.xlsx")
+
+# Note that 
+#     the current station code is 'stasjonskode', not "STATION_CODE"
+#     `catch LAT__1` and `catch LONG__1` are currect (planned?) positions
+#     the current station name is 'stasjonsnavn', not "STATION_CODE"
+#     but station name for report is `Til Rapport`
+#         station name for maps are `Til Kart`
+
+# Check the two station code columns
+# data_stations %>%
+#   filter(STATION_CODE != stasjonskode)    # zero rows
+
+df_stationnames <- data_stations %>%
+  select(stasjonskode, `catch LAT...40`, `catch LONG...41`, stasjonsnavn, `Til Rapport`) %>%
+  rename(STATION_CODE = stasjonskode,
+         Lat = `catch LAT...40`, Long = `catch LONG...41`, 
+         Station_name = stasjonsnavn,
+         Report_version_name = `Til Rapport`) %>%
+  filter(!is.na(STATION_CODE)) %>%
+  filter(!Station_name %in% "Risøy, Østerfjord")  # One duplicate (different names), we just remove 
+
+# Check stations that might be missing
+df_stationnames %>% filter(STATION_CODE %in% c("28A2","97A3","227G","19B","19N"))
+
+# Add missing station
+df_stationnames <- df_stationnames %>%
+  bind_rows(
+    tibble(STATION_CODE = "227G",
+           Report_version_name = "Flatskjær (St. 227G)")
+    )
+
+# Check some other stations
+df_stationnames %>% filter(STATION_CODE %in% c("I714", "I133"))
+
+
+```
+
+### a4. Parameter names for graphs
+Used in 'plot_single_series_medians_data' (see '_functions' file)  
+```{r}
+df_paramnames <- readxl::read_excel("Input_data/Lookup table - parameter names for plots.xlsx")
+
+```
+
+### a5. Species names for graphs
+Used in 'plot_single_series_medians_data' (see '_functions' file)  
+
+```{r}
+df_speciesnames <- tibble(
+  LATIN_NAME = c("Gadus morhua", "Mytilus edulis", "Nucella lapillus"),
+  Species_name = c("Cod", "Blue mussel", "Dog whelk")
+  )
+
+```
+
+### a6. Big excel data - file versions   
+```{r}
+#
+# Existing file names (dates and versions)
+#
+fns <- dir("Big_excel_table", pattern = "Data_xl_.+.rds") %>% rev()
+fns_date <- substr(fns, 9, 18)
+fns_ver <- stringr::str_extract(fns, "ver[0-9]+") %>% stringr::str_extract("[0-9]+") %>% as.numeric()
+file_versions <- tibble(Filename = fns, Date = fns_date, Version = fns_ver) %>%
+  arrange(desc(Date), desc(Version))
+file_versions
+
+```
+
+### a7. Big excel data - file versions   
+```{r}
+
+# Picks the first 'Filename' in 'file_versions' - this should be the latest 'excel' file:
+data_xl_name <- file_versions$Filename[1]
+data_xl_lessthans <- readRDS(paste0("Big_excel_table/", data_xl_name))
+
+cat("Read big excel table", sQuote(data_xl_name))
+
+# for inspection:
+if (FALSE){
+  data_xl_lessthans %>% 
+    select(PARAM, LATIN_NAME, TISSUE_NAME, STATION_CODE, Basis, Yr_2019, EQS_2019, Lt_2019, Trends.2019) %>% 
+    View()
+}
+
+
+```
+
+
+
+## 2. Plot in document    
+
+```{r}
+type <- "line"
+```
+
+
+### From '401 Plot time series functions.R'   
+Used for testing parameters in function
+```{r}
+#
+# Saving plots
+# 
+
+save_trendplot <- function(plot_single_result, folder, suffix = "", windows = FALSE){
+  fn <- paste0(folder, "/", plot_single_result$fn)
+  # Add suffix to file name (note: works only on png and jpg!)
+  fn <- sub(".png", paste0(suffix, ".png"), fn)
+  fn <- sub(".jpg", paste0(suffix, ".jpg"), fn)
+  if (windows){
+    ggsave(fn, plot_single_result$gg, height = 4.4, width = 5.6, dpi = 450)
+  } else {
+    gg <- plot_single_result$gg +
+      theme(axis.text = element_text(size = 11),
+            axis.title = element_text(size = 12),
+            plot.title = element_text(size = 13))
+    png(fn, height = 4.4*1.2, width = 5.6*1.2, units = "in", res = 450)
+    print(gg)
+    dev.off()
+  }
+  invisible(fn)   # returns file name invisibly
+}
+
+# save_trendplot(X, folder_test, suffix = "_3")  # save as file
+
+```
+
+### Test 1
+```{r}
+
+# dir.create("Figures_401_test")
+folder_test <- "Figures_401_test"
+
+ymax <- 0.45
+X <- plot_medians_and_trends(c("HG", "Gadus morhua", "Muskel", "30B",  "WW"), 
+                             eqs_type = "line", xlim = c(1980, 2020), ylim = c(0, ymax))
+X                               # show below (in this Rmd file)
+#save_trendplot(X, folder_test)  # save as file
+save_trendplot(X, folder_test, suffix = "_3")  # save as file
+
+ymax <- 18
+X <- plot_medians_and_trends(c("CU", "Gadus morhua", "Lever", "53B",  "WW"), 
+                           eqs_type = "line", xlim = c(1986, 2020), ylim = c(0, ymax))
+X                               # show below (in this Rmd file)
+save_trendplot(X, folder_test, suffix = "_3")  # save as file
+
+#plot_medians_and_trends(c("QCB", "Mytilus edulis", "Whole soft body", "I133A",  "WW"), 
+ #                            eqs_type = "line", xlim = c(1988, 2019), ylim = c(0, 10.5))
+
+#X <- plot_medians_and_trends(c("OCS", "Gadus morhua", "Lever", "30B",  "WW"), 
+                        #    eqs_type = type, xlim = c(1990, 2019), eqs_x = 1990, ylim = c(0, 15.0))
+#save_trendplot(X, folder)
+```
+
+### Test 2
+```{r}
+ymax <- 0.45
+X <- plot_medians_and_trends(c("HG", "Gadus morhua", "Muskel", "23B",  "WW"), 
+                             eqs_type = type, xlim = c(1980, 2020), ylim = c(0, ymax))
+save_trendplot(X, folder_test)  # save as file
+X
+
+```
+### Test 3
+```{r}
+X <- plot_medians_and_trends(c("HG", "Mytilus edulis", "Whole soft body", "30A",  "WW"), 
+                             eqs_type = type, xlim = c(2006, 2020), eqs_x = 2006, ylim = c(0, 0.05))
+save_trendplot(X, folder_test)  # save as file
+X
+
+```
+
+### Test 4
+```{r}
+# debugonce(plot_medians_and_trends)
+# debugonce(get_plotdata)
+X <- plot_medians_and_trends(c("CB118", "Gadus morhua", "Lever", "30B",  "WW"), 
+                             eqs_type = type, xlim = c(1984, 2020), ylim = c(0, 800))
+save_trendplot(X, folder_test)  # save as file
+X
+
+
+```
+### Test 5
+```{r}
+# debugonce(plot_medians_and_trends)
+X <- plot_medians_and_trends(c("VDSI", "Nucella lapillus", "Whole soft body", "36G",  "WW"), 
+                             eqs_type = type, xlim = c(1984, 2020))
+save_trendplot(X, folder_test)  # save as file
+X
+
+```
+
+### Test 6 - square symbol  
+```{r}
+X <- plot_medians_and_trends(c("OCS", "Gadus morhua", "Lever", "30B",  "WW"), 
+                             eqs_type = type, xlim = c(1984, 2020), ylim = c(0, 15))
+
+save_trendplot(X, folder_test)  # save as file
+X
+
+#X <- plot_medians_and_trends(c("OCS", "Gadus morhua", "Lever", "30B",  "WW"), 
+ #                            eqs_type = type, xlim = c(1984, 2019), ylim = c(0, 15))
+# str(X, 1)
+# X$fn <- "TSplot_OCS_Gadus morhua_Lever_30B_WW_TEST3.png"
+# save_trendplot(X, "Figures_401/Til rapporten")
+
+
+```
