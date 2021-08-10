@@ -61,7 +61,7 @@
 
 
 plot_medians_and_trends <- function(ser, x_rel = 0.8, y_rel = 0.9, xlim = NULL, ylim = 1.15, 
-                                    titlesize = 0.85, trend_years = NULL, ...){
+                                    titlesize = 0.85, trend_years = NULL, trend_x_spacing = c(0, 0.032, 0.064), ...){
   
   if (is.null(trend_years) & !is.null(xlim))
     trend_years <- seq(xlim[1], xlim[2])
@@ -150,7 +150,7 @@ plot_medians_and_trends <- function(ser, x_rel = 0.8, y_rel = 0.9, xlim = NULL, 
   )
  
    gg <- add_trend(gg, trendsymbols = trends, x_rel = x_rel, y_rel = y_rel, 
-                  x_spacing = c(0, 0.035, 0.065), fontsize = 10)
+                  x_spacing = trend_x_spacing, fontsize = 10)
   
   
   # Make file name (but does not save file)
@@ -315,7 +315,9 @@ plot_medians_color <- function(X, proref,
                  eqs = NULL, eqs_type = "line",                                           # eqs and type of EQS to show (background or line)
                  eqs_x = proref_x,                                                        # x position of the text "EQS" 
                  eqs_label_transparent = TRUE,                                            # if TRUE, 'EQS' will be on a white rectangle 
+                 eqs_label_size = 5,                                                      # Size of 'EQS' label 
                  proref_label_transparent = TRUE,                                         # if TRUE, 'PROREF ...' will be on a white rectangle 
+                 proref_label_size = 4,                                                   # Size of 'PROREF ...' label 
                  color_eqs_line = "#e31a1c",                                              # color of EQS line (background)
                  color_below_eqs = "#c6dbef", color_above_eqs = "#fc9272",                # color of EQS rectangles (background)
                  points_color_eqs_under = "black", points_fill_eqs_under = "#377eb8",     # blue
@@ -415,10 +417,10 @@ plot_medians_color <- function(X, proref,
     # 'EQS' label 
     # - note that 'vjust' determines the height above the EQS line (more negative = higher)
     if (eqs_label_transparent){
-    annotate("text", x = eqs_x, y = eqs, label = "EQS", hjust = 0, vjust = -0.5, size = 5, 
+    annotate("text", x = eqs_x, y = eqs, label = "EQS", hjust = 0, vjust = -0.5, size = eqs_label_size, 
              color = color_eqs_line)
     } else {
-      annotate("label", x = eqs_x, y = eqs, label = "EQS", hjust = 0, vjust = -0.5, size = 5, 
+      annotate("label", x = eqs_x, y = eqs, label = "EQS", hjust = 0, vjust = -0.5, size = eqs_label_size, 
                color = color_eqs_line, label.padding = unit(0.1, "lines"), label.size = 0)
     }
   
@@ -427,14 +429,14 @@ plot_medians_color <- function(X, proref,
     for (i in show_proref){
       gg <- gg +
         geom_hline(yintercept = txt_lim[i, "Median"], linetype = 2, col = "grey25") +
-        geom_text(data = txt_lim[show_proref,], aes(y = Median, label = txt), hjust = 0, vjust = -0.5, size = 3)
+        geom_text(data = txt_lim[show_proref,], aes(y = Median, label = txt), hjust = 0, vjust = -0.5, size = proref_label_size)
     }
       
     } else if (!is.na(proref) & !proref_label_transparent){
       for (i in show_proref){
         gg <- gg +
           geom_hline(yintercept = txt_lim[i, "Median"], linetype = 2, col = "grey25") +
-          geom_label(data = txt_lim[show_proref,], aes(y = Median, label = txt), hjust = 0, vjust = -0.5, size = 3, label.size = 0)
+          geom_label(data = txt_lim[show_proref,], aes(y = Median, label = txt), hjust = 0, vjust = -0.5, size = proref_label_size, label.size = 0)
       }
     }
   
@@ -509,9 +511,9 @@ add_trend <- function(gg,
     #   annotate("text", x = x_pos[2], y = y_pos, label = "/", hjust = 0.5, vjust = 0.5, size = fontsize) +
     #   annotate("text", x = x_pos[3], y = y_pos, label = txt[2], hjust = 0.5,  vjust = 0.5, size = fontsize, family = fontfamily[2])
     gg +
-      annotate("text", x = x_abs[1], y = y_abs, label = txt[1], adj = 0.5, size = fontsize*fontsize_rel[1]) +
-      annotate("text", x = x_abs[2], y = y_abs, label = "/", adj = 0.5, size = fontsize) +
-      annotate("text", x = x_abs[3], y = y_abs, label = txt[2], adj = 0.5, size = fontsize*fontsize_rel[2])
+      annotate("text", x = x_abs[1], y = y_abs, label = txt[1], hjust = 0.5, size = fontsize*fontsize_rel[1]) +
+      annotate("text", x = x_abs[2], y = y_abs, label = "/", hjust = 0.5, size = fontsize) +
+      annotate("text", x = x_abs[3], y = y_abs, label = txt[2], hjust = 0.5, size = fontsize*fontsize_rel[2])
     
     
     # For Linux (e.g. Jupyterhub)
@@ -528,7 +530,7 @@ add_trend <- function(gg,
     )
     gg <- gg +
       annotate("text", x = x_pos[1], y = y_pos, label = txt[1], hjust = 0.5, vjust = 0.5, size = fontsize*relsize[1]) +
-      annotate("text", x = x_pos[2], y = y_pos, label = "/", hjust = 0.5, vjust = 0.7, size = round(fontsize*0.8, 0)) +
+      annotate("text", x = x_pos[2], y = y_pos, label = "/", hjust = 0.5, vjust = 0.5, size = round(fontsize*0.8, 0)) +
       annotate("text", x = x_pos[3], y = y_pos, label = txt[2], hjust = 0.5, vjust = 0.5, size = fontsize*relsize[2])
   
     }
@@ -550,20 +552,35 @@ get_dfbig <- function(param, species, tissue = NULL, station, basis = "WW"){
 # Saving plots
 # 
 
-save_trendplot <- function(plot_single_result, folder, suffix = "", windows = FALSE){
+save_trendplot <- function(plot_single_result, folder, suffix = "", windows = FALSE,
+                           width = 5.6, height = 4.4,                                  # set plot size, in inches (but see note in code for Linux)
+                           dpi_windows = 450, dpi_linux = 400                          # set plot resolution (dots per inch)
+                           ){
   fn <- paste0(folder, "/", plot_single_result$fn)
-  # Add suffix to file name (note: works only on png and jpg!)
+  # If you want, you can add a suffix to the file name (e.g. "_2") by 
+  #   setting e.g. suffix = "_2"  (note: works only on png and jpg!)
   fn <- sub(".png", paste0(suffix, ".png"), fn)
   fn <- sub(".jpg", paste0(suffix, ".jpg"), fn)
   if (windows){
-    ggsave(fn, plot_single_result$gg, height = 4.4, width = 5.6, dpi = 450)
+    # If we are in Windows, we use ggsave() 
+    ggsave(fn, plot_single_result$gg, height = height, width = width, dpi = dpi_windows)
   } else {
-    png(fn, height = 4.4, width = 5.6, units = "in", res = 450)
-    print(X)
-    dev.off()
+    # If we are in Linux (e.g. Jupyterhub), we use 'good old' png()   
+    # Note that we also have to increase the size of the plot a bit (in inches),
+    #   otherwise the trend symbols look bad
+    # Because of that size increase, we also have to increase the size of 
+    #   numbers and labels first
+    gg <- plot_single_result$gg +
+      theme(axis.text = element_text(size = 11),     # set size of numbers along axes
+            axis.title = element_text(size = 12),    # set size of axis labels
+            plot.title = element_text(size = 13))    # set size of plot title
+    png(fn, height = height*1.2, width = width*1.2, units = "in", res = dpi_linux)    # create an empty plot file
+    print(gg)                                                                         # ...plot on it...
+    dev.off()                                                                         # ...and save it
   }
   invisible(fn)   # returns file name invisibly
 }
+
 
 # save_trendplot(X, "Figures_41")
 
@@ -634,6 +651,7 @@ break_text <- function(txt,
 
 
 if (FALSE){
+  # TESTS
 
   # Test without space after comma
   txt <- "Mercury (Hg) in cod muscle,Bømlo,Outer Selbjørnfjord (st. 23B)"
