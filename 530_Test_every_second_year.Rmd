@@ -1,5 +1,5 @@
 ---
-title: "530_Test_every_second_year"
+title: "Milkys: testing the effect of using data for every second year"
 output: 
   html_document:
     keep_md: true
@@ -7,19 +7,18 @@ output:
     toc_float: true
 ---
 
-Testing out the effect of using every second year
-
-Based on code from 120_Calculate_trends  
-
+Comparing:  
+* Original time series (data until 2020, for most stations data every year)  
+* Time series with no data in 2015, 2017, 2019 (so the last year’s data are 2014-2016-2018-2020)    
 
 ## 1. Libraries and functions  
-```{r, results='hide', message=FALSE, warning=FALSE}
+```{r, results='hide', message=FALSE, warning=FALSE, echo = FALSE}
 
 # install.packages("lubridate")
 
 # ggbiplot - needs to be installed first, if that not alreadty has been done  
 # Also, load ggbiplot first, as it loads plyr, which should be loaded before dplyr
-if ("ggbiplot" %in% installed.packages()[,1])
+if (!"ggbiplot" %in% installed.packages()[,1])
   devtools::install_github("vqv/ggbiplot", upgrade = "never")
 library(ggbiplot)
 
@@ -169,6 +168,12 @@ years_short <- (last_year-9):last_year
 model_from_medians("HG", "Gadus morhua", "Muskel", 
                    "30B", "WW", years_long, data_med, plotname = "window", ggplot = TRUE)$statistics %>%
   select(Nplus, p_linear:Status)
+# model_from_medians("CB118", "Gadus morhua", "Muskel", 
+#                    "30B", "WW", years_long, data_med, plotname = "window", ggplot = TRUE)$statistics %>%
+#   select(Nplus, p_linear:Status)
+# model_from_medians("HG", "Gadus morhua", "Lever", 
+#                    "36B", "WW", years_long, data_med, plotname = "window", ggplot = TRUE)$statistics %>%
+#   select(Nplus, p_linear:Status)
 
 # Without plot
 model_from_medians("HG", "Gadus morhua", "Muskel", 
@@ -177,6 +182,8 @@ model_from_medians("HG", "Gadus morhua", "Muskel",
 
 # Or 
 model_from_medians_stat("HG", "Gadus morhua", "Muskel", "30B", "WW", years_short, data_med) %>%
+  select(Nplus, p_linear:Status)
+model_from_medians_stat("HG", "Gadus morhua", "Lever", "36B", "WW", years_short, data_med) %>%
   select(Nplus, p_linear:Status)
 
 ```
@@ -223,9 +230,15 @@ model_two_alternatives <- function(param, species, tissue, station, basis,
 }
 
 # Test
-if (FALSE)
+if (FALSE){
   model_two_alternatives("HG", "Gadus morhua", "Muskel", "30B", "WW", 
                          years_short_0, years_short_3, data = data_med)
+  model_two_alternatives("HG", "Gadus morhua", "Lever", "36B", "WW", 
+                         years_short_0, years_short_3, data = data_med)
+  model_two_alternatives("CB118", "Gadus morhua", "Muskel", "36B", "WW", 
+                         years_short_0, years_short_3, data = data_med)
+}
+
 ```
 
 ### b. Combinations of parameters and stations
@@ -340,7 +353,7 @@ df_summ <- result %>%
   summarise(across(c(Trend_down, Trend_down_disappeared), sum, na.rm = TRUE))
 
 df_add <- result %>%
-  select(STATION_CODE, PARAM, Trends) %>%
+  select(STATION_CODE, TISSUE_NAME, PARAM, Trends) %>%
   tidyr::pivot_wider(names_from = PARAM, values_from = Trends,
                      names_sort = TRUE)
 
@@ -349,9 +362,50 @@ df_summ <- df_summ %>%
   mutate(STATION_CODE = factor(STATION_CODE, levels = stations_table)) %>%
   arrange(STATION_CODE) 
 
-writexl::write_xlsx(df_summ, "Data/530_df_summ.xlsx")
+writexl::write_xlsx(df_summ, "Data/530_df_summ_v2.xlsx")
 
 df_summ
+
+```
+
+### f. Summary of the summary  
+
+#### Trends of original and reduced time series  
+* 0 = No trend  
+* D = Downward trend  
+* U = Upward trend  
+* Example: `D -> 0` means: Original time series has a downward trend, reduced time series has no sitgnoficant time trend    
+```{r}
+
+table(result$Trends)
+
+```
+#### U -> 0 cases     
+```{r}
+
+result %>%
+  filter(Trends %in% "U -> 0") %>%
+  select(PARAM, LATIN_NAME, TISSUE_NAME, STATION_CODE, Nplus1, P_change1, Trends) %>%
+  rename(Years_over_LOQ = Nplus1) %>%
+  knitr::kable(row.names = FALSE)
+
+
+```
+
+#### Stations with most "no change" cases     
+```{r}
+
+result %>%
+  group_by(LATIN_NAME, STATION_CODE) %>%
+  summarise(
+    Min_years = min(Nplus1, na.rm = TRUE),
+    Max_years = max(Nplus1, na.rm = TRUE),
+    N_substances = n(),
+    No_change_n = sum(Dir_change1 %in% "0"),
+    No_change_p = round(100*mean(Dir_change1 %in% "0"), 0),
+    .groups = "drop"
+  ) %>%
+  arrange(desc(No_change_p))
 
 ```
 
