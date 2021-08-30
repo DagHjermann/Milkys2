@@ -1,0 +1,1501 @@
+---
+title: "Milkys: testing the effect of using data for every second year"
+output: 
+  html_document:
+    keep_md: true
+    toc: true
+    toc_float: true
+---
+
+Comparing:   
+* Original time series (data until 2020, for most stations data every year)  
+* Time series with no data in 2015, 2017, 2019 (so the last year's data are 2014-2016-2018-2020)   
+
+```{r OVERVIEW, results='hide', echo=FALSE}
+
+# Note: Much of the code in this paper is "hidden" if you just look at the 5 "visible" sections in the Document Outline (Ctrl-Shift-O):
+# - before "Station map", there are 14 cgunks of code doing/loading the time series analysis (trends; chunk 12) and making the excel file output from that analysis (chunk 14)    
+# - between part 4 (Levels in blue mussel) and part 5 (trends) there are x chunks starting with 'LEVELS_ALL', adding "levels columns" to the "trends columns" in the excel file
+
+```
+
+```{r LIBS, results='hide', message=FALSE, warning=FALSE, echo=FALSE}
+
+## 1. Libraries and functions  
+
+# install.packages("lubridate")
+
+# ggbiplot - needs to be installed first, if that not alreadty has been done  
+# Also, load ggbiplot first, as it loads plyr, which should be loaded before dplyr
+if (!"ggbiplot" %in% installed.packages()[,1])
+  devtools::install_github("vqv/ggbiplot", upgrade = "never")
+library(ggbiplot)
+
+library(dplyr)
+library(purrr)
+library(lubridate)
+library(readxl)
+library(mgcv)
+library(AICcmodavg)   # AICc()
+library(ggplot2)
+library(safejoin)     # installed from https://github.com/moodymudskipper/safejoin   
+source("001_Add_trends_functions.R")  # Copied from '16_Trend_functions.R' in Milkys_2018
+
+
+#
+# Define a couple of extra functions for shortening code
+#
+get_stats <- function(df){
+  calc_models_one_station2(df, gam = TRUE, log = TRUE)$statistics_for_file
+}
+
+model_from_medians_stat <- function(...)
+  model_from_medians(...)$statistics
+
+knitr::opts_chunk$set(results = 'hold') # collect the results from a chunk  
+knitr::opts_chunk$set(warning = FALSE)  
+knitr::opts_chunk$set(echo = FALSE)  
+
+# Function for getting mean + CI level   
+# * Calculated on log-transformed values and back-transformed
+
+get_mean <- function(param, station, tissue, years, year_min = 2015, data = data_med){
+  data <- data %>% filter(PARAM %in% param & STATION_CODE %in% station &
+                            TISSUE_NAME %in% tissue &
+                            MYEAR %in% years & MYEAR >= year_min)
+  data$log_Median <- log(data$Median)
+  coef <- summary(lm(log_Median ~ 1, data = data))$coef
+  data.frame(
+    PARAM = param,
+    STATION_CODE = station,
+    TISSUE_NAME = tissue,
+    Conc_mean = exp(coef[1, "Estimate"]),
+    Conc_lower = exp(coef[1, "Estimate"] - 2*coef[1, "Std. Error"]),
+    Conc_upper = exp(coef[1, "Estimate"] + 2*coef[1, "Std. Error"]),
+    Log_conc_sd = sd(data$log_Median, na.rm = TRUE),
+    Over_LOQ = 100*mean(data$Over_LOQ/data$N_median)
+  )
+}
+# Test
+# get_mean("NI", "30B", "Lever", years_short_0)
+# get_mean("NI", "30A", "Whole soft body", years_short_0)
+# get_mean("NI", "30B", "Lever", years_short_3)
+
+# i <- 1
+# df_stationparam[i,]
+# get_mean(df_stationparam$PARAM[i], df_stationparam$STATION_CODE[i], df_stationparam$TISSUE_NAME[i], 
+#              years_short_0)
+
+```
+
+```{r}
+
+last_year <- 2020
+
+```
+
+```{r DATA, collapse=TRUE, cache=TRUE}
+
+## 2. Read data  
+
+### a. Medians per year   
+
+# Made in script 110  
+
+filepattern <- "110_mediandata_updated_"         # entire file name except date and extension
+filenumber <- 1                           # filenumber = 1 means "read the newest file"
+
+files <- dir("Data", pattern = filepattern) %>% rev()
+
+data_list <- read_rds_file("Data",
+                     files, 
+                     filenumber = filenumber,   # "1" gets the newest file   
+                     get_date = TRUE, time_since_modified = TRUE)
+
+data_med <- data_list$data %>%
+  rename(Proref_median = Median,
+         Median = Value) %>%
+  filter(!STATION_CODE %in% c("I965", "I969"))
+  
+cat("File date text:", data_list$file_date, "\n")
+
+```
+
+```{r proref_values}
+
+### Proref values 'df_proref'   
+# from script 110
+# - proref_old, which are the Proref values used in the report for the 2017 data
+# - proref_paper, which are the Proref values used in the Proref paper (a selection of parameters, and wet weight only)  
+
+# Old ones 
+proref_old <- read_excel("Input_data/Proref_report_2017.xlsx")
+proref_paper <- read_excel("Input_data/Proref_paper.xlsx")
+
+# proref_updated01 = old data set, with selected columns,
+#   and removing the rows that were produced for the paper (proref_ww)
+proref_updated01 <- proref_old %>%
+  # Select columns to keep
+  select(PARAM, LATIN_NAME, TISSUE_NAME, Basis, Stations, N_stations, N, Median, Q95) %>%
+  # Pick rows that are *not* in proref_paper
+  anti_join(proref_paper %>% select(PARAM, LATIN_NAME, TISSUE_NAME, Basis),
+            by = c("PARAM", "LATIN_NAME", "TISSUE_NAME", "Basis")
+            )
+
+# proref_updated02 - adding the rows from proref_paper
+df_proref <- proref_updated01 %>%
+  bind_rows(
+    proref_paper %>%
+      select(PARAM, LATIN_NAME, TISSUE_NAME, Basis, Stations, N_stations, N, Median, Q95)
+  )
+
+rm(proref_old, proref_paper, proref_updated01)
+
+```
+
+
+```{r stations}
+### d. Station order  
+
+stations_table <- c(
+  "30A", "I301", "I304", "31A", "36A", "I023", "I024",     # Blue mussel, Oslofjorden
+  "71A", "I714", "76A2", "I131A", "I133", "15A",           # Blue mussel, Grenland - Sørlandet
+  "51A", "52A", "56A", "57A", "64A", "65A", "22A",         # Blue mussel, Vestlandet - Trøndelag
+     "I241", "26A2", "28A2", "91A2",                       #  - " -
+  "97A2", "97A3", "98A2", "10A2", "11X",                   # Blue mussel, Nord-Norge
+  "30B", "36B", "02B", "71B","13B", "15B",                 # Cod
+    "53B", "23B", "24B", "28B", "80B", "96B",              # Cod            
+    "98B1", "43B2", "45B2", "10B", "19B",                  # Cod
+    "33F",                                                 # European flounder
+  "19N",                                                   # Eider duck - twice (blood and egg)
+  "71G",                                                   # Dog whelk / periwinkle
+  "36G", "76G", "131G", "15G", "227G",                     # Dog whelk
+    "22G", "98G", "11G")                                   # Dog whelk
+
+# Station names
+data_stations <- readxl::read_excel("Input_data/Kartbase_edit.xlsx") %>%
+  select("STATION_CODE","Station_name")
+
+```
+
+```{r eqs}
+### e. Add EQS limits  
+
+colnames <- c("Nr", "Stoff...2", "PARAM", "Stoff...4", "Stoff...5", "Grense", 
+              "Grense brukt", "Kommentar 1", "Kommentar1", "Kommentar2")
+
+EQS_limits <- read_excel("Input_data/EQS_limits.xlsx", "EQS",
+                         col_names = colnames)[1:8] %>%
+  filter(!is.na(PARAM)) %>%
+  as.data.frame()
+
+EQS_limits <- fact2char_df(EQS_limits)  # changes all factor variables to character variables
+EQS_limits$Limit <- as.numeric(EQS_limits$`Grense brukt`)
+
+```
+
+
+
+```{r test}
+
+## 3. Testing 'model_from_medians'   
+  
+### a. Test - single series     
+
+# Just one example of the output of `model_from_medians()`   
+# The output includes  
+# - N = number of years with data  
+# - Nplus = number of years with median > LOQ   
+# - p_linear and p_nonlinear = p-values for linear and non-linear (GAM) regression   
+# - AICc - "model goodness". AIC decreases when the model fits the data better, but is "punished" by model complexity (non-linear is more complex than linear).
+# The AICc decides whether we use the linear or the non-linear model.   
+# - Lin_slope = slope of theh linear model (the non-linear has no fixed slope)    
+# - Lin_yr1 and Lin_yr2 - the value of the linear model at the start and end of the time series  
+# - Nonlin_yr1 and Nonlin_yr2 - the value of the non-linear model at the start and end of the time series   
+# - Over_LOQ_yr2 - whether Lin_yr2/Nonlin_yr2 is above LOQ   
+# - Model_used:  
+#     - Mean - if Nplus = 2,3 or 4 and N >= 3   
+#     - Nonlinear - if Nplus >= 7 and AICc_nonlin < AICc_lin  
+#     - Linear - otherwise  
+# - P_change: p_linear and p_nonlinear, depending on Model_used     
+
+
+years_long <- 1980:last_year
+years_short <- (last_year-9):last_year
+
+if (FALSE){
+  
+# With plot
+model_from_medians("HG", "Gadus morhua", "Muskel", 
+                   "30B", "WW", years_long, data_med, plotname = "window", ggplot = TRUE)$statistics %>%
+  select(Nplus, p_linear:Status)
+
+# Without plot
+model_from_medians("HG", "Gadus morhua", "Muskel", 
+                   "30B", "WW", years_short, data_med)$statistics %>%
+  select(Nplus, p_linear:Status)
+
+# Or 
+model_from_medians_stat("HG", "Gadus morhua", "Muskel", "30B", "WW", years_short, data_med) %>%
+  select(Nplus, p_linear:Status)
+
+}
+
+```
+
+```{r, results='hide'}
+
+# ### b. Test three different sets of years    
+# * Lacking no years, lacking 2019, lacking 2017+2019 etc.   
+
+years_short_0 <- seq(last_year-9, last_year)
+years_short_1 <- c(seq(last_year-9, last_year-2), last_year)
+years_short_2 <- c(seq(last_year-9, last_year-4), last_year-2, last_year)
+years_short_3 <- c(seq(last_year-9, last_year-6), last_year-4, last_year-2, last_year)
+years_short_4 <- c(seq(last_year-9, last_year-8), last_year-6, last_year-4, last_year-2, last_year)
+
+years_list <- list(years_short_0, years_short_1, years_short_2, years_short_3, years_short_4)
+
+result <- 1:5 %>%
+  map_dfr(
+    ~model_from_medians_stat("HG", "Gadus morhua", "Muskel", "30B", "WW", 
+                             years_list[[.]], data_med)
+  )
+    
+result %>% select(Nplus, p_linear:Status)
+
+```
+
+```{r}
+
+## 4. Get results for two alternative time for all parameters / stations
+
+### a. Function for two time series alternatives    
+# * Alternatives: 1) Lacking no years, 2) lacking three years (2015,2017,2019)  
+
+model_two_alternatives <- function(param, species, tissue, station, basis, 
+                                   years1, years2, data){
+  res1 <- model_from_medians_stat(param, species, tissue, station, basis, 
+                                  years1, data_med) %>%
+    select(PARAM, LATIN_NAME, TISSUE_NAME, STATION_CODE, Basis, Nplus, P_change, Dir_change) %>%
+    rename(Nplus1 = Nplus, P_change1 = P_change, Dir_change1 = Dir_change)
+  res2 <- model_from_medians_stat(param, species, tissue, station, basis, 
+                                  years2, data_med) %>%
+  select(Nplus, P_change, Dir_change) %>%
+    rename(Nplus2 = Nplus, P_change2 = P_change, Dir_change2 = Dir_change)
+  bind_cols(res1, res2)
+}
+
+# Test
+if (FALSE)
+  model_two_alternatives("HG", "Gadus morhua", "Muskel", "30B", "WW", 
+                         years_short_0, years_short_3, data = data_med)
+```
+
+
+```{r par_table1}
+
+### b1. Combinations of parameters and stations
+
+# Parameters (from script 210)
+par_table_alt1 <- c("AG", "CD", "CO", "CR", "HG", "NI", "PB",  
+               "CB_S7", 
+               "DDEPP",
+               "HCB", "HBCDA",
+               "BDE6S", "BDE47", "BDE100", "BDE209",
+               "SCCP", "MCCP", 
+               "P_S", "ANT", "BAA", "BAP", "FLU", "NAP",  
+               "PFOA", "PFOS", "PFOSA", 
+               "TBT", "TPT", 
+               "VDSI",
+               "D5")
+
+
+par_table_alt2 <- c(
+    "AG", "AS", "CD", "CO", "CR", "CU", "HG", "NI", "PB", "SN", "ZN", 
+    "CB_S7", "CB28", "CB52", "CB77", "CB81", "CB101", "CB105", "CB114", 
+    "CB118", "CB123", "CB126", "CB138", "CB153", "CB156", "CB157", "CB167", "CB169", "CB180", "CB189", 
+    "DDEPP", "DDTEP", "DDTPP", "TDEPP", 
+    "HCB", "HBCDA", "HBCDB", "HBCDG", "HBCDD", "Sum HBCD", "TBBPA", 
+    "HCHA", "HCHB", "HCHD", "HCHG", 
+    "alfa-Klordan (cis)", "Heptaklor", "Heptaklor epoksid", "Mirex", "Nonaklor, trans-", 
+    "PAH16", "P_S", "KPAH", 
+    "ACNE", "ACNLE", "ANT", "BAA", "BAP", "BAP3OH", "BBJF", "BGHIP", "BKF", "DBA3A", "FLE", "FLU", "ICDP", "PYR",
+    "Krysen", "NAP", "PA",  
+    "BDE6S", "BDESS", 
+    "BDE17", "BDE28", "BDE47", "BDE49", "BDE66", "BDE71", "BDE77", "BDE85", "BDE99", "BDE100", "BDE119", "BDE126", 
+    "BDE138", "BDE153", "BDE154", "BDE156", "BDE183", "BDE184", "BDE191", "BDE196", "BDE197", "BDE206", "BDE207", "BDE209",  
+    "PFAS", 
+    "PFOS", "PFOSA", "PFBS", "PFDcA", "PFHpA", "PFHxA", "PFNA", "PFOA", "PFUdA", "Perfluordekansulfonat (PFDS)",
+    "Perfluordodekansyre (PFDoA)", "Perfluortetradekansyre (PFTA)", "Perfluortridekansyre (PFTrA)", 
+    "DBT", "DOT", "MBT", "MOT", "TBT", "TCHT", "TPT", "TTBT", 
+    "ALAD", "BAP3O", "EROD", "PA1OH", "PYR1OH", "CYP1A", 
+    "INTERSEX", "VDSI", 
+    "MCCP", "SCCP", 
+    "4-N-NP", "4-N-OP", "4-T-NP", "4-T-OP", "BPA", 
+    "Oxyklordan", "Toksafen Parlar 26", "Toksafen Parlar 50", "Toksafen Parlar 62", 
+    "trans-Heptaklorepoksid", "Aldrin", "Dieldrin", "Endrin", "gamma-Klordan (trans)", 
+    "D4", "D5",
+    "DRYWT%", "Fett", 
+    "C/N", "Delta13C", "Delta15N", "% C", "% N"
+)
+
+
+
+# used to make par_table_alt2:
+
+# levels_5years_longx1 <- df_substancegroups %>%
+#   arrange(Substance.Group) %>%
+#   pull(PARAM)
+# x2 <- data_med %>%
+#   filter(MYEAR %in% 2018:2020) %>%
+#   pull(PARAM) %>%
+#   unique()
+# x3 <- x1[x1 %in% x2]
+# dput(x3)
+
+
+```
+
+```{r par_table2}
+
+# Choose few or (almost) all parameters:
+par_table <- par_table_alt1     # Number of station / parameter combinations: 642 
+# par_table <- par_table_alt2     # Number of station / parameter combinations: 2523 
+
+```
+
+```{r par_table3}
+
+### b2. Combinations of parameters and stations
+
+stationparam_codliver <- data_med %>% 
+  filter(MYEAR %in% 2020 & LATIN_NAME %in% "Gadus morhua" & PARAM %in% par_table) %>%
+  filter(PARAM != "HG" & TISSUE_NAME %in% "Lever")  %>%
+  distinct(STATION_CODE, LATIN_NAME, TISSUE_NAME, PARAM)
+stationparam_codmuscle <- data_med %>% 
+  filter(MYEAR %in% 2020 & LATIN_NAME %in% "Gadus morhua" & PARAM %in% "HG") %>%
+  filter(TISSUE_NAME %in% "Muskel")  %>%
+  distinct(STATION_CODE, LATIN_NAME, TISSUE_NAME, PARAM)
+stationparam_bluemussel <- data_med %>% 
+  filter(MYEAR %in% 2020 & LATIN_NAME %in% "Mytilus edulis" & PARAM %in% par_table) %>%
+  distinct(STATION_CODE, LATIN_NAME, TISSUE_NAME, PARAM)
+
+stationparam <- bind_rows(
+  stationparam_codliver,
+  stationparam_codmuscle,
+  stationparam_bluemussel
+)
+
+# cat("Number of station / parameter combinations:", nrow(stationparam), "\n")
+
+```
+
+
+
+```{r create_results}
+
+# ### c. Run times for all combitations   
+# * The initial run takes a few minutes and results are saved 
+# * If the saved results exist (e.g. file '530_result_time_series_alternatives.rds'), this file will just be read  
+
+# this chunk results in two data sets:
+# results (TREND results)
+# results_levels (LEVEL results, similar to those in the numbered sections 1-4)
+
+#
+# Pick file names, based 
+if (identical(par_table, par_table_alt1)){
+  filename_save_trends <- "Data/530_result_time_series_alternatives.rds"
+  filename_save_levels <- "Data/530_result_levels_alternatives.rds"
+} else {
+  filename_save_trends <- "Data/530_result_time_series_alternatives_all.rds"
+  filename_save_levels <- "Data/530_result_levels_alternatives_all.rds"
+}
+
+#
+# Analyses of TRENDS with original and reduced time series 
+#
+if (!file.exists(filename_save_trends)){
+  
+  
+  # Make "safe" version of 'model_two_alternatives'
+  #   (doesn't stop loop if there's an error)
+  model_two_alternatives_t <- purrr::safely(model_two_alternatives)
+  
+  result_list_1 <- 1:nrow(stationparam) %>%
+    # result_list <- sample(1:600, 10) %>%
+    map(
+      ~model_two_alternatives_t(stationparam$PARAM[.], 
+                                stationparam$LATIN_NAME[.], 
+                                stationparam$TISSUE_NAME[.], 
+                                stationparam$STATION_CODE[.], 
+                                "WW", 
+                                years_short_0, years_short_3, data = data_med)
+    )
+  
+  result_list_2 <- transpose(result_list_1)
+  
+  # str(result_list_2, 1)
+  
+  ok <- result_list_2$error %>% 
+    map_lgl(is.null)
+  
+  result_orig <- result_list_2$result[ok] %>% bind_rows()
+  
+  saveRDS(result, filename_save_trends)
+  
+} else {
+  
+  result <- readRDS(filename_save_trends)
+  
+}
+
+
+#
+# Analyses of LEVELS with original and reduced time series 
+#
+
+if (!file.exists(filename_save_levels)){
+
+  # test 'get_mean'
+  # get_mean("NI", "30B", "Lever", years_short_0)
+  # get_mean("NI", "30A", "Whole soft body", years_short_0)
+  
+  
+  # Make "safe" version of 'model_two_alternatives'
+  #   (doesn't stop loop if there's an error)
+  get_mean_t <- purrr::safely(get_mean)
+  
+  #
+  # Original time series
+  #
+  result_list_1 <- 1:nrow(stationparam) %>%
+    # result_list <- sample(1:600, 10) %>%
+    map(
+      ~get_mean_t(stationparam$PARAM[.], 
+                  stationparam$STATION_CODE[.], 
+                  stationparam$TISSUE_NAME[.], 
+                  years_short_0)
+    )
+  
+  result_list_2 <- transpose(result_list_1)
+  
+  # str(result_list_2, 1)
+  
+  ok <- result_list_2$error %>% 
+    map_lgl(is.null)
+  
+  levels_5years_ts1 <- result_list_2$result[ok] %>% bind_rows()
+
+  #
+  # Reduced time series
+  #
+  result_list_1 <- 1:nrow(stationparam) %>%
+    # result_list <- sample(1:600, 10) %>%
+    map(
+      ~get_mean_t(stationparam$PARAM[.], 
+                  stationparam$STATION_CODE[.], 
+                  stationparam$TISSUE_NAME[.], 
+                  years_short_3)
+    )
+  
+  result_list_2 <- transpose(result_list_1)
+  
+  # str(result_list_2, 1)
+  
+  ok <- result_list_2$error %>% 
+    map_lgl(is.null)
+  
+  levels_5years_ts2 <- result_list_2$result[ok] %>% bind_rows()
+
+  #
+  # Result level data on somewhat broad form (with separate columns 'Conc_mean' and 'Conc_mean_red')
+  # Similar to 'levels_5years_broad' used for cod and blue mussel below
+  #
+  result_levels <- stationparam %>% 
+    left_join(levels_5years_ts1,
+              by = c("STATION_CODE", "TISSUE_NAME", "PARAM")) %>%
+    left_join(levels_5years_ts2 %>% 
+                rename(Conc_mean_red = Conc_mean, 
+                       Conc_lower_red = Conc_lower, Conc_upper_red = Conc_upper,
+                       Log_conc_sd_red = Log_conc_sd, 
+                       Over_LOQ_red = Over_LOQ),
+              by = c("STATION_CODE", "TISSUE_NAME", "PARAM")) %>%
+    # Add EQS threshold
+    left_join(EQS_limits %>% select(PARAM, Limit), by = "PARAM") %>%
+    # Correct order
+    mutate(
+      PARAM = factor(PARAM, levels = par_table)
+    )
+  
+  # save   
+  saveRDS(result_levels, filename_save_levels)
+  
+} else {
+  
+  result_levels <- readRDS(filename_save_levels)
+  
+}
+
+# cat("Number of station / parameter combinations with a result:", nrow(result), "\n")
+# for par_table_alt2: 2374
+
+```
+
+
+```{r Make_summary_variables_trends}
+
+### d. Make summary variables  
+
+# result$Dir_change1 %>% head()
+
+result <- result %>%
+  mutate(Dir_change1 = ifelse(Dir_change1 == "", "0", Dir_change1),
+         Dir_change2 = ifelse(Dir_change2 == "", "0", Dir_change2),
+         Trends = paste(substr(Dir_change1,1,1), "->", substr(Dir_change2,1,1)),
+         Trend_diff = Dir_change1 != Dir_change2,
+         Trend_down = (Dir_change1 == "Down"),
+         Trend_down_disappeared = (Dir_change1 == "Down" & Dir_change2 != "Down"),
+         Trend_up = (Dir_change1 == "Up"),
+         Trend_up_disappeared = (Dir_change1 == "Up" & Dir_change2 != "Up"),
+         PARAM = factor(PARAM, levels = par_table)) %>%
+  left_join(data_stations, by = "STATION_CODE") %>%
+  select(PARAM, LATIN_NAME, TISSUE_NAME, STATION_CODE, Station_name, Basis, 
+         Nplus1, P_change1, Dir_change1, 
+         Nplus2, P_change2, Dir_change2, 
+         Trends, Trend_diff, Trend_down, Trend_down_disappeared, Trend_up, Trend_up_disappeared)
+
+
+```
+
+```{r write_excel_file_trends}
+
+### e. Summarise trend results in an excel sheet    
+
+if (identical(par_table, par_table_alt1)){
+  trend_filename <- "530_df_summ_v3.xlsx"
+} else {
+  trend_filename <- "530_df_summ_v3_all.xlsx"
+}
+
+df_summ <- result %>%
+  group_by(LATIN_NAME, TISSUE_NAME, STATION_CODE, Station_name) %>%
+  summarise(across(c(Trend_down, Trend_down_disappeared), sum, na.rm = TRUE),
+            .groups = "drop") %>%
+  select(LATIN_NAME, TISSUE_NAME, STATION_CODE, Station_name, Trend_down, Trend_down_disappeared)
+  
+df_add <- result %>%
+  select(STATION_CODE, TISSUE_NAME, PARAM, Trends) %>%
+  tidyr::pivot_wider(names_from = PARAM, values_from = Trends,
+                     names_sort = TRUE)
+
+df_summ <- df_summ %>%
+  left_join(df_add, by = c("STATION_CODE", "TISSUE_NAME")) %>%
+  mutate(STATION_CODE = factor(STATION_CODE, levels = stations_table)) %>%
+  arrange(STATION_CODE) 
+
+writexl::write_xlsx(df_summ, paste0("Data/", trend_filename))
+
+# df_summ
+
+```
+
+```{r Make_summary_variables_levels}  
+
+### f. Summarise trend results in an excel sheet     
+
+if (identical(par_table, par_table_alt1)){
+  levels_filename <- "530_df_summ_levels_v1.xlsx"
+  comb_filename <- "530_df_summ_v4.xlsx"
+} else {
+  levels_filename <- "530_df_summ_levels_all_v1.xlsx"
+  comb_filename <- "530_df_summ_all_v4.xlsx"
+}
+
+
+levels_for_excel_long <- result_levels %>% 
+  left_join(df_proref %>% filter(Basis == "WW")  %>% select(PARAM, LATIN_NAME, TISSUE_NAME, Q95),
+            by = c("PARAM", "LATIN_NAME", "TISSUE_NAME")) %>% # nrow()
+  group_by(PARAM, LATIN_NAME, TISSUE_NAME) %>%
+  mutate(Conc_rel = round(Conc_mean/min(Conc_mean), 2)) %>%
+  ungroup() %>%
+  mutate(
+    Conc_means = paste(round(Conc_mean, 2), "->", round(Conc_mean_red, 2)),
+    SDs = paste(round(Log_conc_sd, 2), "->", round(Log_conc_sd_red, 2)),
+    Over_LOQ = round(Over_LOQ, 1),
+    Proref_ratio = round(Conc_mean/Q95, 2),
+    QS_ratio = round(Conc_mean/Limit, 2),
+    Conc_change = round(100*(Conc_mean_red - Conc_mean)/Conc_mean, 0),
+    SD_change = round(100*(Log_conc_sd_red - Log_conc_sd)/Log_conc_sd, 0)
+  ) %>%
+select(STATION_CODE, PARAM, LATIN_NAME, TISSUE_NAME, Conc_means, Conc_rel, Over_LOQ, SDs, SD_change, Proref_ratio, QS_ratio, Conc_change)
+
+df_broad1a <- levels_for_excel_long %>%
+  select(STATION_CODE, TISSUE_NAME, PARAM, Conc_means) %>%
+  tidyr::pivot_wider(names_from = PARAM, names_prefix = "Conc_means_", values_from = Conc_means, names_sort = TRUE)
+df_broad1b <- levels_for_excel_long %>%
+  select(STATION_CODE, TISSUE_NAME, PARAM, Conc_rel) %>%
+  tidyr::pivot_wider(names_from = PARAM, names_prefix = "Conc_rel_", values_from = Conc_rel, names_sort = TRUE)
+df_broad1c <- levels_for_excel_long %>%
+  select(STATION_CODE, TISSUE_NAME, PARAM, Conc_change) %>%
+  tidyr::pivot_wider(names_from = PARAM, names_prefix = "Conc_change_", values_from = Conc_change, names_sort = TRUE)
+df_broad2a <- levels_for_excel_long %>%
+  select(STATION_CODE, TISSUE_NAME, PARAM, Over_LOQ) %>%
+  tidyr::pivot_wider(names_from = PARAM, names_prefix = "Over_LOQ_", values_from = Over_LOQ, names_sort = TRUE)
+df_broad2b <- levels_for_excel_long %>%
+  select(STATION_CODE, TISSUE_NAME, PARAM, SDs) %>%
+  tidyr::pivot_wider(names_from = PARAM, names_prefix = "SDs_", values_from = SDs, names_sort = TRUE)
+df_broad2c <- levels_for_excel_long %>%
+  select(STATION_CODE, TISSUE_NAME, PARAM, SD_change) %>%
+  tidyr::pivot_wider(names_from = PARAM, names_prefix = "SD_change_", values_from = SD_change, names_sort = TRUE)
+df_broad3 <- levels_for_excel_long %>%
+  select(STATION_CODE, TISSUE_NAME, PARAM, Proref_ratio) %>%
+  tidyr::pivot_wider(names_from = PARAM, names_prefix = "Proref_ratio_", values_from = Proref_ratio, names_sort = TRUE)
+df_broad4 <- levels_for_excel_long %>%
+  select(STATION_CODE, TISSUE_NAME, PARAM, QS_ratio) %>%
+  tidyr::pivot_wider(names_from = PARAM, names_prefix = "QS_ratio_", values_from = QS_ratio, names_sort = TRUE)
+
+#
+# Levels only
+#
+df_summ_levels <- df_broad1a %>%
+  left_join(df_broad1b, by = c("STATION_CODE", "TISSUE_NAME")) %>% # View()
+  left_join(df_broad1c, by = c("STATION_CODE", "TISSUE_NAME")) %>% # View()
+  left_join(df_broad2a, by = c("STATION_CODE", "TISSUE_NAME")) %>% # View()
+  left_join(df_broad2b, by = c("STATION_CODE", "TISSUE_NAME")) %>%
+  left_join(df_broad2c, by = c("STATION_CODE", "TISSUE_NAME")) %>%
+  left_join(df_broad3, by = c("STATION_CODE", "TISSUE_NAME")) %>%
+  left_join(df_broad4, by = c("STATION_CODE", "TISSUE_NAME"))
+
+# df_summ_levels$STATION_CODE
+
+writexl::write_xlsx(df_summ_levels, paste0("Data/", levels_filename))
+message(levels_filename, " written to Data")
+
+#
+# Trends and levels
+#
+unfactor <- function(x) { levels(x)[as.numeric(x)] }
+
+df_summ_comb <- df_summ %>%
+  mutate(STATION_CODE = unfactor(STATION_CODE)) %>%     # needed - otherwise join doesn't work!
+  left_join(df_summ_levels, by = c("STATION_CODE", "TISSUE_NAME"))
+
+writexl::write_xlsx(df_summ_comb, paste0("Data/", comb_filename))
+message(comb_filename, " written to Data")
+
+```
+
+
+## Station map, cod  
+
+![](Milkys_map_cod.JPG)
+
+## Station map, blue mussel  
+
+![](Milkys_map_bluemussel.JPG)
+
+
+## 1. Levels, cod          
+
+
+```{r LEVELS_COD, cache = TRUE}
+
+### b. Levels data  
+
+# Parameters (from script 210)
+# minus "CO", "HCB", "P_S", "ANT", "BAA", "BAP", "FLU", "NAP",
+#   "TBT", "TPT", "VDSI", "D5"
+
+par_cod <- c("AG", "CD", "CR", "HG", "NI", "PB",  
+               "CB118", "CB153", "CB_S7",            # adding "CB118", "CB153"
+               "DDEPP",
+               "HBCDA",
+               "BDE6S", "BDE47", "BDE100", "BDE209",
+               "SCCP", "MCCP", 
+               "PFOA", "PFOS", "PFOSA")
+
+stationparam1 <- data_med %>% 
+  filter(MYEAR %in% 2020 & LATIN_NAME %in% "Gadus morhua" & PARAM %in% par_cod) %>%
+  filter(PARAM != "HG" & TISSUE_NAME %in% "Lever")  %>%
+  distinct(STATION_CODE, LATIN_NAME, TISSUE_NAME, PARAM)
+stationparam2 <- data_med %>% 
+  filter(MYEAR %in% 2020 & LATIN_NAME %in% "Gadus morhua" & PARAM %in% "HG") %>%
+  filter(TISSUE_NAME %in% "Muskel")  %>%
+  distinct(STATION_CODE, LATIN_NAME, TISSUE_NAME, PARAM)
+
+df_stationparam <- bind_rows(stationparam1, stationparam2)
+
+
+
+cat("Number of station / parameter combinations:", nrow(df_stationparam), "\n")
+
+#
+# Get means (takes ca 30 seconds)
+#
+
+# Original time series
+levels_5years_ts1_cod <- 1:nrow(df_stationparam) %>%
+  map_dfr(
+    ~get_mean(df_stationparam$PARAM[.], df_stationparam$STATION_CODE[.], df_stationparam$TISSUE_NAME[.], 
+             years_short_0)
+  )
+
+# Time series with 3 missing years (2015, 2017, 2019)
+levels_5years_ts2_cod <- 1:nrow(df_stationparam) %>%
+  map_dfr(
+    ~get_mean(df_stationparam$PARAM[.], df_stationparam$STATION_CODE[.], df_stationparam$TISSUE_NAME[.], 
+             years_short_3)
+  )
+
+# head(levels_5years_ts1_cod)
+#   PARAM STATION_CODE TISSUE_NAME    Conc_mean   Conc_lower  Conc_upper
+# 1    AG          02B       Lever   0.71893244   0.49328747   1.0477944
+# 2 CB_S7          02B       Lever 465.56882833 333.93496924 649.0914516
+# 3 CB118          02B       Lever  55.95600704  40.39948837  77.5028311
+# 4 CB153          02B       Lever 202.46333607 146.68421313 279.4534025
+# 5    CD          02B       Lever   0.04912349   0.03262738   0.0739599
+
+
+
+#
+# Level data on somewhat broad form (with separate columns 'Conc_mean' and 'Conc_mean_red')
+#
+levels_5years_broad <- df_stationparam %>% 
+  left_join(levels_5years_ts1_cod,
+            by = c("STATION_CODE", "TISSUE_NAME", "PARAM")) %>%
+  left_join(levels_5years_ts2_cod %>% 
+              rename(Conc_mean_red = Conc_mean, Conc_lower_red = Conc_lower, Conc_upper_red = Conc_upper),
+            by = c("STATION_CODE", "TISSUE_NAME", "PARAM")) %>%
+  # Add EQS threshold
+  left_join(EQS_limits %>% select(PARAM, Limit), by = "PARAM") %>%
+  # Correct order
+  mutate(
+    STATION_CODE = factor(STATION_CODE, levels = stations_table),
+    PARAM = factor(PARAM, levels = par_cod)
+  )
+
+# head(levels_5years_broad)
+#   STATION_CODE LATIN_NAME   TISSUE_NAME PARAM Conc_mean Conc_lower Conc_upper Conc_mean_red Conc_lower_red Conc_upper_red Limit
+#   <fct>        <chr>        <chr>       <fct>     <dbl>      <dbl>      <dbl>         <dbl>          <dbl>          <dbl> <dbl>
+# 1 02B          Gadus morhua Lever       AG       0.719      0.493      1.05          1.07           0.678           1.69   NA  
+# 2 02B          Gadus morhua Lever       CB_S7  466.       334.       649.          498.           306.            809.      0.6
+# 3 02B          Gadus morhua Lever       CB118   56.0       40.4       77.5          57.9           35.7            94.0    NA  
+# 4 02B          Gadus morhua Lever       CB153  202.       147.       279.          217.           132.            355.     NA  
+
+
+# sel <- !unique(levels_5years$STATION_CODE) %in% stations_table
+# unique(levels_5years$STATION_CODE)[sel]
+
+#
+# Level data on long form (with separate column 'Time_series' = "Original" or "Reduced")
+#
+levels_5years_long <- bind_rows(
+  df_stationparam %>% 
+    left_join(levels_5years_ts1_cod %>% mutate(Time_series = "Original"),
+              by = c("STATION_CODE", "TISSUE_NAME", "PARAM")),
+  df_stationparam %>% 
+    left_join(levels_5years_ts2_cod %>% mutate(Time_series = "Reduced"),
+              by = c("STATION_CODE", "TISSUE_NAME", "PARAM"))
+  ) %>%
+  # Add EQS threshold
+  left_join(EQS_limits %>% select(PARAM, Limit), by = "PARAM") %>%
+  # Correct order
+  mutate(
+    STATION_CODE = factor(STATION_CODE, levels = stations_table),
+    PARAM = factor(PARAM, levels = par_cod)
+  )
+
+# head(levels_5years_long)
+#   STATION_CODE LATIN_NAME   TISSUE_NAME PARAM Conc_mean Conc_lower Conc_upper Time_series Limit
+#   <fct>        <chr>        <chr>       <fct>     <dbl>      <dbl>      <dbl> <chr>       <dbl>
+# 1 02B          Gadus morhua Lever       AG       0.719      0.493      1.05   Original     NA  
+# 2 02B          Gadus morhua Lever       CB_S7  466.       334.       649.     Original      0.6
+# 3 02B          Gadus morhua Lever       CB118   56.0       40.4       77.5    Original     NA  
+
+
+
+```
+```{r}
+
+
+
+```
+
+
+### a. Plot example, one station     
+
+* The plot shows the mean level for the last six years (2015-2020) using original time series (red dots/lines) and without data from 2015, 2017, 2019 (blue)    
+* Means are calculated on log-transformed values and back-transformed  
+```{r}
+
+param <- "HG"
+
+levels_5years_long %>%
+  filter(PARAM %in% param & LATIN_NAME %in% "Gadus morhua") %>%
+  ggplot(aes(STATION_CODE, Conc_mean)) +
+  geom_pointrange(aes(ymax = Conc_upper, ymin = Conc_lower, color = Time_series),
+                  position = position_dodge(width = 0.5)) +
+  labs(title = paste("Parameter =", param))
+
+```
+
+### b. Plot metals    
+```{r, fig.width=10, fig.height=7}
+
+gg <- levels_5years_long %>%
+  filter(PARAM %in% c("AG", "CD", "CR", "HG", "NI", "PB") & LATIN_NAME %in% "Gadus morhua") %>%
+  ggplot(aes(STATION_CODE, Conc_mean)) +
+  geom_pointrange(aes(ymax = Conc_upper, ymin = Conc_lower, color = Time_series),
+                  position = position_dodge(width = 0.5)) +
+  facet_wrap(vars(PARAM), scales = "free_y") +
+  theme(axis.text.x = element_text(angle = -45, hjust = 0))
+
+# gg +
+#   labs(title = "Metals in cod")
+gg +
+  geom_hline(aes(yintercept = Limit), linetype = "dashed", color = "red2") +
+  labs(title = "Metals in cod, including EQS threshold (dashed line)")
+
+```
+
+### c. Plot PCB, DDT, HBCD, chlorinated paraffins     
+* Upper plot does not include EQS, lower plot includes EQS as a dotted line   
+   
+```{r, fig.width=10, fig.height=7}
+
+gg <- levels_5years_long %>%
+  filter(PARAM %in% c("CB118", "CB_S7",  "DDEPP", "HBCDA","SCCP", "MCCP") &
+           LATIN_NAME %in% "Gadus morhua") %>%
+  ggplot(aes(STATION_CODE, Conc_mean)) +
+  geom_pointrange(aes(ymax = Conc_upper, ymin = Conc_lower, color = Time_series),
+                  position = position_dodge(width = 0.5)) +
+  facet_wrap(vars(PARAM), scales = "free_y") +
+  theme(axis.text.x = element_text(angle = -45, hjust = 0))
+
+gg +
+  labs(title = "PCB, DDT, HBCD, chlorinated paraffins in cod")
+gg +
+  geom_hline(aes(yintercept = Limit), linetype = "dashed", color = "red2") +
+  labs(title = "PCB, DDT, HBCD, chlorinated paraffins in cod, including EQS threshold (dashed line)")
+
+```
+
+### d. Plot PBDE and PFOS, chlorinated paraffins     
+* Upper plot does not include EQS, lower plot includes EQS as a dotted line    
+   
+```{r, fig.width=10, fig.height=7}
+
+gg <- levels_5years_long %>%
+  filter(PARAM %in% c("BDE6S", "BDE47", "BDE100", "BDE209", "PFOA", "PFOS") &
+           LATIN_NAME %in% "Gadus morhua") %>%
+  ggplot(aes(STATION_CODE, Conc_mean)) +
+  geom_pointrange(aes(ymax = Conc_upper, ymin = Conc_lower, color = Time_series),
+                  position = position_dodge(width = 0.5)) +
+  facet_wrap(vars(PARAM), scales = "free_y") +
+  theme(axis.text.x = element_text(angle = -45, hjust = 0))
+
+gg +
+  labs(title = "PBDE and PFOS in cod")
+gg +
+  geom_hline(aes(yintercept = Limit), linetype = "dashed", color = "red2") +
+  labs(title = "PBDE and PFOS in cod, including EQS threshold (dashed line)")
+
+```
+
+## 2. Levels in cod, simple multivariate analysis  
+
+```{r}
+
+### a. Data for PCA  
+
+fct2char <- function(x){
+  levels(x)[as.numeric(x)]
+}
+
+levels_5years_matrix <- levels_5years_broad %>%
+  select(STATION_CODE, PARAM, Conc_mean) %>%
+  mutate(PARAM = factor(PARAM, levels = par_cod)) %>%
+  tidyr::pivot_wider(names_from = PARAM, values_from = Conc_mean, names_sort = TRUE)
+
+```
+
+### a. PCA, metals  
+All stations    
+* Stations that are close in the plot have relatively similar concentrations      
+```{r, fig.width=8, fig.height=8}
+
+# Pick columns
+levels_5years_matrix_1 <- levels_5years_matrix %>% select(STATION_CODE:PB)
+
+# PCA data  
+log_conc_1 <- log(levels_5years_matrix_1[,-1])
+
+# Station vector (used in plot)  
+log_conc_1_stations <- levels_5years_matrix_1 %>% pull(STATION_CODE) %>% fct2char() 
+# apply PCA - scale. = TRUE is highly 
+# advisable, but default is FALSE. 
+
+conc_pca <- prcomp(log_conc_1,
+                 center = TRUE,
+                 scale. = TRUE) 
+
+# Importance of PCA axes
+summary(conc_pca)$importance[,1:5]
+
+# Plot
+g <- ggbiplot(conc_pca, labels = log_conc_1_stations, obs.scale = 1, var.scale = 1,
+              labels.size = 4)
+g +
+  labs(title = "Cod stations, metals")
+
+# g + 
+#   coord_cartesian(xlim = c(-1,1), ylim = c(-1,1)) +
+#   labs(title = "Cod stations, metals - focus on centre")
+
+```
+
+### b. PCA, metals + PCB 
+All stations except 71B    
+* Stations that are close in the plot have relatively similar concentrations      
+```{r, results = 'hold', fig.width=8, fig.height=8}
+
+# Pick columns
+levels_5years_matrix_1 <- levels_5years_matrix %>% 
+  select(STATION_CODE:CB_S7)
+
+# Delete rows with missing values 
+sel_rows <- complete.cases(levels_5years_matrix_1)
+missing_stations <- levels_5years_matrix_1[!sel_rows,] %>% pull(STATION_CODE)
+cat("Deleting station(s)", paste(missing_stations, collapse= ", "), "due to missing data \n\n")
+levels_5years_matrix_1 <- levels_5years_matrix_1[sel_rows,]
+
+# PCA data
+log_conc_1 <- log(levels_5years_matrix_1[,-1])
+
+# Station vector (used in plot)  
+log_conc_1_stations <- levels_5years_matrix_1 %>% pull(STATION_CODE) %>% fct2char() 
+# apply PCA - scale. = TRUE is highly 
+# advisable, but default is FALSE. 
+
+conc_pca <- prcomp(log_conc_1,
+                 center = TRUE,
+                 scale. = TRUE) 
+# print(conc_pca)
+summary(conc_pca)$importance[,1:5]
+
+# Plot
+g <- ggbiplot(conc_pca, labels = log_conc_1_stations, obs.scale = 1, var.scale = 1, 
+              labels.size = 4)
+g +
+  labs(title = "Cod stations, metals + PCB")
+
+```
+
+
+### c. PCA, all variables except DDEPP 
+10 stations      
+* Stations that are close in the plot have relatively similar concentrations      
+```{r, results = 'hold', fig.width=8, fig.height=8}
+
+# Pick columns
+levels_5years_matrix_1 <- levels_5years_matrix %>%
+  select(-DDEPP)
+
+# Delete rows with missing values 
+sel_rows <- complete.cases(levels_5years_matrix_1)
+missing_stations <- levels_5years_matrix_1[!sel_rows,] %>% pull(STATION_CODE)
+cat("Deleting station(s)", paste(missing_stations, collapse= ", "), "due to missing data \n\n")
+levels_5years_matrix_1 <- levels_5years_matrix_1[sel_rows,]
+
+# PCA data
+log_conc_1 <- log(levels_5years_matrix_1[,-1])
+
+# Station vector (used in plot)  
+log_conc_1_stations <- levels_5years_matrix_1 %>% pull(STATION_CODE) %>% fct2char() 
+# apply PCA - scale. = TRUE is highly 
+# advisable, but default is FALSE. 
+
+conc_pca <- prcomp(log_conc_1,
+                 center = TRUE,
+                 scale. = TRUE) 
+# print(conc_pca)
+summary(conc_pca)$importance[,1:5]
+
+# Plot
+g <- ggbiplot(conc_pca, labels = log_conc_1_stations, obs.scale = 1, var.scale = 1, 
+              labels.size = 4)
+g +
+  labs(title = "Cod stations, all variables except DDEPP")
+
+# g + 
+#   coord_cartesian(xlim = c(-2,2), ylim = c(-2,2)) +
+#   labs(title = "Cod stations, all variables except DDEPP - focus on centre")
+
+```
+
+### d. Example: compare 80B (Trondheim) vs 98B1 (Austnesfjord, Lofoten)  
+```{r, fig.width=10, fig.height=7}
+
+gg <- levels_5years_long %>%
+  filter(STATION_CODE %in% c("80B", "98B1") & LATIN_NAME %in% "Gadus morhua") %>%
+  ggplot(aes(STATION_CODE, Conc_mean)) +
+  geom_pointrange(aes(ymax = Conc_upper, ymin = Conc_lower, color = Time_series),
+                  position = position_dodge(width = 0.5)) +
+  facet_wrap(vars(PARAM), scales = "free_y")
+
+gg +
+  labs(title = "Cod stations 80B (Trondheim) vs 98B1 (Austnesfjord, Lofoten)") 
+
+gg +
+  geom_hline(aes(yintercept = Limit), linetype = "dashed", color = "red") +
+  labs(title = "Cod stations 80B (Trondheim) vs 98B1 (Austnesfjord, Lofoten), including EQS threshold (dashed line)")
+
+```
+
+### e. Example: compare 43B2 (Tromsø) vs 98B1 (Austnesfjord, Lofoten)  
+```{r, fig.width=10, fig.height=7}
+
+gg <- levels_5years_long %>%
+  filter(STATION_CODE %in% c("43B2", "98B1") & LATIN_NAME %in% "Gadus morhua") %>%
+  ggplot(aes(STATION_CODE, Conc_mean)) +
+  geom_pointrange(aes(ymax = Conc_upper, ymin = Conc_lower, color = Time_series),
+                  position = position_dodge(width = 0.5)) +
+  facet_wrap(vars(PARAM), scales = "free_y")
+
+gg +
+  labs(title = "Cod stations 43B2 (Tromsø) vs 98B1 (Austnesfjord, Lofoten)") 
+
+gg +
+  geom_hline(aes(yintercept = Limit), linetype = "dashed", color = "red") +
+  labs(title = "Cod stations 43B2 (Tromsø) vs 98B1 (Austnesfjord, Lofoten), including EQS threshold (dashed line)")
+
+```
+
+
+
+
+## 3. Levels, blue mussel            
+
+
+```{r LEVELS_BLUEMUSSEL, cache = TRUE}
+
+### b. Levels data  
+
+# Parameters (from script 210)
+# minus "CO", "HCB", "P_S", "ANT", "BAA", "BAP", "FLU", "NAP",
+#   "TBT", "TPT", "VDSI", "D5"
+
+par_bluemussel <- c("AG", "CD", "CR", "HG", "NI", "PB",  
+               "CB118", "CB153", "CB_S7",            # adding "CB118", "CB153"
+               "DDEPP",
+               "HBCDA",
+               "BDE6S", "BDE47", "BDE100", "BDE209",
+               "SCCP", "MCCP", 
+               "PFOA", "PFOS", "PFOSA")
+
+stationparam1 <- data_med %>% 
+  filter(MYEAR %in% 2020 & LATIN_NAME %in% "Mytilus edulis" & PARAM %in% par_bluemussel) %>%
+  filter(PARAM != "HG" & TISSUE_NAME %in% "Whole soft body")  %>%
+  distinct(STATION_CODE, LATIN_NAME, TISSUE_NAME, PARAM)
+
+# df_stationparam <- bind_rows(stationparam1, stationparam2)   # not needed (no HG in muscle)
+df_stationparam <- stationparam1
+
+
+cat("Number of station / parameter combinations:", nrow(df_stationparam), "\n")
+
+#
+# Get means (takes ca 30 seconds)
+#
+
+# Original time series
+# levels_5years_ts1_mussel <- 1:nrow(df_stationparam) %>%
+#   map_dfr(
+#     ~get_mean(df_stationparam$PARAM[.], df_stationparam$STATION_CODE[.], df_stationparam$TISSUE_NAME[.], 
+#              years_short_0)
+#   )
+
+get_mean_s <- safely(get_mean)
+
+X <- 1:nrow(df_stationparam) %>%
+  map(
+    ~get_mean_s(df_stationparam$PARAM[.], df_stationparam$STATION_CODE[.], df_stationparam$TISSUE_NAME[.], 
+             years_short_0)
+  )
+X2 <- transpose(X)
+ok <- X2$error %>% map_lgl(is.null)
+df_stationparam[!ok,]
+levels_5years_ts1_mussel <- X2$result[ok] %>% bind_rows()
+  
+# Time series with 3 missing years (2015, 2017, 2019)
+# levels_5years_ts2_mussel <- 1:nrow(df_stationparam) %>%
+#   map_dfr(
+#     ~get_mean(df_stationparam$PARAM[.], df_stationparam$STATION_CODE[.], df_stationparam$TISSUE_NAME[.], 
+#              years_short_3)
+#   )
+
+Y <- 1:nrow(df_stationparam) %>%
+  map(
+    ~get_mean_s(df_stationparam$PARAM[.], df_stationparam$STATION_CODE[.], df_stationparam$TISSUE_NAME[.], 
+             years_short_3)
+  )
+Y2 <- transpose(Y)
+ok <- Y2$error %>% map_lgl(is.null)
+df_stationparam[!ok,]
+levels_5years_ts2_mussel <- Y2$result[ok] %>% bind_rows()
+  
+
+
+#
+# Level data on somewhat broad form (with separate columns 'Conc_mean' and 'Conc_mean_red')
+#
+levels_5years_broad <- df_stationparam %>% 
+  left_join(levels_5years_ts1_mussel,
+            by = c("STATION_CODE", "TISSUE_NAME", "PARAM")) %>%
+  left_join(levels_5years_ts2_mussel %>% 
+              rename(Conc_mean_red = Conc_mean, Conc_lower_red = Conc_lower, Conc_upper_red = Conc_upper),
+            by = c("STATION_CODE", "TISSUE_NAME", "PARAM")) %>%
+  # Add EQS threshold
+  left_join(EQS_limits %>% select(PARAM, Limit), by = "PARAM") %>%
+  # Correct order
+  mutate(
+    STATION_CODE = factor(STATION_CODE, levels = stations_table),
+    PARAM = factor(PARAM, levels = par_bluemussel)
+  )
+# sel <- !unique(levels_5years$STATION_CODE) %in% stations_table
+# unique(levels_5years$STATION_CODE)[sel]
+
+#
+# Level data on long form (with seperate column 'Time_series' = "Original" or "Reduced")
+#
+levels_5years_long <- bind_rows(
+  df_stationparam %>% 
+    left_join(levels_5years_ts1_mussel %>% mutate(Time_series = "Original"),
+              by = c("STATION_CODE", "TISSUE_NAME", "PARAM")),
+  df_stationparam %>% 
+    left_join(levels_5years_ts2_mussel %>% mutate(Time_series = "Reduced"),
+              by = c("STATION_CODE", "TISSUE_NAME", "PARAM"))
+  ) %>%
+  # Add EQS threshold
+  left_join(EQS_limits %>% select(PARAM, Limit), by = "PARAM") %>%
+  # Correct order
+  mutate(
+    STATION_CODE = factor(STATION_CODE, levels = stations_table),
+    PARAM = factor(PARAM, levels = par_bluemussel)
+  )
+
+
+```
+
+
+### a. Plot example, one station     
+
+* The plot shows the mean level for the last six years (2015-2020) using original time series (red dots/lines) and without data from 2015, 2017, 2019 (blue)    
+* Means are calculated on log-transformed values and back-transformed  
+```{r}
+
+param <- "CD"
+
+levels_5years_long %>%
+  filter(PARAM %in% param & LATIN_NAME %in% "Mytilus edulis") %>%
+  ggplot(aes(STATION_CODE, Conc_mean)) +
+  geom_pointrange(aes(ymax = Conc_upper, ymin = Conc_lower, color = Time_series),
+                  position = position_dodge(width = 0.5)) +
+  labs(title = paste("Parameter =", param))  +
+  theme(axis.text.x = element_text(angle = -45, hjust = 0))
+
+
+```
+
+### b. Plot metals    
+```{r, fig.width = 13, fig.height=7}
+
+gg <- levels_5years_long %>%
+  filter(PARAM %in% c("AG", "CD", "CR", "HG", "NI", "PB") & LATIN_NAME %in% "Mytilus edulis") %>%
+  ggplot(aes(STATION_CODE, Conc_mean)) +
+  geom_pointrange(aes(ymax = Conc_upper, ymin = Conc_lower, color = Time_series),
+                  position = position_dodge(width = 0.5)) +
+  facet_wrap(vars(PARAM), scales = "free_y") +
+  theme(axis.text.x = element_text(angle = -45, hjust = 0))
+
+# gg +
+#   labs(title = "Metals in blue mussel")
+gg +
+  geom_hline(aes(yintercept = Limit), linetype = "dashed", color = "red2") +
+  labs(title = "Metals in blue mussel, including EQS threshold (dashed line)") +
+  theme(axis.text.x = element_text(angle = -45, hjust = 0))
+
+
+```
+
+### c. Plot PCB, DDT, HBCD, chlorinated paraffins     
+* Upper plot does not include EQS, lower plot includes EQS as a dotted line    
+   
+```{r, fig.width = 13, fig.height=7}
+
+gg <- levels_5years_long %>%
+  filter(PARAM %in% c("CB118", "CB_S7",  "DDEPP", "HBCDA","SCCP", "MCCP") &
+           LATIN_NAME %in% "Mytilus edulis") %>%
+  ggplot(aes(STATION_CODE, Conc_mean)) +
+  geom_pointrange(aes(ymax = Conc_upper, ymin = Conc_lower, color = Time_series),
+                  position = position_dodge(width = 0.5)) +
+  facet_wrap(vars(PARAM), scales = "free_y") +
+  theme(axis.text.x = element_text(angle = -45, hjust = 0))
+
+gg +
+  labs(title = "PCB, DDT, HBCD, chlorinated paraffins in blue mussel")
+gg +
+  geom_hline(aes(yintercept = Limit), linetype = "dashed", color = "red2") +
+  labs(title = "PCB, DDT, HBCD, chlorinated paraffins in blue mussel, including EQS threshold (dashed line)") +
+  theme(axis.text.x = element_text(angle = -45, hjust = 0))
+
+
+```
+
+### d. Plot PBDE and PFOS, chlorinated paraffins     
+* Upper plot does not include EQS, lower plot includes EQS as a dotted line    
+   
+```{r, fig.width = 13, fig.height=7}
+
+gg <- levels_5years_long %>%
+  filter(PARAM %in% c("BDE6S", "BDE47", "BDE100", "BDE209", "PFOA", "PFOS") &
+           LATIN_NAME %in% "Mytilus edulis") %>%
+  ggplot(aes(STATION_CODE, Conc_mean)) +
+  geom_pointrange(aes(ymax = Conc_upper, ymin = Conc_lower, color = Time_series),
+                  position = position_dodge(width = 0.5)) +
+  facet_wrap(vars(PARAM), scales = "free_y") +
+  theme(axis.text.x = element_text(angle = -45, hjust = 0))
+
+gg +
+  labs(title = "PBDE and PFOS in blue mussel") +
+  theme(axis.text.x = element_text(angle = -45, hjust = 0))
+
+gg +
+  geom_hline(aes(yintercept = Limit), linetype = "dashed", color = "red2") +
+  labs(title = "PBDE and PFOS in blue mussel, including EQS threshold (dashed line)") +
+  theme(axis.text.x = element_text(angle = -45, hjust = 0))
+
+
+```
+
+
+## 4. Levels in blue mussel, simple multivariate analysis  
+
+```{r}
+
+### a. Data for PCA  
+
+fct2char <- function(x){
+  levels(x)[as.numeric(x)]
+}
+
+levels_5years_matrix <- levels_5years_broad %>%
+  select(STATION_CODE, PARAM, Conc_mean) %>%
+  mutate(PARAM = factor(PARAM, levels = par_cod)) %>%
+  tidyr::pivot_wider(names_from = PARAM, values_from = Conc_mean, names_sort = TRUE)
+
+```
+
+### a. PCA, metals  
+All stations except 56A       
+* Stations that are close in the plot have relatively similar concentrations     
+   
+```{r, fig.width=8, fig.height=8}
+
+# Pick columns
+levels_5years_matrix_1 <- levels_5years_matrix %>% select(STATION_CODE:PB)
+
+# Delete rows with missing values 
+sel_rows <- complete.cases(levels_5years_matrix_1)
+missing_stations <- levels_5years_matrix_1[!sel_rows,] %>% pull(STATION_CODE)
+cat("Deleting station(s)", paste(missing_stations, collapse= ", "), "due to missing data \n\n")
+levels_5years_matrix_1 <- levels_5years_matrix_1[sel_rows,]
+
+# PCA data  
+log_conc_1 <- log(levels_5years_matrix_1[,-1])
+
+# Station vector (used in plot)  
+log_conc_1_stations <- levels_5years_matrix_1 %>% pull(STATION_CODE) %>% fct2char() 
+# apply PCA - scale. = TRUE is highly 
+# advisable, but default is FALSE. 
+
+conc_pca <- prcomp(log_conc_1,
+                 center = TRUE,
+                 scale. = TRUE) 
+
+# Importance of PCA axes
+summary(conc_pca)$importance[,1:5]
+
+# Plot
+g <- ggbiplot(conc_pca, labels = log_conc_1_stations, obs.scale = 1, var.scale = 1,
+              labels.size = 4)
+g +
+  labs(title = "Cod stations, metals")
+
+# g + 
+#   coord_cartesian(xlim = c(-1,1), ylim = c(-1,1)) +
+#   labs(title = "Cod stations, metals - focus on centre")
+
+```
+
+### b. PCA, metals + PCB   
+All stations except 56A, 71A, I131A      
+* Stations that are close in the plot have relatively similar concentrations       
+   
+```{r, results = 'hold', fig.width=8, fig.height=8}
+
+# Pick columns
+levels_5years_matrix_1 <- levels_5years_matrix %>% 
+  select(STATION_CODE:CB_S7)
+
+# Delete rows with missing values 
+sel_rows <- complete.cases(levels_5years_matrix_1)
+missing_stations <- levels_5years_matrix_1[!sel_rows,] %>% pull(STATION_CODE)
+cat("Deleting station(s)", paste(missing_stations, collapse= ", "), "due to missing data \n\n")
+levels_5years_matrix_1 <- levels_5years_matrix_1[sel_rows,]
+
+# PCA data
+log_conc_1 <- log(levels_5years_matrix_1[,-1])
+
+# Station vector (used in plot)  
+log_conc_1_stations <- levels_5years_matrix_1 %>% pull(STATION_CODE) %>% fct2char() 
+# apply PCA - scale. = TRUE is highly 
+# advisable, but default is FALSE. 
+
+conc_pca <- prcomp(log_conc_1,
+                 center = TRUE,
+                 scale. = TRUE) 
+# print(conc_pca)
+summary(conc_pca)$importance[,1:5]
+
+# Plot
+g <- ggbiplot(conc_pca, labels = log_conc_1_stations, obs.scale = 1, var.scale = 1, 
+              labels.size = 4)
+g +
+  labs(title = "Cod stations, metals + PCB")
+
+```
+
+
+### c. PCA, all variables except DDEPP and PFAS  
+10 stations      
+```{r, results = 'hold', fig.width=8, fig.height=8}
+
+# Pick columns
+levels_5years_matrix_1 <- levels_5years_matrix %>%
+  select(-DDEPP, -PFOA, -PFOS, -PFOSA)
+
+# Delete rows with missing values 
+sel_rows <- complete.cases(levels_5years_matrix_1)
+missing_stations <- levels_5years_matrix_1[!sel_rows,] %>% pull(STATION_CODE)
+cat("Deleting station(s)", paste(missing_stations, collapse= ", "), "due to missing data \n\n")
+levels_5years_matrix_1 <- levels_5years_matrix_1[sel_rows,]
+
+# PCA data
+log_conc_1 <- log(levels_5years_matrix_1[,-1])
+
+# Station vector (used in plot)  
+log_conc_1_stations <- levels_5years_matrix_1 %>% pull(STATION_CODE) %>% fct2char() 
+# apply PCA - scale. = TRUE is highly 
+# advisable, but default is FALSE. 
+
+conc_pca <- prcomp(log_conc_1,
+                 center = TRUE,
+                 scale. = TRUE) 
+# print(conc_pca)
+summary(conc_pca)$importance[,1:5]
+
+# Plot
+g <- ggbiplot(conc_pca, labels = log_conc_1_stations, obs.scale = 1, var.scale = 1, 
+              labels.size = 4)
+g +
+  labs(title = "Cod stations, all variables except DDEPP and PFAS")
+
+# g + 
+#   coord_cartesian(xlim = c(-2,2), ylim = c(-2,2)) +
+#   labs(title = "Cod stations, all variables except DDEPP and PFAS - focus on centre")
+
+```
+
+### d. Example: compare 97A2 (Mjelle v. Bodø) vs 91A2 (Ørlandet)  
+```{r, fig.width=10, fig.height=7}
+
+gg <- levels_5years_long %>%
+  filter(STATION_CODE %in% c("97A2", "91A2")) %>%
+  ggplot(aes(STATION_CODE, Conc_mean)) +
+  geom_pointrange(aes(ymax = Conc_upper, ymin = Conc_lower, color = Time_series),
+                  position = position_dodge(width = 0.5)) +
+  facet_wrap(vars(PARAM), scales = "free_y")
+
+gg +
+  labs(title = "Blue mussel stations 97A2 (Mjelle v. Bodø) vs 91A2 (Ørlandet)") 
+
+gg +
+  geom_hline(aes(yintercept = Limit), linetype = "dashed", color = "red") +
+  labs(title = "Blue mussel stations 97A2 (Mjelle v. Bodø) vs 91A2 (Ørlandet)  , including EQS threshold (dashed line)")
+
+```
+
+
+## 5. Trends  
+All trends are shown in the excel sheet `r trend_filename`.   
+  
+Symbols used in Excel sheet:  
+* 0 = No trend   
+* D = Downward trend   
+* U = Upward trend   
+* Example: `D -> 0` means: Original time series has a downward trend, reduced time series has no sitgnoficant time trend    
+  
+### Summarising trends of original and reduced time series   
+Number of time trends for each combination of trends    
+```{r}
+
+table(result$Trends) %>% knitr::kable()
+
+```
+
+### Time trends whose significant upwards trend with original data (P < 0.05) disappeared with reduced data (`U -> 0`)    
+```{r}
+
+result %>%
+  filter(Trends %in% "U -> 0") %>%
+  mutate(P_trend = round(P_change1, 2)) %>%
+  select(PARAM, LATIN_NAME, TISSUE_NAME, STATION_CODE, Station_name, Nplus1, P_trend, Trends) %>%
+  rename(Years_over_LOQ = Nplus1) %>%
+  knitr::kable(row.names = FALSE)
+
+
+```
+
+### Stations with most "no change" cases     
+* Years: number of years w/ data  
+* N_subst: number of substances  
+* No_change_n = Number of substances with no change (original time series / reduced time series)  
+* No_change_p = Percent substances with no change (original time series / reduced time series)    
+* Upwards_n = Number of substances with upwards change (original time series)    
+* Subst_up = Substances with upwards change  
+```{r}
+
+result %>%
+  group_by(LATIN_NAME, STATION_CODE, Station_name) %>%
+  summarise(
+    Years = max(Nplus1, na.rm = TRUE),
+    N_subst = n(),
+    No_change_n_num = sum(Dir_change1 %in% "0"),
+    No_change_n = paste(sum(Dir_change1 %in% "0"), "/", sum(Dir_change2 %in% "0")),
+    No_change_p = paste(round(100*mean(Dir_change1 %in% "0"), 0), "/", round(100*mean(Dir_change2 %in% "0"), 0)),
+    Upwards_n = sum(Dir_change1 %in% "Up"),
+    Subst_up  = paste(PARAM[Dir_change1 %in% "Up"], collapse = ", "),
+    .groups = "drop"
+  ) %>%
+  arrange(desc(No_change_n_num)) %>%
+  select(-No_change_n_num) %>%
+  knitr::kable(row.names = FALSE)
+
+```
+
+
+
+
