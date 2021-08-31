@@ -17,18 +17,28 @@ library(ggplot2)
 library(stringr)
 source("150_Get_fish_individual_data_functions.R")
 ```
+## Year  
+```{r}
+
+selected_year <- 2020
+
+```
+
 
 ## Files
 ```{r}
-datafolder <- "Input_data/opparbeiding_biota/Fisk_2019"
+
+datafolder <- paste0("Input_data/opparbeiding_biota/Fisk_", selected_year)
 fns <- dir(datafolder, "*.xls*")
 fns <- fns[substr(fns,1,1) != "~"]   # 'locked' file (remove opened excel files)
 fns %>% dput()
+
 ```
 
 ## Test read of one file  
 Used to make the read_fish_individual_data() function. Using search_lineno()    
 ```{r}
+
 fn <- fns[1]
 
 df_try <- read_excel(paste0(datafolder, "/", fn))
@@ -42,6 +52,7 @@ if (!is.na(first_empty))
   dat <- dat[1:(first_empty-1),]
 
 dat
+
 ```
 
 ## Test 'read_fish_individual_data'
@@ -62,11 +73,11 @@ fns_to_read <- fns
 # Meaning that we continue with next file even if there is an error in one file 
 read_fish_individual_data_s <- safely(read_fish_individual_data)
 
-# Result in list with 17 items, where each item consistst of "$result" and "$error"
+# Results in list with 17 items, where each item consistst of "$result" and "$error"
 dat_list_safe <- fns_to_read %>% map(read_fish_individual_data_s)  
 
 # Transpose list
-# Result in list with 2 items ("$result" and "$error"), each with 17 items 
+# Results in list with 2 items ("$result" and "$error"), each with 17 items 
 dat_list_safe <- purrr::transpose(dat_list_safe)
 ```
 
@@ -97,14 +108,17 @@ dat_list <- dat_list_safe$result[is_ok]
 
 ```
 
-
 ## Check column names
 ```{r}
+
+# Number of columns per file:
+# dat_list %>% map_int(length)    # always 26
+  
 # Get column name for a given column number 
 get_colname <- function(df, colnumber) colnames(df)[colnumber]
 
 # Get all column names, by column number 
-for (i in seq_along(dat_list)){
+for (i in 1:26){
   cat(i, "\n")
   column_names <- dat_list %>% map_chr(get_colname, colnumber = i)
   print_less_common_values(column_names)
@@ -117,6 +131,7 @@ for (i in seq_along(dat_list)){
 Change 'print_all' to TRUE to show result
 ```{r}
 print_all <- FALSE
+
 if (print_all){
   for (i in 1:26){
   cat(i, "\n")
@@ -152,21 +167,25 @@ dat_list_selected <- dat_list %>%
 cat("Existing values of in data:\n")
 dat_list_selected %>% map_chr(~unique(.$Station))
 
-# Fix stations  (NOTE: HARD-CODED FILE NUMBERS)
-cat("\n\nStations - Get file names:\n")
-fns_to_read[c(2,3,4,5,14)]
-dat_list_selected[[3]]$Station <- "13B"
-dat_list_selected[[3]]$Station <- "15B"
-dat_list_selected[[4]]$Station <- "19B"
-dat_list_selected[[5]]$Station <- "30B"
-dat_list_selected[[14]]$Station <- "53B"
-# We will fix those "code + name" stations later
+if (FALSE){
 
-#
-# Check Station again
-#
-cat("Existing values of in data:\n")
-dat_list_selected %>% map_chr(~unique(.$Station))
+  # Fix stations  (NOTE: HARD-CODED FILE NUMBERS)
+  cat("\n\nStations - Get file names:\n")
+  fns_to_read[c(2,3,4,5,14)]
+  dat_list_selected[[3]]$Station <- "13B"
+  dat_list_selected[[3]]$Station <- "15B"
+  dat_list_selected[[4]]$Station <- "19B"
+  dat_list_selected[[5]]$Station <- "30B"
+  dat_list_selected[[14]]$Station <- "53B"
+  
+  # We will fix those "code + name" stations later
+  
+  #
+  # Check Station again
+  #
+  cat("Existing values of in data:\n")
+  dat_list_selected %>% map_chr(~unique(.$Station))
+}
 
 #
 # Check Species (NOTE: HARD-CODED FILE NUMBERS)
@@ -193,30 +212,77 @@ dat_list_selected <- dat_list_selected %>% map(~char2numeric(., "Levervekt"))
 dat_list_selected <- dat_list_selected %>% map(~char2numeric(., "Gonadevekt"))
 dat_list_selected <- dat_list_selected %>% map(~char2numeric(., "Alder"))
 
+#
+# Name list using the first value of 'Station' 
+#
+names(dat_list_selected) <- dat_list_selected %>% map_chr(~.$Station[1])
+
 ```
+
+### Check lacking length  
+```{r}
+
+n_lacking <- dat_list_selected %>% map_int(~sum(is.na(.$Lengde)))
+
+if (sum(n_lacking > 0) > 0) {
+  stop(sum(n_lacking > 0), " station(s) have lacking 'Length' rows. Check them up! ")
+}
+
+n_lacking[n_lacking > 0]
+
+# Check manually:
+dat_list_selected[["15B Farsund"]] %>% View()
+
+# Fix (HARD-CODED):
+dat_list_selected[["15B Farsund"]] <- dat_list_selected[["15B Farsund"]][1:15,]
+
+```
+
 
 ## Combine into a single data frame  
 ```{r}
-dat <- bind_rows(dat_list_selected)
+dat_1 <- bind_rows(dat_list_selected)
 
 # dat
 
-nrow(dat)
+nrow(dat_1)
 
 ```
 
-## Create STATION_CODE    
-    - STATION_CODE = name removed from "code + name" stations   
-    - Also rename(Fish_no = Fisknr)  
+## Fix specific columns   
+
+### Create STATION_CODE    
+- STATION_CODE = name removed from "code + name" stations   
 ```{r}
 
-xtabs(~addNA(Station), dat)
+xtabs(~addNA(Station), dat_1)
 
-dat <- dat %>% 
+dat_2 <- dat_1 %>% 
   mutate(STATION_CODE = stringr::str_extract(Station, "([^[[:blank:]]]+)") ) %>%
+  mutate(STATION_CODE = sub(",", "", STATION_CODE, fixed = TRUE)) %>%
   mutate(STATION_CODE = sub("b", "B", STATION_CODE)) %>%
-  mutate(STATION_CODE = ifelse(STATION_CODE %in% "43B", "43B2", STATION_CODE)) %>%  # 43B2 is the present code
+  mutate(STATION_CODE = ifelse(STATION_CODE %in% "43B", "43B2", STATION_CODE))  # 43B2 is the present code
+
+xtabs(~addNA(STATION_CODE), dat_2)
+
+```
+### Fix Species
+```{r}
+
+xtabs(~addNA(Species), dat_2)
+
+dat_3 <- dat_2 %>% 
   mutate(Species = stringr::str_to_sentence(Species)) %>%   # 'torsk' => 'Torsk'
+  mutate(Species = ifelse(grepl("Gadu", Species), "Torsk", Species))
+
+xtabs(~addNA(Species), dat_3)
+
+```
+
+### Renaming  
+```{r}
+
+dat_4 <- dat_3 %>% 
   select(-Station) %>%
   rename(Fish_no = Fisknr,
          Length = Lengde, 
@@ -227,23 +293,22 @@ dat <- dat %>%
          Age = Alder) %>%
   select(STATION_CODE, everything())
 
-xtabs(~addNA(STATION_CODE), dat)
 
 ```
 
-## Check lacking data
+## Check lacking data   
+
+### Summary
 ```{r}
 
-apply(!is.na(dat), 2, mean)
+apply(!is.na(dat_4), 2, mean)
 
 ```
-
-## Check lacking data (2)
 
 ### Fraction OK data per station
 ```{r}
 
-dat %>%
+dat_4 %>%
   select(-Species, -Kjønn, -Liver_color) %>%
   tidyr::pivot_longer(-STATION_CODE, names_to = "Variable", values_to = "Value") %>%
   group_by(STATION_CODE, Variable) %>%
@@ -255,7 +320,7 @@ dat %>%
 ### Number of OK data per station
 ```{r}
 
-dat %>%
+dat_4 %>%
   select(-Species, -Kjønn, -Liver_color) %>%
   tidyr::pivot_longer(-STATION_CODE, names_to = "Variable", values_to = "Value") %>%
   group_by(STATION_CODE, Variable) %>%
@@ -267,27 +332,34 @@ dat %>%
 
 ## Test plot 1
 ```{r, fig.width=9, fig.height=6}
-ggplot(dat, aes(Length, Weight, color = Species)) +
+
+ggplot(dat_4, aes(Length, Weight, color = Species)) +
   geom_point() +
   facet_wrap(~STATION_CODE)
+
 ```
 ## Test plot 2
 ```{r, fig.width=9, fig.height=6}
-ggplot(dat, aes(Weight, Gonad_weight, color = Species)) +
+
+ggplot(dat_4, aes(Weight, Gonad_weight, color = Species)) +
   geom_point() +
   facet_wrap(~STATION_CODE)
+
 ```
 
 ## Test plot 3
 ```{r, fig.width=9, fig.height=6}
-ggplot(dat, aes(Weight, Liver_weight, color = Species)) +
+
+ggplot(dat_4, aes(Weight, Liver_weight, color = Species)) +
   geom_point() +
   facet_wrap(~STATION_CODE)
+
 ```
 
 ## Test plot 4
 ```{r, fig.width=9, fig.height=6}
-ggplot(dat, aes(Length, Age, color = Species)) +
+
+ggplot(dat_4, aes(Length, Age, color = Species)) +
   geom_point() +
   facet_wrap(~STATION_CODE)
 
@@ -296,8 +368,21 @@ ggplot(dat, aes(Length, Age, color = Species)) +
 ## Save  
 ```{r}
 
-saveRDS(dat, "Data/150_Fish_individual_data_2019.rds")
-write.csv(dat, "Data/150_Fish_individual_data_2019.csv", fileEncoding = "UTF-8") 
+# Wrapped in FALSE to avoid accidental overwriting
+
+if (FALSE){
+  
+  saveRDS(
+    dat, 
+    paste0("Data/150_Fish_individual_data_", selected_year, ".rds")
+  )
+  
+  write.csv(
+    dat, 
+    paste0("Data/150_Fish_individual_data_", selected_year, ".csv"),
+    fileEncoding = "UTF-8") 
+  
+}
 
 ```
 
