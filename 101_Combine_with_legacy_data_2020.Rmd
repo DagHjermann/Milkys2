@@ -41,13 +41,15 @@ source("101_Combine_with_legacy_data_functions.R")
 ### Set year  
 Note: there are still some hard-coded "2019" given in the code  
 ```{r}
+
 lastyear <- 2020
+
 ```
 
 
 ## 2. Data    
 ### a1. Recently downloaded data  
-- Read and reformat the most recent data (by default)   
+- Read and reformat data (by default, the most recent dataset made)        
 - In constrast to 2019 version, we use only data from NIVAbasen (2c in 2019 version)    
 - The file named '01_df_2019_notstandard_<date>' were made on DHJs PC using script 01 in project 'Milkys2_pc'  
 ```{r, results='hold'}
@@ -62,7 +64,9 @@ files <- dir("Input_data", pattern = filepattern) %>% rev()
 cat("Reading file number ",  filenumber, ", sorted from newest to oldest files:", sep = "")
 cat("\n", files[filenumber])
 cat("\n")
-cat("If you want to read a different file, replace 'files[1]' with the file you want")
+cat("If you want to read a different file, replace 'filenumber <- 1' or 'filename' with the file you want")
+cat("\n")
+cat("For instance, set 'filenumber <- 2' to read the second newest file")
 cat("\n")
 
 # Get filename and its date part 
@@ -131,7 +135,7 @@ data_legacy <- readRDS("Data/101_data_updated_2020-08-05.rds") %>%
 
 ## 3. Reformat recent data to conform with legacy data  
 
-### a. Work with 'dat_new2'  
+### a. Create 'dat_new2'  
 ```{r}
 
 dat_new2 <- dat_new1 %>%
@@ -152,18 +156,25 @@ dat_new2$PARAM <- get_standard_parametername(
   "Input_data/Lookup table - standard parameter names.csv"
   )
 
+# Fix PBDE and PCB substances  
+dat_new2$PARAM <- sub("BDE-", "BDE", dat_new2$PARAM, fixed = TRUE)
+dat_new2$PARAM <- sub("PCB-", "CB", dat_new2$PARAM, fixed = TRUE)
+
+
 # Extra changes
 dat_new2 <- dat_new2 %>%
-  mutate(PARAM = case_when(
-    PARAM %in% "Sølv" ~ "AG",
-    PARAM %in% "Kvikksølv" ~ "HG",
-    PARAM %in% "Pentaklorbenzen (QCB)" ~ "QCB",	
-    # the following names are not logical - but need to be like this in order to be conistent with old data.
-    # Will be changed in 10.
-    PARAM %in% "Dibutyltinn (DBT)" ~ "DBTIN",        
-    PARAM %in% "Monobutyltinn (MBT)" ~ "MBTIN",
-    PARAM %in% "Tetrabutyltinn (TetraBT)" ~ "TTBT",
-    TRUE ~ PARAM)
+  mutate(
+    PARAM = case_when(
+      PARAM %in% c("Ag", "As", "Cd", "Co", "Cr", "Cu", "Hg", "Ni", "Pb", "Sn", "Zn") ~ toupper(PARAM),
+      PARAM %in% "Sølv" ~ "AG",
+      PARAM %in% "Kvikksølv" ~ "HG",
+      PARAM %in% "Pentaklorbenzen (QCB)" ~ "QCB",	
+      # the following names are not logical - but need to be like this in order to be conistent with old data.
+      # Will be changed in 10.
+      PARAM %in% "Dibutyltinn (DBT)" ~ "DBTIN",        
+      PARAM %in% "Monobutyltinn (MBT)" ~ "MBTIN",
+      PARAM %in% "Tetrabutyltinn (TetraBT)" ~ "TTBT",
+      TRUE ~ PARAM)
   )
 
 sel <- dat_new2$NAME %in% "Tørrstoff %"  
@@ -179,12 +190,20 @@ cat("dat_new2: PARAM = Fett set for", sum(sel), "records \n")
 ### c. Remove sums  
 ```{r}
 
-sel <- dat_new2$PARAM %in% c("Sum PCB(7) inkl. LOQ", 
-                                "Total 6 Ikke dioksinlike PCB inkl. LOQ", 
-                                "Sum PCB(7) eksl. LOQ", 
-                                "Total 6 Ikke dioksinlike PCB eksl. LOQ")
+# 1. Some specific names
+sel1 <- dat_new2$PARAM %in% c("Sum PCB(7) inkl. LOQ", 
+                             "Total 6 Ikke dioksinlike PCB inkl. LOQ", 
+                             "Sum PCB(7) eksl. LOQ", 
+                             "Total 6 Ikke dioksinlike PCB eksl. LOQ")
+
+# 2. All starting with "Sum " or "sum ":
+sel2 <- tolower(substr(dat_new2$PARAM, 1, 4)) == "sum "
+
+sel <- sel1 | sel2
+
 dat_new2 <- dat_new2[!sel,]
-cat("dat_new2:", sum(sel), "records with sum PCBs deleted (will be recalculated) \n")  
+cat("dat_new2:", sum(sel), "records with sums deleted (will be recalculated) \n")  
+
 ```
 
 ### d. Check tins  
@@ -251,14 +270,15 @@ table(addNA(dat_new2$LATIN_NAME))
 
 ```
 
-### f. Check units     
+### f. Check units    
+- Will be fixed in section 4  
 ```{r}
 
 table(addNA(dat_new2$UNIT))
 
 ```
 
-### g. Check uniqueness of samples   
+### g. Check and fix uniqueness of samples   
 * 
 ```{r}
 
@@ -415,14 +435,21 @@ dat_new3 <- dat_new3 %>%
 
 ```
 
-
 ### b. Add preferred unit to data   
 * Creates data 'dat_new4'  
 ```{r}
 
 fn <- "Input_data/Lookup table - preferred parameter units.xlsx"
 preferred_units <- read_excel(fn, sheet = "Preferred units")
-unit_conversion <- read_excel(fn, sheet = "Conversion factors")
+unit_conversion <- read_excel(fn, sheet = "Conversion factors")  
+
+# Fix the spaces in 'UNIT' in unit_conversion:
+# find 'space_16bit' (non-breaking space) and replace with 'space_8bit' (ordinary space)    
+# see here: https://programmer.group/c2-a0-no-break-space-with-special-spaces-in-utf-8-encoding.html
+space_16bit <- charToRaw("\xc2\xa0") %>% rawToChar()
+space_8bit <- charToRaw("\x20") %>% rawToChar()   
+
+unit_conversion$UNIT <- gsub(space_16bit, space_8bit, unit_conversion$UNIT)
 
 check <- preferred_units %>%
   count(PARAM) %>%
@@ -435,8 +462,8 @@ if (check == 0){
     left_join(preferred_units, by = "PARAM") %>% 
     left_join(unit_conversion, by = c("UNIT", "Preferred_unit")) %>%
     mutate(Conversion_factor = ifelse(UNIT == "PERCENT", 1, Conversion_factor))
-    cat("Preferred_unit and Conversion_factor added to data using 'Parameter_units.xlsx' \n")
-    cat("Name of data set for last year: 'dat_new3' -> 'dat_new4' \n")
+  cat("Preferred_unit and Conversion_factor added to data using 'Parameter_units.xlsx' \n")
+  cat("Name of data set for last year: 'dat_new3' -> 'dat_new4' \n")
 } else {
   cat("WARNING! Parameter_units.xlsx contains some PARAM with more than one preferred unit")
   cat("\n")
@@ -444,6 +471,13 @@ if (check == 0){
   cat("\n")
 }  
 
+df <- dat_new4 %>%
+  filter(LATIN_NAME == "Somateria mollissima") %>%
+  select(PARAM, UNIT, Preferred_unit, Conversion_factor) 
+
+dat_new4 %>%
+  filter(LATIN_NAME == "Somateria mollissima") %>%
+  count(UNIT, Preferred_unit, Conversion_factor) 
 
 ```
 
@@ -516,14 +550,52 @@ if (FALSE){
 ### d. Check units that are different from preferred units   
 ```{r}
 
-dat_new4 %>%
+allowed_units <- table(preferred_units$Preferred_unit)
+
+check_unit <- dat_new4 %>%
   filter(is.na(UNIT) | is.na(Preferred_unit) | UNIT != Preferred_unit) %>%
   count(PARAM, UNIT, Preferred_unit, Conversion_factor)
+
+# Check manually:
+# View(check_unit)
+
+check_unit2 <- check_unit %>%
+  filter(!UNIT %in% allowed_units & is.na(Preferred_unit))
+
+if (nrow(check_unit2) > 0){
+  stop(nrow(check_unit2), 
+       " param/units have forbidden units and no preferred unit! Fix excel table 'preferred_units'.")
+}
+
+check_unit3 <- check_unit %>%
+  filter(is.na(Preferred_unit))
+
+if (nrow(check_unit3) > 0){
+  warning("Some param/units have no preferred unit, check that given UNIT in 'check_unit3' is OK.")
+}
+
+check_unit4a <- dat_new4 %>%
+  filter(UNIT != Preferred_unit & is.na(Conversion_factor)) %>%
+  count(PARAM, UNIT, Preferred_unit, Conversion_factor)
+
+check_unit4b <- check_unit4a %>%
+  count(UNIT, Preferred_unit)
+
+if (nrow(check_unit4b) > 0){
+  stop(nrow(check_unit4b), 
+       " UNIT - preferred unit pairs lack conversion factor! Fix excel table 'preferred_units'.")
+}
 
 ```
 
 ### e. If OK, we convert units  
 ```{r}
+
+cat("No preferred unit:", sum(is.na(dat_new4$Preferred_unit)), "cases \n")
+cat("UNIT == Preferred_unit:", sum(dat_new4$UNIT == dat_new4$Preferred_unit), "cases \n")
+cat("UNIT != Preferred_unit:", sum(dat_new4$UNIT != dat_new4$Preferred_unit), "cases \n")
+cat("UNIT != Preferred_unit and Conversion_factor = NA:", 
+    sum(dat_new4$UNIT != dat_new4$Preferred_unit & is.na(dat_new4$Conversion_factor)), "cases \n")
 
 dat_new5 <- dat_new4 %>%
   mutate(
@@ -751,7 +823,7 @@ for (tissue in unique(dat_new6$TISSUE_NAME)){
   # tissue <- "Lever"
   cat(toupper(tissue), ": \n")
   df <- dat_new6 %>% 
-    filter(TISSUE_NAME %in% tissue & MYEAR == 2019) %>%
+    filter(TISSUE_NAME %in% tissue & MYEAR == lastyear) %>%
     mutate(Missing = factor(is.na(VALUE_DW), levels = c(FALSE, TRUE)))
   tab <- xtabs(~STATION_CODE + Missing, df)
   print_station_summary(tab)
@@ -759,12 +831,12 @@ for (tissue in unique(dat_new6$TISSUE_NAME)){
 
 
 cat("FAT BASIS \n==================\n")
-for (tissue in unique(subset(dat_new6, MYEAR == 2019)$TISSUE_NAME)){
+for (tissue in unique(subset(dat_new6, MYEAR == lastyear)$TISSUE_NAME)){
   # tissue <- "Lever"
   # tissue <- "Blod"
   cat(toupper(tissue), ": \n")
   df <- dat_new6 %>% 
-    filter(TISSUE_NAME %in% tissue & MYEAR == 2019) %>%
+    filter(TISSUE_NAME %in% tissue & MYEAR == lastyear) %>%
     mutate(Missing = factor(is.na(VALUE_FB), levels = c(FALSE, TRUE)))
   tab <- xtabs(~STATION_CODE + Missing, df)
   # debugonce(print_station_summary)
@@ -776,12 +848,12 @@ if (FALSE){
   
   # Check 30B liver
   dat_new6 %>% 
-    filter(TISSUE_NAME %in% "Lever" & MYEAR == 2019 & STATION_CODE == "30B") %>%
+    filter(TISSUE_NAME %in% "Lever" & MYEAR == lastyear & STATION_CODE == "30B") %>%
     summarize_samples_print()
 
   # Check 30B muscle
   df <- dat_new6 %>% 
-    filter(TISSUE_NAME %in% "Muskel" & MYEAR == 2019 & STATION_CODE == "30B")
+    filter(TISSUE_NAME %in% "Muskel" & MYEAR == lastyear & STATION_CODE == "30B")
   summarize_samples_print(df)
 
   }
@@ -853,7 +925,7 @@ data_updated %>%
 ```
 
 ### Check C/N data  
-- C/N is in all data since 2012, but has only NA values in 2019    
+- C/N is in all data since 2012  
 - '% C' and '% N' is in all data since 2015  
 - Also checked just before saving  
 ```{r}
@@ -871,24 +943,20 @@ df %>% xtabs(~MYEAR + PARAM + is.na(VALUE_WW), .)
 ```{r}
 
 cat("Table of LATIN_NAME \n-------------------------------------------\n")
-xtabs(~LATIN_NAME, data_updated)
+xtabs(~addNA(LATIN_NAME), data_updated)
 
 cat("\n\nnTable of LATIN_NAME by year \n-------------------------------------------\n")
 df <- data_updated %>%
   filter(MYEAR >= 2008) # %>% # xtabs(~PARAM, .)
-xtabs(~MYEAR + LATIN_NAME, df)
+xtabs(~MYEAR + addNA(LATIN_NAME), df)
   
 if (FALSE){
   df <- data_updated %>%
     filter(MYEAR >= 2008) # %>% # xtabs(~PARAM, .)
-  xtabs(~MYEAR + LATIN_NAME, df)
+  xtabs(~MYEAR + addNA(LATIN_NAME), df)
 }
 
 ```
-
-
-
-
 
 ## 10. Corrections  
 
@@ -1190,14 +1258,16 @@ if (FALSE){
 (11-12 seconds)
 ```{r}
 
-df_duplicates <- data_updated2 %>%
-  count(STATION_CODE, LATIN_NAME, TISSUE_NAME, MYEAR, SAMPLE_NO2, PARAM) %>%
-  filter(n > 1)
+if (!exists("df_duplicates_all")){    # recalculate only if it doesn't exist
+  df_duplicates_all <- data_updated2 %>%
+    count(STATION_CODE, LATIN_NAME, TISSUE_NAME, MYEAR, SAMPLE_NO2, PARAM) %>%
+    filter(n > 1)
+}
 
-if (nrow(df_duplicates) > 0){
-  cat("WARNING! Duplicates in the data! Check 'df_duplicates'. \n")
-  xtabs(~PARAM, df_duplicates) %>% print()
-  xtabs(~MYEAR, df_duplicates) %>% print()
+if (nrow(df_duplicates_all) > 0){
+  cat("WARNING! Duplicates in the data! Check 'df_duplicates_all'. \n")
+  xtabs(~PARAM, df_duplicates_all) %>% print()
+  xtabs(~MYEAR, df_duplicates_all) %>% print()
 } else {
   cat("No duplicates found in the data. \n")
 }
@@ -1205,7 +1275,8 @@ if (nrow(df_duplicates) > 0){
 
 ```
 
-#### Check of ZN in one station  
+#### Check of ZN in one station   
+- Can't remember why I did this 
 ```{r}
 df <- data_updated2 %>%
   filter(STATION_CODE == "98B1" & MYEAR == lastyear & TISSUE_NAME == "Lever" & 
@@ -1223,8 +1294,10 @@ df %>%
 
 ```
 
-## 11. Save the data for later use   
-We use the date the data was downloaded (in script 101) in the filename  
+## 11. Save the data for later use    
+- We use the date the data was downloaded (in script 101) in the filename   
+- Used in script 109 (and downstream in 110, 111, 120, 201)  
+- Also downloaded to `C:\Data\seksjon 212\Milkys2_pc\Files_from_Jupyterhub_2020\Raw_data` and used for ICES submission  
 ```{r}
 
 # We make a file name using 'file_date' extracted from the original file (see part 2a)
@@ -1252,7 +1325,7 @@ cat("\n", filename)
 
 ```
 
-### Save 2015-2019 data in Excel format
+### Save data from 2015 until now in Excel format
 Change TISSUE_NAME before output:   
 - Muskel til Muscle,  
 - Lever til Liver,   
@@ -1329,12 +1402,17 @@ df <- data_updated %>%
     grepl("B", STATION_CODE) ~ "Cod",
     grepl("A", STATION_CODE) ~ "Blue mussel",
     grepl("I", STATION_CODE) ~ "Blue mussel",
+    grepl("X", STATION_CODE) ~ "Blue mussel",
     grepl("F", STATION_CODE) ~ "Flatfish",
     grepl("G", STATION_CODE) ~ "Snail",
     TRUE ~ "Others")
   )
-for (gr in c("Cod", "Blue mussel", "Flatfish", "Snail", "Others"))
+for (gr in c("Cod", "Blue mussel", "Flatfish", "Snail", "Others")){
+  cat("=======================================================================\n", gr, "\n")
+  cat("-----------------------------------------------------------------------\n")
   xtabs(~STATION_CODE + MYEAR, df %>% filter(Group == gr)) %>% print()
+  cat("\n")
+}
 
 ```
 
