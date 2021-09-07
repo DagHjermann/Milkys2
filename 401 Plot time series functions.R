@@ -526,6 +526,8 @@ add_trend <- function(gg,
     )
     relsize <- case_when(
       trendsymbols == "filledsquare" ~ 0.55,
+      trendsymbols == "arrowdown" ~ 0.8,
+      trendsymbols == "arrowup" ~ 0.8,
       TRUE ~ 1
     )
     gg <- gg +
