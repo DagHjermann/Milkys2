@@ -69,6 +69,11 @@ read_fish_individual_data(fns[1])
 ```{r, message=FALSE}
 fns_to_read <- fns
 
+# Names = Extract all characters to the left of the first underscore  
+names(fns_to_read) <- stringr::str_extract(fns, "[^_]+")
+names(fns_to_read)[grepl("10B", fns)] <- "10B"
+names(fns_to_read)[grepl("96B", fns)] <- "96B"
+
 # Make "safe" version of 'read_fish_individual_data'
 # Meaning that we continue with next file even if there is an error in one file 
 read_fish_individual_data_s <- safely(read_fish_individual_data)
@@ -79,6 +84,9 @@ dat_list_safe <- fns_to_read %>% map(read_fish_individual_data_s)
 # Transpose list
 # Results in list with 2 items ("$result" and "$error"), each with 17 items 
 dat_list_safe <- purrr::transpose(dat_list_safe)
+
+names(dat_list_safe$result)
+
 ```
 
 ### Check results
@@ -93,6 +101,10 @@ if (sum(!is_ok) > 0){
   # If any files didn't work, you will get file name here
   fns_to_read[!is_ok] 
   
+} else {
+  
+  message("All files were read")
+  
 }
 
 # If NOT ok, uncomment the next lines ('15' should be replaced by number of file which casued error ): 
@@ -105,6 +117,9 @@ if (sum(!is_ok) > 0){
 ```{r}
 
 dat_list <- dat_list_safe$result[is_ok]
+
+# Get names as well:
+names(dat_list) <- names(dat_list_safe$result)[is_ok]
 
 ```
 
@@ -119,7 +134,7 @@ get_colname <- function(df, colnumber) colnames(df)[colnumber]
 
 # Get all column names, by column number 
 for (i in 1:26){
-  cat(i, "\n")
+  cat("Column", i, ":  \n")
   column_names <- dat_list %>% map_chr(get_colname, colnumber = i)
   print_less_common_values(column_names)
   cat("------------------------------------\n")
@@ -157,35 +172,23 @@ dat_list_selected <- dat_list %>%
 
 # Look for Levervekt:
 # dat_list[[3]]
+
 ```
 
 ## Make data frame list ready for combining, part 1  
 ```{r}
+
+# Fix station codes using names of the list   
+for (i in seq_along(dat_list_selected)){
+  dat_list_selected[[i]]$Station <- names(dat_list_selected)[i]
+}
+
 #
 # Check Station
 #
 cat("Existing values of in data:\n")
-dat_list_selected %>% map_chr(~unique(.$Station))
+dat_list_selected %>% map_chr(~unique(.$Station))  
 
-if (FALSE){
-
-  # Fix stations  (NOTE: HARD-CODED FILE NUMBERS)
-  cat("\n\nStations - Get file names:\n")
-  fns_to_read[c(2,3,4,5,14)]
-  dat_list_selected[[3]]$Station <- "13B"
-  dat_list_selected[[3]]$Station <- "15B"
-  dat_list_selected[[4]]$Station <- "19B"
-  dat_list_selected[[5]]$Station <- "30B"
-  dat_list_selected[[14]]$Station <- "53B"
-  
-  # We will fix those "code + name" stations later
-  
-  #
-  # Check Station again
-  #
-  cat("Existing values of in data:\n")
-  dat_list_selected %>% map_chr(~unique(.$Station))
-}
 
 #
 # Check Species (NOTE: HARD-CODED FILE NUMBERS)
@@ -212,11 +215,6 @@ dat_list_selected <- dat_list_selected %>% map(~char2numeric(., "Levervekt"))
 dat_list_selected <- dat_list_selected %>% map(~char2numeric(., "Gonadevekt"))
 dat_list_selected <- dat_list_selected %>% map(~char2numeric(., "Alder"))
 
-#
-# Name list using the first value of 'Station' 
-#
-names(dat_list_selected) <- dat_list_selected %>% map_chr(~.$Station[1])
-
 ```
 
 ### Check lacking length  
@@ -231,17 +229,26 @@ if (sum(n_lacking > 0) > 0) {
 n_lacking[n_lacking > 0]
 
 # Check manually:
-dat_list_selected[["15B Farsund"]] %>% View()
+dat_list_selected[["15B"]] %>% View()
 
 # Fix (HARD-CODED):
-dat_list_selected[["15B Farsund"]] <- dat_list_selected[["15B Farsund"]][1:15,]
+dat_list_selected[["15B"]] <- dat_list_selected[["15B"]][1:15,]
+
+# Check again:
+n_lacking <- dat_list_selected %>% map_int(~sum(is.na(.$Lengde)))
+if (sum(n_lacking > 0) > 0) {
+  stop("Still ", sum(n_lacking > 0), " station(s) have lacking 'Length' rows. Check them up! ")
+} else {
+  message("Fixed - no lacking 'Length' rows") 
+}
 
 ```
 
 
 ## Combine into a single data frame  
 ```{r}
-dat_1 <- bind_rows(dat_list_selected)
+
+dat_1 <- bind_rows(dat_list_selected, .id = "STATION_CODE")
 
 # dat
 
@@ -253,17 +260,20 @@ nrow(dat_1)
 
 ### Create STATION_CODE    
 - STATION_CODE = name removed from "code + name" stations   
+- NOT NEEDED anymore, did this through the file name
 ```{r}
 
-xtabs(~addNA(Station), dat_1)
+# not needed, used '.id = "STATION_CODE"' in previous chunk
 
-dat_2 <- dat_1 %>% 
-  mutate(STATION_CODE = stringr::str_extract(Station, "([^[[:blank:]]]+)") ) %>%
-  mutate(STATION_CODE = sub(",", "", STATION_CODE, fixed = TRUE)) %>%
-  mutate(STATION_CODE = sub("b", "B", STATION_CODE)) %>%
-  mutate(STATION_CODE = ifelse(STATION_CODE %in% "43B", "43B2", STATION_CODE))  # 43B2 is the present code
-
-xtabs(~addNA(STATION_CODE), dat_2)
+# xtabs(~addNA(Station), dat_1)
+# 
+# dat_2 <- dat_1 %>% 
+#   mutate(STATION_CODE = stringr::str_extract(Station, "([^[[:blank:]]]+)") ) %>%
+#   mutate(STATION_CODE = sub(",", "", STATION_CODE, fixed = TRUE)) %>%
+#   mutate(STATION_CODE = sub("b", "B", STATION_CODE)) %>%
+#   mutate(STATION_CODE = ifelse(STATION_CODE %in% "43B", "43B2", STATION_CODE))  # 43B2 is the present code
+# 
+# xtabs(~addNA(STATION_CODE), dat_2)
 
 ```
 ### Fix Species
