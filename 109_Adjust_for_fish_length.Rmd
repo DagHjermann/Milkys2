@@ -192,13 +192,13 @@ Data with mean length per sample
 
 # Only a check of tissue
 # test <- data_ind2 %>%
-#   filter(MYEAR == 2019 & PARAM %in% c("PA1OH", "PYR1OH", "BAP3OH", "ALAD", "EROD")) %>%
+#   filter(MYEAR == selected_year & PARAM %in% c("PA1OH", "PYR1OH", "BAP3OH", "ALAD", "EROD")) %>%
 #   count(PARAM, TISSUE_NAME)
 
 # We must specify Lever - microsome (single specimen-sample) for EROD, otherwise it is 
 # mixed up with Lever (often pooled sample) when Length is added
 df_fishsamples_bioleff <- data_all %>%
-  filter(MYEAR == 2019 & PARAM %in% c("PA1OH", "PYR1OH", "BAP3OH", "ALAD", "EROD")) %>%
+  filter(MYEAR == selected_year & PARAM %in% c("PA1OH", "PYR1OH", "BAP3OH", "ALAD", "EROD")) %>%
   distinct(STATION_CODE, SAMPLE_NO2, TISSUE_NAME) %>%
   rename(AQUAMONITOR_CODE = STATION_CODE,
          BIOTA_SAMPLENO = SAMPLE_NO2) %>%
@@ -300,7 +300,7 @@ df_fishsamples3 <- df_fishsamples3 %>%
 ### LNMEA (mean length per sample)
 ```{r}
 df_lnmea <- df_fishsamples3 %>%
-  mutate(MYEAR = 2019) %>%
+  mutate(MYEAR = selected_year) %>%
   ungroup() %>%
   group_by(MYEAR, STATION_CODE, TISSUE_NAME, SAMPLE_NO2) %>%
   summarise(LNMEA = 10*mean(Length, na.rm = TRUE),             # multiply by 10 to get millimeters
@@ -339,21 +339,29 @@ data_lastyear <- data_all %>%
     TRUE ~ TISSUE_NAME)
   )
 
+message("nrow(data_all): ", nrow(data_all))  # 752
+message("nrow(data_all), selected year: ", nrow(data_all %>% filter(MYEAR == selected_year)))  # 752
+message("nrow(data_lastyear): ", nrow(data_lastyear))  # 752
 
 ```
 
-### Check
+### Checks
 ```{r}
 
-data_lastyear %>% 
-  filter(STATION_CODE == "30B" & TISSUE_NAME == "Galle") %>% 
-  select(MYEAR, STATION_CODE, TISSUE_NAME, SAMPLE_NO2, PARAM, LNMEA)
+if (FALSE){
+  
+  data_lastyear %>% 
+    filter(STATION_CODE == "30B" & TISSUE_NAME == "Galle") %>% 
+    select(MYEAR, STATION_CODE, TISSUE_NAME, SAMPLE_NO2, PARAM, LNMEA)
+  
+  data_lastyear %>% 
+    filter(STATION_CODE == "15B" & TISSUE_NAME == "Lever" & SAMPLE_NO2 == 8) %>% 
+    select(MYEAR, STATION_CODE, TISSUE_NAME, SAMPLE_NO2, PARAM, LNMEA)
+  
+  # data_ind2_old
+  
+}
 
-data_lastyear %>% 
-  filter(STATION_CODE == "15B" & TISSUE_NAME == "Lever" & SAMPLE_NO2 == 8) %>% 
-  select(MYEAR, STATION_CODE, TISSUE_NAME, SAMPLE_NO2, PARAM, LNMEA)
-
-# data_ind2_old
 ```
 
 ### Check uniqueness
@@ -375,7 +383,7 @@ Creates data_all2
 # names(data_lastyear)
 
 data_all2 <- bind_rows(
-  data_all %>% filter(MYEAR < 2019),
+  data_all %>% filter(MYEAR < selected_year),
   data_lastyear %>% select(-WTMEAN)
 ) %>%
   mutate(VALUE_WWa = NA,
@@ -611,9 +619,9 @@ Takes 2-3 minutes on DHJ's PC
 if (FALSE){
   par <- "CB118"
   data_all2 %>% 
-    filter(STATION_CODE %in% "15B" & PARAM %in% par & MYEAR == "2019" & SAMPLE_NO2 == 1) 
+    filter(STATION_CODE %in% "15B" & PARAM %in% par & MYEAR == "selected_year" & SAMPLE_NO2 == 1) 
   data_all2 %>% 
-    filter(STATION_CODE %in% "15B" & PARAM %in% par & MYEAR == "2019" & SAMPLE_NO2 == 1) 
+    filter(STATION_CODE %in% "15B" & PARAM %in% par & MYEAR == "selected_year" & SAMPLE_NO2 == 1) 
 }
 
 i_max <- nrow(data_lengthreg)
@@ -880,7 +888,7 @@ if (FALSE){
 
   # For manual check  
   data_all2 %>%
-    filter(MYEAR == 2019 & STATION_CODE == "13B" & 
+    filter(MYEAR == selected_year & STATION_CODE == "13B" & 
              TISSUE_NAME == "Lever" & PARAM == "CD") %>%
     select(MYEAR, STATION_CODE, TISSUE_NAME, SAMPLE_NO2, 
            Pool_size, Fish_number, PARAM, VALUE_WW, FLAG1) %>%
@@ -1007,7 +1015,7 @@ table(data_export$TISSUE_NAME)
 #### c4. Pick data and save  
 ```{r}
 
-# 2015-2019   
+# 2015-selected_year   
 data_last_years <- data_export %>%
   select(-c(VALUE_DW, VALUE_FB, VALUE_WWa, VALUE_DWa, VALUE_FBa)) 
 
