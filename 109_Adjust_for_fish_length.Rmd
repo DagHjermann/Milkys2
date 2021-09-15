@@ -32,7 +32,7 @@ source("109_Adjust_for_fish_length_functions.R")
 ### Year  
 ```{r}
 
-current_year <- 2020
+selected_year <- 2020
 
 ```
 
@@ -69,7 +69,7 @@ file_date <- substr(filename, 18, 27)    # pick out the part of the text from ch
 ```{r}
 
 # Data on length  
-filename <- paste0("Data/150_Fish_individual_data_", current_year, ".rds")
+filename <- paste0("Data/150_Fish_individual_data_", selected_year, ".rds")
 data_ind_fish <- readRDS(filename)
 
 cat("\nStations:")
@@ -304,11 +304,12 @@ df_lnmea <- df_fishsamples3 %>%
   ungroup() %>%
   group_by(MYEAR, STATION_CODE, TISSUE_NAME, SAMPLE_NO2) %>%
   summarise(LNMEA = 10*mean(Length, na.rm = TRUE),             # multiply by 10 to get millimeters
-            WTMEAN = mean(Weight, na.rm = TRUE)
+            WTMEAN = mean(Weight, na.rm = TRUE),
+            .groups = "drop"
             ) %>%
   ungroup()
 
-nrow(df_lnmea)  # 752
+message("nrow(df_lnmea): ", nrow(df_lnmea))  # 752
 
 ```
 
@@ -318,7 +319,7 @@ nrow(df_lnmea)  # 752
 ```{r}
 
 data_lastyear <- data_all %>%
-  filter(MYEAR == 2019) %>%
+  filter(MYEAR == selected_year) %>%
   # remove LNMEA for last year (empty anyway)
   select(-LNMEA) %>%
   # Also here we must specify Lever - microsome for EROD
