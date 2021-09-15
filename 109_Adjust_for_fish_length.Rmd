@@ -132,8 +132,10 @@ check <- df_fishsamples %>%
   filter(TISSUE_NAME == "Muskel") %>%
   filter(!is.na(X_BULK_BIO) & SPECIMEN_NO != X_BULK_BIO)
 cat("Number of muscle samples where fish number isn't equal to sample number:", nrow(check), "\n")  
-cat("- stations of those: \n")
-cat(check %>% pull(AQUAMONITOR_CODE) %>% unique())  
+if (nrow(check) > 0){
+  cat("- stations of those: \n")
+  cat(check %>% pull(AQUAMONITOR_CODE) %>% unique())  
+}
 
 if (FALSE){
   View((df_fishsamples %>% filter(TISSUE_NAME == "Muskel"))[sel,])
