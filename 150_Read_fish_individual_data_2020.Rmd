@@ -384,12 +384,12 @@ ggplot(dat_4, aes(Length, Age, color = Species)) +
 if (FALSE){
   
   saveRDS(
-    dat, 
+    dat_4, 
     paste0("Data/150_Fish_individual_data_", selected_year, ".rds")
   )
   
   write.csv(
-    dat, 
+    dat_4, 
     paste0("Data/150_Fish_individual_data_", selected_year, ".csv"),
     fileEncoding = "UTF-8") 
   
