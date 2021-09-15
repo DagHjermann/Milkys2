@@ -24,7 +24,7 @@ As in script 110, some data series are 'homogenized'
 The year of the last data
 
 ```{r}
-last_year <- 2020
+selected_year <- 2020
 ```
 
 
@@ -102,7 +102,7 @@ Uses the most recent data (by default)
 # Penultimate year:
 files <- list_files(
   folder = "Input_data",
-  pattern = paste0("Labware_samples_", last_year-1))
+  pattern = paste0("Labware_samples_", selected_year-1))
 df_samples_labware_raw_previous <- read_rds_file(
   folder = "Input_data",
   files, 
@@ -112,7 +112,7 @@ df_samples_labware_raw_previous <- read_rds_file(
 cat("\n")
 files <- list_files(
   folder = "Input_data",
-  pattern = paste0("Labware_samples_", last_year))
+  pattern = paste0("Labware_samples_", selected_year))
 df_samples_labware_raw_last <- read_rds_file(
   folder = "Input_data",
   files, 
@@ -120,8 +120,8 @@ df_samples_labware_raw_last <- read_rds_file(
 
 # Combine
 df_samples_labware_raw <- bind_rows(
-  df_samples_labware_raw_previous %>% mutate(MYEAR = last_year-1),
-  df_samples_labware_raw_last %>% mutate(MYEAR = last_year)
+  df_samples_labware_raw_previous %>% mutate(MYEAR = selected_year-1),
+  df_samples_labware_raw_last %>% mutate(MYEAR = selected_year)
 )
 
 cat("\n")
@@ -244,7 +244,7 @@ cat("- STATION_CODE changed for", sum(sel), "rows \n")
 ```{r, results='hold'}
 
 data_all_samples <- data_all %>%
-  filter(MYEAR %in% c(last_year-1, last_year)) %>%
+  filter(MYEAR %in% c(selected_year-1, selected_year)) %>%
   safe_left_join(subset(df_samples_labware, select = -X_BULK_BIO),
                  by = c("MYEAR", "STATION_CODE", "LATIN_NAME", "TISSUE_NAME", "SAMPLE_NO2"),
                  na_matches = "never",
@@ -358,7 +358,7 @@ if (FALSE){
 ```{r, results='hold'}
 
 dat_sd <- data_all %>%
-  filter(MYEAR %in% c(last_year-1, last_year)) %>%
+  filter(MYEAR %in% c(selected_year-1, selected_year)) %>%
   select(MYEAR, STATION_CODE, LATIN_NAME, TISSUE_NAME, PARAM, SAMPLE_NO2,
          VALUE_WW, VALUE_DW, VALUE_FB, VALUE_WWa, VALUE_DWa, VALUE_FBa) %>%
   tidyr::pivot_longer(cols = c(VALUE_WW, VALUE_DW, VALUE_FB, VALUE_WWa, VALUE_DWa, VALUE_FBa), 
@@ -380,13 +380,13 @@ Example:
 ```{r, results='hold'}
 # Get LOQ flags (one row per station*parameter*sample)
 data_all_flag <- data_all %>%
-  filter(MYEAR %in% last_year) %>%
+  filter(MYEAR %in% selected_year) %>%
   select(STATION_CODE, LATIN_NAME, TISSUE_NAME, MYEAR, SAMPLE_NO2, UNIT, PARAM,
          FLAG1)
 
 # Get values by making data set with one row per station*parameter*sample*basis
 data_all_long <- data_all %>%
-  filter(MYEAR %in% last_year) %>%
+  filter(MYEAR %in% selected_year) %>%
   select(STATION_CODE, LATIN_NAME, TISSUE_NAME, MYEAR, SAMPLE_NO2, UNIT, PARAM,
          VALUE_WW, VALUE_DW, VALUE_FB, VALUE_WWa, VALUE_DWa, VALUE_FBa) %>%
   tidyr::pivot_longer(cols = starts_with("VALUE"), 
