@@ -146,7 +146,11 @@ if (FALSE){
 ```{r}
 
 # Special case: galle (bile) at 30B
-sel <- is.na(df_samples$AQUAMONITOR_CODE) & grepl("30B", df_samples$DESCRIPTION); sum(sel)
+sel_1 <- grepl("30B", df_samples$DESCRIPTION)
+message(sum(sel_1), " samples marked 30B")
+
+sel <- is.na(df_samples$AQUAMONITOR_CODE) & sel_1
+message(sum(sel), " samples from 30B that lack AQUAMONITOR_CODE")
 
 # Check: 
 #  View(df_samples[sel,])
@@ -219,17 +223,48 @@ Split up X_BULK_BIO (the fish each samples consists of) so each fish gets a sepa
 * E.g., a pooled liver sample from 3 fish becomes 3 rows
 ```{r}
 
-df_fishsamples2 <- tidyr::separate_rows(df_fishsamples, X_BULK_BIO) %>%
+df_fishsamples_temp <- tidyr::separate_rows(df_fishsamples, X_BULK_BIO)
+
+#
+# Check that all 'X_BULK_BIO' are numeric
+#
+check <- check_variable_is_numeric(df_fishsamples_temp, "X_BULK_BIO")
+
+#
+# Special case for 2020 data (after check above) 
+# Remove "G" from someeider duck X_BULK_BIO    
+#
+sel <- df_fishsamples_temp$AQUAMONITOR_CODE == "19N"
+df_fishsamples_temp$X_BULK_BIO[sel] <- sub("G", "", df_fishsamples_temp$X_BULK_BIO[sel])
+
+# Repeat check - should be OK now
+check <- check_variable_is_numeric(df_fishsamples_temp, "X_BULK_BIO")
+
+#
+# Special case, end
+#
+
+df_fishsamples2 <- df_fishsamples_temp %>%
   mutate(X_BULK_BIO = as.numeric(X_BULK_BIO))
 
-nrow(df_fishsamples)   # 1710
-nrow(df_fishsamples2)  # 2166
+cat("\n")
+message("Number of rows in 'df_fishsamples': ", nrow(df_fishsamples))   # 1710
+message("Number of rows in 'df_fishsamples2': ", nrow(df_fishsamples2))   # 1710
 
-df_fishsamples %>%
-  filter(AQUAMONITOR_CODE == "10B" & TISSUE_NAME == "Lever" & BIOTA_SAMPLENO == 8)
-df_fishsamples2 %>%
-  filter(AQUAMONITOR_CODE == "10B" & TISSUE_NAME == "Lever" & BIOTA_SAMPLENO == 8)
-
+if (FALSE){
+ 
+  # Show example of a pooled fish sample 
+  sel <- grepl(",", df_fishsamples$X_BULK_BIO, fixed = TRUE)
+  df_example <- df_fishsamples[which(sel)[1],]
+  
+  df_fishsamples %>%
+    filter(AQUAMONITOR_CODE == df_example$AQUAMONITOR_CODE & 
+             TISSUE_NAME == df_example$TISSUE_NAME & BIOTA_SAMPLENO == df_example$BIOTA_SAMPLENO)
+  df_fishsamples2 %>%
+    filter(AQUAMONITOR_CODE == df_example$AQUAMONITOR_CODE & 
+             TISSUE_NAME == df_example$TISSUE_NAME & BIOTA_SAMPLENO == df_example$BIOTA_SAMPLENO)
+  
+}
 
 ```
 

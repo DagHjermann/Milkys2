@@ -167,3 +167,39 @@ if (FALSE){
   round_p(0.00121232, stars = TRUE)
   round_p(0.000121232, stars = TRUE)
 }
+
+
+#
+# Function for checking that all values of a variable are numeric
+# - 'variable' is given as a text (in quotes) 
+# - na_allowed = TRUE: NA values are 'allowed'; all values must be numeric or NAs
+# - na_allowed = FALSE: NA values are not 'allowed'; all values must be numeric
+#
+check_variable_is_numeric <- function(data, variable, na_allowed = TRUE){
+  old.options <- options(warn = -1)
+  if (na_allowed){
+    # not NA but not numeric
+    sel <- is.na(as.numeric(data[[variable]])) & !is.na(data[[variable]])  
+  } else {
+    # all that are not numeric or NA
+    sel <- is.na(as.numeric(data[[variable]]))  
+  }
+  data_problems <- data[sel,]
+  options(old.options)
+  if (na_allowed){
+    if (nrow(data_problems) > 0){
+      warning("Some values of ", variable, " have non-numeric values! Inspect result.")
+    } else {  
+      message("All values of ", variable, " are numeric or NA")
+    }
+  } else {
+    if (nrow(data_problems) > 0){
+      warning("Some values of ", variable, " are empty or have non-numeric values! Inspect result.")
+    } else {  
+      message("All values of ", variable, " are numeric")
+    }
+  }
+  invisible(data_problems)
+}
+
+
