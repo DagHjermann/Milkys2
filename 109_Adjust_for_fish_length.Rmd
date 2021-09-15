@@ -29,6 +29,13 @@ source("109_Adjust_for_fish_length_functions.R")
 
 ```
 
+### Year  
+```{r}
+
+current_year <- 2020
+
+```
+
 
 ## 2. Data
 
@@ -58,16 +65,48 @@ file_date <- substr(filename, 18, 27)    # pick out the part of the text from ch
 ```
 
 
-### b. Length data for 2019  
+### b. Length data for most recent year    
 ```{r}
 
-# Data on length
-data_ind_fish <- readRDS("Data/150_Fish_individual_data_2019.rds")
+# Data on length  
+filename <- paste0("Data/150_Fish_individual_data_", current_year, ".rds")
+data_ind_fish <- readRDS(filename)
+
+cat("\nStations:")
+table(addNA(data_ind_fish$STATION_CODE))
+cat("\n")
+
+#
+# Check if data have STATION_CODE
+#
+sel <- is.na(data_ind_fish$STATION_CODE)  
+
+
+if (sum(sel) > 0){
+  stop("WARNING: Some data lack STATION_CODE")
+  cat("\nStations:")
+  table(addNA(data_ind_fish$STATION_CODE[sel]))
+} else {
+  message("Test 1 OK (all data have STATION_CODE)")
+}
+
+#
+# Check if data have length
+#
+sel <- is.na(data_ind_fish$Length)  
+
+if (sum(sel) > 0){
+  warning("WARNING: Some data lack length")
+  cat("\nStations:")
+  table(addNA(data_ind_fish$STATION_CODE[sel]))
+} else {
+  message("Test 2 OK (all data have length)")
+}
 
 ```
 
 
-### c1. Sample data for 2019   
+### c1. Sample data for most recent year   
 Read and reformat the most recent data (by default)  
 ```{r}
 
