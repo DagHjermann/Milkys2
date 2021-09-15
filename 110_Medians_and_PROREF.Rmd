@@ -44,10 +44,10 @@ Read and reformat the most recent data (by default)
 ```{r, collapse=TRUE}
 
 # If we have NOT length-adjusted the last year's data:
-filepattern <- "101_data_updated_"         # entire file name except date and extension
+# filepattern <- "101_data_updated_"         # entire file name except date and extension
 
 # Normally, if we have length-adjusted the last year's data:
-# filepattern <- "109_adjusted_data_"       # entire file name except date and extension
+filepattern <- "109_adjusted_data_"       # entire file name except date and extension
 
 filenumber <- 1                           # filenumber = 1 means "read the newest file"
 
@@ -79,7 +79,7 @@ data_all <- homogenize_series(data_all)
 
 ```
 
-### Check: C/N lacking for 2019  
+### Check: Is C/N lacking any years?    
 ```{r}
 
 if (FALSE) { 
