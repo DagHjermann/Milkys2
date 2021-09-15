@@ -280,7 +280,7 @@ table(addNA(dat_new2$UNIT))
 ```
 
 ### g. Check and fix uniqueness of samples   
-* 
+* Creating `dat_new3` 
 ```{r}
 
 # Check uniqueness of fat and dry weight
@@ -375,7 +375,8 @@ if (FALSE){
 ```
 
 
-### i. Keep only rows with PARAM and remove the 'Substance' column (after possible check)  
+### i. Keep only rows with PARAM and remove the 'Substance' column (after possible check)    
+
 ```{r}
 
 if (FALSE){
@@ -429,10 +430,17 @@ for (species in unique(dat_new3$LATIN_NAME)){
 dat_new3 <- dat_new3 %>%
   mutate(
     UNIT = case_when(
+      PARAM %in% c("VDSI", "Intersex") ~ "Index",
+      is.na(UNIT) ~ "None",
       UNIT == "NONE" ~ "None",
       TRUE ~ UNIT
     )
   )
+
+# Check:
+if (FALSE){
+  table(addNA(dat_new3$UNIT))
+}
 
 ```
 
@@ -472,20 +480,21 @@ if (check == 0){
   cat("\n")
 }  
 
-df <- dat_new4 %>%
-  filter(LATIN_NAME == "Somateria mollissima") %>%
-  select(PARAM, UNIT, Preferred_unit, Conversion_factor) 
 
-dat_new4 %>%
-  filter(LATIN_NAME == "Somateria mollissima") %>%
-  count(UNIT, Preferred_unit, Conversion_factor) 
+# For checking:
+if (FALSE){
+  dat_new4 %>%
+    filter(LATIN_NAME == "Somateria mollissima") %>%
+    select(PARAM, UNIT, Preferred_unit, Conversion_factor) 
+}
+
 
 ```
 
 ### c. Checks (if needed) 
 ```{r}
 #
-# CHECKS
+# OLD CHECKS
 #
 
 if (FALSE){
@@ -566,6 +575,8 @@ check_unit2 <- check_unit %>%
 if (nrow(check_unit2) > 0){
   stop(nrow(check_unit2), 
        " param/units have forbidden units and no preferred unit! Fix excel table 'preferred_units'.")
+} else {
+  message("Test 1 ok (no param/units have have forbidden units combined with no preferred unit)")
 }
 
 check_unit3 <- check_unit %>%
@@ -573,6 +584,8 @@ check_unit3 <- check_unit %>%
 
 if (nrow(check_unit3) > 0){
   warning("Some param/units have no preferred unit, check that given UNIT in 'check_unit3' is OK.")
+} else {
+  message("Test 2 ok (All param/units have preferred unit)")
 }
 
 check_unit4a <- dat_new4 %>%
@@ -585,6 +598,8 @@ check_unit4b <- check_unit4a %>%
 if (nrow(check_unit4b) > 0){
   stop(nrow(check_unit4b), 
        " UNIT - preferred unit pairs lack conversion factor! Fix excel table 'preferred_units'.")
+} else {
+  message("Test 3 ok (All pairs of UNIT - preferred unit have conversion factor)")
 }
 
 ```
@@ -755,7 +770,6 @@ if (check2 == 0){
 
 
 ## 8. Calculate VALUE_WW, VALUE_DW and VALUE_FB   
-And we also go back to the name 'dat_new6'  
 ```{r}
 
 dat_new6 <- dat_new6 %>%
@@ -946,7 +960,7 @@ df %>% xtabs(~MYEAR + PARAM + is.na(VALUE_WW), .)
 cat("Table of LATIN_NAME \n-------------------------------------------\n")
 xtabs(~addNA(LATIN_NAME), data_updated)
 
-cat("\n\nnTable of LATIN_NAME by year \n-------------------------------------------\n")
+cat("\n\nTable of LATIN_NAME by year \n-------------------------------------------\n")
 df <- data_updated %>%
   filter(MYEAR >= 2008) # %>% # xtabs(~PARAM, .)
 xtabs(~MYEAR + addNA(LATIN_NAME), df)
