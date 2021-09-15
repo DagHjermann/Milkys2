@@ -54,16 +54,17 @@ lastyear <- 2020
 - The file named '01_df_2019_notstandard_<date>' were made on DHJs PC using script 01 in project 'Milkys2_pc'  
 ```{r, results='hold'}
 
-filepattern <- "01_df_2020_notstandard_"  # entire file name except date and extension
-filenumber <- 1                           # filenumber = 1 means "read the newest file"
+filepattern <- "01_df_2020_notstandard_"                       # file name except date and extension
+filepattern_with_extension <- "01_df_2020_notstandard_.+.rds"  # file name, rds files only
+filenumber <- 1                                 # filenumber = 1 means "read the newest file"
 
 # Get available files, sorted from newest to oldest
-files <- dir("Input_data", pattern = filepattern) %>% rev()
+files <- dir("Input_data", pattern = filepattern_with_extension) %>% rev()
 
 # Info for user
 cat("Reading file number ",  filenumber, ", sorted from newest to oldest files:", sep = "")
 cat("\n", files[filenumber])
-cat("\n")
+cat("\n\n")
 cat("If you want to read a different file, replace 'filenumber <- 1' or 'filename' with the file you want")
 cat("\n")
 cat("For instance, set 'filenumber <- 2' to read the second newest file")
