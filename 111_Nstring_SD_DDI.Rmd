@@ -25,6 +25,13 @@ The year of the last data
 
 ```{r}
 selected_year <- 2020
+
+if (as.numeric(substr(Sys.Date(), 1, 4)) - selected_year != 1){
+  warning("'selected_year' should usually be last year. Is it set correctly?")
+} else {
+  message("OK ('selected_year' is one year ago)")
+}
+
 ```
 
 
@@ -462,6 +469,15 @@ cat(" ", filename, "\n")
 
 ```
 
+```{r}
+
+if (FALSE){
+  
+  dat_sample_string <- readRDS("Data/111_Nstring_updated_2021-09-15.rds")
+  
+}
+
+```
 
 
 
