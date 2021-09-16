@@ -29,6 +29,12 @@ Last year with observations
 
 last_year <- 2020
 
+if (as.numeric(substr(Sys.Date(), 1, 4)) - last_year != 1){
+  warning("'last_year' should usually be last year. Is it set correctly?")
+} else {
+  message("OK ('last_year' is one year ago)")
+}
+
 ```
 
 
@@ -418,14 +424,6 @@ df_stationinfo <- readxl::read_excel("Input_data/Lookup for big excel - stations
 cat("\n")
 message("5. Data for the extra columns for parameters and stations - data read")
 
-#
-# 6. Data on sample size ("N_string") and SD for the last two years
-#
-dat_sd <- readRDS("Data/111_SD_updated_2020-08-05.rds") 
-dat_nstring <- readRDS("Data/111_Nstring_updated_2020-08-05.rds") 
-
-cat("\n")
-message("6. Data on sample size ('N_string') and SD for the last two years - data read")
 
 ```
 
@@ -976,7 +974,10 @@ cat("Number of columns in data_xl:", ncol(data_xl), "\n") # 22
 ### Prepare for adding values from 'data_xlvalues' and EQS sign from 'data_EQS'  
 ind_cols1 <- which(grepl("Yr_", colnames(data_xlvalues)))
 ind_cols2 <- which(grepl("EQS_", colnames(data_EQS)))
-length(ind_cols1) == length(ind_cols2)  # should be TRUE
+
+if (length(ind_cols1) != length(ind_cols2)){  # should be TRUE
+  stop("There number of 'Yr_' columns must be the same as the number of 'EQS_' columns'! ")
+} 
 
 # Pick every second column from 'data_xlvalues' and 'data_EQS'
 for (i in 1:length(ind_cols1)){
@@ -1015,12 +1016,19 @@ data_xl <- safe_left_join(
   data_xl, 
   dat_nstring %>% 
     filter(MYEAR == last_year - 1) %>% 
-    select(-c(MYEAR, N, N_pooled, Max_ind)), 
+    select(-c(MYEAR, N, N_pooled, Max_ind)),
   by = c("PARAM", "LATIN_NAME", "TISSUE_NAME", "STATION_CODE"),
   na_matches = "never",
   check = "BCV")
 # Change variable name
 names(data_xl)[ncol(data_xl)] <- paste0("Ant.prøver.", last_year - 1)
+
+# Check how many values are lacking
+check <- 100*mean(!is.na(data_xl[[ncol(data_xl)]]))
+message("N string (sample size string) for second last year: ", 
+        round(check, 2), " % of records are ok")
+if (check < 30)
+  warning("Few records have N string for second last year!")
 
 cat("\nNumber of columns:", ncol(data_xl), "\n") # 103
 
@@ -1035,6 +1043,13 @@ data_xl <- safe_left_join(
   check = "BCV")
 # Change variable name
 names(data_xl)[ncol(data_xl)] <- paste0("SD_", last_year - 1)
+
+# Check how many values are lacking
+check <- 100*mean(!is.na(data_xl[[ncol(data_xl)]]))
+message("SD for second last year: ", 
+        round(check, 2), " % of records are ok")
+if (check < 30)
+  warning("Few records have SD for second last year!")
 
 cat("\nNumber of columns:", ncol(data_xl), "\n") # 104
 
@@ -1127,6 +1142,14 @@ data_xl <- safe_left_join(
 names(data_xl)[ncol(data_xl)] <- "N_string"
 
 cat(sum(!is.na(data_xl$N_string)), "values of 'N_string' added to data \n")
+
+# Check how many values are lacking
+check <- 100*mean(!is.na(data_xl[[ncol(data_xl)]]))
+message("N string (sample size string) for last year: ", 
+        round(check, 2), " % of records are ok")
+if (check < 30)
+  warning("Few records have N string for last year!")
+
 cat("Number of columns:", ncol(data_xl), "\n") # 108
 
 data_xl <- safe_left_join(
@@ -1143,7 +1166,15 @@ data_xl <- safe_left_join(
 names(data_xl)[ncol(data_xl)] <- "SD_last"
 
 cat("\n")
-cat(sum(!is.na(data_xl$SD_last)), "values of 'SD_last' added to data \n")
+cat(sum(!is.na(data_xl$SD_last)), "values of 'SD_last' added to data \n")  
+
+# Check how many values are lacking
+check <- 100*mean(!is.na(data_xl[[ncol(data_xl)]]))
+message("SD for last year: ", 
+        round(check, 2), " % of records are ok")
+if (check < 30)
+  warning("Few records have SD for last year!")
+
 cat("Number of columns:", ncol(data_xl), "\n") # 109
 
 ```
@@ -2168,15 +2199,15 @@ NOTE 2: Step 1 requires Notepad++, which can be downloaded for free from https:/
   
 1. Download the produced file, named "Data_xl_[some date]_[some version].csv", from Juputerhub to your own computer (in Jupyterlab, right click the file and "download"). For instance: Data_xl_2020-08-05_ver16.csv (   
     * This file should be in folder 'Big_excel_table'   
-    * ...if you wondered, [some date] means the date of the latest file, e.g. '2020-07-03' 
-    * Also download the 'Data_xl_TEMPLATE.xlsm' file , if you haven't done so before  
+    * ...if you wondered, [some date] means the date of downloading data from Nivabasen, e.g. '2020-07-03'. The same date is used from script 101 through scripts 109, 110, 111, 120 and 201, so the actual date you run the scripts may well be later, bit that is not reflected by the file name.     
+    * Also download the 'Data_xl_TEMPLATE.xlsm' file from Jupyterhub, if you haven't done so before  
     * Both should be put in the same directory. For DHJ: 'Milkys_pc/Files_from_Jupyterhub_2019/Big_excel_table'
 2. Open the file in Excel in the following way:   
-    * First, make a copy of 'Data_xl_TEMPLATE.xlsm' (Ctrl-C, Ctrl-V) and rename it with the same name as your csv file, except that you replace .csv by .xlsm (mark the csv file and press F2, Ctrl-C; mark the xlsm file and press F2, Ctrl-V)    
+    * First, make a copy of the template file (for 2020, it is called 'Data_xl_TEMPLATE_2020.xlsm') using Ctrl-C + Ctrl-V and rename it with the same name as your csv file, except that you replace .csv by .xlsm (mark the csv file and press F2, Ctrl-C; mark the xlsm file and press F2, Ctrl-V)    
     * Open the xlsm file in Excel      
     * Open the csv file (the one from step 1) in Notepad++ (right-click in File Explorer, select Notepad++)
     * Mark all (Ctrl-A) and copy it (Ctrl-C)  
-    * Paste (Ctrl-V) it into the top left cell in an empty sheet (e.g. sheet "X") in the Excel file  
+    * Paste (Ctrl-V) it into the top left cell in an empty sheet (e.g. sheet "Data") in the Excel file  
     * (The reason for this seemingly pointless detour is to handle encodings for Norwegian characters)
 3. Now your data need to be split into columns. 
     * Mark the first column (A). 
