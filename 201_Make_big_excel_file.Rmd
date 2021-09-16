@@ -300,15 +300,16 @@ fn_secondlastyear <- "Data_xl_2020-08-05_ver16.rds"
 # result_10yr_prev <- readRDS("Input_data/120_result_10yr_2018.RData")
 # result_long_prev <- readRDS("Input_data/120_result_long_2018.RData")
 # cat("1. Trends for second last year - data read \n")
+message("1. Trends for second last year - not used")
 
 #
 # 2. Individual data for this year (for "D.d.i.")
 #
 
-if (FALSE){
+if (TRUE){
 data_lastyear_ind <- readRDS(paste0("Data/101_data_updated_", file_date, ".rds"))   
 cat("\n")
-cat("2. Individual data for this year - data read \n")
+message("2. Individual data for this year - data read")
 
 # Fixing station 227G1 and 227G2 (shall count as 227G) 
 sel <- data_lastyear_ind$STATION_CODE %in% c("227G1","227G2")
@@ -330,7 +331,8 @@ df <- data_lastyear_ind %>%
   filter(n > 1)
 if (nrow(df) > 0)  # should result in zero
   stop("ERROR: There seems to be duplicates in 'data_lastyear_ind' \n")
-
+} else {
+  message("No duplicates found")
 }
 
 
@@ -348,7 +350,7 @@ results_seclast_year <- readRDS(paste0("Big_excel_table/", fn_secondlastyear)) %
     ) %>%
   filter(!STATION_CODE %in% c("227G1", "36A"))  # HARD-CODED - these dont have data in 2018 
 cat("\n")
-cat("3. Second last year's table - data read \n")
+message("3. Second last year's table - data read")
 # table(results_seclast_year$TISSUE_NAME)
 
 # Fixing station 36A and 36A1 (36A1 shall count as 36A) 
@@ -378,13 +380,34 @@ if (FALSE){
 
 
 #
-# 4. List of station names   
+# 4. List of station names and coordinates     
 #
 data_stations <- readxl::read_excel("Input_data/Kartbase_edit.xlsx")
 cat("\n")
-cat("4. List of station names - data read \n")
+message("4. List of station names - data read")
 
-#
+# Change 227G2 to 227G (also see script 110)
+sel <- data_stations$STATION_CODE %in% "227G2"
+data_stations$STATION_CODE[sel] <- "227G"
+cat(sum(sel), "cases of STATION_CODE = 227G2 changed to 227G \n")
+
+# Check all stations in 'data_med2'  
+check_stations1 <- data_med2 %>%
+  filter(MYEAR >= (last_year - 10)) %>%
+  count(STATION_CODE) %>%
+  anti_join(data_stations, by = "STATION_CODE")
+
+# Check stations in 'data_med2' last 5 years  
+check_stations2 <- data_med2 %>%
+  filter(MYEAR >= (last_year - 5)) %>%
+  count(STATION_CODE) %>%
+  anti_join(data_stations, by = "STATION_CODE")
+
+if (nrow(check_stations2) > 0){
+  warning("Coordinates not found for STATION_CODE(s) ", 
+      paste(unique(check_stations2$STATION_CODE), collapse = ", "))
+  cat("These stations have been used the last 5 years \n")
+}
 
 #
 # 5. Data for the extra columns for parameters and stations
@@ -393,13 +416,16 @@ df_par <- read.csv("Input_data/Lookup for big excel - param.csv", sep = ";", dec
 df_stationinfo <- readxl::read_excel("Input_data/Lookup for big excel - stations.xlsx")
 
 cat("\n")
-cat("5. Data for the extra columns for parameters and stations - data read \n")
+message("5. Data for the extra columns for parameters and stations - data read")
 
 #
 # 6. Data on sample size ("N_string") and SD for the last two years
 #
 dat_sd <- readRDS("Data/111_SD_updated_2020-08-05.rds") 
 dat_nstring <- readRDS("Data/111_Nstring_updated_2020-08-05.rds") 
+
+cat("\n")
+message("6. Data on sample size ('N_string') and SD for the last two years - data read")
 
 ```
 
@@ -426,7 +452,18 @@ check <- data_ices_coordinates %>%
   nrow()
 
 if (check > 0){
-  cat("WARNING! Duplicate STATION_CODE in the station file! \n")
+  warning("Duplicate STATION_CODE in the station file! \n")
+}
+
+check_stations3 <- check_stations2 %>%
+  anti_join(data_ices_coordinates, by = "STATION_CODE")
+
+if (nrow(check_stations3) > 0){
+  warning("Coordinates not found for STATION_CODE(s) ", 
+      paste(unique(check2$STATION_CODE), collapse = ", "))
+  cat("These stations have been used the last 5 years \n")
+} else {
+  message("All stations used the last 5 years are either in 'data_stations' or 'data_ices_coordinates'.")
 }
 
 #
@@ -907,7 +944,7 @@ df_background <- data_med2 %>%
   ungroup()
 
 # Used in report - copy to Norman's K (K:\Avdeling\Mar\NOG\JMG\2018\Tabeller)
-openxlsx::write.xlsx(df_background, "Data/201_Proref.xlsx")
+# openxlsx::write.xlsx(df_background, "Data/201_Proref.xlsx")
 
 ```
 
