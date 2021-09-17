@@ -287,13 +287,14 @@ if (FALSE){
 
 ```
 
-### Make data set with N_string   
-'dat_sample_string' - one line per station/tissue/parameter/year (same value for all Basis)   
+### Make N_string data set, per parameter     
+- 'dat_sample_string' - one line per station/tissue/parameter/year (same value for all Basis)   
+- used in the big excel file  
 ```{r, results='hold'}
 
 # dat_sample_string - contains 'N_string' which will be added to data by left-join 
 #  - equals raw data summarised per station x parameter
-dat_sample_string <- data_all_samples %>%
+dat_sample_string_temporary <- data_all_samples %>%
   filter(!is.na(VALUE_WW)) %>%
   group_by(MYEAR, STATION_CODE, LATIN_NAME, TISSUE_NAME, PARAM) %>%
   summarise(
@@ -301,13 +302,29 @@ dat_sample_string <- data_all_samples %>%
     N_pooled = sum(No_individuals > 1),
     Max_ind = max(No_individuals),
     .groups = "drop"
-  ) %>%
+  ) %>% # str()
+  # Some special cases
+  mutate(
+    N_pooled = case_when(
+      TISSUE_NAME %in% c("Galle", "Liver - microsome") ~ as.integer(0),
+      STATION_CODE %in% "71G" ~ as.integer(0),
+      TRUE ~ N_pooled),
+    Max_ind = case_when(
+      TISSUE_NAME %in% c("Galle", "Liver - microsome") ~ 1,
+      STATION_CODE %in% "71G" ~ 1,
+      TRUE ~ Max_ind)
+  )
+
+dat_sample_string <- dat_sample_string_temporary %>%
   mutate(
     N_string = paste0(N, " (", N_pooled, "-", Max_ind, ")")  # Make string
   )
 
 if (FALSE){
   View(dat_sample_string)
+  dat_sample_string %>% 
+    filter(MYEAR == 2020 & STATION_CODE == "45B2") %>% 
+    View("45B2")
   
   sel <- grepl("NA", dat_sample_string$N_string)
   View(dat_sample_string[sel,])
@@ -320,6 +337,30 @@ if (FALSE){
 sel <- grepl("NA", dat_sample_string$N_string)
 cat(sum(sel), "N_string contains 'NA' \n")
 
+```
+
+### Make N_string data set, per tissue     
+- 'dat_sample_string_tissue' - as 'dat_sample_string', but not one line per parameter  
+- using max value 
+- used for tables in report (made by ELU)  
+```{r, results='hold'}
+
+# dat_sample_string - contains 'N_string' which will be added to data by left-join 
+#  - equals raw data summarised per station x parameter
+dat_sample_string_tissue <- dat_sample_string_temporary %>%
+  group_by(MYEAR, STATION_CODE, LATIN_NAME, TISSUE_NAME) %>%
+  summarise(
+    N = max(N, na.rm = TRUE),
+    N_pooled = max(N_pooled, na.rm = TRUE),
+    Max_ind = max(Max_ind),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    N_string = paste0(N, " (", N_pooled, "-", Max_ind, ")")  # Make string
+  )
+
+sel <- grepl("NA", dat_sample_string_tissue$N_string)
+cat(sum(sel), "N_string contains 'NA' \n")
 
 ```
 
@@ -453,6 +494,11 @@ dat_ddi %>%
 filename <- paste0("Data/111_Nstring_updated_", file_date, ".rds")
 saveRDS(dat_sample_string, filename)
 cat("Data of N_string saved as: \n")
+cat(" ", filename, "\n")
+
+filename <- paste0("Data/111_Nstring_tissue_updated_", file_date, ".xlsx")
+writexl::write_xlsx(dat_sample_string_tissue, filename)
+cat("Data of N_string, tissue-wise, saved to Excel (for ELU) as: \n")
 cat(" ", filename, "\n")
 
 cat("\n")
