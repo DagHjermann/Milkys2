@@ -207,7 +207,10 @@ cat("dat_new2:", sum(sel), "records with sums deleted (will be recalculated) \n"
 
 ```
 
-### d. Check tins  
+### d1. Check tins   
+
+**NOTE: see part 10 below**  
+
 By comparing with original report, we find that all tins in AqM, except TBT, are given as **tin (Sn) weight**. TBT is given as ion weight.  
 * See "K:\Prosjekter\Sjøvann\JAMP\2019\analyser\Analyserapporter\snegler\Analyserapport 925-7518 snegler.PDF"  
 - Exception: for the industry stations I965 and I969, it seems that tins are given as **ion weight** 
@@ -239,10 +242,11 @@ Examples from 11G in 2019:
     - Report says Tributyltinn (TBT) = <1.9, Tributyltinn (TBT)-Sn = <0.77     
     - Aquamonitor says TBT = <0.77   
     - Nivabase says Tributyltinn (TBT) = <1.9, Tributyltinn (TBT)-Sn = <0.77   
-* Triphenyltin   
+* Triphenyltin C18-H15-Sn, ion weight 350.0, Sn weight 118.71 = [ion weight]*0.339   
     - Report says Trifenyltinn (TPhT) = <1.9, Trifenyltinn (TPhT)-Sn = <0.64    
     - Aquamonitor says TPhT = <0.64   
-    - Nivabase says Trifenyltinn (TPhT) = <1.9, Trifenyltinn (TPhT)-Sn = <0.64   
+    - Nivabase says Trifenyltinn (TPhT) = <1.9, Trifenyltinn (TPhT)-Sn = <0.64
+    - For new data, 'Trifenyltinn (TPhT)' is translated to TPTIN (but see part 10)
     
 ```{r}
 
@@ -252,14 +256,25 @@ dat_new2 %>%
   select(STATION_CODE, SAMPLE_DATE, NAME, PARAM, UNIT, VALUE, FLAG1) %>%
   arrange(NAME)
 
-if (FALSE){
+if (TRUE){
 
-  # Check tetrabutyltin 
+  # Check tetrabutyltin or triphenyltin in legacy daya
   data_legacy %>% 
-  filter(PARAM %in% c("TTBT", "TTBTIN")) %>%
-  xtabs(~MYEAR + PARAM, .)
-
+    # filter(PARAM %in% c("TTBT", "TTBTIN")) %>%
+    filter(grepl("TPhT", PARAM, ignore.case = TRUE) | 
+             grepl("Trifenyltinn", PARAM, ignore.case = TRUE) |
+             grepl("TPTIN", PARAM, ignore.case = TRUE)) %>%
+    xtabs(~MYEAR + PARAM, .)
+ 
 }
+
+```
+### d2. Fix Triphenyltin in legacy data  
+```{r}
+
+# sel <- data_legacy$PARAM %in% "TPhT"  
+# data_legacy$PARAM[sel] <- "TPTIN"  
+# message("data_legacy - ",sum(sel), " records: TPhT changed to TPTIN")
 
 ```
 
@@ -1012,6 +1027,25 @@ data_updated <- data_updated %>%
 
 ### Tins 
 
+#### Checks  
+```{r}
+
+if (FALSE){
+  data_updated %>% 
+    filter(grepl("TPhT", PARAM, ignore.case = TRUE) | 
+             grepl("Trifenyltinn", PARAM, ignore.case = TRUE) |
+             grepl("TPTIN", PARAM, ignore.case = TRUE) |
+             grepl("TPT", PARAM, ignore.case = TRUE)) %>%
+    xtabs(~MYEAR + PARAM, .)
+  
+    data_updated %>% 
+    filter(STATION_CODE == "11G") %>%
+    xtabs(~MYEAR + PARAM, .)
+
+}
+
+```
+
 
 #### Change parameter names  
 data_updated2  
@@ -1050,7 +1084,7 @@ data_updated2
 # CYCLOHEXYLTINS                       
 # tricyclohexyltin     TCHT            TCHT-Sn   
 # PHENYLTINS                           
-# Triphenyltin (TPhT)  TPT             TPhT-Sn
+# Triphenyltin (TPhT)  TPhT             TPhT-Sn
 
 
 data_updated2 <- data_updated %>%
@@ -1065,12 +1099,13 @@ data_updated2 <- data_updated %>%
       PARAM == "Tetrabutyltinn (TTBT)-Sn" ~ "TTBT-Sn",
       PARAM == "Monooktyltinn (MOT)-Sn" ~ "MOT-Sn",
       PARAM == "Dioktyltinn-Sn (DOT-Sn)" ~ "DOT-Sn",
-      PARAM == "TPTIN" ~ "TPT",
+      PARAM == "TPT" ~ "TPhT",
+      PARAM == "TPTIN" ~ "TPhT",
       PARAM == "Trisykloheksyltinn (TCHT)-Sn" ~ "TCHT-Sn",
       PARAM %in% c("Difenyltinn (DPhT)","DPHT") ~ "DPhT",
       PARAM %in% c("Monofenyltinn (MPhT)", "MPHT") ~ "MPhT",
       PARAM %in% c("Trifenyltinn (TPhT)", "TPHT") ~ "TPhT",
-      PARAM == "Trifenyltinn (TPhT)-Sn" ~ "TPhT-Sn",
+      PARAM %in% c("Trifenyltinn (TPhT)-Sn") ~ "TPhT-Sn",
       TRUE ~ PARAM
     )
   )
@@ -1107,7 +1142,7 @@ df_duplicates <- data_updated2 %>%
            grepl("TTBT", PARAM, ignore.case = TRUE) |
            grepl("MOT", PARAM, ignore.case = TRUE) |
            grepl("DOT", PARAM, ignore.case = TRUE) |
-           grepl("TPT", PARAM, ignore.case = TRUE) |
+           grepl("TPhT", PARAM, ignore.case = TRUE) |
            grepl("MBT", PARAM, ignore.case = TRUE) |
            grepl("PhT", PARAM)) %>%
   count(STATION_CODE, LATIN_NAME, TISSUE_NAME, MYEAR, SAMPLE_NO2, PARAM) %>%
@@ -1150,8 +1185,9 @@ cat("No tins in I965, I969 \n")
 - TBT: all ok   
 - Mono-, di-, tetrabutyltin: errors for I965 and I969 in 2019:   
     - what is given as ion weights are actually tin weights   
-- Octyltins, Trifenyltinn, Trisykloheksyltinn: errors for all stations in 2019:   
+- Octyltins, Trisykloheksyltinn: errors for all stations in 2019:   
     - what is given as ion weights (MOT,DOT,TPTIN and TCHT) are actually tin weights   
+- Triphenyltin (TPhT) now seems ok  
 ```{r}
 
 # tin atom weight = 118.710
