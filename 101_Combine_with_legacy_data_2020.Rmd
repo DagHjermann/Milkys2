@@ -1344,7 +1344,8 @@ df %>%
  pull(VALUE_str)
 
 ```
-#### Adding data for VDSI in 36G in 2019 
+
+### Adding data for VDSI in 36G in 2019 
 ```{r}
 
 message("Number of rows: ", nrow(data_updated2))
@@ -1371,6 +1372,23 @@ if (!2019 %in% check$MYEAR){
   
 message("Number of rows: ", nrow(data_updated2))
 
+
+```
+
+### Fix EROD tissue  
+```{r}
+
+if (FALSE){
+  check <- data_updated2 %>%
+    filter(PARAM == "EROD")
+  
+  xtabs(~MYEAR + TISSUE_NAME, check)
+}
+
+sel <- with(data_updated2, PARAM == "EROD" & !TISSUE_NAME %in% "Lever")
+data_updated2$TISSUE_NAME[sel] <- "Lever"
+
+message("TISSUE_NAME set to 'Lever' for ", sum(sel), " EROD records")
 
 ```
 
