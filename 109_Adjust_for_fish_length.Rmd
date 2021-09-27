@@ -106,6 +106,7 @@ if (sum(sel) > 0){
 ```
 
 
+
 ### c1. Sample data for most recent year   
 Read and reformat the most recent data (by default)  
 ```{r}
@@ -184,7 +185,7 @@ if (FALSE){
 
 ```
 
-## 3. Prepare 'df_lnmea'  
+## 3a. Prepare 'df_lnmea'  
 Data with mean length per sample  
 
 ### Add rows for biol. effects in cod
@@ -313,13 +314,51 @@ message("nrow(df_lnmea): ", nrow(df_lnmea))  # 752
 
 ```
 
+## 3b. Add LNMEA data from previous years  
+
+### Get LNMEA
+```{r}
+
+filename <- "Data/109_adjusted_data_2020-08-05.rds"
+data_all_2019 <- readRDS(filename)
+
+df_lnmea_2019 <- data_all_2019 %>%
+  filter(!is.na(LNMEA) & MYEAR == 2019) %>%
+  group_by(MYEAR, STATION_CODE, TISSUE_NAME, SAMPLE_NO2) %>%
+  summarise(
+    LNMEA_diff = diff(range(LNMEA)),
+    LNMEA = first(LNMEA),
+    .groups = "drop"
+  )
+
+check <- df_lnmea_2019 %>%
+  filter(LNMEA_diff != 0)
+  
+if (nrow(check) > 0){
+  stop("Different lengths found for one individual!")
+} else {
+  df_lnmea_2019 <- df_lnmea_2019 %>%
+    select(-LNMEA_diff)
+}
+
+```
+
+### Make df_lnmea_since_2019  
+```{r}
+
+df_lnmea_since_2019 <- bind_rows(
+  df_lnmea_2019, df_lnmea
+)
+
+```
+
 ## 4. Add mean length (LNMEA) to last year's data  
 
 ### Pick last year's data and add LNMEA  
 ```{r}
 
 data_lastyear <- data_all %>%
-  filter(MYEAR == selected_year) %>%
+  filter(MYEAR >= 2019) %>%
   # remove LNMEA for last year (empty anyway)
   select(-LNMEA) %>%
   # Also here we must specify Lever - microsome for EROD
@@ -329,7 +368,7 @@ data_lastyear <- data_all %>%
   ) %>%
   # add LNMEA by joining that column from df_lnmea 
   safe_left_join(
-    df_lnmea, 
+    df_lnmea_since_2019, 
     by = c("MYEAR", "STATION_CODE", "TISSUE_NAME", "SAMPLE_NO2"),
     na_matches = "never",
     check = "bCV") %>%
@@ -340,7 +379,7 @@ data_lastyear <- data_all %>%
   )
 
 message("nrow(data_all): ", nrow(data_all))  # 752
-message("nrow(data_all), selected year: ", nrow(data_all %>% filter(MYEAR == selected_year)))  # 752
+message("nrow(data_all), since 2019: ", nrow(data_all %>% filter(MYEAR >= 2019)))  # 752
 message("nrow(data_lastyear): ", nrow(data_lastyear))  # 752
 
 ```
@@ -383,7 +422,7 @@ Creates data_all2
 # names(data_lastyear)
 
 data_all2 <- bind_rows(
-  data_all %>% filter(MYEAR < selected_year),
+  data_all %>% filter(MYEAR < 2019),
   data_lastyear %>% select(-WTMEAN)
 ) %>%
   mutate(VALUE_WWa = NA,
@@ -392,6 +431,7 @@ data_all2 <- bind_rows(
          )
 
 ```
+
 
 
 
@@ -847,6 +887,9 @@ data_all2 %>%
   labs(title = paste0(par, " in cod (tissue = ", tissue))
 
 ```
+
+
+
 
 
 
