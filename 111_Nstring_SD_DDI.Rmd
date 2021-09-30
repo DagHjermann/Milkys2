@@ -455,10 +455,19 @@ data_all_long <- data_all %>%
 # Get min & max values, for adding to df_ddi later (one row per parameter*basis)
 df_ddi_minmax <- data_all_long %>%
   filter(is.na(FLAG1)) %>%
+  # Appropriate rounding of values:
+  mutate(
+    Value = case_when(
+      Value < 0.001 ~ round(Value, 4),
+      Value < 0.01 ~ round(Value, 3),
+      Value < 2 ~ round(Value, 2),
+      Value < 20 ~ round(Value, 1),
+      TRUE ~ round(Value, 0)
+    )) %>%
   group_by(STATION_CODE,LATIN_NAME,TISSUE_NAME,PARAM,Basis) %>%
   summarise(
-    ddi_min = round(min(Value, na.rm = TRUE),4), 
-    ddi_max = round(max(Value, na.rm = TRUE),4),
+    ddi_min = min(Value, na.rm = TRUE), 
+    ddi_max = max(Value, na.rm = TRUE),
     .groups = "drop"
   ) %>%
   ungroup()
