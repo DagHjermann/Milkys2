@@ -295,7 +295,8 @@ if (FALSE){
 # dat_sample_string - contains 'N_string' which will be added to data by left-join 
 #  - equals raw data summarised per station x parameter
 dat_sample_string_temporary <- data_all_samples %>%
-  filter(!is.na(VALUE_WW)) %>%
+  # Don't include siloxans (D4-D6) because some eider duck have exra samples for them
+  filter(!is.na(VALUE_WW) & !PARAM %in% c("D4","D5","D6")) %>%
   group_by(MYEAR, STATION_CODE, LATIN_NAME, TISSUE_NAME, PARAM) %>%
   summarise(
     N = n(),
@@ -307,11 +308,13 @@ dat_sample_string_temporary <- data_all_samples %>%
   mutate(
     N_pooled = case_when(
       TISSUE_NAME %in% c("Galle", "Liver - microsome") ~ as.integer(0),
-      STATION_CODE %in% "71G" ~ as.integer(0),
+      STATION_CODE %in% "71G" ~ as.integer(1),
+      STATION_CODE %in% "33F" ~ as.integer(3),
       TRUE ~ N_pooled),
     Max_ind = case_when(
       TISSUE_NAME %in% c("Galle", "Liver - microsome") ~ 1,
-      STATION_CODE %in% "71G" ~ 1,
+      STATION_CODE %in% "71G" ~ 60,
+      STATION_CODE %in% "33F" ~ 5,
       TRUE ~ Max_ind)
   )
 
@@ -357,7 +360,8 @@ dat_sample_string_tissue <- dat_sample_string_temporary %>%
   ) %>%
   mutate(
     N_string = paste0(N, " (", N_pooled, "-", Max_ind, ")")  # Make string
-  )
+  ) %>%
+  filter(LATIN_NAME != "N. lapillus / L. littorea")
 
 sel <- grepl("NA", dat_sample_string_tissue$N_string)
 cat(sum(sel), "N_string contains 'NA' \n")
@@ -431,7 +435,7 @@ data_all_flag <- data_all %>%
   filter(MYEAR %in% selected_year) %>%
   select(STATION_CODE, LATIN_NAME, TISSUE_NAME, MYEAR, SAMPLE_NO2, UNIT, PARAM,
          FLAG1)
-
+  
 # Get values by making data set with one row per station*parameter*sample*basis
 data_all_long <- data_all %>%
   filter(MYEAR %in% selected_year) %>%
