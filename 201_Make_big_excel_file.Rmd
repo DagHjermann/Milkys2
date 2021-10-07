@@ -2134,11 +2134,17 @@ if (FALSE){
   # All column names
   names(check)
   
+  # Check, selected columns
+  check %>%
+    select(PARAM, Substance.Group, LATIN_NAME, TISSUE_NAME, STATION_CODE, Basis, 
+         Yr_2016, Yr_2017, Yr_2018, Yr_2019, EQS_2019, Yr_2020, EQS_2020, N_string, SD_last, EQS) %>%
+    View("check")
+
   # Check data for all TBT
   check %>%
     filter(PARAM == "TBT" & Basis == "WW") %>%
     select(PARAM, Substance.Group, LATIN_NAME, TISSUE_NAME, STATION_CODE, Basis, 
-         Yr_2018, Yr_2019, N_string, SD_last, EQS) %>%
+         Yr_2018, Yr_2019, Yr_2020, N_string, SD_last, EQS) %>%
     View()
 
   # Check data for all TBT
