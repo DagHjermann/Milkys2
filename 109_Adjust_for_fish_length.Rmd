@@ -960,7 +960,7 @@ if (FALSE){
 ### d. csv file
 ```{r}
 
-fn <- paste0("Data/10_data_all2_", file_date, ".csv")
+fn <- paste0("Data/109_adjusted_data_", file_date, ".csv")
 readr::write_excel_csv(data_all2, fn, na = "")
 
 ```
