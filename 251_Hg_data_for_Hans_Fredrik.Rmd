@@ -1,0 +1,94 @@
+---
+title: "Hg data for Hans Fredrik"
+output: html_document
+---
+
+## 1. Libraries
+```{r setup, include=FALSE}
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+```
+
+
+## 2. Data (hard-coded file name)
+```{r}
+
+data_all2 <- readRDS("Data/109_adjusted_data_2021-09-15.rds")
+
+data_stations <- readxl::read_excel("Input_data/Kartbase_edit.xlsx")
+
+```
+
+## 3. Hg data
+
+### Add station metadata  
+```{r}
+
+dat_hg_1 <- data_all2 %>% 
+  filter(PARAM == "HG") %>%
+  left_join(data_stations) %>%
+  select(STATION_CODE, Station_name, Lat, Long, everything())
+  
+```
+### Add stable isotopes  
+```{r}
+
+# data_all2$PARAM %>% table() %>% sort(decreasing = TRUE) %>% head(100)
+
+dat_isotopes <- data_all2 %>% 
+  filter(PARAM %in% c("Delta15N", "Delta13C")) %>%
+  select(MYEAR, STATION_CODE, SAMPLE_NO2, TISSUE_NAME, PARAM, VALUE_WW) %>%
+  pivot_wider(names_from = PARAM, values_from = VALUE_WW) 
+
+data_trophiclevel <- readRDS("Input_data/104_dat3.rds") 
+
+dat_hg_2 <- dat_hg_1 %>%
+  left_join(dat_isotopes %>%
+                   select(MYEAR, STATION_CODE, TISSUE_NAME, SAMPLE_NO2, Delta13C, Delta15N),
+                 by = c("MYEAR", "STATION_CODE", "TISSUE_NAME", "SAMPLE_NO2"),
+                 na_matches = "never") %>%
+  left_join(data_trophiclevel %>%
+                   rename(Fish_number = SAMPLE_NO2) %>%
+                   select(MYEAR, STATION_CODE, Fish_number, Delta15N_mussel, TL),
+                 by = c("MYEAR", "STATION_CODE", "Fish_number"),
+                 na_matches = "never")
+
+```
+
+## 4. Check  
+```{r, results='hold'}
+
+message("Number of stations per species/tissue:")
+dat_hg_2 %>%
+  distinct(LATIN_NAME, TISSUE_NAME, STATION_CODE) %>%  
+  xtabs(~LATIN_NAME + TISSUE_NAME, .)
+
+cat("\n")
+message("Length (no of years) of time series (muscle only):")
+dat_hg_2 %>%
+  filter(TISSUE_NAME == "Muskel") %>%
+  distinct(STATION_CODE, MYEAR) %>%  
+  count(STATION_CODE) %>%
+  xtabs(~n, .)
+
+dat_hg_2 %>%
+  filter(TISSUE_NAME == "Muskel") %>%
+  group_by(STATION_CODE, MYEAR) %>%
+  summarise(Median = median(VALUE_WW)) %>%
+  ggplot(aes(STATION_CODE, MYEAR, fill = Median)) +
+  geom_tile() +
+  viridis::scale_fill_viridis() +
+  theme(axis.text.x = element_text(angle = -60, hjust = 0))
+  
+```
+
+
+## 5. Save
+```{r}
+
+readr::write_excel_csv(dat_hg_2, "Data/251_adjusted_data_2021-09-15_HG.csv")
+writexl::write_xlsx(dat_hg_2, "Data/251_adjusted_data_2021-09-15_HG.xlsx")
+
+```
+
