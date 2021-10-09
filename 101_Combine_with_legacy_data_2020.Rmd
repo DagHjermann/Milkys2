@@ -148,6 +148,8 @@ dat_new2 <- dat_new1 %>%
 
 ### b. Fix parameter names     
 
+PAH metabolites in bile:  
+- "1-OH-fenantren", "1-OH-pyren", "3-OH-benzo[a]pyren" (used in 2020) are the same as PA1OH, PYR1OH, BAP3OH 
 ```{r}
 
 # df_nivabase: Set standard parameter names (PARAM) based on NAME  
@@ -175,6 +177,9 @@ dat_new2 <- dat_new2 %>%
       PARAM %in% "Dibutyltinn (DBT)" ~ "DBTIN",        
       PARAM %in% "Monobutyltinn (MBT)" ~ "MBTIN",
       PARAM %in% "Tetrabutyltinn (TetraBT)" ~ "TTBT",
+      PARAM %in% "1-OH-pyren" ~ "PYR1OH",
+      PARAM %in% "1-OH-fenantren" ~ "PA1OH",
+      PARAM %in% "3-OH-benzo[a]pyren" ~ "BAP3OH",
       TRUE ~ PARAM)
   )
 
@@ -993,6 +998,7 @@ if (FALSE){
 ### Check and change/remove duplicates with different PARAM values  
 
 #### PAH metabolites in bile  
+
 "1-OH-fenantren", "1-OH-pyren", "3-OH-benzo[a]pyren" are the same as PA1OH, PYR1OH, BAP3OH  
 - Example of "3-OH-benzo[a]pyren" vs BAP3OH shown below  
 ```{r}
@@ -1003,15 +1009,23 @@ df <- data_updated %>%
   select(STATION_CODE, SAMPLE_NO2, PARAM, VALUE_WW) %>%
   pivot_wider(names_from = PARAM, values_from = VALUE_WW)
 
+# head(df)
+
+check1 <- data_updated %>%
+  filter(PARAM %in% c("3-OH-benzo[a]pyren", "BAP3O", "BAP3OH")) %>% 
+  arrange(STATION_CODE, SAMPLE_NO2, PARAM) %>%
+  select(STATION_CODE, SAMPLE_NO2, PARAM, VALUE_WW) %>%
+  pivot_wider(names_from = PARAM, values_from = VALUE_WW)
+
 head(df)
 
 # Check if we can delete all  
-check <- df %>%
+check2 <- check1 %>%
   filter(!is.na(`3-OH-benzo[a]pyren`)) %>%
   filter(is.na(BAP3OH))
 
-if (nrow(check) > 0){
-  cat("NOTE: Some records have 3-OH-benzo[a]pyren but not BAP3OH. Do not delete all. \n")
+if (nrow(check2) > 0){
+  stop("NOTE: Some records have 3-OH-benzo[a]pyren but not BAP3OH. Do not delete all. \n")
 }
 
 ```
@@ -1375,20 +1389,20 @@ message("Number of rows: ", nrow(data_updated2))
 
 ```
 
-### Fix EROD tissue  
+### Fix EROD and PROTV tissue  
 ```{r}
 
 if (FALSE){
   check <- data_updated2 %>%
-    filter(PARAM == "EROD")
+    filter(PARAM %in% c("EROD","PROTV"))
   
   xtabs(~MYEAR + TISSUE_NAME, check)
 }
 
-sel <- with(data_updated2, PARAM == "EROD" & !TISSUE_NAME %in% "Lever")
+sel <- with(data_updated2, PARAM %in% c("EROD","PROTV") & !TISSUE_NAME %in% "Lever")
 data_updated2$TISSUE_NAME[sel] <- "Lever"
 
-message("TISSUE_NAME set to 'Lever' for ", sum(sel), " EROD records")
+message("TISSUE_NAME set to 'Lever' for ", sum(sel), " EROD and PROTV records")
 
 ```
 
@@ -1406,7 +1420,7 @@ filename <- paste0("Data/101_data_updated_", file_date, ".rds")
 saveRDS(data_updated2, filename)
 
 # To read this data, we use a sentence such as 
-#   my_data <- readRDS(filename)
+#   data_updated2 <- readRDS(filename)
 
 cat("Updated and standardized data saved as:")
 cat("\n", filename)
