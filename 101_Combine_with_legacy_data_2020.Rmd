@@ -6,7 +6,9 @@ output:
     toc_float: true
 ---
 
-**Combine legacy data (data until 2017) with new data (downloaded in script 100)**  
+**Combine legacy data (data until 2017) with new data (downloaded in script 100)**   
+  
+**NOTE: Check the results of '12 Data changes since last year'**  
   
 **Overview**   
 1. Load libraries and functions which will be used   
@@ -19,7 +21,7 @@ output:
     - Also add data read from Excel sheets: NILU data and cod biol. effects  
 5. Fix units  
 6. Add parameter sums for PCBs, BDEs etc.  
-7. Add columns for dry weight and fat percentage (drawn from the data itself)  
+7. Add columns for dry weight and fat percentage (drawn from the data itself)   
 
 ## 1. Load libraries and functions   
 ```{r, results='hide', message=FALSE, warning=FALSE}
@@ -1496,13 +1498,78 @@ saveRDS(dat_new6, filename)
 
 ```
 
+## 12. Data changes since last year  
 
-## 12. Checks  
+### Stations 'gained' and 'lost' during last year  
+```{r}
+
+# If you want to check older data:
+# data_updated2 <- readRDS("Data/101_data_updated_2021-09-30.rds")
+
+# Define names of variables (if 2020 is last year, 'n2019' and 'n2020')
+var1 <- paste0("n", lastyear-1)
+var2 <- paste0("n", lastyear)
+  
+check1 <- data_updated2 %>% 
+  filter(MYEAR >= (lastyear-1)) %>%
+  count(STATION_CODE, LATIN_NAME, MYEAR) %>%
+  pivot_wider(names_from = "MYEAR", values_from = "n", 
+              names_prefix = "n", values_fill = 0) 
+
+stations_lost <- check1[check1[[var1]] > 0 & check1[[var2]] == 0,]
+stations_gain <- check1[check1[[var1]] == 0 & check1[[var2]] > 0,]
+
+cat(nrow(stations_lost), "stations lost \n")
+cat(nrow(stations_gain), "stations gained \n")
+
+```
+
+### Tissues 'gained' and 'lost' during last year  
+```{r}
+
+check2 <- data_updated2 %>% 
+  filter(MYEAR >= (lastyear-1)) %>%
+  filter(!STATION_CODE %in% c(stations_lost$STATION_CODE, stations_gain$STATION_CODE)) %>%
+  count(STATION_CODE, LATIN_NAME, TISSUE_NAME, MYEAR) %>%
+  pivot_wider(names_from = "MYEAR", values_from = "n", 
+              names_prefix = "n", values_fill = 0) %>%
+  mutate(Station_tissue = paste(STATION_CODE, TISSUE_NAME)) 
+
+tissues_lost <- check2[check2[[var1]] > 0 & check2[[var2]] == 0,]
+tissues_gain <- check2[check2[[var1]] == 0 & check2[[var2]] > 0,]
+
+cat(nrow(tissues_lost), "tissues lost (when station was not lost) \n")
+cat(nrow(tissues_gain), "tissues gained (when station was not gained) \n")
+
+
+```
+
+### Parameters 'gained' and 'lost' during last year   
+```{r}
+
+check3 <- data_updated2 %>% 
+  filter(MYEAR >= (lastyear-1)) %>%
+  filter(!STATION_CODE %in% c(stations_lost$STATION_CODE, stations_gain$STATION_CODE)) %>%
+  mutate(Station_tissue = paste(STATION_CODE, TISSUE_NAME)) %>%
+  filter(!Station_tissue %in% c(tissues_lost$Station_tissue, tissues_gain$Station_tissue)) %>%
+  count(STATION_CODE, LATIN_NAME, TISSUE_NAME, PARAM, MYEAR) %>%
+  pivot_wider(names_from = "MYEAR", values_from = "n", 
+              names_prefix = "n", values_fill = 0) 
+
+params_lost <- check3[check3[[var1]] > 0 & check3[[var2]] == 0,]
+params_gain <- check3[check3[[var1]] == 0 & check3[[var2]] > 0,]
+
+cat(nrow(params_lost), "parameters lost (when station/tissue was not lost) \n")
+cat(nrow(params_gain), "parameters gained (when station/tissue was not gained) \n")
+
+
+```
+
+## 13. Other checks  
 
 ```{r}
 data_updated <- data_updated2
 ```
-
 
 ### Stations used at least once last three years
 ```{r}
