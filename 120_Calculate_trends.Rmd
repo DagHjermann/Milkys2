@@ -350,9 +350,9 @@ if (add_extra_series){
   if (FALSE)
     df_series <- df_series %>% filter(STATION_CODE %in% "71G" & PARAM == "VDSI/Intersex")
   
-  # Example 3: BDE in eider duck blood 
+  # Example 3: HBCDs in eider duck blood 
   if (TRUE)
-    df_series <- df_series %>% filter(STATION_CODE %in% "19N" & TISSUE_NAME %in% "Blod" & grepl("BD", PARAM))
+    df_series <- df_series %>% filter(STATION_CODE %in% "19N" & TISSUE_NAME %in% "Blod" & grepl("HBCD", PARAM))
 
   if (FALSE){
     df_recalculate_trends <- readRDS("Data/120_df_recalculate_trends.rds")
