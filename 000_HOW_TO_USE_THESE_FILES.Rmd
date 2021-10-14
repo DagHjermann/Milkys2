@@ -44,16 +44,18 @@ fat basis
 002_Utility_functions.R
   
 #### Scripts 100-149: Main pipeline for collecting data and calculating all medians and trends <br> (Uses data from Nivabasen, and possibly also extra data files made using scripts 150-199)   
-100_Download_Aquamonitor_data.Rmd            
-100_Download_Aquamonitor_data_R_functions.R (functions used by the file above)   
-101_Combine_with_legacy_data_2019.Rmd             
+101_Combine_with_legacy_data_2019.Rmd (uses data downloaded on a pc - see 'Scripts 800-899' below)              
 101_Combine_with_legacy_data_functions.R (functions used by the file above)      
 109_Adjust_for_fish_length_functions.R (functions used by the file above)       
 109_Adjust_for_fish_length.Rmd               
 110_Medians_and_PROREF.Rmd             
 111_Nstring_SD_DDI.Rmd
 120_Calculate_trends.Rmd                    
-  
+
+NOTE: the following two scripts are not used, as Aquamonitor doen't prduce all the data we need:  
+- 100_Download_Aquamonitor_data.Rmd            
+- 100_Download_Aquamonitor_data_R_functions.R (functions used by the file above)   
+
 #### Scripts 150-199: Scripts for reading data from other sources and (optionally) make SQL for insertion into NIVAbase  
 150_Read_fish_individual_data_2018.Rmd       
 150_Read_fish_individual_data_2019.Rmd      
@@ -78,9 +80,34 @@ fat basis
 #### Scripts 501-599: Scripts for non-Milkys use (e.g. Naturindeks)   
 501_Naturindeks_bluemussel.Rmd               
   
-#### Scripts 800-899: Scripts that doesn't work on Jupyterhub (must be downloaded and run on your local PC)    
-801_Download_Labware_sample_data.Rmd         
+#### Scripts 800-899: Reserved for scripts in the project Milkys2_pc      
+
+These scripts are used 'locally', i.e. on your own computer  
+* Can be found in https://github.com/NIVANorge/Milkys2_pc   
+   
+Important scripts to make files *used by* Milkys2 scripts    
+* 801 Reads Labware data from the database   
+    - creating `Labware_samples_xxxx` rds file, used by scripts 109, 111 and 201               
+* 802 Reads Milkys data from Nivabasen   
+    - creating `01_df_2020_notstandard_...` file, used by script 101   
+The files resulting from these scripts are automatically saved in the `Files_to_Jupyterhub_xxxx` folder on your computer, and then manually uploaded to Jupyterhub (folder `Input_data`)   
+   
+Important scripts to insert new data into Nivabasen (thus, must be used *before* 802):  
+* 810, 812, 814: NILU data  
+* 813: Imposex and intersex data  
+* 815: Biological effects and bile metabolites in cod    
+These scripts are run on RStudio your computer, creating SQL code that is copy/pasted into SQL Developer to insert data into the database     
   
+Important scripts that uses files *produced by* Milkys2 scripts:      
+* 841-844: Submission to ICES      
+Files used by these scripts must first be manually downloaded from Jupyterhub and manually saved to the `Files_from_Jupyterhub_xxxx` folder on your computer. These scripts are used to make a data file (text format) which is tested on ICES' DATSU service (https://dome.ices.dk/datsu/)  and then sent to accessions@ices.dk   
+  
+In addition, some csv + excel files produced by Milkys2 scripts are manipulated on your PC using Excel macros. This includes  
+* Script 201 produces `Data_xl ... .csv`       
+* Script 210 produces `Summarytable_trend from R ... .xlsx` and `Summarytable_EQS from R ... .xlsx`    
+These files are manually downloaded to your pc and saved to the `Files_from_Jupyterhub_xxxx` folder on your computer. Detailed instructions for manipulation are found in the two scripts (201 and 210)  
+
+
 #### Scripts 900-999: Various test scripts etc.  
 990 Markdown test.Rmd                        
 990-Markdown-test.docx                       
