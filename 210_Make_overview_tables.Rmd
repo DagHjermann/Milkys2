@@ -32,7 +32,7 @@ source("210_Make_overview_tables_functions.R")
 
 ### Year  
 ```{r}
-current_year <- 2019
+current_year <- 2020
 ```
 
 ### Folder to write results  
@@ -64,11 +64,16 @@ cat("Tables made by this script will be written to folder \n  ",
 )
 
 ```
+#### Example  
 ```{r}
 
 data_xl_lessthans %>%
   filter(PARAM %in% "SCCP" & STATION_CODE %in% "24B" & Basis == "WW") %>%
-  select(PARAM, STATION_CODE, Basis, Trends.2019)
+  select(PARAM, STATION_CODE, Basis, Trends.2020)
+
+data_xl_lessthans %>%
+  filter(PARAM %in% "VDSI/Intersex" & STATION_CODE %in% "71G" & Basis == "WW") %>%
+  select(PARAM, STATION_CODE, LATIN_NAME, Basis, Yr_2019, Yr_2020, Trends.2020)
 
 ```
 
@@ -83,23 +88,27 @@ sel <- data_xl_lessthans$PARAM %in% c("VDSI/Intersex", "Intersex")
 data_xl_lessthans$PARAM[sel] <- "VDSI"
 cat("Changed", sum(sel), "records to PARAM = 'VDSI'")
 
+#
+# NOT NEEDED
+#
 # 2. VDSI (actually intersex) value of 71G in 2019
 #    Given by pers.comm (mail from Lise mandag 28. september 2020 10:51)
-sel <- with(data_xl_lessthans,
-            STATION_CODE %in% "71G" &
-            PARAM %in% "VDSI" & 
-              Basis == "WW")
-data_xl_lessthans$Yr_2019[sel] <- 0
-cat("\n")
-cat("Changed", sum(sel), "records to Yr_2019 = 0 for VDSI")
+# sel <- with(data_xl_lessthans,
+#             STATION_CODE %in% "71G" &
+#             PARAM %in% "VDSI" & 
+#               Basis == "WW")
+# data_xl_lessthans$Yr_2019[sel] <- 0
+# cat("\n")
+# cat("Changed", sum(sel), "records to Yr_2019 = 0 for VDSI")
 
 # 3. LATIN_NAME of 71G
 sel <- with(data_xl_lessthans,
             STATION_CODE %in% "71G")
+cat("\n\n")
+cat("Changing", sum(sel), "records from\n  LATIN_NAME = ", 
+    paste(sQuote(unique(data_xl_lessthans$LATIN_NAME[sel])), collapse = ", "), 
+    "\nto\n  LATIN_NAME = 'N. lapillus / L. littorea'")
 data_xl_lessthans$LATIN_NAME[sel] <- "N. lapillus / L. littorea"
-cat("\n")
-cat("Changed", sum(sel), "records to LATIN_NAME = 'N. lapillus / L. littorea'")
-
 
 ```
 
@@ -424,7 +433,7 @@ if (FALSE){
 
 ```
 
-## 6. Write excel table  
+## 6. Write excel table for trends + PROREF  
 ```{r}
 
 fn <- paste0("Summarytable_trend from R version ", 
@@ -443,10 +452,12 @@ cat("File \n  ", fn, "\nwritten to folder \n  ", resultfolder)
 ```
 
 ## 7. What to do with this file in Excel  
-* "Save as" and change name by replacing "from R" with "for report". Make sure you save it as an "xlsm" (macro-enabled) file
+* Download from Jupyterhub to your own computer (in the 'Jupyterlab' browser tab, go to the file browser, find the file in 'Tables_for_report', right-click and select 'Download')  
+* Move it to the `Milkys2_pc`project, to `Files_from_Jupyterhub_2020\Tables_from_report`  
+* Make a copy by opening it, "save as", and change name by replacing "from R" with "for report". Make sure you save it as an "xlsm" (macro-enabled) file  
 * Move the HG column for cod muscle to the cod liver part. Then delete the cod muscle rows and the TISSUE column
 * Open the _Macros.xlsm work book  
-* Go back to our sheet, select the main part of the table (the part containing the trends symbols)
+* Go back to our sheet, select the main part of the table (the part containing the trends symbols, i.e. everything except row and column headers)
 * Go to menu Developer:Macros and select "_Macros.xlsm!Sheet1.Set_character_1_and_3_to_Wingdings_RANGE"
 * Save file 
 
@@ -463,7 +474,7 @@ par_table_eqs <- c("BDE6S", "BDE47", "SCCP", "MCCP", "DDEPP",
   "QCB", "PFOA", "PFOS", 
   "ANT", "BAA", "BAP", "FLU", "NAP", 
   "CB_S7", 
-  "TBT", "TPT", 
+  "TBT", "TPhT", 
   "D5")
 
 # Order 'par_table_eqs' following 'df_param_order':
@@ -474,7 +485,7 @@ par_table_eqs <- par_table_eqs %>%
 
 # Check that all PARAM have EQS
 check <- par_table_eqs %in% unique(subset(data_xl_lessthans, !is.na(EQS))$PARAM)
-mean(check)  # should be 1 (confirms that all PARAM are correctly spelled)
+# mean(check)  # should be 1 (confirms that all PARAM are correctly spelled)
 # par_table_eqs[!check]
 
 if (sum(!check) > 0){
