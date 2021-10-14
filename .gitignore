@@ -16,6 +16,7 @@ Messages from script 120*
 Dag
 BBE
 *.html
+!000_HOW_TO_USE_THESE_FILES.html
 .Rhistory
 .Rproj.user
 .ipynb_checkpoints*

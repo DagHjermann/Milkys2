@@ -26,10 +26,10 @@ How to use the scripts in `shared/DHJ/Milkys2`
 
 
 ## Work flow for the Milkys project   
-**Summary of workflow: 100 -> 101 -> 109 -> 110 -> 111 -> 120 -> 201**  
-  (below, 'Script 100' refers to the file starting with '100' and ending with 'Rmd')
-- Script 100 - Downloads Aquamonitor data, as an Excel file (with several sheets)  
-- Script 101 - Takes the Aquamonitor data for last year (from 100) and combines them
+**Summary of workflow: 801 -> 101 -> 109 -> 110 -> 111 -> 120 -> 201**  
+  (below, 'Script 801' refers to the file starting with '801' and ending with 'Rmd')
+- Script 801 - Downloads Aquamonitor data, as an Excel file (with several sheets)  
+- Script 101 - Takes the Aquamonitor data for last year (from 801) and combines them
 with the old data (up to 2018). Also makes concentrations on dry-weight and
 fat basis
 - Script 109 - Combines the data (from 101) with fish length data (from 105) and makes length-adjusted concentrations  
@@ -44,17 +44,20 @@ fat basis
 002_Utility_functions.R
   
 #### Scripts 100-149: Main pipeline for collecting data and calculating all medians and trends <br> (Uses data from Nivabasen, and possibly also extra data files made using scripts 150-199)   
-100_Download_Aquamonitor_data.Rmd            
-100_Download_Aquamonitor_data_R_functions.R (functions used by the file above)   
-101_Combine_with_legacy_data_2019.Rmd             
+101_Combine_with_legacy_data_2019.Rmd (uses data downloaded on a pc - see 'Scripts 800-899' below)              
 101_Combine_with_legacy_data_functions.R (functions used by the file above)      
 109_Adjust_for_fish_length_functions.R (functions used by the file above)       
 109_Adjust_for_fish_length.Rmd               
 110_Medians_and_PROREF.Rmd             
 111_Nstring_SD_DDI.Rmd
 120_Calculate_trends.Rmd                    
-  
+
+NOTE: the following two scripts are not used, as Aquamonitor doen't prduce all the data we need:  
+- 100_Download_Aquamonitor_data.Rmd            
+- 100_Download_Aquamonitor_data_R_functions.R (functions used by the file above)   
+
 #### Scripts 150-199: Scripts for reading data from other sources and (optionally) make SQL for insertion into NIVAbase  
+*NOTE: These are not in use, they have been replaced by scripts in Milkys2_pc** (see 'Scripts 800-899' below)  
 150_Read_fish_individual_data_2018.Rmd       
 150_Read_fish_individual_data_2019.Rmd      
 150_Get_fish_individual_data_functions.R (functions used by the files above)     
@@ -78,9 +81,35 @@ fat basis
 #### Scripts 501-599: Scripts for non-Milkys use (e.g. Naturindeks)   
 501_Naturindeks_bluemussel.Rmd               
   
-#### Scripts 800-899: Scripts that doesn't work on Jupyterhub (must be downloaded and run on your local PC)    
-801_Download_Labware_sample_data.Rmd         
+#### Scripts 800-899: Reserved for scripts in the project Milkys2_pc      
+
+These scripts are used 'locally', i.e. on your own computer  
+* Can be found in https://github.com/NIVANorge/Milkys2_pc   
+   
+Important scripts to make files *used by* Milkys2 scripts    
+* 801 Reads Labware data from the database   
+    - creating `Labware_samples_xxxx` rds file, used by scripts 109, 111 and 201               
+* 802 Reads Milkys data from Nivabasen   
+    - creating `01_df_2020_notstandard_...` file, used by script 101   
+The files resulting from these scripts are automatically saved in the `Files_to_Jupyterhub_xxxx` folder on your computer, and then manually uploaded to Jupyterhub (folder `Input_data`)   
+* NOTE: both these scripts will need an Oracle client and access to the Oracle Nivadatabase  
+   
+Important scripts to insert new data into Nivabasen (thus, must be used *before* 802):  
+* 812, 814: NILU data  
+* 813: Imposex and intersex data  
+* 815: Biological effects and bile metabolites in cod    
+These scripts are run on RStudio your computer, creating SQL code that is copy/pasted into SQL Developer to insert data into the database     
   
+Important scripts that uses files *produced by* Milkys2 scripts:      
+* 841-844: Submission to ICES      
+Files used by these scripts must first be manually downloaded from Jupyterhub and manually saved to the `Files_from_Jupyterhub_xxxx` folder on your computer. These scripts are used to make a data file (text format) which is tested on ICES' DATSU service (https://dome.ices.dk/datsu/)  and then sent to accessions@ices.dk   
+  
+In addition, some csv + excel files produced by Milkys2 scripts are manipulated on your PC using Excel macros. This includes  
+* Script 201 produces `Data_xl ... .csv`       
+* Script 210 produces `Summarytable_trend from R ... .xlsx` and `Summarytable_EQS from R ... .xlsx`    
+These files are manually downloaded to your pc and saved to the `Files_from_Jupyterhub_xxxx` folder on your computer. Detailed instructions for manipulation are found in the two scripts (201 and 210)  
+
+
 #### Scripts 900-999: Various test scripts etc.  
 990 Markdown test.Rmd                        
 990-Markdown-test.docx                       
@@ -104,12 +133,18 @@ fat basis
 **Figures_401** - Figure files (usually jpg) produced by script 401  
 
 
-## Overview of data flow  
+
+## Overview of data flow
+
+If you don't see a graph here, click the small "Trust HTML" button in the top left corner of this window.
 
 
 
-<!--html_preserve--><div id="htmlwidget-d2cb844f2179cf4a35fd" style="width:864px;height:1248px;" class="grViz html-widget"></div>
-<script type="application/json" data-for="htmlwidget-d2cb844f2179cf4a35fd">{"x":{"diagram":"\ndigraph boxes_and_circles {\n\n  # a \"graph\" statement\n  graph [overlap = true, fontsize = 10]\n\n  # Scripts\n  node [shape = ellipse,\n        fixedsize = true,\n        width = 1.5] // ellipse\n  100 [label = \"Script 100\", \n    tooltip = \"Downloading all data from the project that can be downloaded from Jupyterhub (using the Aquamonitor API)\"]; \n  LastYear [label = \"From last year\"]; \n  802 [label = \"Script 802 (PC)\", tooltip = \"Extra parameters not returned by script 101. Must be run on a PC. Will need an Oracle client and access to the Oracle Nivadatabase\"];\n  101 [label = \"Script 101\"];\n  150 [label = \"Script 150\"]; \n  109 [label = \"Script 109\"]; \n  161 [label = \"Script 161\"]; \n  171 [label = \"Script 171\"]; \n  172 [label = \"Script 172\"]; \n  110 [label = \"Script 110\"]; \n  111 [label = \"Script 111\"]; \n  120 [label = \"Script 120\"]; \n  201 [label = \"Script 201\"]; \n  501 [label = \"Script 501\"]; \n  510 [label = \"Script 510\"]; \n  \n  # Data sets\n  node [shape = box,\n        fontname = Helvetica]\n  Raw1 [label = \"Raw data from AqM\", width = 2];\n  Legacy [label = \"Legacy data\", width = 2];\n  Nivabasen [label = \"Extra data from Nivabase\", width = 2.5];\n  NILU [label = \"NILU data\", width = 2];\n  Imposex [label = \"Imposex data\", width = 2];\n  Codbiol [label = \"Cod biological effects\", width = 2];\n  Raw2 [label = \"Raw data, complete records\", width = 2.5];\n  Lengths [label = \"Fish length data\", width = 2.5];\n  Raw3 [label = \"Raw data with length-adjusted conc.\", width = 3];\n  Medians [label = \"Medians per station/year\", width = 2.5];\n  Nstring [label = \"Nstring, SD and DDI\", width = 2.5];\n  Trends [label = \"Trends per time series\", width = 2.5];\n  Bigexcel [label = \"Big excel file\", width = 2.5];\n  Graphs [label = \"Time series graphs\", width = 2.5];\n  Tables [label = \"Summary tables\", width = 2.5];\n\n  # Connections (edges)\n  100 -> Raw1; LastYear -> Legacy; 802 -> Nivabasen\n  161 -> NILU; 171 -> Imposex; 172 -> Codbiol\n  {Raw1 Nivabasen Legacy NILU Imposex Codbiol} -> 101; \n  101 -> Raw2; 150 -> Lengths; \n  {Raw2 Lengths} -> 109;\n  109 -> Raw3; Raw3 -> 110; 110 -> Medians; \n  Raw3 -> 111; 111 -> Nstring; \n  Medians -> 120; 120 -> Trends;\n {Raw2 Raw3 Medians Trends Nstring} -> 201; 201 -> Bigexcel\n  Bigexcel -> {501 510}; 501 -> Graphs; 510 -> Tables\n  \n  subgraph {rank = same; Medians; Nstring}\n\n\n }\n","config":{"engine":"dot","options":null}},"evals":[],"jsHooks":[]}</script><!--/html_preserve-->
+
+```{=html}
+<div id="htmlwidget-57c6e38335feae2723e4" style="width:864px;height:1248px;" class="grViz html-widget"></div>
+<script type="application/json" data-for="htmlwidget-57c6e38335feae2723e4">{"x":{"diagram":"\ndigraph boxes_and_circles {\n\n  # a \"graph\" statement\n  graph [overlap = true, fontsize = 10]\n\n  # Scripts\n  node [shape = ellipse,\n        fixedsize = true,\n        color = IndianRed,\n        fontcolor = IndianRed,\n        width = 1.5] // ellipse\n  801 [label = \"Script 801\n(on PC)\", width = 2, \n    tooltip = \"Downloading sample data from Labware/Nivabasen - must run on your PC\"]; \n  LastYear [label = \"Script 101,\nrun last year\n\", height = 0.6, width = 2]; \n  802 [label = \"Script 802 (PC)\", tooltip = \"Download all Milkys data fro last year from Nivabasen. Must be run on a PC. Will need an Oracle client and access to the Oracle Nivadatabase\"];\n  101 [label = \"Script 101\"];\n  150 [label = \"Script 150\"]; \n  109 [label = \"Script 109\"]; \n  812 [label = \"Script 812,814\n(on PC)\", width = 2]; \n  813 [label = \"Script 813\n(on PC)\", width = 2]; \n  815 [label = \"Script 815\n(on PC)\", width = 2]; \n  110 [label = \"Script 110\"]; \n  111 [label = \"Script 111\"]; \n  120 [label = \"Script 120\"]; \n  201 [label = \"Script 201\"]; \n  501 [label = \"Script 501\"]; \n  510 [label = \"Script 510\"]; \n  download_1 [label = \"Downloaded to pc\", width = 2]; \n  download_2 [label = \"Downloaded to pc\", width = 2]; \n  \n  # Data sets\n  node [shape = box,\n        color = RoyalBlue,\n        fontcolor = RoyalBlue,\n        fontname = Helvetica]\n  NILU_excel [label = \"NILU excel\", \n    width = 2, fillcolor = MistyRose, penwidth = 2];\n  Imposex_excel [label = \"Imposex excel\", \n    width = 2, fillcolor = MistyRose, penwidth = 2];\n  Codbiol_excel [label = \"Cod biol. effects excel\", \n    width = 2, fillcolor = MistyRose, penwidth = 2];\n  Nivadatabase [label = \"Nivadatabase\", \n    height = 0.6, width = 2, fillcolor = PaleGreen, penwidth = 2];\n  Labware_db [label = \"Labware\ndatabase\", \n    height = 0.6, width = 2, fillcolor = PaleGreen, penwidth = 2];\n  Lengths_excel [label = \"Fish length data\n(excel, uploaded to Jupyterhub)\", \n    height = 0.6, width = 3, penwidth = 2];\n  Labware [label = \"Samples and pooling\n(uploaded to Jupyterhub)\", \n    height = 0.6, width = 3];\n  Legacy [label = \"Raw data produced last year\n(legacy data)\",\n    height = 0.6, width = 3];\n  Nivabasen [label = \"Last year\\\"s data from Nivabase\n(uploaded to Jupyterhub)\",\n    height = 0.6, width = 3];\n  NILU [label = \"NILU data\", width = 2];\n  Imposex [label = \"Imposex data\", width = 2];\n  Codbiol [label = \"Cod biological effects\", width = 2];\n  Raw2 [label = \"Raw concentration data\n(complete)\", width = 2.5];\n  Lengths [label = \"Fish length data\", width = 2.5];\n  Raw3 [label = \"Raw data with length-adjusted conc.\", width = 3.5];\n  Medians [label = \"Medians per station/year\", width = 2.5];\n  Nstring [label = \"Nstring, SD and DDI\", width = 2.5];\n  Trends [label = \"Trends per time series\", width = 2.5];\n  Bigexcel_rmd [label = \"Big excel file (rmd)\", width = 2.5];\n  Bigexcel_csv [label = \"Big excel file (csv)\", width = 2.5];\n  Bigexcel [label = \"Big excel file (xlsx)\n(manipulated using macros)\", \n    height = 0.6, width = 2.5];\n  Graphs [label = \"Time series graphs\", width = 2.5];\n  Tables_raw [label = \"Summary tables (xlsx)\", width = 2.5];\n  Tables [label = \"Summary tables (xlsx)\n(manipulated using macros)\", \n    height = 0.6, width = 3];\n\n  # Connections (edges)\n  NILU_excel -> 812; 812 -> NILU; \n  Imposex_excel -> 813; 813 -> Imposex; \n  Codbiol_excel -> 815; 815 -> Codbiol;\n  {NILU Imposex Codbiol} -> Nivadatabase;\n  Nivadatabase -> 802;\n  Labware_db -> 801; 801 -> Labware; \n  LastYear -> Legacy; 802 -> Nivabasen\n  {Nivabasen Legacy} -> 101; \n  101 -> Raw2; \n  Lengths_excel -> 150; 150 -> Lengths; \n  {Raw2 Lengths Labware} -> 109;\n  109 -> Raw3; Raw3 -> 110; 110 -> Medians; \n  Raw3 -> 111; Labware -> 111; 111 -> Nstring; \n  Medians -> 120; 120 -> Trends;\n {Raw2 Raw3 Medians Trends Nstring} -> 201; 201 -> Bigexcel_rmd\n  Bigexcel_rmd -> {501 510}; 501 -> Graphs; 510 -> Tables_raw;\n  Bigexcel_rmd -> Bigexcel_csv;\n  Bigexcel_csv -> download_1; download_1 -> Bigexcel\n  Tables_raw -> download_2; download_2 -> Tables\n  \n  subgraph {rank = same; Medians; Nstring}\n\n\n }\n","config":{"engine":"dot","options":null}},"evals":[],"jsHooks":[]}</script>
+```
 
 
 
