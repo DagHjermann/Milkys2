@@ -26,10 +26,10 @@ How to use the scripts in `shared/DHJ/Milkys2`
 
 
 ## Work flow for the Milkys project   
-**Summary of workflow: 100 -> 101 -> 109 -> 110 -> 111 -> 120 -> 201**  
-  (below, 'Script 100' refers to the file starting with '100' and ending with 'Rmd')
-- Script 100 - Downloads Aquamonitor data, as an Excel file (with several sheets)  
-- Script 101 - Takes the Aquamonitor data for last year (from 100) and combines them
+**Summary of workflow: 801 -> 101 -> 109 -> 110 -> 111 -> 120 -> 201**  
+  (below, 'Script 801' refers to the file starting with '801' and ending with 'Rmd')
+- Script 801 - Downloads Aquamonitor data, as an Excel file (with several sheets)  
+- Script 101 - Takes the Aquamonitor data for last year (from 801) and combines them
 with the old data (up to 2018). Also makes concentrations on dry-weight and
 fat basis
 - Script 109 - Combines the data (from 101) with fish length data (from 105) and makes length-adjusted concentrations  
@@ -57,6 +57,7 @@ NOTE: the following two scripts are not used, as Aquamonitor doen't prduce all t
 - 100_Download_Aquamonitor_data_R_functions.R (functions used by the file above)   
 
 #### Scripts 150-199: Scripts for reading data from other sources and (optionally) make SQL for insertion into NIVAbase  
+*NOTE: These are not in use, they have been replaced by scripts in Milkys2_pc** (see 'Scripts 800-899' below)  
 150_Read_fish_individual_data_2018.Rmd       
 150_Read_fish_individual_data_2019.Rmd      
 150_Get_fish_individual_data_functions.R (functions used by the files above)     
@@ -91,9 +92,10 @@ Important scripts to make files *used by* Milkys2 scripts
 * 802 Reads Milkys data from Nivabasen   
     - creating `01_df_2020_notstandard_...` file, used by script 101   
 The files resulting from these scripts are automatically saved in the `Files_to_Jupyterhub_xxxx` folder on your computer, and then manually uploaded to Jupyterhub (folder `Input_data`)   
+* NOTE: both these scripts will need an Oracle client and access to the Oracle Nivadatabase  
    
 Important scripts to insert new data into Nivabasen (thus, must be used *before* 802):  
-* 810, 812, 814: NILU data  
+* 812, 814: NILU data  
 * 813: Imposex and intersex data  
 * 815: Biological effects and bile metabolites in cod    
 These scripts are run on RStudio your computer, creating SQL code that is copy/pasted into SQL Developer to insert data into the database     
@@ -142,6 +144,18 @@ install.packages("DiagrammeR")
 
 ```{r diagram, echo=FALSE, fig.width=9, fig.height=13}
 
+# Diagram created using Graphviz DOT language. See
+#   http://visualizers.co/diagrammer/articles/graphviz-mermaid.html
+# and
+#  https://graphviz.org/
+# For the entire DiagrammeR package (which doesn't only use Graphviz) see
+#   http://visualizers.co/diagrammer/index.html
+# For exporting the result to a picture (SVG or PNG) use
+#   https://github.com/rich-iannone/DiagrammeRsvg
+
+
+if (!"DiagrammeR" %in% installed.packages())
+  install.packages("DiagrammeR")
 library(DiagrammeR)
 
 txt_milkys <- "
@@ -153,54 +167,89 @@ digraph boxes_and_circles {
   # Scripts
   node [shape = ellipse,
         fixedsize = true,
+        color = IndianRed,
+        fontcolor = IndianRed,
         width = 1.5] // ellipse
-  100 [label = 'Script 100', 
-    tooltip = 'Downloading all data from the project that can be downloaded from Jupyterhub (using the Aquamonitor API)']; 
-  LastYear [label = 'From last year']; 
-  802 [label = 'Script 802 (PC)', tooltip = 'Extra parameters not returned by script 101. Must be run on a PC. Will need an Oracle client and access to the Oracle Nivadatabase'];
+  801 [label = 'Script 801\n(on PC)', width = 2, 
+    tooltip = 'Downloading sample data from Labware/Nivabasen - must run on your PC']; 
+  LastYear [label = 'Script 101,\nrun last year\n', height = 0.6, width = 2]; 
+  802 [label = 'Script 802 (PC)', tooltip = 'Download all Milkys data fro last year from Nivabasen. Must be run on a PC. Will need an Oracle client and access to the Oracle Nivadatabase'];
   101 [label = 'Script 101'];
   150 [label = 'Script 150']; 
   109 [label = 'Script 109']; 
-  161 [label = 'Script 161']; 
-  171 [label = 'Script 171']; 
-  172 [label = 'Script 172']; 
+  812 [label = 'Script 812,814\n(on PC)', width = 2]; 
+  813 [label = 'Script 813\n(on PC)', width = 2]; 
+  815 [label = 'Script 815\n(on PC)', width = 2]; 
   110 [label = 'Script 110']; 
   111 [label = 'Script 111']; 
   120 [label = 'Script 120']; 
   201 [label = 'Script 201']; 
   501 [label = 'Script 501']; 
   510 [label = 'Script 510']; 
+  download_1 [label = 'Downloaded to pc', width = 2]; 
+  download_2 [label = 'Downloaded to pc', width = 2]; 
   
   # Data sets
   node [shape = box,
+        color = RoyalBlue,
+        fontcolor = RoyalBlue,
         fontname = Helvetica]
-  Raw1 [label = 'Raw data from AqM', width = 2];
-  Legacy [label = 'Legacy data', width = 2];
-  Nivabasen [label = 'Extra data from Nivabase', width = 2.5];
+  NILU_excel [label = 'NILU excel', 
+    width = 2, fillcolor = MistyRose, penwidth = 2];
+  Imposex_excel [label = 'Imposex excel', 
+    width = 2, fillcolor = MistyRose, penwidth = 2];
+  Codbiol_excel [label = 'Cod biol. effects excel', 
+    width = 2, fillcolor = MistyRose, penwidth = 2];
+  Nivadatabase [label = 'Nivadatabase', 
+    height = 0.6, width = 2, fillcolor = PaleGreen, penwidth = 2];
+  Labware_db [label = 'Labware\ndatabase', 
+    height = 0.6, width = 2, fillcolor = PaleGreen, penwidth = 2];
+  Lengths_excel [label = 'Fish length data\n(excel, uploaded to Jupyterhub)', 
+    height = 0.6, width = 3, penwidth = 2];
+  Labware [label = 'Samples and pooling\n(uploaded to Jupyterhub)', 
+    height = 0.6, width = 3];
+  Legacy [label = 'Raw data produced last year\n(legacy data)',
+    height = 0.6, width = 3];
+  Nivabasen [label = 'Last year\\'s data from Nivabase\n(uploaded to Jupyterhub)',
+    height = 0.6, width = 3];
   NILU [label = 'NILU data', width = 2];
   Imposex [label = 'Imposex data', width = 2];
   Codbiol [label = 'Cod biological effects', width = 2];
-  Raw2 [label = 'Raw data, complete records', width = 2.5];
+  Raw2 [label = 'Raw concentration data\n(complete)', width = 2.5];
   Lengths [label = 'Fish length data', width = 2.5];
-  Raw3 [label = 'Raw data with length-adjusted conc.', width = 3];
+  Raw3 [label = 'Raw data with length-adjusted conc.', width = 3.5];
   Medians [label = 'Medians per station/year', width = 2.5];
   Nstring [label = 'Nstring, SD and DDI', width = 2.5];
   Trends [label = 'Trends per time series', width = 2.5];
-  Bigexcel [label = 'Big excel file', width = 2.5];
+  Bigexcel_rmd [label = 'Big excel file (rmd)', width = 2.5];
+  Bigexcel_csv [label = 'Big excel file (csv)', width = 2.5];
+  Bigexcel [label = 'Big excel file (xlsx)\n(manipulated using macros)', 
+    height = 0.6, width = 2.5];
   Graphs [label = 'Time series graphs', width = 2.5];
-  Tables [label = 'Summary tables', width = 2.5];
+  Tables_raw [label = 'Summary tables (xlsx)', width = 2.5];
+  Tables [label = 'Summary tables (xlsx)\n(manipulated using macros)', 
+    height = 0.6, width = 3];
 
   # Connections (edges)
-  100 -> Raw1; LastYear -> Legacy; 802 -> Nivabasen
-  161 -> NILU; 171 -> Imposex; 172 -> Codbiol
-  {Raw1 Nivabasen Legacy NILU Imposex Codbiol} -> 101; 
-  101 -> Raw2; 150 -> Lengths; 
-  {Raw2 Lengths} -> 109;
+  NILU_excel -> 812; 812 -> NILU; 
+  Imposex_excel -> 813; 813 -> Imposex; 
+  Codbiol_excel -> 815; 815 -> Codbiol;
+  {NILU Imposex Codbiol} -> Nivadatabase;
+  Nivadatabase -> 802;
+  Labware_db -> 801; 801 -> Labware; 
+  LastYear -> Legacy; 802 -> Nivabasen
+  {Nivabasen Legacy} -> 101; 
+  101 -> Raw2; 
+  Lengths_excel -> 150; 150 -> Lengths; 
+  {Raw2 Lengths Labware} -> 109;
   109 -> Raw3; Raw3 -> 110; 110 -> Medians; 
-  Raw3 -> 111; 111 -> Nstring; 
+  Raw3 -> 111; Labware -> 111; 111 -> Nstring; 
   Medians -> 120; 120 -> Trends;
- {Raw2 Raw3 Medians Trends Nstring} -> 201; 201 -> Bigexcel
-  Bigexcel -> {501 510}; 501 -> Graphs; 510 -> Tables
+ {Raw2 Raw3 Medians Trends Nstring} -> 201; 201 -> Bigexcel_rmd
+  Bigexcel_rmd -> {501 510}; 501 -> Graphs; 510 -> Tables_raw;
+  Bigexcel_rmd -> Bigexcel_csv;
+  Bigexcel_csv -> download_1; download_1 -> Bigexcel
+  Tables_raw -> download_2; download_2 -> Tables
   
   subgraph {rank = same; Medians; Nstring}
 
