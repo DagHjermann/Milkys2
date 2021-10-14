@@ -1015,6 +1015,7 @@ if (FALSE){
 - Example of "3-OH-benzo[a]pyren" vs BAP3OH shown below  
 ```{r}
 
+# for testing (30B 2016 only)
 df <- data_updated %>%
   filter(PARAM %in% c("3-OH-benzo[a]pyren", "BAP3O", "BAP3OH") & MYEAR == 2016 & STATION_CODE == "30B") %>% 
   arrange(STATION_CODE, SAMPLE_NO2, PARAM) %>%
@@ -1025,19 +1026,30 @@ df <- data_updated %>%
 
 check1 <- data_updated %>%
   filter(PARAM %in% c("3-OH-benzo[a]pyren", "BAP3O", "BAP3OH")) %>% 
-  arrange(STATION_CODE, SAMPLE_NO2, PARAM) %>%
-  select(STATION_CODE, SAMPLE_NO2, PARAM, VALUE_WW) %>%
+  arrange(STATION_CODE, SAMPLE_NO2, PARAM, MYEAR) %>%
+  select(STATION_CODE, SAMPLE_NO2, PARAM, MYEAR, VALUE_WW) %>%
   pivot_wider(names_from = PARAM, values_from = VALUE_WW)
 
-head(df)
+# Manual check (can also check values)
+# View(check1 %>% filter(!is.na(`1-OH-pyren`)))
 
-# Check if we can delete all  
+# Check if all records with 3-OH-benzo[a]pyren also have BAP3OH (i.e.,
+#   the former can be deleted)   
 check2 <- check1 %>%
   filter(!is.na(`3-OH-benzo[a]pyren`)) %>%
   filter(is.na(BAP3OH))
 
 if (nrow(check2) > 0){
   stop("NOTE: Some records have 3-OH-benzo[a]pyren but not BAP3OH. Do not delete all. \n")
+}
+
+# Check difference between duplicate values   
+check3 <- check1 %>%
+  filter(!is.na(`3-OH-benzo[a]pyren`)) %>%
+  mutate(Difference_percent = (BAP3OH - `3-OH-benzo[a]pyren`)/BAP3OH*100)
+
+if (sum(abs(check3$Difference_percent) > 5) > 0){
+  stop("NOTE: The difference between 3-OH-benzo[a]pyren and BAP3OH exceeds 5%. Check before deletion. \n")
 }
 
 ```
@@ -1050,6 +1062,60 @@ data_updated <- data_updated %>%
                       
 ```
 
+#### Same check for "1-OH-pyren" = PYR1OH
+```{r}
+
+# Only 30B 2016
+data_updated %>%
+  filter(PARAM %in% "1-OH-pyren") %>% 
+  xtabs(~STATION_CODE + MYEAR, .)
+
+# for testing (30B 2016 only)
+df <- data_updated %>%
+  filter(PARAM %in% c("1-OH-pyren", "PYR1O", "PYR1OH") & MYEAR == 2016 & STATION_CODE == "30B") %>% 
+  arrange(STATION_CODE, SAMPLE_NO2, PARAM) %>%
+  select(STATION_CODE, SAMPLE_NO2, PARAM, VALUE_WW) %>%
+  pivot_wider(names_from = PARAM, values_from = VALUE_WW)
+
+# head(df)
+
+check1 <- data_updated %>%
+  filter(PARAM %in% c("1-OH-pyren", "PYR1O", "PYR1OH")) %>% 
+  arrange(STATION_CODE, SAMPLE_NO2, PARAM, MYEAR) %>%
+  select(STATION_CODE, SAMPLE_NO2, PARAM, MYEAR, VALUE_WW) %>%
+  pivot_wider(names_from = PARAM, values_from = VALUE_WW, values_fn = length)
+
+# View(check1 %>% filter(!is.na(`1-OH-pyren`)))
+
+# Check if all records with 3-OH-benzo[a]pyren also have BAP3OH (i.e.,
+#   the former can be deleted)   
+check2 <- check1 %>%
+  filter(!is.na(`1-OH-pyren`)) %>%
+  filter(is.na(PYR1OH))
+
+if (nrow(check2) > 0){
+  stop("NOTE: Some records have 1-OH-pyren but not PYR1OH. Do not delete all. \n")
+}
+
+# Check difference between duplicate values   
+check3 <- check1 %>%
+  filter(!is.na(`1-OH-pyren`)) %>%
+  mutate(Difference_percent = (PYR1OH - `1-OH-pyren`)/PYR1OH*100)
+
+if (sum(abs(check3$Difference_percent) > 5) > 0){
+  stop("NOTE: The difference between 1-OH-pyren and PYR1OH exceeds 5%. Check before deletion. \n")
+}
+
+
+```
+
+#### Delete '1-OH-pyren'    
+```{r}
+
+data_updated <- data_updated %>%
+  filter(!PARAM %in% "1-OH-pyren")
+                      
+```
 
 ### Tins 
 
