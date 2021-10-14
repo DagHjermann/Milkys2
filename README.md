@@ -15,13 +15,13 @@ The *'Data manipulation in JH'* part can be summarized as follows, using script 
 **NIVAdatabase data -> 101 -> 109 -> 110 -> 111 -> 120 -> 201 -> graphs, tables, big excel table**  
 
 The main scripts in this used are  
-- [Script 101]("101_Combine_with_legacy_data_2020.Rmd") - Takes the Nivadatabase data for the last year (created in *Milkys2_pc* and uploaded to Jupyterhub) and combines them with the 'legacy data', i.e. the data produced by script 101 last year. Also makes concentrations on dry-weight and fat basis  
-- [Script 109]("109_Adjust_for_fish_length.Rmd") - Combines the concentratkion data (from 101) with fish length data and makes length-adjusted concentrations   
-- [Script 110]("110_Medians_and_PROREF.Rmd") - Makes median data (per station/year) based on the data (from 109) and adds PROREF   
-- [Script 111]("111_Nstring_SD_DDI.Rmd") - Makes some information measures on sample size etc. that are used by script 201 
-- [Script 120]("120_Calculate_trends.Rmd") - Calculates time trends based on the medians (from 110)  
-- [Script 201]("201_Make_big_excel_file.Rmd") - Makes the big excel file based on medians (from 110) and time trends (from 120)  
-- [Script 401]("401 Plot time series.Rmd") - Make time series plots  
+- [Script 101](101_Combine_with_legacy_data_2020.Rmd) - Takes the Nivadatabase data for the last year (created in *Milkys2_pc* and uploaded to Jupyterhub) and combines them with the 'legacy data', i.e. the data produced by script 101 last year. Also makes concentrations on dry-weight and fat basis  
+- [Script 109](109_Adjust_for_fish_length.Rmd) - Combines the concentratkion data (from 101) with fish length data and makes length-adjusted concentrations   
+- [Script 110](110_Medians_and_PROREF.Rmd) - Makes median data (per station/year) based on the data (from 109) and adds PROREF   
+- [Script 111](111_Nstring_SD_DDI.Rmd) - Makes some information measures on sample size etc. that are used by script 201 
+- [Script 120](120_Calculate_trends.Rmd) - Calculates time trends based on the medians (from 110)  
+- [Script 201](201_Make_big_excel_file.Rmd) - Makes the big excel file based on medians (from 110) and time trends (from 120)    
+- [Script 401](401 Plot time series.Rmd) - Make time series plots  
 
 #### Other files  
 **Milkys2.Rproj** - the *project file* that you open using RStudio                                
