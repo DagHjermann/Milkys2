@@ -76,8 +76,12 @@ plot_medians_and_trends <- function(ser, x_rel = 0.8, y_rel = 0.9, xlim = NULL, 
   dfbig_tissue <- case_when(
     ser[3] == "Lever" ~ "Liver",
     ser[3] == "Muskel" ~ "Muscle",
+    ser[3] == "Galle" ~ "Bile",
     TRUE ~ ser[3])
-  dfbig <- get_dfbig(ser[1], ser[2], dfbig_tissue, ser[4], ser[5])
+  dfbig <- get_dfbig(ser[1], ser[2], dfbig_tissue, ser[4], ser[5])  
+  
+  if (nrow(dfbig) == 0)
+    stop("No data found in the big excel table. You may want to run 'debugonce(get_dfbig)' to see what happens.")
   
   # Last year
   last_year <- grep("Yr", names(dfbig), value = TRUE) %>% sub("Yr_", "", .)  %>% as.numeric() %>% max()
@@ -107,7 +111,12 @@ plot_medians_and_trends <- function(ser, x_rel = 0.8, y_rel = 0.9, xlim = NULL, 
   )
   
   # Title
-  plot_title <- paste0(X$paramname, " in ", tolower(X$speciesname), " ", X$tissue, ", ", X$stationname)
+  tissue_for_title <- case_when(
+      X$tissue == "Lever" ~ "liver",
+      X$tissue == "Muskel" ~ "muscle",
+      X$tissue == "Galle" ~ "bile",
+      TRUE ~ tolower(ser[3]))
+  plot_title <- paste0(X$paramname, " in ", tolower(X$speciesname), " ", tissue_for_title, ", ", X$stationname)
   if (ser[5] %in% c("WWa", "DWa", "FBa"))
     plot_title <- paste0(plot_title, ". Note: Length-adjusted concentrations")
   # Insert line breaks if text is longer than 69 characters
