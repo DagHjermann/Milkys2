@@ -292,7 +292,8 @@ data_medians_ices_1 <- bind_rows(df1, df2, df3) %>%
          TISSUE_NAME = "Galle",
          UNIT = case_when(
            MUNIT %in% 'ug/kg' ~ "UG_P_KG",
-           TRUE ~ as.character(""))
+           MUNIT %in% 'ng/g' ~ "UG_P_KG",
+           TRUE ~ as.character(NA))
   ) %>%
   rename(LATIN_NAME = Species,
          FLAG1 = QFLAG) %>%
@@ -300,8 +301,14 @@ data_medians_ices_1 <- bind_rows(df1, df2, df3) %>%
   group_by(MYEAR, STATION_CODE, LATIN_NAME, TISSUE_NAME, PARAM, UNIT) %>%
   summarise(N = n(),
             VALUE_WW = median(Value),
-            Over_LOQ = sum(is.na(FLAG1))
+            Over_LOQ = sum(is.na(FLAG1)),
+            .groups = "drop"
             )
+
+if (sum(is.na(data_medians_ices_1$UNIT))>0){
+  stop("There are unidentified units!")
+  table(bind_rows(df1, df2, df3)$MUNIT)
+}
 
 ```
 
