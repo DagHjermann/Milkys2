@@ -1,4 +1,10 @@
 
+#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
+#
+# Various utility functions ----
+#
+#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
+
 #
 # List files in 'folder' containing 'pattern'
 # - 'pattern' works as a normal regular expression (see ?regexp) 
@@ -200,6 +206,181 @@ check_variable_is_numeric <- function(data, variable, na_allowed = TRUE){
     }
   }
   invisible(data_problems)
+}
+
+
+
+
+#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
+#
+# Downloading ICES data ----
+#
+#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
+
+# get_ices_biotadata
+# New version (Jan 2020) of 'get_ices_data' for getting data (biota data only)
+#
+# 1. Using the following web service: http://dome.ices.dk/Webservices/index.aspx
+# 2. Using url2 (which reads the data as UTF-8) insead of package XML
+# 3. Much more effective code (using package purrr)
+#
+# Needs only PARAM to be set
+#
+# For other parameters, see examples below
+# Note: don't know what it wants for "species"
+#   (also tried code from http://ecosystemdata.ices.dk/webservices/EcoSystemWebServices.asmx/getListSpecies )
+# 
+
+# Country codes: https://vocab.ices.dk/?ref=22 
+#   NOTE: downloaded to "00_read_ICES_webservice_functions_countries.csv"
+# Matrix codes: MU, LI, SB etc. 
+# Parameter groups (paramgroup): https://vocab.ices.dk/?ref=78 
+
+# Example:
+# All PYR1OH data from Norway  
+# df1 <- get_ices_biotadata(param = "PYR1OH", country = 58)
+
+
+get_ices_biotadata <- function(param, yearstart = NULL, yearend = yearstart, 
+                               country = "", matrix = "", lab = "", species = "",
+                               paramgroup = ""){
+  if (is.null(yearstart)){
+    yearstart <- ""
+  } else {
+    yearstart <- as.character(yearstart)
+  }
+  if (is.null(yearend)){
+    yearend <- ""
+  } else {
+    yearend <- as.character(yearend)
+  }
+  url_part1 <- "http://dome.ices.dk/Webservices/DOMEWebServices.asmx/selectContaminantsInBiota?"
+  url_part2_txt <- "PARAM=%s&RLABO=%s&ALABO=&yearBegining=%s&yearEnd=%s&MATRX=%s&TAXA=%s&PURPM=&MPROG=&Area=&CNTRY=%s&ParamGroup=%s"
+  url_part2 <- sprintf(url_part2_txt, 
+                       param, lab, yearstart, yearend, matrix, species, country, paramgroup)
+  xml_url <- paste0(url_part1, url_part2)
+  cat("Querying dome.ices.dk using the following URL:\n")
+  cat(xml_url)
+  cat("\n")
+  # OLD (using package XML)
+  # xmlfile <- xmlTreeParse(xml_url, encoding = "UTF-8")
+  # xmltop = xmlRoot(xmlfile)
+  # list_of_vectors <- xmlSApply(xmltop, function(x) xmlSApply(x, xmlValue, encoding = "UTF-8"))
+  # list_of_dataframes <- purrr::map(list_of_vectors, vector_to_dataframe)
+  # NEW (using package xml2)
+  df <- xml_to_dataframe(xml_url)
+  if (!is.null(df)){
+    numeric_vars <- c("MYEAR", "Latitude", "Longitude", "Value", "UNCRT", 
+                      "SUBNO", "BULKID", 
+                      "tblAnalysisID", "tblParamID", "tblBioID", "tblSampleID")
+    for (var in numeric_vars){
+      if(var %in% names(df))
+        df[[var]] <- as.numeric(df[[var]])
+    }
+    df$DATE <- lubridate::dmy(df$DATE)
+  }
+  df
+}
+
+if (FALSE){
+  # debugonce(get_ices_biotadata)
+  X <- get_ices_biotadata("HG", yearstart = 2018, lab = "NIVA")   # 371 lines
+  X <- get_ices_biotadata("HG", yearstart = 2018, country = 58)    # 371 lines (58 = Norway; see https://vocab.ices.dk/?ref=22)
+  X <- get_ices_biotadata("HG", yearstart = 2018)   # 1309 lines (all countries)
+  X <- get_ices_biotadata("HG", yearstart = 2018, lab = "NIVA")   # 371 lines
+  X <- get_ices_biotadata("HG", yearstart = 2018, lab = "NIVA", species = "Gadus morhua")     # doesn't work
+  X <- get_ices_biotadata("HG", yearstart = 2018, lab = "NIVA", species = "gadus morhua")     # doesn't work
+  X <- get_ices_biotadata("HG", yearstart = 2018, lab = "NIVA", species = "Gadus%20morhua")   # doesn't work
+  X <- get_ices_biotadata("HG", yearstart = 2018, lab = "NIVA", species = "5558")  # doesn't work either (code from http://ecosystemdata.ices.dk/webservices/EcoSystemWebServices.asmx/getListSpecies)
+  X <- get_ices_biotadata("HG", yearstart = 2018, lab = "NIVA", matrix = "MU")   # 251 lines
+  X <- get_ices_biotadata("HG", yearstart = 2009, yearend = 2010, lab = "NIVA", matrix = "MU")   # 251 lines
+  # Error handling is not too good:
+  X <- get_ices_biotadata("Bogus", yearstart = 2018, lab = "NIVA")
+  X <- get_ices_biotadata("", paramgroup = "O-MET", yearstart = 2018, lab = "NIVA", matrix = "SB")   # all organic metals (TBT etc)
+}
+
+
+get_ices_sedimentdata <- function(param, yearstart = NULL, yearend = yearstart, 
+                                  country = "", lab = "", 
+                                  paramgroup = ""){
+  if (is.null(yearstart)){
+    yearstart <- ""
+  } else {
+    yearstart <- as.character(yearstart)
+  }
+  if (is.null(yearend)){
+    yearend <- ""
+  } else {
+    yearend <- as.character(yearend)
+  }
+  # url_part1 <- "http://dome.ices.dk/Webservices/DOMEWebServices.asmx/selectContaminantsInBiota?"
+  url_part1 <- "http://dome.ices.dk/Webservices/DOMEWebServices.asmx/selectContaminantsInSediment?"
+  # "PARAM=CD&RLABO=ALUK&ALABO=&yearBegining=&yearEnd=&MATRX=&TAXA=&PURPM=&MPROG=&Area=&CNTRY=&ParamGroup="
+  url_part2_txt <- "PARAM=%s&RLABO=%s&ALABO=&yearBegining=%s&yearEnd=%s&MATRX=&TAXA=&PURPM=&MPROG=&Area=&CNTRY=%s&ParamGroup=%s"
+  url_part2 <- sprintf(url_part2_txt, 
+                       param, lab, yearstart, yearend, country, paramgroup)
+  xml_url <- paste0(url_part1, url_part2)
+  cat("Querying dome.ices.dk using the following URL:\n")
+  cat(xml_url)
+  cat("\n")
+  # OLD (using package XML)
+  # xmlfile <- xmlTreeParse(xml_url, encoding = "UTF-8")
+  # xmltop = xmlRoot(xmlfile)
+  # list_of_vectors <- xmlSApply(xmltop, function(x) xmlSApply(x, xmlValue, encoding = "UTF-8"))
+  # list_of_dataframes <- purrr::map(list_of_vectors, vector_to_dataframe)
+  # NEW (using package xml2)
+  df <- xml_to_dataframe(xml_url)
+  if (!is.null(df)){
+    numeric_vars <- c("MYEAR", "Latitude", "Longitude", "Value", "UNCRT", 
+                      "SUBNO", "BULKID", 
+                      "tblAnalysisID", "tblParamID", "tblBioID", "tblSampleID")
+    for (var in numeric_vars){
+      if(var %in% names(df))
+        df[[var]] <- as.numeric(df[[var]])
+    }
+    df$DATE <- lubridate::dmy(df$DATE)
+  }
+  df
+}
+# Test
+# X <- get_ices_sedimentdata("CD", yearstart = 1996, country = 74)    # 68 lines (74 = UK; see https://vocab.ices.dk/?ref=22)
+
+
+if (FALSE){
+  # debugonce(get_ices_biotadata)
+  X <- get_ices_biotadata("HG", yearstart = 2018, lab = "NIVA")   # 371 lines
+  X <- get_ices_biotadata("HG", yearstart = 2018, country = 58)    # 371 lines (58 = Norway; see https://vocab.ices.dk/?ref=22)
+  X <- get_ices_biotadata("HG", yearstart = 2018)   # 1309 lines (all countries)
+  X <- get_ices_biotadata("HG", yearstart = 2018, lab = "NIVA")   # 371 lines
+  X <- get_ices_biotadata("HG", yearstart = 2018, lab = "NIVA", species = "Gadus morhua")     # doesn't work
+  X <- get_ices_biotadata("HG", yearstart = 2018, lab = "NIVA", species = "gadus morhua")     # doesn't work
+  X <- get_ices_biotadata("HG", yearstart = 2018, lab = "NIVA", species = "Gadus%20morhua")   # doesn't work
+  X <- get_ices_biotadata("HG", yearstart = 2018, lab = "NIVA", species = "5558")  # doesn't work either (code from http://ecosystemdata.ices.dk/webservices/EcoSystemWebServices.asmx/getListSpecies)
+  X <- get_ices_biotadata("HG", yearstart = 2018, lab = "NIVA", matrix = "MU")   # 251 lines
+  X <- get_ices_biotadata("HG", yearstart = 2009, yearend = 2010, lab = "NIVA", matrix = "MU")   # 251 lines
+  # Error handling is not too good:
+  X <- get_ices_biotadata("Bogus", yearstart = 2018, lab = "NIVA")
+  X <- get_ices_biotadata("", paramgroup = "O-MET", yearstart = 2018, lab = "NIVA", matrix = "SB")   # all organic metals (TBT etc)
+}
+
+xmlchild_to_dataframe <- function(i, xmlchildren){
+  grandchildren <- xml2::xml_children(xmlchildren[[i]])
+  df <- data.frame(matrix(xml2::xml_text(grandchildren), nrow = 1), stringsAsFactors = FALSE)
+  colnames(df) <- xml2::xml_name(grandchildren)
+  df
+}
+
+xml_to_dataframe <- function(url){
+  full_xml <- xml2::read_xml(url)
+  children <- xml2::xml_children(full_xml)
+  if (length(children) > 0){
+    list_of_dataframes <- seq_along(children) %>% purrr::map(~xmlchild_to_dataframe(., children))
+    df <- dplyr::bind_rows(list_of_dataframes)
+  } else {
+    cat("No results for this database query\n")
+    df <- NULL
+  }
+  df
 }
 
 
