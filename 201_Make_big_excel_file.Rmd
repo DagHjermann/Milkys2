@@ -1357,6 +1357,56 @@ if ( sum(check$N > 1)){
 
 ```
 
+### Remove duplicates for PAH metabolites  
+* These were "artifially" added in script 110, part 3B  
+* For some reason this causes duplicates in 'make_trend_data_for_excel2' function  
+* We should check why this happens, but below is a quick fix  
+* Also happens for 'second last year', see below  
+```{r}
+
+if (FALSE){
+  
+  # For demonstrating the problem
+
+  # This one is OK - no duplicates:
+  result_long_last %>%
+    filter(PARAM == "PYR1OH" & Basis == "WW") %>%
+    arrange(STATION_CODE) %>%
+    View()
+  
+  # This one is not OK - duplicates, with identical values:
+  trends_for_excel %>%
+    filter(PARAM == "PYR1OH" & Basis == "WW") %>%
+    arrange(STATION_CODE) %>%
+    View()
+}
+
+check_duplicates <- trends_for_excel %>%
+  count(PARAM, LATIN_NAME, TISSUE_NAME, STATION_CODE, Basis) %>%
+  filter(n > 1)
+
+# Check that the problem is only for PAH metabolites  
+check <- mean(unique(check_duplicates$PARAM) == c("BAP3OH", "PA1OH", "PYR1OH"))
+
+cat("trends_for_excel - number of lines before fixing:", nrow(trends_for_excel), "\n")
+
+if (nrow(check_duplicates) == 0){
+  message("No duplicates to fix")
+} else if (check == 1){
+  trends_for_excel <- trends_for_excel %>%
+    ungroup() %>%
+    group_by(PARAM, LATIN_NAME, TISSUE_NAME, STATION_CODE, Basis) %>%
+    summarise(across(.fns = first), .groups = "drop")
+} else {
+  stop("We seem to have a problem for something else than PAH metabolites!")
+}
+
+cat("\n")
+cat("trends_for_excel - number of lines after fixing:", nrow(trends_for_excel), "\n")
+
+```
+
+
 ### Trends for last year - add columns to data
 ```{r}
 
@@ -1434,6 +1484,49 @@ if ( sum(check$N > 1)){
            TISSUE_NAME %in% df1$TISSUE_NAME, PARAM %in% df1$PARAM, Basis %in% df1$Basis)
   check2
 }
+
+```
+
+### Remove duplicates for PAH metabolites  
+* These were "artifially" added in script 110, part 3B  
+* For some reason this causes duplicates in 'make_trend_data_for_excel2' function  
+* We should check why this happens, but below is a quick fix  
+* Also happens for 'last year', see above    
+```{r}
+
+if (FALSE){
+  
+  # For demonstrating the problem
+
+  # This one is not OK - duplicates, with identical values:
+  trends_for_excel_seclast %>%
+    filter(PARAM == "PYR1OH" & Basis == "WW") %>%
+    arrange(STATION_CODE) %>%
+    View()
+}
+
+check_duplicates <- trends_for_excel_seclast %>%
+  count(PARAM, LATIN_NAME, TISSUE_NAME, STATION_CODE, Basis) %>%
+  filter(n > 1)
+
+# Check that the problem is only for PAH metabolites  
+check <- mean(unique(check_duplicates$PARAM) == c("BAP3OH", "PA1OH", "PYR1OH"))
+
+cat("trends_for_excel_seclast - number of lines before fixing:", nrow(trends_for_excel_seclast), "\n")
+
+if (nrow(check_duplicates) == 0){
+  message("No duplicates to fix")
+} else if (check == 1){
+  trends_for_excel_seclast <- trends_for_excel_seclast %>%
+    ungroup() %>%
+    group_by(PARAM, LATIN_NAME, TISSUE_NAME, STATION_CODE, Basis) %>%
+    summarise(across(.fns = first), .groups = "drop")
+} else {
+  stop("We seem to have a problem for something else than PAH metabolites!")
+}
+
+cat("\n")
+cat("trends_for_excel_seclast - number of lines after fixing:", nrow(trends_for_excel_seclast), "\n")
 
 ```
 
