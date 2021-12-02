@@ -252,6 +252,123 @@ if (nrow(data_med_1a) == nrow(data_med_1b)){
 
 ```
 
+
+## 3B. Add extra PAH metabolite data downloaded from ICES  
+
+* Parameters: PYR1OH, BAP3OH, PA1OH, i.e. the unadjusted/unnormalised values 
+    - the 'O' versions, i.e. the adjusted ones, are already there 
+* Existing in the data, but some years (e.g. 2001-2004) lacking  
+* Downloading these data from ICES    
+* NOTE: These data should be added to the Nivabasen! But that is for later  
+
+### Downloading data  
+```{r}
+
+# PYR1OH data for all years
+df1 <- get_ices_biotadata(param = "PYR1OH", country = 58)
+df2 <- get_ices_biotadata(param = "BAP3OH", country = 58)
+df3 <- get_ices_biotadata(param = "PA1OH", country = 58)
+
+nrow(df1); nrow(df2); nrow(df3);
+
+cat("Check PYR1OH data: \n\n")
+xtabs(~STATN + MYEAR, df1)
+
+if (FALSE){
+  df1 %>% 
+    count(STATN, MYEAR) %>%
+    arrange(STATN, MYEAR)
+}
+
+
+```
+
+### Calculate median data set      
+
+```{r}
+
+data_medians_ices_1 <- bind_rows(df1, df2, df3) %>%
+  mutate(STATION_CODE = stringr::str_extract(STATN, "[^[[:blank:]]]+"),
+         TISSUE_NAME = "Galle",
+         UNIT = case_when(
+           MUNIT %in% 'ug/kg' ~ "UG_P_KG",
+           TRUE ~ as.character(""))
+  ) %>%
+  rename(LATIN_NAME = Species,
+         FLAG1 = QFLAG) %>%
+  # Calculate median perstation/year/parameter
+  group_by(MYEAR, STATION_CODE, LATIN_NAME, TISSUE_NAME, PARAM, UNIT) %>%
+  summarise(N = n(),
+            VALUE_WW = median(Value),
+            Over_LOQ = sum(is.na(FLAG1))
+            )
+
+```
+
+### Combine with the rest   
+```{r}
+
+
+if (FALSE){
+  
+  # check variables
+  n1 <- data_med_1 %>% names()
+  n2 <- data_medians_ices_1 %>% names()
+  setdiff(n1, n2)   # names in 1 that are not in 2
+  setdiff(n2, n1)   # names in 2 that are not in 1
+  
+  # check years  
+  data_med_1 %>% 
+    filter(PARAM == "PYR1OH") %>%
+    xtabs(~STATION_CODE + MYEAR, .)
+  data_medians_ices_1 %>% 
+    filter(PARAM == "PYR1OH") %>%
+    xtabs(~STATION_CODE + MYEAR, .)
+
+}
+
+# Add 'data_already_there' variable  
+# If data_already_there = 1, the data have already been added 
+data_medians_ices_2 <- data_medians_ices_1 %>% 
+    left_join(
+       data_med_1 %>% 
+        filter(PARAM %in% c("PYR1OH", "BAP3OH", "PA1OH")) %>%
+        select(PARAM, MYEAR, STATION_CODE) %>%
+        mutate(data_already_there = 1)
+    )
+
+sum(!is.na(data_medians_ices_2$data_already_there))
+mean(!is.na(data_medians_ices_2$data_already_there))
+
+# Data to add
+data_medians_ices_3 <- data_medians_ices_2 %>%
+  filter(is.na(data_already_there))
+
+data_medians_ices_3 %>% 
+  filter(PARAM == "PYR1OH") %>% # View()
+  xtabs(~STATION_CODE + MYEAR, .)
+
+if (FALSE){
+  # for comparison
+  data_medians_ices_2 %>% 
+    filter(PARAM == "PYR1OH") %>%
+    xtabs(~STATION_CODE + MYEAR, .)
+}
+
+```
+
+### Add data  
+```{r}
+
+data_med_1_added_pahmetab <- bind_rows(
+  data_med_1,
+  data_medians_ices_3
+)
+
+```
+
+
+
 ## 4. Add Proref  
 
 ### Add "VDSI/Intersex" to PROREF data 
@@ -268,6 +385,7 @@ proref_updated03 <- bind_rows(
   proref_to_add
 )
 
+
 ```
 
 ### Save    
@@ -281,7 +399,7 @@ write.csv(proref_updated03, "Input_data/Proref_used.csv")
 ### Add PROREF data to medians   
 ```{r}
 
-data_med_2 <- data_med_1 %>%
+data_med_2 <- data_med_1_added_pahmetab %>%
   pivot_longer(
     cols = c(VALUE_WW, VALUE_DW, VALUE_FB, VALUE_WWa, VALUE_DWa, VALUE_FBa), 
     names_to = "Basis", 

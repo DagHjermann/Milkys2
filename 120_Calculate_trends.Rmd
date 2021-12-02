@@ -11,10 +11,11 @@ Note 1: This can be run twice, using different values for last_year (e.g. 2018 a
 to get both "newest" and "last year's" trends  
   
 Note 2: If you want to add or replace a few time series, and don't want to run this for 35 minutes:    
-- go to the "SPECIAL" part below  
-- set add_extra_series to TRUE  
-- modify the filtering of df_series  
-- the "save data" section will then automatically add the new series to the existing time trends  
+- set add_extra_series to TRUE in the first chunk (Section 0)    
+- run everything down to the "SPECIAL" section below (4c)  
+- Adjust section 4c (modify the filtering) until 'df_series' is as you want it to be  
+- Run the rest ('Run all chunks below' command in RStudio)
+- The "save data" section (section 6) will then automatically add the new series to the existing time trends  
 
 ## 0. Will you add/change series in an existing file, or make a new file?   
 ```{r}
@@ -351,8 +352,12 @@ if (add_extra_series){
     df_series <- df_series %>% filter(STATION_CODE %in% "71G" & PARAM == "VDSI/Intersex")
   
   # Example 3: HBCDs in eider duck blood 
-  if (TRUE)
+  if (FALSE)
     df_series <- df_series %>% filter(STATION_CODE %in% "19N" & TISSUE_NAME %in% "Blod" & grepl("HBCD", PARAM))
+
+  # Example 4: Unadjusted ('OH') PAH metabolites 
+  if (TRUE)
+    df_series <- df_series %>% filter(PARAM %in% c("PYR1OH", "BAP3OH", "PA1OH") & Basis %in% "WW")
 
   if (FALSE){
     df_recalculate_trends <- readRDS("Data/120_df_recalculate_trends.rds")
