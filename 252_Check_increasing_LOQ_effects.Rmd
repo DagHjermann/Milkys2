@@ -1,0 +1,453 @@
+---
+title: "252_Check_increasing_LOQ_effects"
+output: 
+  html_document:
+    toc: true
+    toc_float: true  
+    keep_md: true
+---   
+
+Background: 
+* LOQ has increased for PCB (in 2017), silver (2019) and napthalene (2019)   
+* This leads to 'false' increasing trends due to the method of selecting random numbers between LOQ/2 and LOQ   
+* Here we check those trends more carefully  
+
+```{r}
+knitr::opts_chunk$set(echo = FALSE)  
+```
+
+```{r, results='hide', message=FALSE, warning=FALSE, echo = FALSE}
+
+## 1. Libraries and functions  
+
+# install.packages("lubridate")
+
+library(dplyr)
+library(purrr)
+library(lubridate)
+library(readxl)
+library(mgcv)
+library(AICcmodavg)   # AICc()
+library(ggplot2)
+library(safejoin)     # installed from https://github.com/moodymudskipper/safejoin   
+source("001_Add_trends_functions.R")  # Copied from '16_Trend_functions.R' in Milkys_2018
+source("252_Check_increasing_LOQ_effects_functions.R")
+
+#
+# Define a couple of extra functions for shortening code
+#
+get_stats <- function(df){
+  calc_models_one_station2(df, gam = TRUE, log = TRUE)$statistics_for_file
+}
+
+model_from_medians_stat <- function(...)
+  model_from_medians(...)$statistics
+
+```
+
+
+## 1. Read data
+
+### a. Main data  
+Read and reformat the most recent data (by default)  
+```{r, results='hold', echo = FALSE}
+
+# If we have NOT length-adjusted the last year's data:
+filepattern <- "101_data_updated_"         # entire file name except date and extension
+
+# Normally, if we have length-adjusted the last year's data:
+# filepattern <- "109_adjusted_data_"       # entire file name except date and extension
+
+filenumber <- 1                           # filenumber = 1 means "read the newest file"
+
+files <- dir("Data", pattern = filepattern) %>% rev()
+
+data_list <- read_rds_file("Data",
+                     files, 
+                     filenumber = filenumber,   # "1" gets the newest file   
+                     get_date = TRUE, time_since_modified = TRUE)
+
+data_all <- data_list$data
+file_date <- data_list$file_date   
+# 'file_date' will be used in part 10, when we save the resulting file
+
+```
+
+### b. Medians per year   
+Made in script 110  
+```{r, results='hold', echo = FALSE}
+
+filepattern <- "110_mediandata_updated_"         # entire file name except date and extension
+filenumber <- 1                           # filenumber = 1 means "read the newest file"
+
+files <- dir("Data", pattern = filepattern) %>% rev()
+
+data_list <- read_rds_file("Data",
+                     files, 
+                     filenumber = filenumber,   # "1" gets the newest file   
+                     get_date = TRUE, time_since_modified = TRUE)
+
+data_med <- data_list$data%>%
+  rename(Proref_median = Median,
+         Median = Value) 
+  
+cat("File date text:", data_list$file_date, "\n")
+
+```
+
+### c. Time trend results   
+```{r, results='hold', echo = FALSE}
+
+last_year <- 2020
+date_pattern <- "[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]"
+version_pattern <- "run[0-9][0-9]"
+
+pattern_10yr_last <- paste0("^120_result_10yr_", last_year, "_", 
+                            date_pattern, "_", version_pattern, ".rds$")
+pattern_long_last <- paste0("^120_result_long_", last_year, "_", 
+                            date_pattern, "_", version_pattern, ".rds$")
+
+# dir("Data", pattern = pattern_10yr_last)
+# dir("Data", pattern = pattern_10yr_last)
+
+result_10yr <- list_and_read_rds_file(
+  folder = "Data", 
+  pattern = pattern_10yr_last, 
+  check_date = data_list$file_date
+)
+result_long <- list_and_read_rds_file(
+  folder = "Data", 
+  pattern = pattern_long_last, 
+  check_date = data_list$file_date
+)
+
+
+```
+
+## 2. PCB 7  
+
+**Conclusion: all upward short.time (10 year) trends should be marked as dubious, except 26A2 and 30A**     
+
+* Part c indicates that 26A2, 30A and 22A have 'robust' increase     
+* However in part d-f we test each station (using the sum of CB118, CB138 and CB153), and we reject the increase of 22A, leaving us with 26A2 and 30A as having 'robust increasing trend'  
+
+### a. Plots  
+
+```{r, fig.width = 7, fig.height=5}
+
+ser_plot_cb("30A")
+ser_plot_cb("I023")
+ser_plot_cb("22A")
+ser_plot_cb("26A2")
+ser_plot_cb("11X")
+ser_plot_cb_raw("11X")
+
+```
+
+
+```{r, results = 'hide'}
+
+## Short-term trends  
+
+ser_trend("CB_S7", "30A") %>%
+  select(STATION_CODE, PARAM, N, Nplus, Model_used, P_change, Dir_change)
+  
+ser_trend_cb10yr("30A") %>%
+  select(STATION_CODE, PARAM, N, Nplus, Model_used, P_change, Dir_change)
+  
+ser_trend_cb10yr("I023") %>%
+  select(STATION_CODE, PARAM, N, Nplus, Model_used, P_change, Dir_change)
+
+ser_trend_cb10yr("22A") %>%
+  select(STATION_CODE, PARAM, N, Nplus, Model_used, P_change, Dir_change)
+
+```
+
+### b. Stations given with cb7 increase
+```{r}
+
+trends_sum <- result_10yr %>%
+  filter(Basis == "WW" & PARAM %in% "CB_S7" & STATION_CODE %in% stations_bluemussel) %>%
+    mutate(STATION_CODE = factor(STATION_CODE, levels = stations_bluemussel)) %>%
+    arrange(as.numeric(STATION_CODE))
+
+stations_with_cb7_increase <- trends_sum %>%
+  filter(Dir_change == "Up") %>%
+  pull(STATION_CODE) %>%
+  forcats::fct_drop()
+
+cat("Stations with PCB7 short-term increase (original): \n")
+stations_with_cb7_increase
+
+```
+
+### c. Stations with 'robust' cb7 increase   
+* For each CB parameter, define 'robust' increase as 'increase when there are at least 2 years among 2017-2020 that has >50% over LOQ'     
+* For each station, define 'robust' cb7 increase as having at least 2 parameters with robust increase   
+* 26A2, 30A and 22A are selected as 'robust' increase     
+* However in the next parts, we reject the increase of 22A, leaving us with 26A2 and 30A  
+```{r}
+
+df_50perc_overLOQ <- data_med %>%
+  filter(Basis == "WW" & PARAM %in% cb7 & STATION_CODE %in%   stations_with_cb7_increase & MYEAR >= 2017) %>%
+  mutate(Prop_over_LOQ = Over_LOQ/N_median) %>%
+  group_by(STATION_CODE, PARAM) %>%
+  summarise(Yrs_50perc_overLOQ = sum(Prop_over_LOQ >= 0.5), # no. years with at least 50% over LOQ
+            .groups = "drop")   
+
+# ser_trend_cb10yr(stations_with_cb7_increase) %>% count(STATION_CODE)
+# df_50perc_overLOQ %>% count(STATION_CODE)
+
+check_cb10yr <- ser_trend_cb10yr(stations_with_cb7_increase) %>%
+  select(STATION_CODE, PARAM, N, Nplus, Model_used, P_change, Dir_change) %>%
+  left_join(df_50perc_overLOQ, by = c("STATION_CODE", "PARAM")) %>%
+  mutate(Dir_change2 = case_when(
+    Yrs_50perc_overLOQ >= 2 ~ Dir_change,   # Dir_change 'counts' if >=2 years with at least 50% over LOQ 
+    Yrs_50perc_overLOQ < 2 ~ "")
+    )
+
+check_cb10yr_summ <- check_cb10yr %>%
+  group_by(STATION_CODE) %>%
+  summarise(
+    N_param_increase = sum(Dir_change2 == "Up"),
+    Params_increasing = paste(PARAM[Dir_change2 == "Up"], collapse = "; ")) %>%
+  mutate(`Robust increase` = case_when(
+    N_param_increase >= 2 ~ "Yes",
+    N_param_increase < 2 ~ "No")
+    ) %>%
+  arrange(desc(N_param_increase))
+
+check_cb10yr_summ                
+  
+```
+
+### d. 26A2  
+```{r}
+
+station <- "26A2"
+
+tab <- data_med %>%
+  filter(Basis == "WW" & PARAM %in% cb7 & STATION_CODE %in% station & MYEAR >= 2009) %>%
+  mutate(Prop_over_LOQ = Over_LOQ/N_median) %>%
+  filter(Prop_over_LOQ >= 0.5) %>%
+  xtabs(~MYEAR + PARAM, .)
+
+tab
+
+tab2 <- apply(tab[,c("CB118", "CB138", "CB153")], 1, sum) 
+pick_years <- tab2[tab2 == 3] %>% names() %>% as.numeric()
+
+data_select <- data_med %>%
+  filter(Basis == "WW" &
+           PARAM %in% c("CB118", "CB138", "CB153") & 
+           STATION_CODE %in% station & 
+           MYEAR %in% pick_years)
+
+data_to_test <- data_select %>%
+  group_by(STATION_CODE, LATIN_NAME, TISSUE_NAME, MYEAR, 
+           N_median, Over_LOQ, Basis) %>%
+  summarise(Median = sum(Median)) %>%
+  mutate(PARAM = "CB118_138_153")
+
+years_short <- seq(max(pick_years)-9, max(pick_years))
+
+# debugonce(model_from_medians)
+model_from_medians("CB118_138_153", "Mytilus edulis", "Whole soft body", 
+                   station, "WW", years_short, data_to_test, 
+                   plotname = "window", ggplot = TRUE)$statistics %>%
+  select(Nplus, p_linear:Status)
+
+```
+
+
+
+### e. 30A  
+```{r}
+
+station <- "30A"
+
+tab <- data_med %>%
+  filter(Basis == "WW" & PARAM %in% cb7 & STATION_CODE %in% station & MYEAR >= 2009) %>%
+  mutate(Prop_over_LOQ = Over_LOQ/N_median) %>%
+  filter(Prop_over_LOQ >= 0.5) %>%
+  xtabs(~MYEAR + PARAM, .)
+
+tab
+
+tab2 <- apply(tab[,c("CB118", "CB138", "CB153")], 1, sum) 
+pick_years <- tab2[tab2 == 3] %>% names() %>% as.numeric()
+
+data_select <- data_med %>%
+  filter(Basis == "WW" &
+           PARAM %in% c("CB118", "CB138", "CB153") & 
+           STATION_CODE %in% station & 
+           MYEAR %in% pick_years)
+
+data_to_test <- data_select %>%
+  group_by(STATION_CODE, LATIN_NAME, TISSUE_NAME, MYEAR, 
+           N_median, Over_LOQ, Basis) %>%
+  summarise(Median = sum(Median)) %>%
+  mutate(PARAM = "CB118_138_153")
+
+years_short <- seq(max(pick_years)-9, max(pick_years))
+
+# debugonce(model_from_medians)
+model_from_medians("CB118_138_153", "Mytilus edulis", "Whole soft body", 
+                   station, "WW", years_short, data_to_test, 
+                   plotname = "window", ggplot = TRUE)$statistics %>%
+  select(Nplus, p_linear:Status)
+
+```
+
+
+
+### f. 22A  
+```{r}
+
+station <- "22A"
+
+tab <- data_med %>%
+  filter(Basis == "WW" & PARAM %in% cb7 & STATION_CODE %in% station & MYEAR >= 2009) %>%
+  mutate(Prop_over_LOQ = Over_LOQ/N_median) %>%
+  filter(Prop_over_LOQ >= 0.5) %>%
+  xtabs(~MYEAR + PARAM, .)
+
+tab
+
+tab2 <- apply(tab[,c("CB118", "CB138", "CB153")], 1, sum) 
+pick_years <- tab2[tab2 == 3] %>% names() %>% as.numeric()
+
+data_select <- data_med %>%
+  filter(Basis == "WW" &
+           PARAM %in% c("CB118", "CB138", "CB153") & 
+           STATION_CODE %in% station & 
+           MYEAR %in% pick_years)
+
+data_to_test <- data_select %>%
+  group_by(STATION_CODE, LATIN_NAME, TISSUE_NAME, MYEAR, 
+           N_median, Over_LOQ, Basis) %>%
+  summarise(Median = sum(Median)) %>%
+  mutate(PARAM = "CB118_138_153")
+
+years_short <- seq(max(pick_years)-9, max(pick_years))
+
+# debugonce(model_from_medians)
+model_from_medians("CB118_138_153", "Mytilus edulis", "Whole soft body", 
+                   station, "WW", years_short, data_to_test, 
+                   plotname = "window", ggplot = TRUE)$statistics %>%
+  select(Nplus, p_linear:Status)
+
+```
+
+
+
+
+## 3. Silver  
+
+**Conclusion: all upward short-time (10 year) trends (there is only one) should be marked as dubious**  
+
+### a. Plots  
+
+```{r, fig.width = 7, fig.height=4}
+
+ser_plot_med("AG", "31A")
+ser_plot_med("AG", "30A")
+ser_plot_med("AG", "22A")
+ser_plot_med("AG", "26A2")
+ser_plot_med("AG", "11X")
+
+```
+
+
+### b. Stations given with increase
+```{r}
+
+param <- "AG"
+
+trends <- result_10yr %>%
+  filter(Basis == "WW" & PARAM %in% param & STATION_CODE %in% stations_bluemussel) %>%
+    mutate(STATION_CODE = factor(STATION_CODE, levels = stations_bluemussel)) %>%
+    arrange(as.numeric(STATION_CODE))
+
+stations_with_increase <- trends %>%
+  filter(Dir_change == "Up") %>%
+  pull(STATION_CODE) %>%
+  forcats::fct_drop()
+
+cat("Stations with", param, "short-term increase (original): \n")
+stations_with_increase
+
+```
+
+### c. Test stations with 'robust' increase   
+* Regression for 30A for 2009-2018      
+```{r}
+
+years_short <- (2018-9):2018
+
+# debugonce(model_from_medians)
+model_from_medians("AG", "Mytilus edulis", "Whole soft body", 
+                   "31A", "WW", years_short, data_med, plotname = "window", ggplot = TRUE)$statistics %>%
+  select(Nplus, p_linear:Status)
+
+```
+
+
+## 4. Naphtalene    
+
+**Conclusion: no upward trends given - no need to change anything**  
+
+* Obvious from the plots that the 2019 data are not very useful and if there had been a trend, it would have been dubious  
+
+
+### a. Plots  
+
+```{r, fig.width = 7, fig.height=4}
+
+ser_plot_med("NAP", "30A")
+ser_plot_med("NAP", "98A2")
+ser_plot_med("NAP", "I023")
+
+```
+
+
+### b. Stations given with short-term increase   
+```{r}
+
+param <- "NAP"
+
+trends <- result_10yr %>%
+  filter(Basis == "WW" & PARAM %in% param & STATION_CODE %in% stations_bluemussel) %>%
+    mutate(STATION_CODE = factor(STATION_CODE, levels = stations_bluemussel)) %>%
+    arrange(as.numeric(STATION_CODE))
+
+stations_with_increase <- trends %>%
+  filter(Dir_change == "Up") %>%
+  pull(STATION_CODE) %>%
+  forcats::fct_drop()
+
+cat("Stations with", param, "short-term increase (original): \n")
+stations_with_increase
+
+```
+
+
+### c. Stations given with long-term increase   
+```{r}
+
+param <- "NAP"
+
+trends <- result_long %>%
+  filter(Basis == "WW" & PARAM %in% param & STATION_CODE %in% stations_bluemussel) %>%
+    mutate(STATION_CODE = factor(STATION_CODE, levels = stations_bluemussel)) %>%
+    arrange(as.numeric(STATION_CODE))
+
+stations_with_increase <- trends %>%
+  filter(Dir_change == "Up") %>%
+  pull(STATION_CODE) %>%
+  forcats::fct_drop()
+
+cat("Stations with", param, "long-term increase (original): \n")
+stations_with_increase
+
+```
