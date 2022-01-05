@@ -964,8 +964,9 @@ n2[!n2 %in% n1]
 
 data_updated <- bind_rows(
   data_legacy, 
-  dat_new6 %>% select(-SAMPLE_NO, REPNO, FLAG2, APPROVED, REMARK_sample, REMARK_chem, 
-                      STATION_ID, SAMPLE_ID, METHOD_ID, VALUE_ID, SPECIES_ID, TISSUE_ID, TAXONOMY_CODE_ID)
+  dat_new6 %>% select(-c(SAMPLE_NO, REPNO, FLAG2, APPROVED, REMARK_sample, REMARK_chem, 
+                      STATION_ID, SAMPLE_ID, METHOD_ID, VALUE_ID,  
+                      TISSUE_ID, TAXONOMY_CODE_ID))
   )
 
 cat("Data combined. \n\n")
