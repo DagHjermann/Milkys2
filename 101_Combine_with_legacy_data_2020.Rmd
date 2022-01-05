@@ -123,7 +123,26 @@ dat_new1 %>%
   summarise(Mean_value = mean(VALUE), N = n(), .groups = "drop")
 
 ```
-### a4. Check PAH metabolites in cod bile      
+### a4. SPECIAL CASE FOR 2020 (hopefully): adjusted metabolites have been mislabeled  
+- Could rename them, here we just remove them
+```{r}
+
+#
+# SPECIAL CASE FOR 2020 (hopefully): adjusted metabolites have been mislabeled
+#
+if (selected_year == 2020){
+  
+  sel <- dat_new1$NAME %in% c("PA1OH", "PYR1OH", "BAP3OH")
+  
+  dat_new1 <- dat_new1[!sel,]
+  cat("dat_new1:", sum(sel), "records with mislabeled adjusted PAHs removed \n")   
+  
+}
+
+```
+
+
+### a5. Check PAH metabolites in cod bile      
 - Unadjusted metabolites: "1-OH-fenantren", "1-OH-pyren", "3-OH-benzo[a]pyren" (used in 2020) are the same as PA1OH, PYR1OH, BAP3OH  
 - Adjusted metabolites (unadjusted divided by ABS 380): PA1O, PYR1O, BAP3O  
 ```{r} 
@@ -151,7 +170,7 @@ tab3b <- apply(tab3a > 0, 2, sum)
 
 if (any(tab1b > 1) | any(tab2b > 1) | any(tab3b > 1)){
   
-  stop("There are synonymous parameters for the same station! \nEach station should have either PYR1OH or 1-OH-pyren, not both. Same for the other pairs. \n\nMost likely explanation: adjusted 1-OH-pyren (PYR1O) has been mislabeled PYR1OH.  \n\nCheck tab1, tab2a, and tab3a.") 
+  stop("There are synonymous parameters for the same station! (section 2-a5) \nEach station should have either PYR1OH or 1-OH-pyren, not both. Same for the other pairs. \n\nMost likely explanation: adjusted 1-OH-pyren (PYR1O) has been mislabeled PYR1OH.  \n\nCheck tab1, tab2a, and tab3a. (Section 2-a5)") 
   
 }
 
@@ -162,7 +181,7 @@ dat_new1 %>%
   facet_wrap(vars(NAME), scales = "free_x")
 
 ```
-### a5. Remove adjusted PAH metabolites (PYR1O, PA1O, BAP3O)  
+### a6. Remove adjusted PAH metabolites (PYR1O, PA1O, BAP3O)  
 ```{r}
 
 sel <- dat_new1$NAME %in% c("PA1O", "PYR1O", "BAP3O")
@@ -170,31 +189,19 @@ sel <- dat_new1$NAME %in% c("PA1O", "PYR1O", "BAP3O")
 dat_new1 <- dat_new1[!sel,]
 cat("dat_new1:", sum(sel), "records with adjusted PAHs removed\n")   
 
-#
-# SPECIAL CASE FOR 2020 (hopefully): adjusted metabolites have been mislabeled
-#
-if (selected_year == 2020){
-  
-  sel <- dat_new1$NAME %in% c("PA1OH", "PYR1OH", "BAP3OH")
-  
-  dat_new1 <- dat_new1[!sel,]
-  cat("dat_new1:", sum(sel), "records with mislabeled adjusted PAHs removed \n")   
-  
-}
-
 ```
-### a6. Check for duplicates  
+### a7. Check for duplicates  
 ```{r}
 
 
-df_duplicates <- dat_new1 %>%
-  add_count(STATION_CODE, LATIN_NAME, TISSUE_NAME, SAMPLE_DATE, SAMPLE_NO, NAME) %>%
+df_duplicates <- dat_new2 %>%
+  add_count(STATION_CODE, LATIN_NAME, TISSUE_NAME, SAMPLE_DATE, SAMPLE_NO, PARAM) %>%
   filter(n > 1)
 
 if (nrow(df_duplicates) > 0){
-  stop("Duplicates in the data! Check 'df_duplicates'. \n")
-  xtabs(~NAME, df_duplicates) %>% print()
+  xtabs(~PARAM, df_duplicates) %>% print()
   xtabs(~STATION_CODE, df_duplicates) %>% print()
+  stop("Duplicates in the data! Check 'df_duplicates'. (section 2-a7) \n")
 } else {
   cat("No duplicates found in the data. \n")
 }
@@ -230,7 +237,7 @@ dat_new2 <- dat_new1 %>%
 
 ```
 
-### b. Fix parameter names     
+### b1. Fix parameter names     
 
 PAH metabolites in bile:  
 - "1-OH-fenantren", "1-OH-pyren", "3-OH-benzo[a]pyren" (used in 2020) are the same as PA1OH, PYR1OH, BAP3OH 
@@ -287,7 +294,7 @@ df_duplicates <- dat_new2 %>%
 if (nrow(df_duplicates) > 0){
   xtabs(~PARAM, df_duplicates) %>% print()
   xtabs(~STATION_CODE, df_duplicates) %>% print()
-  stop("Duplicates in the data! Check 'df_duplicates'. \n")
+  stop("Duplicates in the data! Check 'df_duplicates'. (section 3-b2) \n")
 } else {
   cat("No duplicates found in the data. \n")
 }
@@ -699,7 +706,7 @@ check_unit2 <- check_unit %>%
 
 if (nrow(check_unit2) > 0){
   stop(nrow(check_unit2), 
-       " param/units have forbidden units and no preferred unit! Fix excel table 'preferred_units'.")
+       " param/units have forbidden units and no preferred unit! Fix excel table 'preferred_units'.  (Section 4d)")
 } else {
   message("Test 1 ok (no param/units have have forbidden units combined with no preferred unit)")
 }
@@ -722,7 +729,7 @@ check_unit4b <- check_unit4a %>%
 
 if (nrow(check_unit4b) > 0){
   stop(nrow(check_unit4b), 
-       " UNIT - preferred unit pairs lack conversion factor! Fix excel table 'preferred_units'.")
+       " UNIT - preferred unit pairs lack conversion factor! Fix excel table 'preferred_units'. (Section 4d)")
 } else {
   message("Test 3 ok (All pairs of UNIT - preferred unit have conversion factor)")
 }
@@ -1004,11 +1011,11 @@ if (FALSE){
 ```{r}
 
 df_duplicates <- dat_new6 %>%
-  count(STATION_CODE, LATIN_NAME, TISSUE_NAME, MYEAR, SAMPLE_NO2, PARAM) %>%
+  add_count(STATION_CODE, LATIN_NAME, TISSUE_NAME, MYEAR, SAMPLE_NO2, PARAM) %>%
   filter(n > 1)
 
 if (nrow(df_duplicates) > 0){
-  stop("Duplicates in the data! Check 'df_duplicates'. \n")
+  stop("Duplicates in the data! Check 'df_duplicates'. (Section 8) \n")
   xtabs(~PARAM, df_duplicates) %>% print()
   xtabs(~MYEAR, df_duplicates) %>% print()
 } else {
@@ -1101,7 +1108,7 @@ if (FALSE){
 
 ## 10. Corrections  
 
-### Check and change/remove duplicates with different PARAM values  
+### a. Check and change/remove duplicates with different PARAM values  
 
 #### PAH metabolites in bile  
 
@@ -1134,7 +1141,7 @@ check2 <- check1 %>%
   filter(is.na(BAP3OH))
 
 if (nrow(check2) > 0){
-  stop("NOTE: Some records have 3-OH-benzo[a]pyren but not BAP3OH. Do not delete all. \n")
+  stop("NOTE: Some records have 3-OH-benzo[a]pyren but not BAP3OH. Do not delete all. (Section 10a) \n")
 }
 
 # Check difference between duplicate values   
@@ -1143,7 +1150,7 @@ check3 <- check1 %>%
   mutate(Difference_percent = (BAP3OH - `3-OH-benzo[a]pyren`)/BAP3OH*100)
 
 if (sum(abs(check3$Difference_percent) > 5) > 0){
-  stop("NOTE: The difference between 3-OH-benzo[a]pyren and BAP3OH exceeds 5%. Check before deletion. \n")
+  stop("NOTE: The difference between 3-OH-benzo[a]pyren and BAP3OH exceeds 5%. Check before deletion. (Section 10a) \n")
 }
 
 ```
@@ -1188,7 +1195,7 @@ check2 <- check1 %>%
   filter(is.na(PYR1OH))
 
 if (nrow(check2) > 0){
-  stop("NOTE: Some records have 1-OH-pyren but not PYR1OH. Do not delete all. \n")
+  stop("NOTE: Some records have 1-OH-pyren but not PYR1OH. Do not delete all. (Section 10a) \n")
 }
 
 # Check difference between duplicate values   
@@ -1197,7 +1204,7 @@ check3 <- check1 %>%
   mutate(Difference_percent = (PYR1OH - `1-OH-pyren`)/PYR1OH*100)
 
 if (sum(abs(check3$Difference_percent) > 5) > 0){
-  stop("NOTE: The difference between 1-OH-pyren and PYR1OH exceeds 5%. Check before deletion. \n")
+  stop("NOTE: The difference between 1-OH-pyren and PYR1OH exceeds 5%. Check before deletion. (Section 10a) \n")
 }
 
 
@@ -1211,7 +1218,7 @@ data_updated <- data_updated %>%
                       
 ```
 
-### Tins 
+### b. Tins 
 
 #### Checks  
 ```{r}
@@ -1415,7 +1422,7 @@ for (pair in pairs){
 
 ```
 
-### Change some other parameter names  
+### c. Change some other parameter names  
 
 #### QCB
 ```{r}
@@ -1491,20 +1498,25 @@ if (FALSE){
 ```
 
 
-### Check all data for duplicates   
+### d. Final checks
+
+#### Check all data for duplicates   
 (11-12 seconds)
 ```{r}
 
-if (!exists("df_duplicates_all")){    # recalculate only if it doesn't exist
-  df_duplicates_all <- data_updated2 %>%
-    add_count(STATION_CODE, LATIN_NAME, TISSUE_NAME, MYEAR, SAMPLE_NO2, PARAM) %>%
-    filter(n > 1)
-}
+# if (!exists("df_duplicates_all")){    # recalculate only if it doesn't exist (for testing)
+
+df_duplicates_all <- data_updated2 %>%
+  add_count(STATION_CODE, LATIN_NAME, TISSUE_NAME, MYEAR, SAMPLE_NO2, PARAM) %>%
+  filter(n > 1)
+
+#}
 
 if (nrow(df_duplicates_all) > 0){
-  stop("Duplicates in the data! Check 'df_duplicates_all'. \n")
   xtabs(~PARAM, df_duplicates_all) %>% print()
   xtabs(~MYEAR, df_duplicates_all) %>% print()
+  xtabs(~MYEAR + PARAM, df_duplicates_all) %>% print()
+  stop("Duplicates in the data! Check 'df_duplicates_all'. (Section 10d)\n")
 } else {
   cat("No duplicates found in the data. \n")
 }
@@ -1531,7 +1543,7 @@ df %>%
 
 ```
 
-### Adding data for VDSI in 36G in 2019 
+### e. Adding data for VDSI in 36G in 2019 
 ```{r}
 
 message("Number of rows: ", nrow(data_updated2))
@@ -1561,7 +1573,7 @@ message("Number of rows: ", nrow(data_updated2))
 
 ```
 
-### Fix EROD and PROTV tissue  
+### f. Fix EROD and PROTV tissue  
 ```{r}
 
 if (FALSE){
