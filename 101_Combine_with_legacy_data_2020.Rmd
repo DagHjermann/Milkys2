@@ -123,7 +123,29 @@ dat_new1 %>%
   summarise(Mean_value = mean(VALUE), N = n(), .groups = "drop")
 
 ```
+### a4. Check PAH metabolites in cod bile      
+- Unadjusted metabolites: "1-OH-fenantren", "1-OH-pyren", "3-OH-benzo[a]pyren" (used in 2020) are the same as PA1OH, PYR1OH, BAP3OH  
+- Adjusted metabolites (unadjusted divided by ABS 380): PA1O, PYR1O, BAP3O  
+```{r} 
 
+params <- c("PA1OH", "PYR1OH", "BAP3OH", 
+          "PA1O", "PYR1O", "BAP3O",
+          "1-OH-fenantren", "1-OH-pyren", "3-OH-benzo[a]pyren")
+
+dat_new1 %>%
+  filter(NAME %in% params) %>% # View()
+  xtabs(~NAME + STATION_CODE, .)  
+
+```
+### a5. Remove adjusted PAH metabolites (PYR1O, PA1O, BAP3O)  
+```{r}
+
+sel <- dat_new1$NAME %in% c("PA1O", "PYR1O", "BAP3O")
+
+dat_new1 <- dat_new1[!sel,]
+cat("dat_new1:", sum(sel), "records with adjusted PAHs \n")  
+
+```
 
 ### b. Read legacy data  
 The data go up to 2017 and combines data from the Access database (up to 2015) and NIVAbasen (2016-17). 
