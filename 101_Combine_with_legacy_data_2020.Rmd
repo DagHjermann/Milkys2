@@ -132,9 +132,34 @@ params <- c("PA1OH", "PYR1OH", "BAP3OH",
           "PA1O", "PYR1O", "BAP3O",
           "1-OH-fenantren", "1-OH-pyren", "3-OH-benzo[a]pyren")
 
+#
+# Check whether we have synonymous parameters for the same station
+#
+dat_check <- dat_new1 %>%
+  filter(NAME %in% params) %>%
+  mutate(NAME = factor(NAME, levels = params))
+# View(dat_check)
+
+tab <- xtabs(~NAME + STATION_CODE, dat_check)
+
+tab1a <- tab[rownames(tab) %in% c("PYR1OH", "1-OH-pyren"),]
+tab1b <- apply(tab1a > 0, 2, sum)
+tab2a <- tab[rownames(tab) %in% c("PA1OH", "1-OH-fenantren"),]
+tab2b <- apply(tab2a > 0, 2, sum)
+tab3a <- tab[rownames(tab) %in% c("BAP3OH", "3-OH-benzo[a]pyren"),]
+tab3b <- apply(tab3a > 0, 2, sum)
+
+if (any(tab1b > 1) | any(tab2b > 1) | any(tab3b > 1)){
+  
+  stop("There are synonymous parameters for the same station! \nEach station should have either PYR1OH or 1-OH-pyren, not both. Same for the other pairs. \n\nMost likely explanation: adjusted 1-OH-pyren (PYR1O) has been mislabeled PYR1OH.  \n\nCheck tab1, tab2a, and tab3a.") 
+  
+}
+
 dat_new1 %>%
-  filter(NAME %in% params) %>% # View()
-  xtabs(~NAME + STATION_CODE, .)  
+  filter(NAME %in% params) %>%
+  ggplot(aes(x = VALUE)) +
+  geom_histogram() +
+  facet_wrap(vars(NAME), scales = "free_x")
 
 ```
 ### a5. Remove adjusted PAH metabolites (PYR1O, PA1O, BAP3O)  
@@ -143,7 +168,36 @@ dat_new1 %>%
 sel <- dat_new1$NAME %in% c("PA1O", "PYR1O", "BAP3O")
 
 dat_new1 <- dat_new1[!sel,]
-cat("dat_new1:", sum(sel), "records with adjusted PAHs \n")  
+cat("dat_new1:", sum(sel), "records with adjusted PAHs removed\n")   
+
+#
+# SPECIAL CASE FOR 2020 (hopefully): adjusted metabolites have been mislabeled
+#
+if (selected_year == 2020){
+  
+  sel <- dat_new1$NAME %in% c("PA1OH", "PYR1OH", "BAP3OH")
+  
+  dat_new1 <- dat_new1[!sel,]
+  cat("dat_new1:", sum(sel), "records with mislabeled adjusted PAHs removed \n")   
+  
+}
+
+```
+### a6. Check for duplicates  
+```{r}
+
+
+df_duplicates <- dat_new1 %>%
+  add_count(STATION_CODE, LATIN_NAME, TISSUE_NAME, SAMPLE_DATE, SAMPLE_NO, NAME) %>%
+  filter(n > 1)
+
+if (nrow(df_duplicates) > 0){
+  stop("Duplicates in the data! Check 'df_duplicates'. \n")
+  xtabs(~NAME, df_duplicates) %>% print()
+  xtabs(~STATION_CODE, df_duplicates) %>% print()
+} else {
+  cat("No duplicates found in the data. \n")
+}
 
 ```
 
@@ -220,6 +274,23 @@ cat("dat_new2: PARAM = DRYWT% set for", sum(sel), "records \n")
 sel <- dat_new2$NAME %in% "Fettinnhold"  
 dat_new2$PARAM[sel] <- "Fett"
 cat("dat_new2: PARAM = Fett set for", sum(sel), "records \n")  
+
+```
+
+### b2. Check for duplicates  
+```{r}
+
+df_duplicates <- dat_new2 %>%
+  add_count(STATION_CODE, LATIN_NAME, TISSUE_NAME, MYEAR, SAMPLE_NO2, PARAM) %>%
+  filter(n > 1)
+
+if (nrow(df_duplicates) > 0){
+  xtabs(~PARAM, df_duplicates) %>% print()
+  xtabs(~STATION_CODE, df_duplicates) %>% print()
+  stop("Duplicates in the data! Check 'df_duplicates'. \n")
+} else {
+  cat("No duplicates found in the data. \n")
+}
 
 ```
 
@@ -937,7 +1008,7 @@ df_duplicates <- dat_new6 %>%
   filter(n > 1)
 
 if (nrow(df_duplicates) > 0){
-  cat("WARNING! Duplicates in the data! Check 'df_duplicates'. \n")
+  stop("Duplicates in the data! Check 'df_duplicates'. \n")
   xtabs(~PARAM, df_duplicates) %>% print()
   xtabs(~MYEAR, df_duplicates) %>% print()
 } else {
@@ -1426,12 +1497,12 @@ if (FALSE){
 
 if (!exists("df_duplicates_all")){    # recalculate only if it doesn't exist
   df_duplicates_all <- data_updated2 %>%
-    count(STATION_CODE, LATIN_NAME, TISSUE_NAME, MYEAR, SAMPLE_NO2, PARAM) %>%
+    add_count(STATION_CODE, LATIN_NAME, TISSUE_NAME, MYEAR, SAMPLE_NO2, PARAM) %>%
     filter(n > 1)
 }
 
 if (nrow(df_duplicates_all) > 0){
-  cat("WARNING! Duplicates in the data! Check 'df_duplicates_all'. \n")
+  stop("Duplicates in the data! Check 'df_duplicates_all'. \n")
   xtabs(~PARAM, df_duplicates_all) %>% print()
   xtabs(~MYEAR, df_duplicates_all) %>% print()
 } else {
