@@ -208,7 +208,7 @@ if (nrow(df_duplicates) > 0){
 
 ```
 
-### b. Read legacy data  
+### b1. Read legacy data  
 The data go up to 2017 and combines data from the Access database (up to 2015) and NIVAbasen (2016-17). 
 ```{r}
 
@@ -222,6 +222,26 @@ data_legacy <- readRDS("Data/101_data_updated_2020-08-05.rds") %>%
     PARAM %in% "TTBTIN" ~ "TTBT",
     TRUE ~ PARAM)
   )
+
+```
+
+### b2. Check legacy data for duplicates   
+(11-12 seconds)
+```{r}
+
+df_duplicates <- data_legacy %>%
+  add_count(STATION_CODE, LATIN_NAME, TISSUE_NAME, MYEAR, SAMPLE_NO2, PARAM) %>%
+  filter(n > 1)
+
+if (nrow(df_duplicates) > 0){
+  xtabs(~PARAM, df_duplicates) %>% print()
+  xtabs(~MYEAR, df_duplicates) %>% print()
+  xtabs(~MYEAR + PARAM, df_duplicates) %>% print()
+  stop("Duplicates in the data! Check 'df_duplicates'. (Section 10d)\n")
+} else {
+  cat("No duplicates found in the data. \n")
+}
+  
 
 ```
 
@@ -1583,10 +1603,10 @@ if (FALSE){
   xtabs(~MYEAR + TISSUE_NAME, check)
 }
 
-sel <- with(data_updated2, PARAM %in% c("EROD","PROTV") & !TISSUE_NAME %in% "Lever")
+sel <- with(data_updated2, PARAM %in% "EROD" & !TISSUE_NAME %in% "Lever")
 data_updated2$TISSUE_NAME[sel] <- "Lever"
 
-message("TISSUE_NAME set to 'Lever' for ", sum(sel), " EROD and PROTV records")
+message("TISSUE_NAME set to 'Lever' for ", sum(sel), " EROD records")
 
 ```
 
@@ -1621,8 +1641,32 @@ cat("\n", filename)
 # data when you read it.
 
 ```
+### a. Final check for duplicates   
+(11-12 seconds)
+```{r}
 
-### Save data from 2015 until now in Excel format
+# if (!exists("df_duplicates_all")){    # recalculate only if it doesn't exist (for testing)
+
+df_duplicates <- data_updated2 %>%
+  add_count(STATION_CODE, LATIN_NAME, TISSUE_NAME, MYEAR, SAMPLE_NO2, PARAM) %>%
+  filter(n > 1)
+
+#}
+
+if (nrow(df_duplicates) > 0){
+  xtabs(~PARAM, df_duplicates) %>% print()
+  xtabs(~MYEAR, df_duplicates) %>% print()
+  xtabs(~MYEAR + PARAM, df_duplicates) %>% print()
+  stop("Duplicates in the data! Check 'df_duplicates'. (Section 10d)\n")
+} else {
+  cat("No duplicates found in the data. \n")
+}
+  
+
+```
+
+
+### b. Save data from 2015 until now in Excel format
 Change TISSUE_NAME before output:   
 - Muskel til Muscle,  
 - Lever til Liver,   
@@ -1653,7 +1697,7 @@ xtabs(~MYEAR + TISSUE_NAME, data_updated2_for_excel)
 ```
 
 
-### Check TISSUE_NAME  
+### c. Check TISSUE_NAME  
 ```{r}
 
 cat("Table of TISSUE_NAME \n-------------------------------------------\n")
@@ -1668,7 +1712,7 @@ if (FALSE){
 
 ```
 
-### Also save ´dat_new6´   
+### d. Also save ´dat_new6´   
 Contains date, for instance  
 ```{r}
 

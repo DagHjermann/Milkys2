@@ -472,6 +472,13 @@ df_ddi_minmax <- data_all_long %>%
   ) %>%
   ungroup()
 
+# If you get an error with the following message:
+#   "Error: y is not unique on STATION_CODE, LATIN_NAME, TISSUE_NAME, MYEAR, SAMPLE_NO2, UNIT and PARAM "
+# run the following
+# check <- data_all_flag %>%
+#   add_count(STATION_CODE, LATIN_NAME, TISSUE_NAME, MYEAR, SAMPLE_NO2, UNIT, PARAM) %>%
+#   filter(n > 1)
+
 #
 # Create D.d.i
 #

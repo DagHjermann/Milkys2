@@ -39,7 +39,7 @@ selected_year <- 2020
 
 ## 2. Data
 
-### a. Main data  
+### a1. Main data  
 Read and reformat the most recent data (by default)  
 ```{r}
 
@@ -61,6 +61,30 @@ data_all <- readRDS(paste0("Data/", filename))
 # We save the date part of the text (e.g., '2020-04-23')
 # This will be used in part 10, when we save the resulting file
 file_date <- substr(filename, 18, 27)    # pick out the part of the text from character no. 17 to no. 26
+
+```
+
+### a2. Check all data for duplicates   
+(11-12 seconds)
+```{r}
+
+# if (!exists("df_duplicates_all")){    # recalculate only if it doesn't exist (for testing)
+
+df_duplicates_all <- data_all %>%
+  add_count(STATION_CODE, LATIN_NAME, TISSUE_NAME, MYEAR, SAMPLE_NO2, PARAM) %>%
+  filter(n > 1)
+
+#}
+
+if (nrow(df_duplicates_all) > 0){
+  xtabs(~PARAM, df_duplicates_all) %>% print()
+  xtabs(~MYEAR, df_duplicates_all) %>% print()
+  xtabs(~MYEAR + PARAM, df_duplicates_all) %>% print()
+  stop("Duplicates in the data! Check 'df_duplicates_all'. (Section 10d)\n")
+} else {
+  cat("No duplicates found in the data. \n")
+}
+  
 
 ```
 
@@ -811,7 +835,7 @@ check <- data_all2 %>%
   filter(n > 1)
 
 if (nrow(check) > 0){
-  cat("WARNING!", nrow(check), "records in the data seem to be duplicates. Use 'View(check)' to see them. \n")
+  stop(nrow(check), "records in the data seem to be duplicates. Use 'View(check)' to see them. \n")
 } else {
   cat("No duplicates found in the data. \n")
 }
