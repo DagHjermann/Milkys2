@@ -257,11 +257,99 @@ plot_medians_and_trends(c("OCS", "Gadus morhua", "Lever", "30B",  "WW"),
 type <- "line"
 folder <- "Figures_401/Til 2020-rapporten"
 ```
+# flere plots til MILKYS-rapport for 2020
+```{r}
+X <- plot_medians_and_trends(c("AG", "Mytilus edulis", "Whole soft body", "31A",  "WW"), 
+                           eqs_type = type, xlim = c(2006, 2020), eqs_x = 2006, ylim = c(0, 0.065))
+X
+#save_trendplot(X, folder)
+
+# X <- plot_medians_and_trends(c("CD", "Mytilus edulis", "Whole soft body", "11X",  "WW"), 
+#                             eqs_type = type, xlim = c(1991, 2020), eqs_x = 1991, ylim = c(0, 0.45))
+# save_trendplot(X, folder)
+
+ # X <- plot_medians_and_trends(c("CB_S7", "Mytilus edulis", "Whole soft body", "10A2",  "WW"),
+ #                              eqs_type = type, xlim = c(1991, 2020), eqs_x = 1991, ylim = c(0, 6.0))
+ # save_trendplot(X, folder)
+ # 
+ # X <- plot_medians_and_trends(c("CB_S7", "Mytilus edulis", "Whole soft body", "11X",  "WW"),
+ #                              eqs_type = type, xlim = c(1991, 2020), eqs_x = 1991, ylim = c(0, 6.0))
+ # save_trendplot(X, folder)
+ # 
+ # X <- plot_medians_and_trends(c("CB_S7", "Mytilus edulis", "Whole soft body", "22A",  "WW"),
+ #                              eqs_type = type, xlim = c(1983, 2020), eqs_x = 1983, ylim = c(0, 6.0))
+ # save_trendplot(X, folder)
+# 
+# X <- plot_medians_and_trends(c("CB_S7", "Mytilus edulis", "Whole soft body", "26A2",  "WW"),
+#                              eqs_type = type, xlim = c(2009, 2020), eqs_x = 2009, ylim = c(0, 6.0))
+# save_trendplot(X, folder)
+# 
+ #X <- plot_medians_and_trends(c("CB_S7", "Mytilus edulis", "Whole soft body", "56A",  "WW"),
+            #                  eqs_type = type, xlim = c(1980, 2020), eqs_x = 1980, ylim = c(0, 6.0))
+ 
+ #save_trendplot(X, folder)
+# 
+ # X <- plot_medians_and_trends(c("CB_S7", "Mytilus edulis", "Whole soft body", "57A",  "WW"),
+ #                              eqs_type = type, xlim = c(1980, 2020), eqs_x = 1980, ylim = c(0, 6.0))
+ # 
+ # save_trendplot(X, folder)
+# 
+ # X <- plot_medians_and_trends(c("CB_S7", "Mytilus edulis", "Whole soft body", "64A",  "WW"),
+ #                              eqs_type = type, xlim = c(2009, 2020), eqs_x = 2009, ylim = c(0, 6.0))
+ # 
+ # save_trendplot(X, folder)
+# 
+ # X <- plot_medians_and_trends(c("CB_S7", "Mytilus edulis", "Whole soft body", "65A",  "WW"), 
+ #                              eqs_type = type, xlim = c(1980, 2020), eqs_x = 1980, ylim = c(0, 6.0))
+ # save_trendplot(X, folder)
+# 
+ # X <- plot_medians_and_trends(c("CB_S7", "Mytilus edulis", "Whole soft body", "76A2",  "WW"), 
+ #                              eqs_type = type, xlim = c(2011, 2020), eqs_x = 2011, ylim = c(0, 6.0))
+ # save_trendplot(X, folder)
+# 
+ # X <- plot_medians_and_trends(c("CB_S7", "Mytilus edulis", "Whole soft body", "98A2",  "WW"), 
+ #                              eqs_type = type, xlim = c(1991, 2020), eqs_x = 1991, ylim = c(0, 6.0))
+ # save_trendplot(X, folder)
+ # 
+ # X <- plot_medians_and_trends(c("CB_S7", "Mytilus edulis", "Whole soft body", "I023",  "WW"), 
+ #                              eqs_type = type, xlim = c(1987, 2020), eqs_x = 1987, ylim = c(0, 6.0))
+ # save_trendplot(X, folder)
+
+```
+# ekstra plots til SIX: 15B: PYR1OH, Pb, Cd og Zn 
+```{r}
+# X <- plot_medians_and_trends(c("CD", "Gadus morhua", "Lever", "15B",  "WW"), 
+#                             eqs_type = type, xlim = c(1984, 2020), eqs_x = 1984, ylim = c(0, 0.045))
+# save_trendplot(X, folder)
+
+#X <- plot_medians_and_trends(c("PB", "Gadus morhua", "Lever", "15B",  "WW"), 
+                 #           eqs_type = type, xlim = c(1984, 2020), eqs_x = 1984, ylim = c(0, 0.15))
+#save_trendplot(X, folder)
+
+#X <- plot_medians_and_trends(c("ZN", "Gadus morhua", "Lever", "15B",  "WW"), 
+     #                       eqs_type = type, xlim = c(1984, 2020), eqs_x = 1984, ylim = c(0, 60))
+#save_trendplot(X, folder)
+
+#X <- plot_medians_and_trends(c("PYR", "Mytilus edulis", "Whole soft body", "30A", "WW"), 
+ #                        eqs_type = type, xlim = c(1990, 2020), eqs_x = 1990, ylim = c(0, 50))
+#X
+
+X <- plot_medians_and_trends(c("PYR1OH", "Gadus morhua", "Galle", "15B", "WW"),
+                            eqs_type = type, xlim = c(1998, 2020), eqs_x = 1998, ylim = c(0, 1100))
+# Add OSPAR BAC
+#X$gg + 
+#  geom_hline(yintercept = 21, color = "red2", linetype = "dashed", size = 1) +
+ # annotate("text", x = 1999.5, y = 70, label = "OSPAR BAC", color = "red", size = 5)
+X
+#save_trendplot(X, folder)
+
+```
 # flere plots til MILKYS-rapport for 2020. ELU. VDSI
 ```{r}
-#X <- plot_medians_and_trends(c("VDSI", "Nucella lapillus", "Whole soft body", "36G",  "WW"), 
- #                          eqs_type = type, xlim = c(1988, 2020), eqs_x = 1988, ylim = c(0, 5.0))
-#save_trendplot(X, folder)
+X <- plot_medians_and_trends(c("VDSI", "Nucella lapillus", "Whole soft body", "36G",  "WW"), 
+                           eqs_type = type, xlim = c(1987, 2020), eqs_x = 1987, ylim = c(0, 5.0))
+
+save_trendplot(X, folder)
 
 #X <- plot_medians_and_trends(c("EROD", "Gadus morhua", "Lever", "30B",  "WW"), 
  #                            eqs_type = type, xlim = c(1993, 2020), eqs_x = 1993, ylim = c(0, 300.0))

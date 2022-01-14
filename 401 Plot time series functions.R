@@ -274,7 +274,7 @@ get_plotdata <- function(param, species, tissue = NULL, station, basis = "WW",
 get_unit_text <- function(unit, basis, param){
   # Unit
   if (param %in% "VDSI"){                                  # special treatment of VDSI
-    unit_print <- "VDS average"    
+    unit_print <- "VDSI"                                    #endret fra "VDS average"
   } else if (basis %in% "WW" & unit %in% "MG_P_KG"){       # if it is something else than VDSI, we check basis and unit
     unit_print <- "mg/kg (w.w.)"
   } else if (basis %in% "WW" & unit %in% "UG_P_KG"){
@@ -419,6 +419,7 @@ plot_medians_color <- function(X, proref,
     theme_bw() +
     theme(axis.title.y = element_text(size = rel(1.2)))
 
+  
   # EQS line (if applicable)
   if (!is.null(eqs) & eqs_type != "background")
     gg <- gg +
@@ -449,8 +450,11 @@ plot_medians_color <- function(X, proref,
       }
     }
   
-    gg
+    gg 
     
+    #+    #ELU: mekker BAC-linje
+    #geom_hline(yintercept = 21, color = "red2", linetype = "dashed", size = 1) +
+    #  annotate("text", x = 1999.5, y = 70, label = "OSPAR BAC", color = "red", size = 5)
   }
 
 # debugonce(test)
@@ -540,10 +544,11 @@ add_trend <- function(gg,
       TRUE ~ 1
     )
     gg <- gg +
-      annotate("text", x = x_pos[1], y = y_pos, label = txt[1], hjust = 0.5, vjust = 0.5, size = fontsize*relsize[1]) +
-      annotate("text", x = x_pos[2], y = y_pos, label = "/", hjust = 0.5, vjust = 0.5, size = round(fontsize*0.8, 0)) +
-      annotate("text", x = x_pos[3], y = y_pos, label = txt[2], hjust = 0.5, vjust = 0.5, size = fontsize*relsize[2])
-  
+      annotate("text", x = x_pos[1], y = y_pos, label = txt[1], hjust = 0.5, vjust = 0.5, size = fontsize*relsize[1]) +  #original1
+      annotate("text", x = x_pos[2], y = y_pos, label = "/", hjust = 0.5, vjust = 0.5, size = round(fontsize*0.8, 0)) +  #original2
+      annotate("text", x = x_pos[3], y = y_pos, label = txt[2], hjust = 0.5, vjust = 0.5, size = fontsize*relsize[2])    #original3
+      
+      #annotate("text", x = x_pos[3], y = y_pos, label = "\u2191/(\u2191)\u2605", hjust = 0.5, vjust = 0.5, size = round(fontsize*0.8, 0)) #mekketest
     }
   gg
 }
