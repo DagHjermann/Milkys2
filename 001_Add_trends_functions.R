@@ -60,6 +60,55 @@ source("002_Utility_functions.R")
 
 
 #
+# get_trend_parameters  
+#
+# Get trend parameters that we will perform trend analysis on 
+#
+# Put in a separate function file since this function is used by both scripts 118 and 120
+#
+get_trend_parameters <- function(file_path = "Input_data/Lookup table - substance groups.xlsx"){
+  
+  df_substancegroups <- read_excel(file_path)
+  
+  sel <- with(df_substancegroups,
+              !is.na(Parameter_group) &
+                Parameter_group != "Dioxins" & 
+                (Parameter_group != "TBT (tinnorganisk)" | PARAM == "TBT")
+  )
+  pars <- df_substancegroups$PARAM[sel]
+  
+  # Add sum variables and VDSI/Intersex
+  pars <- c(pars, c("CB_S7", "BDE6S", "PFAS", "HBCDD", "BDESS", "VDSI/Intersex", "TPTIN"))
+  
+  pars
+
+  }
+
+
+#
+# get_trend_series  
+#
+# Extract data series (one row per series) from data of medians,
+#   according to specific rules
+# series_lasting_to: the time series must last at least until his year
+#
+# Put in a separate function file since this function is used by both scripts 118 and 120
+#
+get_trend_series <- function(data, parameters, series_lasting_to, min_no_years = 4){
+  
+  data %>%
+    filter(!is.na(Median) & PARAM %in% parameters) %>%
+    filter(Basis %in% c("WW","WWa","DW","DWa","FB","FBa")) %>%
+    group_by(STATION_CODE, LATIN_NAME, TISSUE_NAME, PARAM, UNIT, Basis) %>%
+    summarise(No_of_years = n(), 
+              Last_year = max(MYEAR),
+              .groups = "drop") %>% 
+    filter(No_of_years >= min_no_years & Last_year >= series_lasting_to)
+  
+}
+
+
+#
 # pick_data_yr
 # Picks data from year1 to year2
 # Changes variable name sto 'x' and 'y'

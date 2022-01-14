@@ -30,10 +30,14 @@ Note 2: If you want to add or replace a few time series, and don't want to run t
 #   - the "save data" section will then automatically add the new series to the existing time trends  
 #     If those time trends already exists, they will be replaced by the new time trends
 
-add_extra_series <- FALSE
-# add_extra_series <- TRUE
+# add_extra_series <- FALSE
+add_extra_series <- TRUE
 
 last_year <- 2020
+
+series_lastyear <- 2018   # The series must last at least until this year    
+                          # Series without data in any of the three last years will be excluded
+
 
 ```
   
@@ -89,32 +93,14 @@ cat("File date text:", data_list$file_date, "\n")
 ```
 
 
-### b. Substance groups
+### b. Select substances to perform trend analysis on  
+
 ```{r}
 
-df_substancegroups <- read_excel("Input_data/Lookup table - substance groups.xlsx")
+pars <- get_trend_parameters()
 
 ```
 
-### c. Select substances   
-```{r}
-sel <- with(df_substancegroups,
-            !is.na(Parameter_group) &
-              Parameter_group != "Dioxins" & 
-              (Parameter_group != "TBT (tinnorganisk)" | PARAM == "TBT")
-)
-pars <- df_substancegroups$PARAM[sel]
-
-#
-# Check if we have all sum variables (we don't) 
-#
-# c("CB_S7", "BDE6S", "P_S", "PFAS", "HBCDD", "BDESS", "PAH16", "KPAH", "DDTEP") %in% pars
-# [1] FALSE FALSE  TRUE FALSE FALSE FALSE  TRUE  TRUE
-
-# Add sum variables and VDSI/Intersex
-pars <- c(pars, c("CB_S7", "BDE6S", "PFAS", "HBCDD", "BDESS", "VDSI/Intersex", "TPTIN"))
-
-```
 
 ## 3. Testing 'model_from_medians'   
   
@@ -185,31 +171,16 @@ if (FALSE){
 
 ## 4. Prepare analysis  
   
-### a. Prepare **df_series**  
+### a. Prepare **df_series_all**  
 df_series contains one line for each series we want to analyse with time series analysis  
 ```{r}
 
-df <- data_med %>%
-  filter(!is.na(Median) & PARAM %in% pars)
+df_series_all <- get_trend_series(data_med, 
+                                  parameters = pars,
+                                  series_lasting_to = series_lastyear)
 
-# xtabs(~Basis, df)
+cat("Number of series:", nrow(df_series_all), "\n")
 
-# filter(!is.na(Median) & PARAM %in% pars & Basis %in% c("WW"))
-
-## Make df_series ----
-#  Based on df
-
-lastyear <- 2018   # The series must last at least until this year    
-                   # Series without data in any of the three last years will be excluded
-
-df_series <- df %>%
-  filter(Basis %in% c("WW","WWa","DW","DWa","FB","FBa")) %>%
-  group_by(STATION_CODE, LATIN_NAME, TISSUE_NAME, PARAM, UNIT, Basis) %>%
-  summarise(No_of_years = n(), Last_year = max(MYEAR),
-            .groups = "drop") %>% 
-  filter(No_of_years >= 4 & Last_year >= lastyear)
-
-cat("Number of series:", nrow(df_series), "\n")
 
 ```
 
@@ -226,13 +197,13 @@ model_from_medians_stat_s <- safely(model_from_medians_stat)
 
 # Pick some random series - 15 random and some non-random
 df_series_random <- bind_rows(
-  df_series %>% sample_n(15),        # 15 random series
-  df_series %>% filter(PARAM == "HG" & STATION_CODE == "30B" & TISSUE_NAME == "Muskel" & Basis %in% c("WW","WWa")),
-  df_series %>% filter(PARAM == "CB_S7" & STATION_CODE == "30B" & TISSUE_NAME == "Lever" & Basis %in% c("WW","WWa")),
-  df_series %>% filter(PARAM == "CB_S7" & STATION_CODE == "I133" & Basis %in% c("WW"))
+  df_series_all %>% sample_n(15),        # 15 random series
+  df_series_all %>% filter(PARAM == "HG" & STATION_CODE == "30B" & TISSUE_NAME == "Muskel" & Basis %in% c("WW","WWa")),
+  df_series_all %>% filter(PARAM == "CB_S7" & STATION_CODE == "30B" & TISSUE_NAME == "Lever" & Basis %in% c("WW","WWa")),
+  df_series_all %>% filter(PARAM == "CB_S7" & STATION_CODE == "I133" & Basis %in% c("WW"))
 )
 
-# df_series_random <- df_series %>%
+# df_series_random <- df_series_all %>%
 #   filter(STATION_CODE == "36F")
   
 # Turn into list
@@ -327,51 +298,66 @@ For the ordinary case (where you want to analyse all time series), i.e., when ad
 #o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
 
 
-# Change the filter below in order to calculate trends for just selected series
-# I.e., we shorten df_series drastically
 #
-# FILTERING EXAMPLES - insert where it says "Filter df_series" (repce everything between "start" and "end")
+# Alternative 1: add_extra_series = FALSE (all series will be analysed)  
+#
+if (!add_extra_series){
+  
+  df_series <- df_series_all
+  
+}
 
-# 
-if (add_extra_series){
+#
+# Alternative 2: Automatically define 'df_series' based on running script 118
+#
+if (add_extra_series & exists("data_series_reanalyse")){
+  
+  df_series <- df_series_all %>%
+    semi_join(data_series_reanalyse,
+              by = c("STATION_CODE", "LATIN_NAME", "TISSUE_NAME", "PARAM"))
+  
+}
+
+#
+# Manually define 'df_series'
+#
+# Change the filter below in order to calculate trends for just selected series
+# FILTERING EXAMPLES - insert where it says "Filter df_series_all" 
+#    (replacee everything between "start" and "end")
+#
+if (add_extra_series & !exists("data_series_reanalyse")){
   
   cat("Original number of time series:\n")
-  cat("  ", nrow(df_series), "\n")
+  cat("  ", nrow(df_series_all), "\n")
   
   #
-  # Filter df_series START
+  # Filter df_series_all START
   # 
   
   # Example 1: we want to add 'TPTIN' to existing trends (for all stations)  
-  # We filter df_series to get 'TPTIN' only:
+  # We filter df_series_all to get 'TPTIN' only:
   if (FALSE)
-    df_series <- df_series %>% filter(STATION_CODE %in% "C/N") 
+    df_series <- df_series_all %>% filter(STATION_CODE %in% "C/N") 
 
   # Example 2: VDSI/intersex
   if (FALSE)
-    df_series <- df_series %>% filter(STATION_CODE %in% "71G" & PARAM == "VDSI/Intersex")
+    df_series <- df_series_all %>% filter(STATION_CODE %in% "71G" & PARAM == "VDSI/Intersex")
   
   # Example 3: HBCDs in eider duck blood 
   if (FALSE)
-    df_series <- df_series %>% filter(STATION_CODE %in% "19N" & TISSUE_NAME %in% "Blod" & grepl("HBCD", PARAM))
+    df_series <- df_series_all %>% filter(STATION_CODE %in% "19N" & TISSUE_NAME %in% "Blod" & grepl("HBCD", PARAM))
 
   # Example 4: Unadjusted ('OH') PAH metabolites 
-  if (TRUE)
-    df_series <- df_series %>% filter(PARAM %in% c("PYR1OH", "BAP3OH", "PA1OH") & Basis %in% "WW")
+  if (FALSE)
+    df_series <- df_series_all %>% filter(PARAM %in% c("PYR1OH", "BAP3OH", "PA1OH") & Basis %in% "WW")
 
-  if (FALSE){
-    df_recalculate_trends <- readRDS("Data/120_df_recalculate_trends.rds")
-    df_series <- df_series %>%
-      inner_join(df_recalculate_trends %>% select(-Basis) %>% mutate(Recalc = TRUE)) %>%
-      filter(!is.na(Recalc))
-  }
-  
   if (FALSE){
     df_series <- df_retest_2017 # %>% filter(Basis %in% c("WW", "WWa"))
   }
   #
-  # Filter df_series END
+  # Filter df_series_all END
   # 
+  
   if (FALSE){
     df_series <- df_comb4   # defined in "120_Calculate_trend_error"  
   }
@@ -384,7 +370,7 @@ if (add_extra_series){
 
 ```
 
-## 5. Analyse all time series    
+## 5. Analyse time series    
   
 ### a. Prepare 'args' list    
 ```{r}
@@ -577,7 +563,7 @@ cat("in folder 'Data'")
 ```
 
 
-### d. Saving if add_extra_series = FALSE
+### d. add_extra_series = FALSE
 ```{r, results = 'hold'}
 
 cat("'add_extra_series' set to", add_extra_series, "\n")
@@ -600,7 +586,13 @@ if (!add_extra_series){   # this is the normal case - we have calculated trends 
 
 ```
 
-### e. Saving if add_extra_series = TRUE (1)
+### e. add_extra_series = TRUE (1)   
+
+* Reads old trend results ('_original')    
+* From the old trends, removes all series that have been reanalysed  
+* Add reanalysed data to the old trends  
+* See Results in 'result_10yr_new' and 'result_long_new'  
+
 ```{r}
 # the case where we will update case - we have calculated trends for all series
 if (add_extra_series){  
@@ -645,8 +637,12 @@ if (add_extra_series){
   cat("result_10yr_new: ", nrow(result_10yr_new), "rows \n")
   cat("result_long_new: ", nrow(result_long_new), "rows \n")
 }
+
 ```
-### f. Saving if add_extra_series = TRUE (2)
+### f. add_extra_series = TRUE (2)   
+
+Check that series are uniquely defined  
+
 ```{r}
 
 # the case where we will update case - we have calculated trends for all series
@@ -668,8 +664,50 @@ if (add_extra_series){
 }
 
 ``` 
+### g. add_extra_series = TRUE (3)   
 
-### g. Saving if add_extra_series = TRUE (3)
+If script 118 has been used, remove series     
+
+```{r}
+
+# the case where we will update case - we have calculated trends for all series
+if (add_extra_series & exists("data_series_remove")){  
+  
+  if (nrow(data_series_remove) == 0){
+    cat("No series to remove\n")
+  } else {
+    cat(nrow(data_series_remove), "series to remove\n")
+  }
+  
+  if (nrow(data_series_remove)>0){
+    
+    #
+    # Long
+    #
+    cat("Original length of 'result_long_new':", nrow(result_long_new), "\n")
+    
+    result_long_new <- result_long_new %>%
+      anti_join(data_series_remove, by = c("STATION_CODE", "PARAM", "LATIN_NAME", "TISSUE_NAME"))
+    
+    cat("New length of 'result_long_new':", nrow(result_long_new), "\n")
+
+    #
+    # 10 year
+    #
+    cat("Original length of 'result_10yr_new':", nrow(result_10yr_new), "\n")
+
+    result_10yr_new <- result_10yr_new %>%
+      anti_join(data_series_remove, by = c("STATION_CODE", "PARAM", "LATIN_NAME", "TISSUE_NAME"))
+    
+    cat("New length of 'result_10yr_new':", nrow(result_10yr_new), "\n")
+    
+  }
+  
+}
+
+``` 
+
+### h. add_extra_series = TRUE (4)
 ```{r}
 
 if (add_extra_series){  

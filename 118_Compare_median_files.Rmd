@@ -1,0 +1,286 @@
+---
+title: "118_Compare_files"
+output: 
+  html_document:
+    keep_md: true
+    
+---
+
+Comparing median files of different versions    
+  
+The purpose of this script is to cut down on time used to run time trend analyses (script 120) 
+by (re)analysing only the data series that have changed since the last run.  
+  
+The script
+* reads both the newest median data as well as the median data used in the last run of script 120 (by default, the second last median data); see section 'Read files: Medians (3a)'. Both of these data files are the result of script 110.  
+* filters the data, so as to only keep data that are used in time series analysis  (3c)
+* finds data series that are either new or longer (4a), or that have changes in the data (4b)  
+  
+This script produces `data_series_reanalyse`and `data_series_remove` which must be **in memory** for script 120 to work.  
+
+
+## 1. Set 'series_lastyear'   
+```{r}
+
+series_lastyear <- 2018   # The series must last at least until this year    
+                   # Series without data in any of the three last years will be excluded
+
+```
+
+
+## 2. Packages   
+```{r}
+
+library(dplyr)
+library(ggplot2)
+library(readxl)
+source("001_Add_trends_functions.R")  # 
+
+# Tried this:
+# library(compareDF )
+# - not needed. And it's quite slow.
+
+```
+
+
+
+## 3. Read files  
+
+### a. Medians  
+
+* The two versions we want to compare  
+
+```{r, collapse=TRUE}
+
+filepattern <- "110_mediandata_updated_"         # entire file name except date and extension
+
+files <- dir("Data", pattern = filepattern) %>% rev()
+
+#
+# The following file should be the last existing file with medians (product of script 110):
+#
+# (typically filenumber = 1, i.e. the last file made)
+#
+filenumber <- 1 
+data_list <- read_rds_file("Data",
+                     files, 
+                     filenumber = filenumber,   # "1" gets the newest file   
+                     get_date = TRUE, time_since_modified = TRUE)
+data_med_all_1 <- data_list$data%>%
+  rename(Proref_median = Median,
+         Median = Value) 
+
+
+#
+# The following file should be the file that the last trends (product of script 120) 
+#    are based on. I.e., the file used the last time you ran script 120.
+#
+# (typically filenumber = 2, i.e. the second last file made)
+#
+filenumber <- 2 
+data_list <- read_rds_file("Data",
+                     files, 
+                     filenumber = filenumber,   # "1" gets the newest file   
+                     get_date = TRUE, time_since_modified = TRUE)
+data_med_all_2 <- data_list$data%>%
+  rename(Proref_median = Median,
+         Median = Value) 
+
+```
+### b. Data series   
+
+* One row per parameter 
+
+```{r}
+
+data_series1 <- get_trend_series(data_med_all_1, 
+                                 parameters = get_trend_parameters(), 
+                                 series_lasting_to = series_lastyear)
+
+data_series2 <- get_trend_series(data_med_all_2, 
+                                 parameters = get_trend_parameters(), 
+                                 series_lasting_to = series_lastyear)  
+
+
+```
+
+### c. Filter median data  
+
+* Keep only data found in 'data_series1', 'data_series2'
+* I.e., keep only data in series long enough to be time series, and lasting until 'lastyear'    
+
+```{r}
+
+data_med1 <- data_med_all_1 %>% 
+    semi_join(data_series1,
+              by = c("STATION_CODE", "LATIN_NAME", "TISSUE_NAME", "PARAM"))
+
+data_med2 <- data_med_all_2 %>% 
+    semi_join(data_series2,
+              by = c("STATION_CODE", "LATIN_NAME", "TISSUE_NAME", "PARAM"))
+
+
+```
+
+
+
+## 4. Compare data  
+
+* Note: `data_med2`is the oldest one  
+
+### a. Find data series of different length  
+
+* Includes data series that are added or removed  
+
+```{r}
+
+data_series_length <- full_join(
+  data_med1 %>%
+    count(STATION_CODE, LATIN_NAME, TISSUE_NAME, PARAM, name = "n1"), 
+  data_med2 %>%
+    count(STATION_CODE, LATIN_NAME, TISSUE_NAME, PARAM, name = "n2"),
+  by = c("STATION_CODE", "LATIN_NAME", "TISSUE_NAME", "PARAM")
+) %>%
+  mutate(
+    n1 = ifelse(is.na(n1), 0, n1),
+    n2 = ifelse(is.na(n2), 0, n2)
+  )
+
+data_series_different_length <- data_series_length %>%
+  filter(n1 != n2)
+
+data_series_different_length
+
+```
+
+###  b. Compare data series of same length   
+
+#### Prepare data sets for comparison  
+
+* Pick only data series of same length  
+* Order rows identically  
+
+```{r}
+
+data_med1_samelength <- data_med1 %>%
+  left_join(data_series_different_length, 
+            by = c( "STATION_CODE", "LATIN_NAME", "TISSUE_NAME", "PARAM")) %>%
+  filter(is.na(n1)) %>%
+  select(STATION_CODE, LATIN_NAME, TISSUE_NAME, PARAM, MYEAR, Median, N_median, Over_LOQ) %>%
+  arrange(STATION_CODE, LATIN_NAME, TISSUE_NAME, PARAM, MYEAR)
+
+data_med2_samelength <- data_med2 %>%
+  left_join(data_series_different_length, 
+            by = c( "STATION_CODE", "LATIN_NAME", "TISSUE_NAME", "PARAM")) %>%
+  filter(is.na(n1)) %>%
+  select(STATION_CODE, LATIN_NAME, TISSUE_NAME, PARAM, MYEAR, Median, N_median, Over_LOQ) %>%
+  arrange(STATION_CODE, LATIN_NAME, TISSUE_NAME, PARAM, MYEAR)
+
+# Check length
+if (nrow(data_med1_samelength) != nrow(data_med2_samelength) ){
+  stop("Data should have the same number of rows, but don't !")
+}
+
+#
+# Make sure all key variables (STATION_CODE, LATIN_NAME, etc.) are the same
+#
+
+# For column 1-5, check taht all valeus are identical
+key_variables_differences <- 1:5 %>% 
+  purrr::map_int(
+    ~sum(data_med1_samelength[,.x] != data_med2_samelength[,.x])
+  )
+
+if (sum(key_variables_differences) > 0){
+  cat("Variable number", 
+      which(key_variables_differences > 0), "are different")
+  stop("Some of the key variables are different!")
+} else {
+  cat("All key variables are equal")
+}
+
+```
+
+
+#### Combine series   
+
+```{r}
+
+# Combine using bind_cols
+data_med_compare <- bind_cols(
+  data_med1_samelength %>%
+    select(STATION_CODE, LATIN_NAME, TISSUE_NAME, PARAM, MYEAR, Median, N_median, Over_LOQ) %>%
+    rename(Median_1 = Median, N_median_1 = N_median, Over_LOQ_1 = Over_LOQ),
+  data_med2_samelength %>%
+    select(Median, N_median, Over_LOQ) %>%
+    rename(Median_2 = Median, N_median_2 = N_median, Over_LOQ_2 = Over_LOQ)
+) %>%
+  select(STATION_CODE, LATIN_NAME, TISSUE_NAME, PARAM, MYEAR, 
+         Median_1, Median_2, N_median_1, N_median_2, Over_LOQ_1, Over_LOQ_2)
+
+sel_a1 <- with(data_med_compare, abs(Median_1 - Median_2) > 0.0001 & !is.na(Median_1) & !is.na(Median_2))
+sel_a2 <- with(data_med_compare, !is.na(Median_1) & is.na(Median_2))
+sel_a3 <- with(data_med_compare, is.na(Median_1) & !is.na(Median_2))
+sel_b <- with(data_med_compare, N_median_1 != N_median_2)
+sel_c <- with(data_med_compare, Over_LOQ_1 != Over_LOQ_2 )
+
+cat("Different 'Median'", sum(sel_a1), "\n")
+cat("Data for Median_1, lacks Median_2:", sum(sel_a2), "\n")
+cat("Data for Median_1, lacks Median_1:", sum(sel_a3), "\n")
+cat("Different 'N_median'", sum(sel_b), "\n")
+cat("Different 'Over_LOQ'", sum(sel_c), "\n")
+
+sel_combined <- sel_a1 | sel_a2 | sel_a3 | sel_b | sel_c
+cat("Difference in one or more columns: ", sum(sel_combined), "\n")
+
+```
+
+#### Get data series with different values  
+```{r}
+
+# View differences
+if (FALSE)
+  View(data_med_compare[sel_combined,])
+
+data_series_different_values <- data_med_compare[sel_combined,] %>%
+  distinct(STATION_CODE, LATIN_NAME, TISSUE_NAME, PARAM) 
+
+xtabs(~PARAM + STATION_CODE, data_series_different_values)
+xtabs(~MYEAR + STATION_CODE, data_med_compare[sel_combined,])
+
+
+```
+
+### c. Final series to use in script 120    
+
+#### Data series to reanalyse  
+
+```{r}
+
+data_series_reanalyse <- bind_rows(
+  data_series_different_length %>% filter(n1 > 0),
+  data_series_different_values)
+
+```
+
+#### Data series to remove  
+
+```{r}
+
+data_series_remove <- data_series_different_length %>% filter(n1 == 0)
+
+```
+
+
+## 5. Remove biggish data from memory  
+```{r}
+
+if (FALSE)
+  rm(data_list,
+     data_med_all_1, data_med_all_2,
+     data_med1, data_med2,
+     data_med1_samelength, data_med2_samelength,
+     data_med_compare)
+
+```
+
