@@ -420,3 +420,73 @@ for (i in seq_len(nrow(df_series))){
 
 
 
+## .
+## -- VEFSNFJORDEN --  
+## .
+
+
+
+
+## 1a. Read median data    
+From script 02 in 'NIVA-R-examples' project  
+```{r}
+
+data_med_temp <- readRDS(
+  "Input_data/510_Industry_data/data_chem_industry_vefsnfjord_med_2021.rds") %>%
+  rename(N_median = N)
+  
+# names(data_med_temp)
+unique(data_med_temp$Basis)   
+
+
+```
+
+### Plots for check/overview  
+```{r}
+
+ggplot(data_med_temp, aes(MYEAR, PARAM, fill = Median)) +
+  geom_tile() +
+  scale_fill_distiller(type = "div")
+
+ggplot(data_med_temp %>% filter(PARAM == "BAP"), aes(MYEAR, Median)) +
+  geom_point() +
+  facet_wrap("STATION_CODE")
+
+
+```
+
+## .
+## -- HØYANGSFJORDEN --  
+## .
+
+
+
+
+
+## 1a. Read median data    
+From script 02 in 'NIVA-R-examples' project  
+```{r}
+
+data_med_temp <- readRDS(
+  "Input_data/510_Industry_data/data_chem_industry_høyangsfjord_med_2021.rds") %>%
+  rename(N_median = N)
+  
+# names(data_med_temp)
+unique(data_med_temp$Basis)   
+
+
+```
+
+### Plots for check/overview  
+```{r}
+
+ggplot(data_med_temp, aes(MYEAR, PARAM, fill = Median)) +
+  geom_tile() +
+  scale_fill_distiller(type = "div")
+
+ggplot(data_med_temp %>% filter(PARAM == "BAP"), aes(MYEAR, Median)) +
+  geom_point() +
+  facet_wrap("STATION_CODE")
+
+
+```
