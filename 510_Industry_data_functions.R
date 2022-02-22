@@ -289,7 +289,7 @@ plot_medians_and_trends2 <- function(ser, x_rel = 0.8, y_rel = 0.9, xlim = NULL,
   if (is.null(xlim))
     xlim <- c(start_yr, end_yr) - 2  # to make room for PROREF text
   if (is.null(ylim))
-    ylim <- c(0, max(X$df_data$Median)*1.15)
+    ylim <- c(0, max(subset(X$df_data, MYEAR >= xlim[1] & MYEAR <= xlim[2])$Median)*1.15)
   
   # This is making the right tissue to use in the plot title
   X$tissue <- case_when(
