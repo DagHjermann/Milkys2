@@ -482,6 +482,7 @@ add_trend <- function(gg,
                       trendsymbols = c("arrowup", "arrowdown"),
                       fontsize = 14, 
                       x_rel = 0.8, y_rel = 0.93, x_spacing = c(0, 0.035, 0.070),
+                      x_pos = NULL, y_pos = NULL,
                       windows = FALSE){
   library(extrafont)
   # xr <- ggplot_build(gg)$layout$panel_ranges[[1]]$x.range
@@ -490,9 +491,13 @@ add_trend <- function(gg,
   yr <- ggplot_build(gg)$layout$coord$limits$y
   xd <- diff(xr)
   yd <- diff(yr)
-  x_pos <- xr[1] + x_rel*xd + x_spacing*xd
+  # if x_pos and y_pos are given, they take precedence over x_rel and y_rel
+  #   (for use with e.g. log scale)
+  if (is.null(x_pos))
+    x_pos <- xr[1] + x_rel*xd + x_spacing*xd
   # x_pos <- base::as.Date(x_pos, origin = "1970-01-01")
-  y_pos <- yr[1] + y_rel*yd
+  if (is.null(y_pos))
+    y_pos <- yr[1] + y_rel*yd
   # For Windows PCs
   if (windows){
     # txt <- case_when(
@@ -535,12 +540,14 @@ add_trend <- function(gg,
       trendsymbols == "arrowup" ~ "\u2191",
       trendsymbols == "arrowdown" ~ "\u2193",
       trendsymbols == "circle" ~ "\u25CB",
+      trendsymbols == "star" ~ "\u2606",
       trendsymbols == "filledsquare" ~ "\u25FE"  # 25FE
     )
     relsize <- case_when(
       trendsymbols == "filledsquare" ~ 0.55,
       trendsymbols == "arrowdown" ~ 0.8,
       trendsymbols == "arrowup" ~ 0.8,
+      trendsymbols == "star" ~ 0.65,
       TRUE ~ 1
     )
     gg <- gg +
