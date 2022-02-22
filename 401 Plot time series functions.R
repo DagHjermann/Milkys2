@@ -646,12 +646,20 @@ break_text <- function(txt,
     index <- which.min(abs(df$x - where_split))
   } else if (type == "max"){
     # Find the last 'x' before where_split
-    index <- max(which(df$x - where_split <= 0))
+    df <- bind_rows(df, data.frame(x = nchar(txt)+1, char = "space"))
+    under_limit <- df$x - where_split <= 1
+    if (sum(!under_limit) == 0){
+      index <- NA
+    } else {
+      index <- max(which(under_limit))
+    } 
   }
   
   # df[index,]
   # If comma followed by space, replace space by line shift
-  if (df$char[index] == "comma" & 
+  if (is.na(index)){
+    result <- txt
+  } else if (df$char[index] == "comma" & 
       df$char[index+1] == "space" & 
       df$x[index+1] - df$x[index] == 1){
     result <- paste0(substr(txt, 1, df$x[index]), "\n", substr(txt, df$x[index]+2, nchar(txt)))
@@ -686,6 +694,11 @@ if (FALSE){
   # Split so part before line shift is max. 26 characters
   break_text(txt, 19, type = "max")
   # "Mercury (Hg) in\ncod muscle, Bømlo, Outer Selbjørnfjord (st. 23B)"
+  
+  txt2 <- "xxxxx xxxx xxxx xxxx xxxx"
+  break_text(txt2, 5, type = "max")
+  break_text(txt2, 24, type = "max")
+  break_text(txt2, 25, type = "max")
   
   # Split string so the first part is approximately 2x as long as the second part
   break_text(txt, 2/3)
