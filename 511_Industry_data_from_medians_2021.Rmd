@@ -428,18 +428,57 @@ for (i in seq_len(nrow(df_series))){
 
 
 ## 1a. Read median data    
-From script 02 in 'NIVA-R-examples' project  
+From script 02 in 'NIVA-R-examples' project    
+* data_med_temp_nivabase is not complete for 2021, due to error i Labware  
 ```{r}
 
-data_med_temp <- readRDS(
+data_med_temp_nivabase <- readRDS(
   "Input_data/510_Industry_data/data_chem_industry_vefsnfjord_med_2021.rds") %>%
   rename(N_median = N)
   
-# names(data_med_temp)
-unique(data_med_temp$Basis)   
+# names(data_med_temp_nivabase)
+# unique(data_med_temp_nivabase$Basis)   
 
+data_med_temp_labware <- readRDS(
+  "Input_data/510_Industry_data/data_chem_industry_vefsnfjord_med_2021_labware.rds") %>%
+  rename(N_median = N)
+
+xtabs(~MYEAR, data_med_temp_nivabase)  
+xtabs(~MYEAR, data_med_temp_labware)  
+
+xtabs(~STATION_CODE, data_med_temp_labware)  
+xtabs(~STATION_CODE, data_med_temp_nivabase %>% filter(MYEAR == 2021)) 
+
+# xtabs(~PARAM + STATION_CODE, data_med_temp_labware)  
+# xtabs(~PARAM + STATION_CODE, data_med_temp_nivabase %>% filter(MYEAR == 2021)) 
 
 ```
+
+
+### Fix 'B8' in 2021  
+
+- This station was given name B8, but should be B6, re mail from Sigurd 11.02.2022   
+
+```{r}
+
+data_med_temp_labware <- data_med_temp_labware %>%
+  mutate(STATION_CODE = case_when(
+    STATION_CODE == "B8" ~ "B6",
+    TRUE ~ STATION_CODE)
+  )
+
+```
+
+### Get combined dataset 
+```{r}
+
+data_med_temp <- bind_rows(
+  data_med_temp_nivabase %>% filter(MYEAR != 2021),
+  data_med_temp_labware
+)
+
+```
+
 
 ### Plots for check/overview  
 ```{r}
@@ -448,12 +487,452 @@ ggplot(data_med_temp, aes(MYEAR, PARAM, fill = Median)) +
   geom_tile() +
   scale_fill_distiller(type = "div")
 
-ggplot(data_med_temp %>% filter(PARAM == "BAP"), aes(MYEAR, Median)) +
+param <- "BAP"
+ggplot(data_med_temp %>% filter(PARAM == param), 
+       aes(MYEAR, STATION_CODE, fill = Median)) +
+  geom_tile() +
+  scale_fill_distiller(type = "div") +
+  labs(title = param)
+
+ggplot(data_med_temp %>% filter(PARAM == param), aes(MYEAR, Median)) +
   geom_point() +
-  facet_wrap("STATION_CODE")
+  facet_wrap("STATION_CODE") +
+  labs(title = param)
 
 
 ```
+
+
+### Add Proref values    
+```{r}
+
+data_med <- data_med_temp %>%
+  left_join(df_proref %>% select(-N) %>% rename(Proref_median = Median), 
+            by = c("LATIN_NAME", "TISSUE_NAME", "PARAM", "Basis"))
+
+# data_med %>% filter(PARAM == "BAP" & STATION_CODE == "B2") %>% View()
+
+```
+
+### Select series (parameter + station) to plot  
+```{r}
+
+tab <- xtabs(~ PARAM + STATION_CODE, data_med)
+# tab
+
+df_series <- data_med %>%
+  count(PARAM, STATION_CODE) %>%
+  filter(n >= 2,      # pick stations with at least 2 years of data
+         substr(STATION_CODE,1,1) == "B")
+
+```
+
+### Station names  
+```{r}
+
+#
+# Hand-made
+#
+
+df_stationnames <- data.frame(
+  STATION_CODE = c("B1", "B2", "B3", "B4", "B5", "B7", "B6"),
+  STATION_NAME = c("Finnvika", "Alterneset", "Rynes", "Høyneset-Hundåbukta", 
+                   "Korsnes", "Åsmulen", "Sørneset")
+  ) %>%
+  mutate(
+    Report_version_name = paste0(STATION_NAME, " (", STATION_CODE, ")")
+  )
+
+```
+
+
+## 1e. Plot all (using defaults) 
+
+* Note: we plot only data from 1995/2000 in order to avoid the high values in the start of the time series  
+
+```{r}
+
+folder <- "Input_data/510_Industry_data/Plots_Vefsnfjorden_2021/"
+
+for (i in seq_len(nrow(df_series))){
+
+  # For testing (make only plots 1 to 4), comment out the line above and uncomment the next line:
+  # for (i in 1:10){
+  
+  # debugonce(plot_medians_and_trends2)
+  X <- try(
+    plot_medians_and_trends2(c(df_series$PARAM[i], "Mytilus edulis", "Whole soft body", 
+                               df_series$STATION_CODE[i], "WW"), 
+                             eqs_type = "line", 
+                             trend_years = 2000:2021, xlim = c(1994,2022),       # for a shorter    
+                             data_medians = data_med, data_proref = df_proref, 
+                             data_eqs = df_EQS, eqs_x = 2017)
+  )
+  # X$gg
+  
+  if (class(X) != "try-error"){
+    save_trendplot(X, folder)
+  }
+  
+}
+
+```
+
+
+
+## 1f. Improve some specific plots     
+
+* Marked with "_altern1" etc. in plot name
+
+### BAP at B2   
+```{r}
+
+folder <- "Input_data/510_Industry_data/Plots_Vefsnfjorden_2021/"
+
+i <- which(df_series$PARAM == "BAP" & df_series$STATION_CODE == "B2")
+i
+
+data_med %>%
+  filter(PARAM == "BAP" & STATION_CODE == "B2") %>%
+  select(PARAM, STATION_CODE, MYEAR, N_median, Median) # %>% xtabs(~MYEAR, .)
+
+# Original
+X <- plot_medians_and_trends2(c(df_series$PARAM[i], "Mytilus edulis", "Whole soft body", 
+                                df_series$STATION_CODE[i], "WW"), 
+                              eqs_type = "line", xlim = c(1983, 2022), 
+                              data_medians = data_med, data_proref = df_proref, 
+                              data_eqs = df_EQS)
+# X$gg
+
+# Alternative 1
+# debugonce(plot_medians_and_trends2)
+# debugonce(get_plotdata)
+X <- plot_medians_and_trends2(c(df_series$PARAM[i], "Mytilus edulis", "Whole soft body", 
+                                df_series$STATION_CODE[i], "WW"), 
+                              eqs_type = "line", xlim = c(1981, 2022),  
+                              data_medians = data_med, data_proref = df_proref, 
+                              data_eqs = df_EQS,
+                              proref_x = 1980,
+                              ylim = c(0, 40), eqs_x = 2016)
+# Update gg object
+X$gg <- X$gg + 
+  annotate("text", x = 1981, y = 40, label = "1984-1985:\n173-1251", hjust = 0, vjust = 1) +
+  annotate("segment", x = 1980.5, xend = 1980.5, y = 36, yend = 40, arrow = arrow(length = unit(0.03, "npc")))
+# save_trendplot(X, folder, suffix = "_altern1")
+X$gg
+
+```
+
+
+
+
+
+### PAH16 at B2   
+```{r}
+
+i <- which(df_series$PARAM == "PAH16" & df_series$STATION_CODE == "B2")
+i
+
+data_med %>%
+  filter(PARAM == "PAH16" & STATION_CODE == "B2") %>%
+  select(PARAM, STATION_CODE, MYEAR, N_median, Median)
+
+# Original
+X <- plot_medians_and_trends2(c(df_series$PARAM[i], "Mytilus edulis", "Whole soft body", 
+                                df_series$STATION_CODE[i], "WW"), 
+                              eqs_type = "line", xlim = c(1983, 2022), 
+                              data_medians = data_med, data_proref = df_proref, 
+                              data_eqs = df_EQS)
+X$gg
+
+X <- plot_medians_and_trends2(c(df_series$PARAM[i], "Mytilus edulis", "Whole soft body", 
+                                df_series$STATION_CODE[i], "WW"), 
+                              eqs_type = "line", xlim = c(1981, 2022),  
+                              data_medians = data_med, data_proref = df_proref, 
+                              data_eqs = df_EQS,
+                              proref_x = 1980,
+                              ylim = c(0, 2500), eqs_x = 2016)
+
+# Update gg object 
+X$gg <- X$gg + 
+  annotate("text", x = 1981.5, y = 2500, label = "1984-1985:\n> 34000", hjust = 0, vjust = 1) +
+  annotate("segment", x = 1980.5, xend = 1980.5, y = 2200, yend = 2500, arrow = arrow(length = unit(0.03, "npc")))
+
+save_trendplot(X, folder, suffix = "_altern1")
+
+X$gg
+
+```
+
+
+## 1g. Remake some specific plots using new function        
+
+### Function for plotting proref only   
+
+* Need this in some cases where just changing x and y limits isnn't enough  
+
+```{r}
+
+plot_medians_proref <- function(X, proref,
+                               title = NULL, 
+                               include_zero = TRUE, proref_x = NULL, show_proref = 1:5, 
+                               xlim = NULL, ylim = NULL, ylim_proref = NULL,
+                               trend_color = "black", trend_size = 2,    # For eqs_type = "background", use e.g. dark/light green for trends:
+                               ci_fill = "grey80",                        # trend_color = "#33a02c", ci_fill = "#b2df8a"  (rom  PuBuGn)
+                               points_color = "black", points_fill = "grey30", points_size = 3, points_shape = 21, 
+                               points_color_loq = "black", points_fill_loq = "#a6cee3", points_size_loq = 3, points_shape_loq = 25,  # light blue
+                               proref_label_transparent = TRUE,                                        # if TRUE, 'PROREF ...' will be on a white rectangle 
+                               proref_label_size = 4,                                                   # Size of 'PROREF ...' label 
+                               add_line = FALSE
+                               
+){      # red
+  
+  sel_detlimit <- with(X$df_data, Over_LOQ <= N_median*0.5) 
+  
+  gg <- ggplot(X$df_data, aes(x = MYEAR))
+  
+  if (add_line){
+    gg <- gg + 
+      geom_line(data = X$df_data, aes(y = Median))
+  }
+  
+  gg <- gg + 
+    geom_point(data = X$df_data[!sel_detlimit,], aes(y = Median), 
+               shape = points_shape, color = points_color, fill = points_fill, size = points_size) +
+    geom_point(data = X$df_data[sel_detlimit,], aes(y = Median), 
+               shape = points_shape_loq, color = points_color_loq, fill = points_fill_loq, size = points_size_loq)
+  
+  if (is.null(xlim))
+    xlim <- range(X$df_data$MYEAR, na.rm = TRUE) + c(-1,0)
+  if (is.null(proref_x)){
+    proref_x <- rep(xlim[1], 5)
+  }
+  
+    
+  
+  txt_lim <- data.frame(
+    MYEAR = proref_x, 
+    Median = c(1,2,5,10,20)*proref, 
+    txt = c("PROREF", "PROREF x 2", "PROREF x 5", "PROREF x 10", "PROREF x 20")
+  )
+  
+  # PROREF lines
+  if (!is.na(proref) & proref_label_transparent){
+    for (i in show_proref){
+      gg <- gg +
+        geom_hline(yintercept = txt_lim[i, "Median"], linetype = 2, col = "grey25") +
+        geom_text(data = txt_lim[show_proref,], aes(y = Median, label = txt), hjust = 0, vjust = -0.5, size = proref_label_size)
+    }
+      
+    } else if (!is.na(proref) & !proref_label_transparent){
+      for (i in show_proref){
+        gg <- gg +
+          geom_hline(yintercept = txt_lim[i, "Median"], linetype = 2, col = "grey25") +
+          geom_label(data = txt_lim[show_proref,], aes(y = Median, label = txt), hjust = 0, vjust = -0.5, size = proref_label_size, label.size = 0)
+      }
+    }
+
+  
+  gg
+
+  
+}
+
+```
+
+
+
+### BAP at B4   
+```{r}
+
+param <- "BAP"
+station <- "B4"
+i <- which(df_series$PARAM == param & df_series$STATION_CODE == station)
+i
+
+# Original doesn't work   
+
+# Code from plot_medians_color
+X <- list()
+X$df_data <- data_med %>%
+  filter(PARAM == param & STATION_CODE == station) %>%
+  select(PARAM, STATION_CODE, MYEAR, N_median, Median, Over_LOQ)
+
+stationname <- df_stationnames %>%
+  filter(STATION_CODE == station) %>%
+  pull(Report_version_name)
+
+proref <- df_proref %>%
+  filter(PARAM == param & TISSUE_NAME %in% "Whole soft body" & Basis == "WW") %>%
+  pull(Q95)
+
+# debugonce(plot_medians_proref)
+# plot_medians_proref(X, proref = NA)  
+
+result <- list()
+result$gg <- plot_medians_proref(X, proref = proref, show_proref = 1:2, add_line = TRUE)  +
+  labs(title = paste0(param, " in blue mussel soft body, ", stationname))
+
+result$fn <- paste0("TSplot_", param, "_Mytilus edulis_Whole soft body_", station, "_WW.png")
+save_trendplot(result, folder, suffix = "_altern1")
+
+```
+
+### BAP at B5   
+```{r}
+
+param <- "BAP"
+station <- "B5"
+i <- which(df_series$PARAM == param & df_series$STATION_CODE == station)
+i
+
+# Original doesn't work   
+
+# Code from plot_medians_color
+X <- list()
+X$df_data <- data_med %>%
+  filter(PARAM == param & STATION_CODE == station) %>%
+  select(PARAM, STATION_CODE, MYEAR, N_median, Median, Over_LOQ)
+
+stationname <- df_stationnames %>%
+  filter(STATION_CODE == station) %>%
+  pull(Report_version_name)
+
+proref <- df_proref %>%
+  filter(PARAM == param & TISSUE_NAME %in% "Whole soft body" & Basis == "WW") %>%
+  pull(Q95)
+
+# debugonce(plot_medians_proref)
+# plot_medians_proref(X, proref = NA)  
+
+result <- list()
+result$gg <- plot_medians_proref(X, proref = proref, show_proref = 1:2, add_line = TRUE)  +
+  labs(title = paste0(param, " in blue mussel soft body, ", stationname))
+result$gg
+
+result$fn <- paste0("TSplot_", param, "_Mytilus edulis_Whole soft body_", station, "_WW.png")
+save_trendplot(result, folder, suffix = "_altern1")
+
+```
+
+
+### BAP at B6   
+```{r}
+
+param <- "BAP"
+station <- "B6"
+i <- which(df_series$PARAM == param & df_series$STATION_CODE == station)
+i
+
+# Original doesn't work   
+
+# Code from plot_medians_color
+X <- list()
+X$df_data <- data_med %>%
+  filter(PARAM == param & STATION_CODE == station) %>%
+  select(PARAM, STATION_CODE, MYEAR, N_median, Median, Over_LOQ)
+
+stationname <- df_stationnames %>%
+  filter(STATION_CODE == station) %>%
+  pull(Report_version_name)
+
+proref <- df_proref %>%
+  filter(PARAM == param & TISSUE_NAME %in% "Whole soft body" & Basis == "WW") %>%
+  pull(Q95)
+
+# debugonce(plot_medians_proref)
+plot_medians_proref(X, proref = NA)  
+plot_medians_proref(X, proref = proref)  
+
+
+result <- list()
+result$gg <- plot_medians_proref(X, proref = proref, show_proref = 1:4, add_line = TRUE)  +
+  labs(title = paste0(param, " in blue mussel soft body, ", stationname))
+
+result$fn <- paste0("TSplot_", param, "_Mytilus edulis_Whole soft body_", station, "_WW.png")
+save_trendplot(result, folder, suffix = "_altern1")
+
+
+```
+
+
+### BAP at B5   
+```{r}
+
+param <- "BAP"
+station <- "B5"
+i <- which(df_series$PARAM == param & df_series$STATION_CODE == station)
+i
+
+# Original doesn't work   
+
+# Code from plot_medians_color
+X <- list()
+X$df_data <- data_med %>%
+  filter(PARAM == param & STATION_CODE == station) %>%
+  select(PARAM, STATION_CODE, MYEAR, N_median, Median, Over_LOQ)
+
+stationname <- df_stationnames %>%
+  filter(STATION_CODE == station) %>%
+  pull(Report_version_name)
+
+proref <- df_proref %>%
+  filter(PARAM == param & TISSUE_NAME %in% "Whole soft body" & Basis == "WW") %>%
+  pull(Q95)
+
+# debugonce(plot_medians_proref)
+plot_medians_proref(X, proref = proref, show_proref = 1:4, add_line = TRUE)  
+# plot_medians_proref(X, proref = proref, show_proref = 1:2, add_line = TRUE)  +
+#   labs(title = paste0(param, " in blue mussel soft body, ", stationname))
+
+```
+
+### Everything at B7   
+```{r}
+
+# param <- "BAP"
+station <- "B7"
+i_vector <- which(df_series$STATION_CODE %in% station)
+
+for (i in i_vector){
+  
+  param <- df_series[i,] %>% pull(PARAM)
+  
+  # Code from plot_medians_color
+  X <- list()
+  X$df_data <- data_med %>%
+    filter(PARAM == param & STATION_CODE == station) %>%
+    select(PARAM, STATION_CODE, MYEAR, N_median, Median, Over_LOQ)
+  
+  stationname <- df_stationnames %>%
+    filter(STATION_CODE == station) %>%
+    pull(Report_version_name)
+  
+  proref <- df_proref %>%
+    filter(PARAM == param & TISSUE_NAME %in% "Whole soft body" & Basis == "WW") %>%
+    pull(Q95)
+  
+  # Set whcich proref values to include  
+  select_proref <- which(0.8*proref*c(1,2,5,10,20) < max(X$df_data$Median))
+  
+  plot_medians_proref(X, proref = proref, show_proref = select_proref, add_line = TRUE)  +
+    labs(title = paste0(param, " in blue mussel soft body, ", stationname))  
+  
+  # debugonce(plot_medians_proref)
+  # plot_medians_proref(X, proref = NA)  
+  
+  result <- list()
+  result$gg <- plot_medians_proref(X, proref = proref, show_proref = select_proref, add_line = TRUE)  +
+    labs(title = paste0(param, " in blue mussel soft body, ", stationname))  
+  
+  result$fn <- paste0("TSplot_", param, "_Mytilus edulis_Whole soft body_", station, "_WW.png")
+  save_trendplot(result, folder, suffix = "_altern1")
+  
+}
+
+```
+
+
 
 ## .
 ## -- HØYANGSFJORDEN --  
