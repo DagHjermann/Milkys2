@@ -229,9 +229,13 @@ plot_medians_and_trends2 <- function(ser, x_rel = 0.8, y_rel = 0.9, xlim = NULL,
                                     trend_years = NULL, 
                                     data_medians,
                                     data_proref, 
-                                    data_eqs, 
+                                    data_eqs,
                                     trendsymbols_x_spacing = c(0, 0.030, 0.065),
                                     windows = FALSE,
+                                    log_transform = FALSE,
+                                    trendsymbols = TRUE,
+                                    ymax_factor = 1.15,
+                                    ymin_factor = 0.9,
                                     ...){
   
   if (is.null(trend_years) & !is.null(xlim))
@@ -288,9 +292,16 @@ plot_medians_and_trends2 <- function(ser, x_rel = 0.8, y_rel = 0.9, xlim = NULL,
   # Axis limits - note some hard-coding if xlim = NULL
   if (is.null(xlim))
     xlim <- c(start_yr, end_yr) - 2  # to make room for PROREF text
-  if (is.null(ylim))
-    ylim <- c(0, max(subset(X$df_data, MYEAR >= xlim[1] & MYEAR <= xlim[2])$Median)*1.15)
-  
+  if (is.null(ylim)){
+    ymax <- max(subset(X$df_data, MYEAR >= xlim[1] & MYEAR <= xlim[2])$Median)*ymax_factor
+    if (log_transform){
+      ymin <- min(subset(X$df_data, MYEAR >= xlim[1] & MYEAR <= xlim[2])$Median)*ymin_factor
+      ylim <- c(ymin, ymax)
+    } else {
+      ylim <- c(0, ymax)
+    }
+  }
+    
   # This is making the right tissue to use in the plot title
   X$tissue <- case_when(
     X$tissue %in% "Lever" ~ "liver",
@@ -331,13 +342,19 @@ plot_medians_and_trends2 <- function(ser, x_rel = 0.8, y_rel = 0.9, xlim = NULL,
     
     theme(title = element_text(size = rel(titlesize)))
   
+  if (log_transform){
+   gg <- gg + scale_y_log10()
+  }
+
   # Add trend symbol
   trends <- set_symbol_word(bind_rows(time_trend_long, time_trend_10yr))
-  gg <- add_trend(gg, trendsymbols = trends, x_rel = x_rel, y_rel = y_rel, 
-                  x_spacing = trendsymbols_x_spacing, 
-                  fontsize = 10,
-                  windows = windows)
   
+  if (trendsymbols){
+    gg <- add_trend(gg, trendsymbols = trends, x_rel = x_rel, y_rel = y_rel, 
+                    x_spacing = trendsymbols_x_spacing, 
+                    fontsize = 10,
+                    windows = windows)
+  }
   
   # Make file name (but does not save file)
   fn <- paste0("TSplot_", ser[1], "_", ser[2], "_", ser[3], "_", ser[4], "_", ser[5], ".png")
