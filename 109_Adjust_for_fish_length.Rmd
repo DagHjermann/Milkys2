@@ -4,7 +4,11 @@ output:
   html_document:
     toc: true
     toc_float: true
----
+---  
+
+## Notes  
+
+* Before this script is run, you need to download the sample data (from LIMS) on your PC using script 801 from project 'Milkys2_pc"  
 
 ## 1. Packages
 ```{r}
@@ -32,7 +36,7 @@ source("109_Adjust_for_fish_length_functions.R")
 ### Year  
 ```{r}
 
-selected_year <- 2020
+selected_year <- 2021
 
 ```
 
@@ -90,10 +94,18 @@ if (nrow(df_duplicates_all) > 0){
 
 
 ### b. Length data for most recent year    
+
+* Data created using script 150 after copying excel files for the last year to Jupyterhub  
+
 ```{r}
 
 # Data on length  
-filename <- paste0("Data/150_Fish_individual_data_", selected_year, ".rds")
+filename <- paste0("Data/150_Fish_individual_data_", selected_year, ".rds")  
+
+if (!file.exists(filename)){
+  stop("The file ", filename, " wasn't found. This file must be created from script 150.")
+}
+
 data_ind_fish <- readRDS(filename)
 
 cat("\nStations:")
@@ -136,6 +148,13 @@ Read and reformat the most recent data (by default)
 ```{r}
 
 files <- dir("Input_data", "Labware_samples_") %>% rev()
+
+sel <- selected_year %in% as.numeric(str_sub(files, 17, 20))
+
+if (sum(sel)==0){
+  stop("No files from year ", selected_year, "found! Get it from script 801 on your pc.")
+}
+
 filename <- files[1] 
 df_samples <- readRDS(paste0("Input_data/", filename))
 # xtabs(~TISSUE, df_samples)
@@ -324,6 +343,7 @@ df_fishsamples3 <- df_fishsamples3 %>%
 
 ### LNMEA (mean length per sample)
 ```{r}
+
 df_lnmea <- df_fishsamples3 %>%
   mutate(MYEAR = selected_year) %>%
   ungroup() %>%
@@ -343,11 +363,18 @@ message("nrow(df_lnmea): ", nrow(df_lnmea))  # 752
 ### Get LNMEA
 ```{r}
 
-filename <- "Data/109_adjusted_data_2020-08-05.rds"
-data_all_2019 <- readRDS(filename)
+filenames <- dir("Data", paste0("109_adjusted_data_", selected_year, ".+.rds"))
 
-df_lnmea_2019 <- data_all_2019 %>%
-  filter(!is.na(LNMEA) & MYEAR == 2019) %>%
+# 1 = newest file
+i <- 1
+filename <- rev(filenames)[i]
+
+# Read data
+data_all_previous <- readRDS(paste0("Data/", filename))
+message("Read data set ", sQuote(filename))
+
+df_lnmea_previous <- data_all_previous %>%
+  filter(!is.na(LNMEA) & MYEAR == (selected_year-1)) %>%
   group_by(MYEAR, STATION_CODE, TISSUE_NAME, SAMPLE_NO2) %>%
   summarise(
     LNMEA_diff = diff(range(LNMEA)),
@@ -355,23 +382,23 @@ df_lnmea_2019 <- data_all_2019 %>%
     .groups = "drop"
   )
 
-check <- df_lnmea_2019 %>%
+check <- df_lnmea_previous %>%
   filter(LNMEA_diff != 0)
   
 if (nrow(check) > 0){
   stop("Different lengths found for one individual!")
 } else {
-  df_lnmea_2019 <- df_lnmea_2019 %>%
+  df_lnmea_previous <- df_lnmea_previous %>%
     select(-LNMEA_diff)
 }
 
 ```
 
-### Make df_lnmea_since_2019  
+### Make df_lnmea_since_previous  
 ```{r}
 
-df_lnmea_since_2019 <- bind_rows(
-  df_lnmea_2019, df_lnmea
+df_lnmea_since_previous <- bind_rows(
+  df_lnmea_previous, df_lnmea
 )
 
 ```
@@ -382,7 +409,7 @@ df_lnmea_since_2019 <- bind_rows(
 ```{r}
 
 data_lastyear <- data_all %>%
-  filter(MYEAR >= 2019) %>%
+  filter(MYEAR >= (selected_year-1)) %>%
   # remove LNMEA for last year (empty anyway)
   select(-LNMEA) %>%
   # Also here we must specify Lever - microsome for EROD
@@ -392,7 +419,7 @@ data_lastyear <- data_all %>%
   ) %>%
   # add LNMEA by joining that column from df_lnmea 
   safe_left_join(
-    df_lnmea_since_2019, 
+    df_lnmea_since_previous, 
     by = c("MYEAR", "STATION_CODE", "TISSUE_NAME", "SAMPLE_NO2"),
     na_matches = "never",
     check = "bCV") %>%
@@ -403,7 +430,7 @@ data_lastyear <- data_all %>%
   )
 
 message("nrow(data_all): ", nrow(data_all))  # 752
-message("nrow(data_all), since 2019: ", nrow(data_all %>% filter(MYEAR >= 2019)))  # 752
+message("nrow(data_all), since previous year: ", nrow(data_all %>% filter(MYEAR >= (selected_year-1))))  # 752
 message("nrow(data_lastyear): ", nrow(data_lastyear))  # 752
 
 ```
@@ -446,7 +473,7 @@ Creates data_all2
 # names(data_lastyear)
 
 data_all2 <- bind_rows(
-  data_all %>% filter(MYEAR < 2019),
+  data_all %>% filter(MYEAR < (selected_year-1)),
   data_lastyear %>% select(-WTMEAN)
 ) %>%
   mutate(VALUE_WWa = NA,
@@ -562,7 +589,7 @@ check1 <- data_all2 %>%
   filter(n > 1)
 nrow(check1)  # should be zero!
 
-check2 <-data_lengthreg %>%
+check2 <- data_lengthreg %>%
   ungroup() %>%
   group_by(STATION_CODE, LATIN_NAME, TISSUE_NAME, PARAM) %>%
   mutate(n = n()) %>%
@@ -599,7 +626,7 @@ cat(nrow(df), "rows selected from data_all \n")
 
 ```
 
-### Show data byyear and length    
+### Show data by year and length    
 ```{r, fig.width = 9, fig.height=3}
 
 gg1 <- df %>%
@@ -697,6 +724,9 @@ i_max <- nrow(data_lengthreg)
 # A minute or two
 for (i in 1:i_max){
 
+  # Printout  
+  with(data_lengthreg, cat(PARAM[i], LATIN_NAME[i], TISSUE_NAME[i], STATION_CODE[i], "\n"))
+  
   #
   # Set 'a' (constant that will be used in log-transformation) 
   #
