@@ -51,7 +51,7 @@ source("101_Combine_with_legacy_data_functions.R")
 Note: there are still some hard-coded "2019" given in the code  
 ```{r}
 
-lastyear <- 2020
+lastyear <- 2021
 
 ```
 
@@ -63,30 +63,39 @@ lastyear <- 2020
 - The file named '01_df_2019_notstandard_<date>' were made on DHJs PC using script 01 in project 'Milkys2_pc'  
 ```{r, results='hold'}
 
-filepattern <- "01_df_2020_notstandard_"                       # file name except date and extension
-filepattern_with_extension <- "01_df_2020_notstandard_.+.rds"  # file name, rds files only
+filepattern <- paste0("01_df_", lastyear, "_notstandard_")    # file name except date and extension
+filepattern_with_extension <- paste0(filepattern, ".+.rds")
+                  
 filenumber <- 1                                 # filenumber = 1 means "read the newest file"
 
 # Get available files, sorted from newest to oldest
 files <- dir("Input_data", pattern = filepattern_with_extension) %>% rev()
 
-# Info for user
-cat("Reading file number ",  filenumber, ", sorted from newest to oldest files:", sep = "")
-cat("\n", files[filenumber])
-cat("\n\n")
-cat("If you want to read a different file, replace 'filenumber <- 1' or 'filename' with the file you want")
-cat("\n")
-cat("For instance, set 'filenumber <- 2' to read the second newest file")
-cat("\n")
+if (length(files) == 0){
+  
+  stop("No files found for year ", lastyear)
 
-# Get filename and its date part 
-filename <- files[filenumber]
-file_date <- substr(filename, nchar(filepattern) + 1, nchar(filepattern) + 10) # pick date part
-
-# The date part of 'filename' (e.g., '2020-04-23')
-# will be used in part 10, when we save the resulting file
-
-dat_new1 <- readRDS(paste0("Input_data/", filename))
+} else {
+  
+  # Info for user
+  cat("Reading file number ",  filenumber, ", sorted from newest to oldest files:", sep = "")
+  cat("\n", files[filenumber])
+  cat("\n\n")
+  cat("If you want to read a different file, replace 'filenumber <- 1' or 'filename' with the file you want")
+  cat("\n")
+  cat("For instance, set 'filenumber <- 2' to read the second newest file")
+  cat("\n")
+  
+  # Get filename and its date part 
+  filename <- files[filenumber]
+  file_date <- substr(filename, nchar(filepattern) + 1, nchar(filepattern) + 10) # pick date part
+  
+  # The date part of 'filename' (e.g., '2020-04-23')
+  # will be used in part 10, when we save the resulting file
+  
+  dat_new1 <- readRDS(paste0("Input_data/", filename))
+  
+}
 
 ```
 
