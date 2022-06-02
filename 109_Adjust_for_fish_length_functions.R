@@ -39,7 +39,7 @@ if (FALSE){
 #   summary (as lengthreg)
 #   'flag' (always true, added just to be 'compatible' with adjust_selected2 - which at the moment is not used)
 #
-adjust_selected <- function(data, selection, standard_length = 500, var = "VALUE_WW", a = 0){
+adjust_selected <- function(data, selection, standard_length = 500, var = "VALUE_WW", a = 0, log = TRUE){
   df <- data[selection, ] %>% as.data.frame()
   df$YEAR_f <- as.factor(df$MYEAR)
   df$VALUE <- df[,var]
@@ -47,13 +47,25 @@ adjust_selected <- function(data, selection, standard_length = 500, var = "VALUE
   sel_flag <- !is.na(df$FLAG1)
   df$VALUE[sel_flag] <- df$VALUE[sel_flag]*0.5
   # Doing the regression
-  df$logVALUE <- log(df$VALUE + a)
-  df$logVALUE[(df$VALUE + a) <= 0] <- NA
-  mod <- lm(logVALUE ~ LNMEA + YEAR_f, data = df)
-  mod_summary <- c(summary(mod)$coef["LNMEA", c(1,2,4)], N = nrow(df), N_reg = length(mod$residuals), a = a)
-  df_adjusted <- df
-  df_adjusted$LNMEA <- standard_length
-  list(value = exp(predict(mod, df_adjusted) + resid(mod)) - a, summary = mod_summary, flag = rep(TRUE, nrow(df)))
+  if (log){
+    df$logVALUE <- log(df$VALUE + a)
+    df$logVALUE[(df$VALUE + a) <= 0] <- NA
+    mod <- lm(logVALUE ~ LNMEA + YEAR_f, data = df)
+    mod_summary <- c(summary(mod)$coef["LNMEA", c(1,2,4)], 
+                     N = nrow(df), N_reg = length(mod$residuals), a = a, log = as.numeric(log))
+    df_adjusted <- df
+    df_adjusted$LNMEA <- standard_length
+    result <- list(value = exp(predict(mod, df_adjusted) + resid(mod)) - a, 
+                   summary = mod_summary, flag = rep(TRUE, nrow(df)))
+  } else {
+    mod <- lm(VALUE ~ LNMEA + YEAR_f, data = df)
+    mod_summary <- c(summary(mod)$coef["LNMEA", c(1,2,4)], 
+                     N = nrow(df), N_reg = length(mod$residuals), a = a, log = as.numeric(log))
+    df_adjusted <- df
+    df_adjusted$LNMEA <- standard_length
+    result <- list(value = predict(mod, df_adjusted) + resid(mod) - a, 
+                   summary = mod_summary, flag = rep(TRUE, nrow(df)))
+  }
 }
 
 

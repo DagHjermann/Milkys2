@@ -755,7 +755,9 @@ for (i in 1:i_max){
   #
   # Perform regression, wet-weight data
   #
-  result <- try(adjust_selected(data_all2, sel, var = "VALUE_WW", a = a))        # adjust_selected()
+  log_transform <- !data_lengthreg$PARAM[i] %in% c("Delta13C", "Delta15N")
+  
+  result <- try(adjust_selected(data_all2, sel, var = "VALUE_WW", a = a, log = log_transform))        # adjust_selected()
   if (class(result) != "try-error"){
     data_all2$VALUE_WWa[sel] <- result$value
     data_lengthreg[i, col_ww] <- result$summary[1:5]   # number 6 is "a"
