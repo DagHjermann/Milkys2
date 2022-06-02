@@ -7,13 +7,20 @@ output:
 ---
 
 **Combine legacy data (data until the year before last year) with new data (downloaded in script 100)**   
-  
+
+**NOTE:** Before running this script, you must  
+* run script 802 on your own PC (downloads latest data from Nivabasen)  
+* this will create a file in the folder 'Files_to_Jupyterhub_2021' (if 2021 was the last year) named something like 
+    - '01_df_2021_notstandard_2022-06-02.rds' (the last part is the date of creation)    
+* copy the resulting file to Jupyterhub, folder 'Input_data'  
+   
+   
 **NOTE: Check the results of '12 Data changes since last year'**  
   
-**Overview**   
+**Overview of this script**   
 1. Load libraries and functions which will be used   
 2. Data
-    - Last year's data (produced by script 100) - note that most PCBs are lacking  
+    - Last year's data (produced by script 802 on your PC)    
     - 'Legacy data', i.e. the data we used last year  
 3. Reformat last year's data so they conform with the legacy data  
     - Includes changing parameter names *  
@@ -133,16 +140,27 @@ dat_new1 %>%
   summarise(Mean_value = mean(VALUE), N = n(), .groups = "drop")
 
 ```
+
 ### a4. SPECIAL CASE FOR 2020 (hopefully): adjusted metabolites have been mislabeled  
-- Could rename them, here we just remove them
+
+- Could rename them, for 2020 data we just remove them
+
 ```{r}
 
 #
 # SPECIAL CASE FOR 2020 (hopefully): adjusted metabolites have been mislabeled
 #
-if (selected_year == 2020){
-  
-  sel <- dat_new1$NAME %in% c("PA1OH", "PYR1OH", "BAP3OH")
+
+sel <- dat_new1$NAME %in% c("PA1OH", "PYR1OH", "BAP3OH")
+
+if (sum(sel) == 0){
+  message("No mislabeled adjusted metabolites")
+} else {
+  stop("Seems to be some mislabeled adjusted metabolites. Consider to delete them.")
+}
+
+
+if (lastyear == 2020){
   
   dat_new1 <- dat_new1[!sel,]
   cat("dat_new1:", sum(sel), "records with mislabeled adjusted PAHs removed \n")   
@@ -203,9 +221,9 @@ cat("dat_new1:", sum(sel), "records with adjusted PAHs removed\n")
 ### a7. Check for duplicates  
 ```{r}
 
-
-df_duplicates <- dat_new2 %>%
-  add_count(STATION_CODE, LATIN_NAME, TISSUE_NAME, SAMPLE_DATE, SAMPLE_NO, PARAM) %>%
+# Note NAME instead of PARAM (on contrast with checks further down)
+df_duplicates <- dat_new1 %>%
+  add_count(STATION_CODE, LATIN_NAME, TISSUE_NAME, SAMPLE_DATE, SAMPLE_NO, NAME) %>%
   filter(n > 1)
 
 if (nrow(df_duplicates) > 0){
@@ -223,15 +241,28 @@ The data go up to 2017 and combines data from the Access database (up to 2015) a
 ```{r}
 
 # Files 
-# files <- list_files("Data", pattern = "101_data_updated")
-# files
+files <- list_files("Data", pattern = "101_data_updated")
+files
 
-# Pick manually most recent data from last year
-data_legacy <- readRDS("Data/101_data_updated_2020-08-05.rds") %>%
+# HARD_CODED: pick most recent data from last year
+data_legacy <- readRDS("Data/101_data_updated_2022-01-05.rds") %>%
   mutate(PARAM = case_when(
     PARAM %in% "TTBTIN" ~ "TTBT",
     TRUE ~ PARAM)
   )
+
+cat("\n")
+cat("Lecacy data covers the years", min(data_legacy$MYEAR), "-", max(data_legacy$MYEAR), "\n")
+
+check <- lastyear - max(data_legacy$MYEAR)
+if (check <= 0){
+  stop("Some of the legacy data are from 'lastyear' and thus overlaps the new data! Pick an older file?")
+} else if (check >= 2){
+  stop("There are missing years between legacy data and 'lastyear'! Pick a newer file?")
+} else {
+  message("Legacy data years checked and found ok")
+}
+
 
 ```
 
