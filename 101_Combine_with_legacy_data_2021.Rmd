@@ -428,7 +428,7 @@ Examples from 11G in 2019:
 
 # Check first station in report - AqM:  
 dat_new2 %>%
-  filter(STATION_CODE == "11G" & year(SAMPLE_DATE) == 2020) %>%
+  filter(STATION_CODE == "11G" & year(SAMPLE_DATE) == lastyear) %>%
   select(STATION_CODE, SAMPLE_DATE, NAME, PARAM, UNIT, VALUE, FLAG1) %>%
   arrange(NAME)
 
@@ -457,12 +457,30 @@ if (TRUE){
 ```
 
 
-### e. Check species names   
+### e1. Check species names   
 ```{r}
 
 table(addNA(dat_new2$LATIN_NAME))
 
 ```
+
+### e2. Remove "unwanted species"   
+
+* Fucus vesiculosus = rockweed (measured on a Milkys station, but for a different project)  
+
+```{r}
+
+n1 <- nrow(dat_new2)
+dat_new2 <- dat_new2 %>%
+  filter(!LATIN_NAME %in% "Fucus vesiculosus")
+n2 <- nrow(dat_new2)
+
+cat("Number of rows before:", n1, "\n")
+cat("Number of rows after:", n2, "\n")
+cat("Difference:", n1-n2, "\n")
+
+```
+
 
 ### f. Check units    
 - Will be fixed in section 4  
@@ -577,9 +595,15 @@ if (FALSE){
     count(NAME, PARAM)
   }
 
+n1 <- nrow(dat_new3)
 dat_new3 <- dat_new3 %>% 
   filter(!is.na(PARAM)) %>%
   select(-NAME)
+n2 <- nrow(dat_new3)
+
+cat("Number of rows before:", n1, "\n")
+cat("Number of rows after:", n2, "\n")
+cat("Difference:", n1-n2, "\n")
 
 ```
 
@@ -996,25 +1020,25 @@ Note: the Somateria mollissima (eider duck) data (19N) are only
 #
 # Tabulate by tissue
 #
-print_station_summary <- function(table){
+print_station_summary <- function(table, name_of_variable){
   stations_all_ok <- rownames(table)[table[,2] == 0]
   stations_none_ok <- rownames(table)[table[,1] == 0]
   stations_some_ok <- rownames(table)[table[,1] > 0 & table[,2] > 0]
   stations_some_ok_table <- table[table[,1] > 0 & table[,2] > 0,]
   if (length(stations_all_ok) > 0){
-    cat("Fat percentage existing for _all_ samples of the following stations: \n")
+    cat(name_of_variable, "existing for _all_ samples of the following stations: \n")
     cat("  ")
     cat(stations_all_ok, sep = ", ")
     cat("\n")
   }
   if (length(stations_none_ok) > 0){
-    cat("Fat percentage existing for _no_ samples of the following stations: \n")
+    cat(name_of_variable, "existing for _no_ samples of the following stations: \n")
     cat("  ")
     cat(stations_none_ok, sep = ", ")
     cat("\n")
   }
   if (length(stations_some_ok) > 0){ 
-    cat("Fat percentage lacking for some samples of the following stations: \n")
+    cat(name_of_variable, "lacking for lacking for some samples of the following stations: \n")
     print(stations_some_ok)
     print(stations_some_ok_table)
     cat("\n")
@@ -1034,7 +1058,7 @@ for (tissue in unique(dat_new6$TISSUE_NAME)){
     filter(TISSUE_NAME %in% tissue & MYEAR == lastyear) %>%
     mutate(Missing = factor(is.na(VALUE_DW), levels = c(FALSE, TRUE)))
   tab <- xtabs(~STATION_CODE + Missing, df)
-  print_station_summary(tab)
+  print_station_summary(tab, name_of_variable = "Dry weight")
 }
 
 
@@ -1048,7 +1072,7 @@ for (tissue in unique(subset(dat_new6, MYEAR == lastyear)$TISSUE_NAME)){
     mutate(Missing = factor(is.na(VALUE_FB), levels = c(FALSE, TRUE)))
   tab <- xtabs(~STATION_CODE + Missing, df)
   # debugonce(print_station_summary)
-  print_station_summary(tab)
+  print_station_summary(tab, name_of_variable = "Fat percentage")
 }
 
 
@@ -1086,7 +1110,9 @@ if (nrow(df_duplicates) > 0){
 
 ```
 ## 9. Add the new data to the old data  
+
 The variables lacking in dat_new6 (length-adjusted data) are just added with NA values  
+
 ```{r}
 
 # Check overlap of column names
@@ -1111,6 +1137,7 @@ data_updated <- bind_rows(
 cat("Data combined. \n\n")
 cat("Legacy data:", nrow(data_legacy), "rows \n")
 cat("Updated data:", nrow(data_updated), "rows \n")
+cat("That is", nrow(data_updated)-nrow(data_legacy), "rows more \n")
 
 
 ```
@@ -1197,21 +1224,32 @@ check1 <- data_updated %>%
 
 # Check if all records with 3-OH-benzo[a]pyren also have BAP3OH (i.e.,
 #   the former can be deleted)   
-check2 <- check1 %>%
-  filter(!is.na(`3-OH-benzo[a]pyren`)) %>%
-  filter(is.na(BAP3OH))
 
-if (nrow(check2) > 0){
-  stop("NOTE: Some records have 3-OH-benzo[a]pyren but not BAP3OH. Do not delete all. (Section 10a) \n")
-}
-
-# Check difference between duplicate values   
-check3 <- check1 %>%
-  filter(!is.na(`3-OH-benzo[a]pyren`)) %>%
-  mutate(Difference_percent = (BAP3OH - `3-OH-benzo[a]pyren`)/BAP3OH*100)
-
-if (sum(abs(check3$Difference_percent) > 5) > 0){
-  stop("NOTE: The difference between 3-OH-benzo[a]pyren and BAP3OH exceeds 5%. Check before deletion. (Section 10a) \n")
+if ("3-OH-benzo[a]pyren" %in% names(check1)){
+  
+  check2 <- check1 %>%
+    filter(!is.na(`3-OH-benzo[a]pyren`)) %>%
+    filter(is.na(BAP3OH))
+  
+  if (nrow(check2) > 0){
+    stop("NOTE: Some records have 3-OH-benzo[a]pyren but not BAP3OH. Do not delete all. (Section 10a) \n")
+  }
+  
+  
+  
+  # Check difference between duplicate values   
+  check3 <- check1 %>%
+    filter(!is.na(`3-OH-benzo[a]pyren`)) %>%
+    mutate(Difference_percent = (BAP3OH - `3-OH-benzo[a]pyren`)/BAP3OH*100)
+  
+  if (sum(abs(check3$Difference_percent) > 5) > 0){
+    stop("NOTE: The difference between 3-OH-benzo[a]pyren and BAP3OH exceeds 5%. Check before deletion. (Section 10a) \n")
+  }
+  
+} else {
+  
+  cat("No '3-OH-benzo[a]pyren' in the data\n")
+  
 }
 
 ```
@@ -1249,25 +1287,32 @@ check1 <- data_updated %>%
 
 # View(check1 %>% filter(!is.na(`1-OH-pyren`)))
 
-# Check if all records with 3-OH-benzo[a]pyren also have BAP3OH (i.e.,
-#   the former can be deleted)   
-check2 <- check1 %>%
-  filter(!is.na(`1-OH-pyren`)) %>%
-  filter(is.na(PYR1OH))
-
-if (nrow(check2) > 0){
-  stop("NOTE: Some records have 1-OH-pyren but not PYR1OH. Do not delete all. (Section 10a) \n")
+if ("1-OH-pyren" %in% names(check1)){
+  
+  # Check if all records with 3-OH-benzo[a]pyren also have BAP3OH (i.e.,
+  #   the former can be deleted)   
+  check2 <- check1 %>%
+    filter(!is.na(`1-OH-pyren`)) %>%
+    filter(is.na(PYR1OH))
+  
+  if (nrow(check2) > 0){
+    stop("NOTE: Some records have 1-OH-pyren but not PYR1OH. Do not delete all. (Section 10a) \n")
+  }
+  
+  # Check difference between duplicate values   
+  check3 <- check1 %>%
+    filter(!is.na(`1-OH-pyren`)) %>%
+    mutate(Difference_percent = (PYR1OH - `1-OH-pyren`)/PYR1OH*100)
+  
+  if (sum(abs(check3$Difference_percent) > 5) > 0){
+    stop("NOTE: The difference between 1-OH-pyren and PYR1OH exceeds 5%. Check before deletion. (Section 10a) \n")
+  }
+  
+} else {
+  
+  cat("No '1-OH-pyren' in the data\n")
+  
 }
-
-# Check difference between duplicate values   
-check3 <- check1 %>%
-  filter(!is.na(`1-OH-pyren`)) %>%
-  mutate(Difference_percent = (PYR1OH - `1-OH-pyren`)/PYR1OH*100)
-
-if (sum(abs(check3$Difference_percent) > 5) > 0){
-  stop("NOTE: The difference between 1-OH-pyren and PYR1OH exceeds 5%. Check before deletion. (Section 10a) \n")
-}
-
 
 ```
 
