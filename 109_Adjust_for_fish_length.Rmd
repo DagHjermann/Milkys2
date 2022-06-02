@@ -722,10 +722,21 @@ i_max <- nrow(data_lengthreg)
 # pb <- winProgressBar(max=i_max)
 
 # A minute or two
+# for (i in 2:2){
+
+# Check oout this error some time (i = 89)
+# 89 HBCDD Gadus morhua Lever 13B 
+# Error in model.frame.default(Terms, newdata, na.action = na.action, xlev = object$xlevels) : 
+#   factor YEAR_f has new levels 2013
+
 for (i in 1:i_max){
 
-  # Printout  
-  with(data_lengthreg, cat(PARAM[i], LATIN_NAME[i], TISSUE_NAME[i], STATION_CODE[i], "\n"))
+  # Printout for every 100 lines  
+  if (i %% 100 == 0)
+    cat(i, "\n")
+  
+  # Printout for all lines  
+  # with(data_lengthreg, cat(i, PARAM[i], LATIN_NAME[i], TISSUE_NAME[i], STATION_CODE[i], "\n"))
   
   #
   # Set 'a' (constant that will be used in log-transformation) 
@@ -735,7 +746,11 @@ for (i in 1:i_max){
   } else {
     a <- 0
   }
-
+  
+  #
+  # Set log_transform (true/false)
+  #
+  log_transform <- !data_lengthreg$PARAM[i] %in% c("Delta13C", "Delta15N")
   #
   # Select data, wet-weight
   #
@@ -755,10 +770,10 @@ for (i in 1:i_max){
   #
   # Perform regression, wet-weight data
   #
-  log_transform <- !data_lengthreg$PARAM[i] %in% c("Delta13C", "Delta15N")
-  
-  result <- try(adjust_selected(data_all2, sel, var = "VALUE_WW", a = a, log = log_transform))        # adjust_selected()
-  if (class(result) != "try-error"){
+  enough_data <- length(unique(data_all2$MYEAR[sel])) > 1
+  if (enough_data)
+    result <- try(adjust_selected(data_all2, sel, var = "VALUE_WW", a = a, log = log_transform))        # adjust_selected()
+  if (class(result) != "try-error"  & enough_data){
     data_all2$VALUE_WWa[sel] <- result$value
     data_lengthreg[i, col_ww] <- result$summary[1:5]   # number 6 is "a"
     }
@@ -776,11 +791,14 @@ for (i in 1:i_max){
   #
   # Perform regression
   #
-  result <- try(adjust_selected(data_all2, sel, var = "VALUE_DW", a = a))        # adjust_selected()
-  if (class(result) != "try-error"){
+  enough_data <- length(unique(data_all2$MYEAR[sel])) > 1
+  if (enough_data)
+    result <- try(adjust_selected(data_all2, sel, var = "VALUE_DW", a = a, log = log_transform))        # adjust_selected()
+  if (class(result) != "try-error" & enough_data){
     data_all2$VALUE_DWa[sel] <- result$value
     data_lengthreg[i, col_dw] <- result$summary[1:5]   # number 6 is "a"
-    }
+  }
+  
   #
   # Select data, fat-weight
   #
@@ -793,8 +811,10 @@ for (i in 1:i_max){
   #
   # Perform regression
   #
-  result <- try(adjust_selected(data_all2, sel, var = "VALUE_FB", a = a))        # adjust_selected()
-  if (class(result) != "try-error"){
+  enough_data <- length(unique(data_all2$MYEAR[sel])) > 1
+  if (enough_data)
+    result <- try(adjust_selected(data_all2, sel, var = "VALUE_FB", a = a, log = log_transform))        # adjust_selected()
+  if (class(result) != "try-error" & enough_data){
     data_all2$VALUE_FBa[sel] <- result$value
     data_lengthreg[i, col_fb] <- result$summary[1:5]   # number 6 is "a"
     }
