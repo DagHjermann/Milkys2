@@ -61,7 +61,8 @@
 
 
 plot_medians_and_trends <- function(ser, x_rel = 0.8, y_rel = 0.9, xlim = NULL, ylim = 1.15, 
-                                    titlesize = 0.85, trend_years = NULL, trend_x_spacing = c(0, 0.032, 0.064), ...){
+                                    titlesize = 0.85, trend_years = NULL, trend_x_spacing = c(0, 0.032, 0.064), 
+                                    add_trend_symbols = TRUE, ...){
   
   if (is.null(trend_years) & !is.null(xlim))
     trend_years <- seq(xlim[1], xlim[2])
@@ -148,19 +149,21 @@ plot_medians_and_trends <- function(ser, x_rel = 0.8, y_rel = 0.9, xlim = NULL, 
     
     theme(title = element_text(size = rel(titlesize)))
   
-  # Add trend symbols. 
-  trend_variable <- paste0("Trends.", last_year)
-  trendsymbol_xl <- c(substr(dfbig[[trend_variable]], 1, 1), substr(dfbig[[trend_variable]], 3, 3))
-  trends <- case_when(
-    trendsymbol_xl %in% "¢" ~ "circle",
-    trendsymbol_xl %in% "é" ~ "arrowup",
-    trendsymbol_xl %in% "ê" ~ "arrowdown",
-    trendsymbol_xl %in% "§" ~ "filledsquare",
-  )
- 
-   gg <- add_trend(gg, trendsymbols = trends, x_rel = x_rel, y_rel = y_rel, 
-                  x_spacing = trend_x_spacing, fontsize = 10)
-  
+  # Add trend symbols  
+  if (add_trend_symbols){
+    trend_variable <- paste0("Trends.", last_year)
+    trendsymbol_xl <- c(substr(dfbig[[trend_variable]], 1, 1), substr(dfbig[[trend_variable]], 3, 3))
+    trends <- case_when(
+      trendsymbol_xl %in% "¢" ~ "circle",
+      trendsymbol_xl %in% "é" ~ "arrowup",
+      trendsymbol_xl %in% "ê" ~ "arrowdown",
+      trendsymbol_xl %in% "§" ~ "filledsquare",
+    )
+    
+    gg <- add_trend(gg, trendsymbols = trends, x_rel = x_rel, y_rel = y_rel, 
+                    x_spacing = trend_x_spacing, fontsize = 10)
+    
+  }
   
   # Make file name (but does not save file)
   fn <- paste0("TSplot_", ser[1], "_", ser[2], "_", ser[3], "_", ser[4], "_", ser[5], ".png")
@@ -308,9 +311,7 @@ get_unit_text <- function(unit, basis, param){
 #
 # Used by plot_medians_and_trends
 #
-# Default colors are from Colorbrewer2.org, "Set1", except the light blue which is from "Paired"
-#
-# Color options for trend/CI
+# Default colors are from Colorbrewer2.org, "Set1", except the light blue which is from "Paired"# Color options for trend/CI
 #   Dark/light green: trend_color = "#33a02c", ci_fill = "#b2df8a"  (colorbrewer: PuBuGn)
 #   Dark/light blue: trend_color = "#045a8d", ci_fill = "#bdc9e1" (colorbrewer: Blues )
 plot_medians_color <- function(X, proref,
@@ -577,7 +578,7 @@ get_dfbig <- function(param, species, tissue = NULL, station, basis = "WW"){
 
 save_trendplot <- function(plot_single_result, folder, suffix = "", windows = FALSE,
                            width = 5.6, height = 4.4,                                  # set plot size, in inches (but see note in code for Linux)
-                           dpi_windows = 450, dpi_linux = 400                          # set plot resolution (dots per inch)
+                           dpi_windows = 450, dpi_linux = 400                          # set plot resolution (dots per inch))
                            ){
   fn <- paste0(folder, "/", plot_single_result$fn)
   # If you want, you can add a suffix to the file name (e.g. "_2") by 
