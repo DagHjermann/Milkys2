@@ -112,12 +112,12 @@ plot_medians_and_trends <- function(ser, x_rel = 0.8, y_rel = 0.9, xlim = NULL, 
   )
   
   # Title
-  tissue_for_title <- case_when(
-      X$tissue == "Lever" ~ "liver",
-      X$tissue == "Muskel" ~ "muscle",
-      X$tissue == "Galle" ~ "bile",
-      TRUE ~ tolower(ser[3]))
-  plot_title <- paste0(X$paramname, " in ", tolower(X$speciesname), " ", tissue_for_title, ", ", X$stationname)
+  # tissue_for_title <- case_when(
+  #     X$tissue == "Lever" ~ "liver",
+  #     X$tissue == "Muskel" ~ "muscle",
+  #     X$tissue == "Galle" ~ "bile",
+  #     TRUE ~ tolower(ser[3]))
+  plot_title <- paste0(X$paramname, " in ", tolower(X$speciesname), " ", X$tissue, ", ", X$stationname)
   if (ser[5] %in% c("WWa", "DWa", "FBa"))
     plot_title <- paste0(plot_title, ". Note: Length-adjusted concentrations")
   # Insert line breaks if text is longer than 69 characters
