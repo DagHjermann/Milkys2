@@ -179,7 +179,7 @@ plot_medians_and_trends <- function(ser, x_rel = 0.8, y_rel = 0.9, xlim = NULL, 
 
 
 #
-# Function . ELU: 1980:2018 -> 1980:2019?
+# 
 #
 
 get_plotdata <- function(param, species, tissue = NULL, station, basis = "WW", 
@@ -316,7 +316,7 @@ get_unit_text <- function(unit, basis, param){
 #   Dark/light blue: trend_color = "#045a8d", ci_fill = "#bdc9e1" (colorbrewer: Blues )
 plot_medians_color <- function(X, proref,
                  title = NULL, 
-                 include_zero = TRUE, proref_x = NULL, show_proref = 1:5, 
+                 include_zero = TRUE, proref_x = NULL, show_proref = 1:5, #ELU: show_proref = 1:5 TIL show_proref = 1
                  xlim = NULL, ylim = NULL, ylim_proref = NULL,
                  trend_color = "black", trend_size = 2,    # For eqs_type = "background", use e.g. dark/light green for trends:
                  ci_fill = "grey80",                        # trend_color = "#33a02c", ci_fill = "#b2df8a"  (rom  PuBuGn)
@@ -598,12 +598,16 @@ save_trendplot <- function(plot_single_result, folder, suffix = "", windows = FA
       theme(axis.text = element_text(size = 11),     # set size of numbers along axes
             axis.title = element_text(size = 12),    # set size of axis labels
             plot.title = element_text(size = 13))    # set size of plot title
-    png(fn, height = height*1.2, width = width*1.2, units = "in", res = dpi_linux)    # create an empty plot file
+    #svglite(fn, height = height*1.2, width = width*1.2)                              ELU:testing with svglite (not png)
+    png(fn, height = height*1.2, width = width*1.2, units = "in", res = dpi_linux)    # create an empty plot file 
     print(gg)                                                                         # ...plot on it...
     dev.off()                                                                         # ...and save it
   }
   invisible(fn)   # returns file name invisibly
 }
+
+
+
 
 
 # save_trendplot(X, "Figures_41")
