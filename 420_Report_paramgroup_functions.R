@@ -759,7 +759,7 @@ pargroup_boxplot <- function(data_medians, y, year, ylabel = NULL, main_title = 
     geom_boxplot() +
     geom_jitter_interactive(aes(fill = Water_region, tooltip = Tooltip, data_id = STATION_CODE), pch = 21, size = 2, width = 0.1) +
     # scale_fill_distiller("Along coast\n(far N/E = blue)", palette = "RdBu", direction = 1) +  # Geogr_position
-    scale_fill_brewer("Water region", palette = "RdBu", direction = 1) +
+    scale_fill_brewer("Water region", palette = "RdBu", direction = -1) +
     theme_bw() +
     ggeasy::easy_rotate_x_labels(angle = -45) +
     labs(y = ylabel, title = main_title)
