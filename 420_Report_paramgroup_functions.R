@@ -1,27 +1,36 @@
 
+
+#
+# Select rows from Milkys data ----
+#
+
 # get_data_for_trend
 # Flexible way of selecting rows of data for trend analysis
 milkys_select_rows <- function(param = NULL, species = NULL, tissue = NULL, station = NULL, firstyear = NULL, data){
   data_sel <- data
   if (!is.null(param))
-    data_sel <- data_sel %>% filter(PARAM %in% param)
+    data_sel <- data_sel %>% dplyr::filter(PARAM %in% param)
   if (!is.null(species))
-    data_sel <- data_sel %>% filter(LATIN_NAME %in% species)
+    data_sel <- data_sel %>% dplyr::filter(LATIN_NAME %in% species)
   if (!is.null(tissue))
-    data_sel <- data_sel %>% filter(TISSUE_NAME %in% tissue)
+    data_sel <- data_sel %>% dplyr::filter(TISSUE_NAME %in% tissue)
   if (!is.null(station)){
     # For station, we need only to give the first letters, e.g. "30B" for "30B Inner Oslofjord"
     # data_sel <- data_sel %>%
     #   mutate(Station_short = substr(Station, 1, nchar(station))) %>%
-    #   filter(Station_short %in% station)
+    #   dplyr::filter(Station_short %in% station)
     # For station, we need only to give  partil match, e.g. "Inner Osl" for "30B Inner Oslofjord"
     data_sel <- data_sel %>%
-      filter(grepl(station, Station, fixed = TRUE))
+      dplyr::filter(grepl(station, Station, fixed = TRUE))
   }
   if (!is.null(firstyear))
-    data_sel <- data_sel %>% filter(MYEAR >= firstyear)
+    data_sel <- data_sel %>% dplyr::filter(MYEAR >= firstyear)
   data_sel
 }
+
+#
+# Retrieve tissue, trend, etc. ----
+#
 
 get_tissue <- function(param, species){
   
@@ -183,7 +192,7 @@ get_trendobj_station <- function(station, data,
 
 get_trendobj_parameter_species <- function(param, species, data){
   
-  data_sel <- data %>% filter(PARAM %in% param)
+  data_sel <- data %>% dplyr::filter(PARAM %in% param)
   
   # Vector of stations
   stations <- unique(data_sel$Station) %>% 
@@ -215,6 +224,9 @@ get_trendobj_parameter_species <- function(param, species, data){
 }
 
 
+#
+# Utility functions ----
+#
 
 #
 # Create function which creates relative class, based on two thresholds  
@@ -241,7 +253,7 @@ create_class_function <- function(thresh1, thresh2,
   }
   
   df_classes <- df_classes_all %>%
-    filter(class >= from_class & class <= to_class)
+    dplyr::filter(class >= from_class & class <= to_class)
   
   if (log){
     fun <- approxfun(log(df_classes$conc), df_classes$class)
@@ -265,8 +277,6 @@ if (FALSE){
   f2(c(8, 20, 30, 300, 500, 700))
 }
 
-
-
 #
 # Data on sample level ----  
 #
@@ -276,7 +286,7 @@ get_parametervalues_singlegroup <- function(paramgroup, return_group_names = FAL
   #
   # Parameter groups
   #
-  lookup_paramgroup <- readxl::read_excel("Input_files_2020/Lookup table - substance groups.xlsx")
+  lookup_paramgroup <- readxl::read_excel("Input_data/Lookup table - substance groups.xlsx")
   group_names <- unique(lookup_paramgroup$Substance.Group)
   
   if (return_group_names){
@@ -286,8 +296,8 @@ get_parametervalues_singlegroup <- function(paramgroup, return_group_names = FAL
     if (length(sel_paramgroup) > 1){
       stop(paramgroup, " fits several names: ", paste(sel_paramgroup, collapse = "; "))
     }
-    lookup_paramgroup <- read_excel("Input_files_2020/Lookup table - substance groups.xlsx") %>%
-      filter(Substance.Group %in% sel_paramgroup)
+    lookup_paramgroup <- lookup_paramgroup %>%
+      dplyr::filter(Substance.Group %in% sel_paramgroup)
     
     # Parameters
     return <- unique(lookup_paramgroup$PARAM)
@@ -338,10 +348,10 @@ if (FALSE){
 }
 
 get_data_tables <- function(paramgroup, 
-                            filename_109 = "Files_from_Jupyterhub_2021/109_adjusted_data_2022-06-04.rds",
-                            filename_lookup_substancegroups = "Input_files_2020/Lookup table - substance groups.xlsx",
-                            filename_lookup_stations= "Files_to_Jupyterhub_2019/Kartbase_edit.xlsx",
-                            filename_bigexcel = "Files_from_Jupyterhub_2020/Big_excel_table/Data_xl_2021-09-15_ver03.rds"){
+                            filename_109 = "Data/109_adjusted_data_2022-06-04.rds",
+                            filename_lookup_substancegroups = "Input_data/Lookup table - substance groups.xlsx",
+                            filename_lookup_stations= "Input_data/Kartbase_edit.xlsx",
+                            filename_bigexcel = "Big_excel_table/Data_xl_2021-09-15_ver03.rds"){
   
   
   # Parameter names
@@ -349,20 +359,20 @@ get_data_tables <- function(paramgroup,
   
   # Parameter groups
   lookup_paramgroup <- read_excel(filename_lookup_substancegroups) %>%
-    filter(PARAM %in% param_values)
+    dplyr::filter(PARAM %in% param_values)
   
   # Raw data
   dat_all <- readRDS(filename_109) %>%
-    filter(PARAM %in% param_values)
+    dplyr::filter(PARAM %in% param_values)
   
   # Stations
   lookup_stations <- read_excel(filename_lookup_stations)
   
   # EQS and proref
   lookup_eqs_ww <- readRDS(filename_bigexcel) %>%
-    filter(PARAM %in% param_values) %>%
+    dplyr::filter(PARAM %in% param_values) %>%
     rename(Proref = Q95) %>%
-    filter(
+    dplyr::filter(
       Basis %in% "WW"
     ) %>%
     distinct(PARAM, LATIN_NAME, TISSUE_NAME, EQS, Proref) %>%
@@ -375,7 +385,7 @@ get_data_tables <- function(paramgroup,
   
   check <- lookup_eqs_ww %>%
     add_count(PARAM, LATIN_NAME, TISSUE_NAME) %>%
-    filter(n > 1)
+    dplyr::filter(n > 1)
   
   if (nrow(check) > 0){
     stop("More than one EQS per parameter!")
@@ -413,7 +423,7 @@ get_data <- function(paramgroup, speciesgroup, min_obs = 100){
     left_join(X$lookup_paramgroup %>% select(PARAM, Substance.Group), 
               by = "PARAM") %>%
     add_count(PARAM) %>%
-    filter(n >= min_obs) %>%
+    dplyr::filter(n >= min_obs) %>%
     # Add 'Station.Name'
     left_join(X$lookup_stations, by = "STATION_CODE")
   
@@ -429,12 +439,12 @@ get_data <- function(paramgroup, speciesgroup, min_obs = 100){
   if (speciesgroup == "fish"){
     
     result <- dat_2 %>%
-      filter(LATIN_NAME %in% c("Gadus morhua", "Platichthys flesus"))
+      dplyr::filter(LATIN_NAME %in% c("Gadus morhua", "Platichthys flesus"))
     
   } else if (grepl("mussel", speciesgroup)){
     
     result <- dat_2 %>%
-      filter(LATIN_NAME %in% c("Mytilus edulis"))
+      dplyr::filter(LATIN_NAME %in% c("Mytilus edulis"))
     
   } else {
     
@@ -468,7 +478,7 @@ get_medians <- function(data_samplelevel_fish, data_samplelevel_mussel){
   result <- bind_rows(data_samplelevel_fish, data_samplelevel_mussel) %>%
     group_by(Station) %>%
     mutate(n_after_2018 = sum(MYEAR >= 2018)) %>%
-    filter(
+    dplyr::filter(
       n_after_2018 > 0) %>%
     ungroup() %>%
     group_by(PARAM, LATIN_NAME, TISSUE_NAME, STATION_CODE, Station, Station2, Water_region, MYEAR, UNIT, EQS_WW, Proref) %>%
@@ -493,7 +503,7 @@ get_medians <- function(data_samplelevel_fish, data_samplelevel_mussel){
       LOQ_label = ifelse(Prop_underLOQ >= 0.5, "<", "")
     )
   
-  check <- xtabs(~MYEAR, result %>% filter(PARAM == "HG" & grepl("30A", Station)))
+  check <- xtabs(~MYEAR, result %>% dplyr::filter(PARAM == "HG" & grepl("30A", Station)))
   if (sum(check > 1) > 0){
     stop("Error in median: more than one measurement per parameter/station/year")
   }
@@ -556,7 +566,7 @@ pargroup_median_table_data <- function(data_medians, fill, year){
   fill_column <- fill
   
   dat_plot <- data_medians %>%
-    filter(MYEAR %in% year) %>%
+    dplyr::filter(MYEAR %in% year) %>%
     arrange(desc(PARAM))
   
   # fill_min <- floor(1000*min(dat_plot$fill, na.rm = T))/1000
@@ -693,7 +703,7 @@ pargroup_boxplot <- function(data_medians, y, year, ylabel = NULL, main_title = 
     ylabel = y
   
   dat_prorefplot2 <- data_medians %>%    # Change here for fish vs. mussel
-    filter(MYEAR == year) %>%
+    dplyr::filter(MYEAR == year) %>%
     mutate(
       Unit = gsub("_P_", "/", UNIT, fixed = TRUE) %>% tolower(),
       Tooltip = paste0(Station, "<br>Conc.: (min-median-max): ", VALUE_WW_min, "-", VALUE_WW_med, "-", VALUE_WW_max, " ", Unit))
@@ -761,14 +771,14 @@ parameter_median_table_data <- function(parameter, data_medians, fill,
   
   dat_plot <- data_medians %>%
     # Select parameter
-    filter(PARAM %in% parameter) %>%
+    dplyr::filter(PARAM %in% parameter) %>%
     # Keep only series lasting until 'series_lasting_until'  
     group_by(Station2) %>%
     mutate(MYEAR_max = max(MYEAR)) %>%
     ungroup() %>%
-    filter(MYEAR_max >= series_lasting_until) %>%
+    dplyr::filter(MYEAR_max >= series_lasting_until) %>%
     # Drop years before "min_year"
-    filter(MYEAR >= min_year) %>%
+    dplyr::filter(MYEAR >= min_year) %>%
     # Station levels
     arrange(desc(Station2)) %>%
     mutate(Station2 = droplevels(Station2))
@@ -925,4 +935,3 @@ if (F){
   # debugonce(parameter_median_table_static)
   parameter_median_table_static("HG", dat_median_fish, fill = "Proref_ratio_WW")
 }
-
