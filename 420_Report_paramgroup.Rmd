@@ -1,5 +1,5 @@
 ---
-  title: "Report for parameter group (420)"
+title: "Report for parameter group (420)"
 author: "DHJ"
 date: "18.08.2022"
 params:
@@ -11,7 +11,7 @@ toc: true
 toc_float: true
 ---
   
-  ```{r, echo = FALSE}
+```{r, echo = FALSE}
 
 knitr::opts_chunk$set(echo = FALSE, results = 'hold')
 # knitr::opts_chunk(results = 'hold')
@@ -53,6 +53,7 @@ source("420_Report_paramgroup_functions.R", encoding = "UTF-8")
 
 
 ```{r get_data, warning=FALSE}
+
 chem_params <- get_parametervalues(params$chemical_group)
 
 # debugonce(get_data_tables)
@@ -138,5 +139,21 @@ pargroup_boxplot(dat_median_fish, y = "EQS_ratio_WW", year = current_year,
 pargroup_boxplot(dat_median_mussel, y = "EQS_ratio_WW", year = current_year,
                  ylabel = "Ratio conc. w.w. / EQS",
                  main_title = paste0("Ratio concentration/EQS, metals in mussel ", current_year))
+
+```
+
+## Detection limits  
+
+### Fish
+```{r}
+
+pargroup_median_table(dat_median_fish, fill = "Detected %", year = 2021, breaks = "0_to_100")
+
+```
+
+### Mussel
+```{r}
+
+pargroup_median_table(dat_median_mussel, fill = "Detected %", year = 2021, breaks = "0_to_100")
 
 ```

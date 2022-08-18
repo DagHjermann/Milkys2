@@ -493,6 +493,7 @@ get_medians <- function(data_samplelevel_fish, data_samplelevel_mussel){
       Proref_ratio_WW = VALUE_WW_med/Proref,
       EQS_ratio_WW = VALUE_WW_med/EQS_WW,
       Prop_underLOQ = N_underLOQ/N,
+      `Detected %` = 100*(1-Prop_underLOQ),
       FLAG1 = case_when(
         Prop_underLOQ < 0.5 ~ as.character(NA),
         Prop_underLOQ >= 0.5 ~ "<"),
@@ -556,7 +557,8 @@ pargroup_median_table <- function(..., tooltip = TRUE){
   }
 }
 
-pargroup_median_table_data <- function(data_medians, fill, year){
+pargroup_median_table_data <- function(data_medians, fill, year,
+                                       breaks = "ratio"){
   
   if (length(year) > 1){
     stop("Several years given. Set year to be a single year")
@@ -574,10 +576,18 @@ pargroup_median_table_data <- function(data_medians, fill, year){
   fill_min <- 0.0001
   fill_max <- 1000
   
+  if (is.numeric(breaks)){
+    breaks_vector <- breaks
+  } else if (breaks %in% "ratio"){
+    breaks_vector = c(fill_min,0.5,0.75,0.9,1,2,3,5,10,fill_max)
+  } else if (breaks %in% "0_to_100"){
+    breaks_vector = seq(0, 100, 10)
+  }
+  
   dat_plot <- dat_plot %>% 
     mutate(
       PARAM = forcats::fct_inorder(PARAM),
-      fill_cut = cut(fill, breaks = c(fill_min,0.5,0.75,0.9,1,2,3,5,10,fill_max)),
+      fill_cut = cut(fill, breaks = breaks_vector, include.lowest = TRUE),
       VALUE_WW_txt = paste0(
         fill_column, ": ", round(fill, 3), "<br>",
         "Median: ", LOQ_label, round(VALUE_WW_med, 4), " ug/kg<br>",
@@ -595,10 +605,19 @@ if (F){
   pargroup_median_table_data(dat_median_fish, fill = "Proref_ratio_WW", year = 2021)
 }
 
-pargroup_median_table_colors <- function(plotdata){
+pargroup_median_table_colors <- function(plotdata, breaks){
+  
   n_levels <- length(levels(plotdata$fill_cut))
-  cols <- c(RColorBrewer::brewer.pal(6, "Blues")[5:2],
-            RColorBrewer::brewer.pal(6, "YlOrRd")[1:5])
+  
+  if (is.numeric(breaks)){
+    breaks_vector <- breaks
+  } else if (breaks %in% "ratio"){
+    cols <- c(RColorBrewer::brewer.pal(6, "Blues")[5:2],
+              RColorBrewer::brewer.pal(6, "YlOrRd")[1:5])
+  } else if (breaks %in% "0_to_100"){
+    cols <- scico_to_hex("vik", 10)
+  }
+  
   
   # Note: aalternative color scales
   #scale_fill_viridis_b(trans = "log10", breaks = c(0.01,1,2,3,5,10,100), option = "plasma") +
@@ -608,26 +627,43 @@ pargroup_median_table_colors <- function(plotdata){
     cat("\nLevels of fill variable:", levels(plotdata$fill_cut), "\n")
     stop("Data has ", n_levels, " levels (see above) but ", length(cols), " colors given")
   }
-  names(cols) <- levels(plotdata$fill)
+  names(cols) <- levels(plotdata$fill_cut)
   cols
 }
 
 if (F){
   # debugonce(pargroup_median_table_tooltip)
   X <- pargroup_median_table_data(dat_median_fish, fill = "Proref_ratio_WW", year = 2021)
-  parameter_median_table_colors(X)
+  pargroup_median_table_colors(X, breaks = "ratio")
+  pargroup_median_table_colors(X, breaks = "0_to_100")
+}
+
+# Get hex values for scico colours
+scico_to_hex <- function(palette, n, min = 1, max = 255){
+  M <- scico::scico_palette_data(palette)[round(seq(1, 255, length = n), 0),]
+  purrr::map_chr(1:10, ~rgb(M$r[.], M$g[.], M$b[.], maxColorValue=1, alpha=1))
+}
+if (FALSE){
+  # Test
+  x <- scico_to_hex("vik", 10)
+  x
+  pie(rep(1,10), col = x)
+  # For scico colors and visualisation:
+  scico::scico_palette_names()
+  scico::scico_palette_show()
+  scico::scico_palette_show("vik")
 }
 
 # "Dynamic" plot, i.e. with tooltips (returns htmlwidget / girafe object)  
 pargroup_median_table_tooltip <- function(data_medians, fill, year,
-                                          width_svg = 6, height_svg = 3.5){
+                                          width_svg = 6, height_svg = 3.5, breaks = "ratio"){
   
   fill_column <- fill
   
   dat_plot <- pargroup_median_table_data(
-    data_medians= data_medians, fill = fill, year = year)
+    data_medians= data_medians, fill = fill, year = year, breaks = breaks)
   
-  cols <- parameter_median_table_colors(dat_plot)
+  cols <- pargroup_median_table_colors(dat_plot, breaks = breaks)
   
   p <- ggplot(dat_plot, aes(Station2, PARAM, tooltip = VALUE_WW_txt)) + 
     geom_tile(data = subset(dat_plot, Above_EQS %in% "Over"),
@@ -657,14 +693,14 @@ if (F){
 
 
 # Static plot (returns ordinary ggplot object)  
-pargroup_median_table_static <- function(data_medians, fill, year){
+pargroup_median_table_static <- function(data_medians, fill, year, breaks = "ratio"){
   
   fill_column <- fill
   
   dat_plot <- pargroup_median_table_data(
-    data_medians= data_medians, fill = fill, year = year)
+    data_medians= data_medians, fill = fill, year = year, breaks = breaks)
   
-  cols <- parameter_median_table_colors(dat_plot)
+  cols <- parameter_median_table_colors(dat_plot, breaks = breaks)
   
   gg <- ggplot(dat_plot, aes(Station2, PARAM, fill = fill)) +
     geom_tile()
@@ -828,7 +864,7 @@ parameter_median_table_colors <- function(plotdata){
     cat("\nLevels of fill variable:", levels(plotdata$fill_cut), "\n")
     stop("Data has ", n_levels, " levels (see above) but ", length(cols), " colors given")
   }
-  names(cols) <- levels(plotdata$fill)
+  names(cols) <- levels(plotdata$fill_cut)
   cols
 }
 
