@@ -147,13 +147,13 @@ pargroup_boxplot(dat_median_mussel, y = "EQS_ratio_WW", year = current_year,
 ### Fish
 ```{r}
 
-pargroup_median_table(dat_median_fish, fill = "Detected %", year = 2021, breaks = "0_to_100")
+pargroup_median_table(dat_median_fish, fill = "Detected %", year = 2021, breaks = "0_to_100", show_eqs = FALSE)
 
 ```
 
 ### Mussel
 ```{r}
 
-pargroup_median_table(dat_median_mussel, fill = "Detected %", year = 2021, breaks = "0_to_100")
+pargroup_median_table(dat_median_mussel, fill = "Detected %", year = 2021, breaks = "0_to_100", show_eqs = FALSE)
 
 ```

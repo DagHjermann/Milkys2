@@ -656,7 +656,9 @@ if (FALSE){
 
 # "Dynamic" plot, i.e. with tooltips (returns htmlwidget / girafe object)  
 pargroup_median_table_tooltip <- function(data_medians, fill, year,
-                                          width_svg = 6, height_svg = 3.5, breaks = "ratio"){
+                                          width_svg = 6, height_svg = 3.5, 
+                                          breaks = "ratio",
+                                          show_eqs = TRUE){
   
   fill_column <- fill
   
@@ -665,9 +667,15 @@ pargroup_median_table_tooltip <- function(data_medians, fill, year,
   
   cols <- pargroup_median_table_colors(dat_plot, breaks = breaks)
   
-  p <- ggplot(dat_plot, aes(Station2, PARAM, tooltip = VALUE_WW_txt)) + 
-    geom_tile(data = subset(dat_plot, Above_EQS %in% "Over"),
-              color = "red", size = 1, height = 0.9, width = 0.9) +
+  p <- ggplot(dat_plot, aes(Station2, PARAM, tooltip = VALUE_WW_txt))
+  
+  if (show_eqs){
+    # Shown as red tiles (which will be overplotted by slightly smaller tiles afterwards) 
+    p <- p + 
+      geom_tile(data = subset(dat_plot, Above_EQS %in% "Over"),
+                color = "red", size = 1, height = 0.9, width = 0.9)
+  }
+  p <- p +
     geom_tile(aes(fill = fill_cut), width = 0.9, height = 0.9) +
     geom_text(aes(label = LOQ_label), size = 1.5, nudge_y = 0.2) +
     geom_text_interactive(aes(label = round(VALUE_WW_med, 3)), nudge_y = -0.1, size = 1.5) +
