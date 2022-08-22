@@ -11,9 +11,10 @@ library(dplyr)
 library(purrr)
 library(ggplot2)
 library(lubridate)
-library(openxlsx)
+# library(openxlsx)
 library(mgcv)
 library(AICcmodavg)   # AICc()
+library(svglite)
 # font_import(pattern = "Wingdings.ttf")    # if not already installed on your PC
 ```
 
@@ -141,7 +142,17 @@ df_speciesnames <- tibble(
 #
 fns <- dir("Big_excel_table", pattern = "Data_xl_.+.rds") %>% rev()
 fns_date <- substr(fns, 9, 18)
-fns_ver <- stringr::str_extract(fns, "ver[0-9]+") %>% stringr::str_extract("[0-9]+") %>% as.numeric()
+
+# Avoid stringr due to trouble with stringi (and stringi is slow to )
+# fns_ver <- stringr::str_extract(fns, "ver[0-9]+") %>% stringr::str_extract("[0-9]+") %>% as.numeric()
+
+retrieve <- function(string, expr){
+  X <- regexpr(expr, string)
+  substr(string, X, X + attr(X, "match.length") - 1)
+}
+
+fns_ver <- retrieve(fns, "ver[0-9]+") %>% retrieve("[0-9]+") %>% as.numeric()
+
 file_versions <- tibble(Filename = fns, Date = fns_date, Version = fns_ver) %>%
   arrange(desc(Date), desc(Version))
 file_versions
@@ -182,9 +193,12 @@ type <- "line"
 # dir.create("Figures_401_test")
 #folder_test <- "Figures_401_test"
 
+# debugonce(plot_medians_and_trends)
+# debugonce(add_trend)
+# debugonce(plot_medians_color)
 ymax <- 0.45
-X <- plot_medians_and_trends(c("HG", "Gadus morhua", "Muskel", "30B",  "WWa"), 
-                             eqs_type = "line", xlim = c(1976, 2020), ylim = c(0, ymax))
+X <- plot_medians_and_trends(c("HG", "Gadus morhua", "Muskel", "30B",  "WW"),  
+                             eqs_type = "line", xlim = c(1976, 2021), ylim = c(0, ymax), add_trend_symbols = TRUE)
 X                               # show below (in this Rmd file)
 #save_trendplot(X, folder_test)  # save as file
 
@@ -198,20 +212,25 @@ X                               # show below (in this Rmd file)
  #                            eqs_type = "line", xlim = c(1988, 2019), ylim = c(0, 10.5))
 
 #X <- plot_medians_and_trends(c("OCS", "Gadus morhua", "Lever", "30B",  "WW"), 
-                        #    eqs_type = type, xlim = c(1990, 2019), eqs_x = 1990, ylim = c(0, 15.0))
+      #                      eqs_type = type, xlim = c(1990, 2019), eqs_x = 1990, ylim = c(0, 15.0))
+#X
 #save_trendplot(X, folder)
 ```
 
 ### Test 2
 ```{r}
-plot_medians_and_trends(c("HG", "Gadus morhua", "Muskel", "23B",  "WW"), 
-                             eqs_type = type, xlim = c(1980, 2020), ylim = c(0, ymax))
+plot_medians_and_trends(c("HG", "Gadus morhua", "Muskel", "30B",  "WW"), 
+                             eqs_type = type
+                        , xlim = c(2000, 2021)
+                        , trend_years = 2008:2016
+                        , ylim = c(0, 0.5))
+                    
 
 ```
 ### Test 3
 ```{r}
-plot_medians_and_trends(c("HG", "Mytilus edulis", "Whole soft body", "30A",  "WW"), 
-                             eqs_type = type, xlim = c(2006, 2020), eqs_x = 2006, ylim = c(0, 0.05))
+plot_medians_and_trends(c("PA", "Mytilus edulis", "Whole soft body", "30A",  "WW"), 
+                             eqs_type = type, xlim = c(2000, 2021), eqs_x = 2006, ylim = c(0, 10.0))
 ```
 
 ### Test 4
@@ -255,13 +274,30 @@ plot_medians_and_trends(c("OCS", "Gadus morhua", "Lever", "30B",  "WW"),
 # dir.create("Figures_401/Test01")
 
 type <- "line"
-folder <- "Figures_401/Til 2020-rapporten"
+folder <- "Figures_401/Til 2021-rapporten"
+```
+#PAH-figur til Mildir juli 2022:
+```{r}
+#X <- plot_medians_and_trends(c("P_S", "Mytilus edulis", "Whole soft body", "30A",  "WW"), 
+ #                            eqs_type = type, xlim = c(1984, 2021), eqs_x = 2006, ylim = c(0, 100.0))
+
+#save_trendplot(X, folder)
+
+#X <- plot_medians_and_trends(c("P_S", "Mytilus edulis", "Whole soft body", "I301",  "WW"), 
+ #                           eqs_type = type, xlim = c(1984, 2021), eqs_x = 2006, ylim = c(0, 400.0))
+#save_trendplot(X, folder)
+
+
+X <- plot_medians_and_trends(c("P_S", "Mytilus edulis", "Whole soft body", "I304",  "WW"), 
+                             eqs_type = type, xlim = c(1984, 2021), eqs_x = 2006, ylim = c(0, 100.0))
+save_trendplot(X, folder)
+
 ```
 # flere plots til MILKYS-rapport for 2020
 ```{r}
-X <- plot_medians_and_trends(c("AG", "Mytilus edulis", "Whole soft body", "31A",  "WW"), 
-                           eqs_type = type, xlim = c(2006, 2020), eqs_x = 2006, ylim = c(0, 0.065))
-X
+#X <- plot_medians_and_trends(c("AG", "Mytilus edulis", "Whole soft body", "31A",  "WW"), 
+ #                          eqs_type = type, xlim = c(2006, 2020), eqs_x = 2006, ylim = c(0, 0.065))
+#X
 #save_trendplot(X, folder)
 
 # X <- plot_medians_and_trends(c("CD", "Mytilus edulis", "Whole soft body", "11X",  "WW"), 
@@ -506,33 +542,115 @@ save_trendplot(X, folder)
 #save_trendplot(X, folder)
 
 ```
-# plots til MILKYS-rapport for 2020. ELU. Hg + MCCP
+# plots til MILKYS-rapport for 2020+2021. ELU. Hg + MCCP
 ```{r}
 
+# X <- plot_medians_and_trends(c("HG", "Gadus morhua", "Muskel", "30B",  "WW"),
+#                            eqs_type = type, xlim = c(1972, 2021), eqs_x = 1972, ylim = c(0, 0.44))
+# save_trendplot(X, folder)
+# 
+# X <- plot_medians_and_trends(c("HG", "Gadus morhua", "Muskel", "30B",  "WWa"),
+#                            eqs_type = type, xlim = c(1972, 2021), eqs_x = 1972, ylim = c(0, 0.44))
+# save_trendplot(X, folder)
+
+# X <- plot_medians_and_trends(c("HG", "Gadus morhua", "Muskel", "36B",  "WW"),
+#           eqs_type = type, xlim = c(1972, 2021), eqs_x = 1972, ylim = c(0, 0.44))
+# save_trendplot(X, folder)
+# 
+# X <- plot_medians_and_trends(c("HG", "Gadus morhua", "Muskel", "36B",  "WWa"),
+#           eqs_type = type, xlim = c(1972, 2021), eqs_x = 1972, ylim = c(0, 0.44))
+# save_trendplot(X, folder)
+
+# X <- plot_medians_and_trends(c("HG", "Gadus morhua", "Muskel", "02B",  "WW"),
+#                           eqs_type = type, xlim = c(2009, 2021), eqs_x = 2009, ylim = c(0, 0.44))
+# save_trendplot(X, folder)
+# 
+# X <- plot_medians_and_trends(c("HG", "Gadus morhua", "Muskel", "02B",  "WWa"),
+#                           eqs_type = type, xlim = c(2009, 2021), eqs_x = 2009, ylim = c(0, 0.44))
+# save_trendplot(X, folder)
+
+# X <- plot_medians_and_trends(c("HG", "Gadus morhua", "Muskel", "71B",  "WW"),
+#                           eqs_type = type, xlim = c(2009, 2021), eqs_x = 2009, ylim = c(0, 0.44))
+# save_trendplot(X, folder)
+
+
+# X <- plot_medians_and_trends(c("HG", "Gadus morhua", "Muskel", "13B",  "WW"),
+#                            eqs_type = type, xlim = c(2006, 2021), eqs_x = 2006, ylim = c(0, 0.44))
+# save_trendplot(X, folder)
+# 
+# X <- plot_medians_and_trends(c("HG", "Gadus morhua", "Muskel", "13B",  "WWa"),
+#                            eqs_type = type, xlim = c(2006, 2021), eqs_x = 2006, ylim = c(0, 0.44))
+# save_trendplot(X, folder)
+
+# X <- plot_medians_and_trends(c("HG", "Gadus morhua", "Muskel", "15B",  "WW"),
+#                             eqs_type = type, xlim = c(1976, 2021), eqs_x = 1976, ylim = c(0, 0.44))
+# save_trendplot(X, folder)
+# 
+# X <- plot_medians_and_trends(c("HG", "Gadus morhua", "Muskel", "15B",  "WWa"),
+#                             eqs_type = type, xlim = c(1976, 2021), eqs_x = 1976, ylim = c(0, 0.44))
+# save_trendplot(X, folder)
+
+# X <- plot_medians_and_trends(c("HG", "Gadus morhua", "Muskel", "53B",  "WW"),
+#                            eqs_type = type, xlim = c(1976, 2021), eqs_x = 1976, ylim = c(0, 0.44))
+# save_trendplot(X, folder)
+
+# X <- plot_medians_and_trends(c("HG", "Gadus morhua", "Muskel", "23B",  "WW"),
+#                            eqs_type = type, xlim = c(1980, 2021), eqs_x = 1980, ylim = c(0, 0.44))
+# save_trendplot(X, folder)
+
+# X <- plot_medians_and_trends(c("HG", "Gadus morhua", "Muskel", "24B",  "WW"),
+#                             eqs_type = type, xlim = c(2013, 2021), eqs_x = 2013, ylim = c(0, 0.4))
+# save_trendplot(X, folder)
+
+
+# X <- plot_medians_and_trends(c("HG", "Gadus morhua", "Muskel", "28B",  "WW"),
+#                             eqs_type = type, xlim = c(2010, 2021), eqs_x = 2010, ylim = c(0, 0.6))
+# save_trendplot(X, folder)
+
+# X <- plot_medians_and_trends(c("HG", "Gadus morhua", "Muskel", "80B",  "WW"),
+#                             eqs_type = type, xlim = c(2006, 2021), eqs_x = 2006, ylim = c(0, 0.44))
+# save_trendplot(X, folder)
+
+# X <- plot_medians_and_trends(c("HG", "Gadus morhua", "Muskel", "96B",  "WW"),
+#                             eqs_type = type, xlim = c(2010, 2021), eqs_x = 2010, ylim = c(0, 0.44))
+# save_trendplot(X, folder)
+
+# X <- plot_medians_and_trends(c("HG", "Gadus morhua", "Muskel", "98B1",  "WW"),
+#                             eqs_type = type, xlim = c(1984, 2021), eqs_x = 1984, ylim = c(0, 0.44))
+# save_trendplot(X, folder)
+
+# X <- plot_medians_and_trends(c("HG", "Gadus morhua", "Muskel", "43B2",  "WW"),
+#                             eqs_type = type, xlim = c(2006, 2021), eqs_x = 2006, ylim = c(0, 0.44))
+# save_trendplot(X, folder)
+
+#X <- plot_medians_and_trends(c("HG", "Gadus morhua", "Muskel", "43B2",  "WWa"),
+#                           eqs_type = type, xlim = c(2006, 2021), eqs_x = 2006, ylim = c(0, 0.44))
+#save_trendplot(X, folder)
+
+# X <- plot_medians_and_trends(c("HG", "Gadus morhua", "Muskel", "45B2",  "WW"),
+#                            eqs_type = type, xlim = c(2009, 2021), eqs_x = 2009, ylim = c(0, 0.44))
+# save_trendplot(X, folder)
+
+# X <- plot_medians_and_trends(c("HG", "Gadus morhua", "Muskel", "10B",  "WW"),
+#                            eqs_type = type, xlim = c(1988, 2021), eqs_x = 1988, ylim = c(0, 0.2))
+# save_trendplot(X, folder)
+
+# X <- plot_medians_and_trends(c("HG", "Gadus morhua", "Muskel", "19B",  "WW"),
+#                            eqs_type = type, xlim = c(2014, 2021), eqs_x = 2014, ylim = c(0, 0.2))
+# save_trendplot(X, folder)
+
+# X <- plot_medians_and_trends(c("HG", "Gadus morhua", "Muskel", "20B",  "WW"),
+#                            eqs_type = type, xlim = c(2014, 2021), eqs_x = 2014, ylim = c(0, 0.2))
+# save_trendplot(X, folder)
+
+
 #X <- plot_medians_and_trends(c("HG", "Mytilus edulis", "Whole soft body", "57A",  "WW"),
-              #             eqs_type = type, xlim = c(1972, 2020), eqs_x = 1982, ylim = c(0, 0.25))
-#save_trendplot(X, folder)
-
-#X <- plot_medians_and_trends(c("HG", "Gadus morhua", "Muskel", "30B",  "WW"),
-       #                    eqs_type = type, xlim = c(1972, 2020), eqs_x = 1972, ylim = c(0, 0.44))
-#save_trendplot(X, folder)
-
-#X <- plot_medians_and_trends(c("HG", "Gadus morhua", "Muskel", "30B",  "WWa"),
-     #                      eqs_type = type, xlim = c(1972, 2020), eqs_x = 1972, ylim = c(0, 0.44))
-#save_trendplot(X, folder)
-
-#X <- plot_medians_and_trends(c("HG", "Gadus morhua", "Muskel", "36B",  "WW"),
-              #           eqs_type = type, xlim = c(1972, 2019), eqs_x = 1972, ylim = c(0, 0.44))
-#save_trendplot(X, folder)
-
-#X <- plot_medians_and_trends(c("HG", "Gadus morhua", "Muskel", "02B",  "WW"),
-                 #         eqs_type = type, xlim = c(1976, 2020), eqs_x = 1976, ylim = c(0, 0.44))
+              #             eqs_type = type, xlim = c(1972, 2021), eqs_x = 1982, ylim = c(0, 0.25))
 #save_trendplot(X, folder)
 
 #X <- plot_medians_and_trends(c("HG", "Platichthys flesus", "Muskel", "33F",  "WW"),
  #                         eqs_type = type, xlim = c(1976, 2020), eqs_x = 1976, ylim = c(0, 0.44))
 #save_trendplot(X, folder)
-
 
 #X <- plot_medians_and_trends(c("MCCP", "Gadus morhua", "Lever", "30B",  "WW"),
  #                          eqs_type = type, xlim = c(2010, 2020), eqs_x = 2010, ylim = c(0, 1000))
@@ -544,26 +662,6 @@ save_trendplot(X, folder)
 
 #X <- plot_medians_and_trends(c("MCCP", "Gadus morhua", "Lever", "02B",  "WW"),
 #                           eqs_type = type, xlim = c(2010, 2020), eqs_x = 2010, ylim = c(0, 1000))
-#save_trendplot(X, folder)
-
-X <- plot_medians_and_trends(c("HG", "Gadus morhua", "Muskel", "13B",  "WWa"),
-                             eqs_type = type, xlim = c(2006, 2020), eqs_x = 2006, ylim = c(0, 0.44))
-save_trendplot(X, folder)
-
-#X <- plot_medians_and_trends(c("HG", "Gadus morhua", "Muskel", "15B",  "WW"),
- #                            eqs_type = type, xlim = c(1976, 2020), eqs_x = 1976, ylim = c(0, 0.44))
-#save_trendplot(X, folder)
-
-#X <- plot_medians_and_trends(c("HG", "Gadus morhua", "Muskel", "15B",  "WWa"),
-          #                  eqs_type = type, xlim = c(1976, 2020), eqs_x = 1976, ylim = c(0, 0.44))
-#save_trendplot(X, folder)
-
-#X <- plot_medians_and_trends(c("HG", "Gadus morhua", "Muskel", "23B",  "WW"),
- #                            eqs_type = type, xlim = c(1976, 2020), eqs_x = 1976, ylim = c(0, 0.44))
-#save_trendplot(X, folder)
-
-#X <- plot_medians_and_trends(c("HG", "Gadus morhua", "Muskel", "43B2",  "WWa"),
- #                           eqs_type = type, xlim = c(2006, 2020), eqs_x = 2006, ylim = c(0, 0.44))
 #save_trendplot(X, folder)
 
 ```
