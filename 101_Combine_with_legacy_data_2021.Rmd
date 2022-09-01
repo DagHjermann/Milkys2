@@ -63,7 +63,8 @@ lastyear <- 2021
 ```
 
 
-## 2. Data    
+## 2. Data  
+
 ### a1. Recently downloaded data  
 - Read and reformat data (by default, the most recent dataset made)        
 - In constrast to 2019 version, we use only data from NIVAbasen (2c in 2019 version)    
@@ -103,6 +104,15 @@ if (length(files) == 0){
   dat_new1 <- readRDS(paste0("Input_data/", filename))
   
 }
+
+n1 <- nrow(dat_new1)
+dat_new1 <- dat_new1 %>%
+  filter(!is.na(VALUE))
+n2 <- nrow(dat_new1)
+
+
+message("\n", n1-n2, " rows with no value of VALUE were removed")
+
 
 ```
 
@@ -202,14 +212,33 @@ if (any(tab1b > 1) | any(tab2b > 1) | any(tab3b > 1)){
   
 }
 
-dat_new1 %>%
-  filter(NAME %in% params) %>%
-  ggplot(aes(x = VALUE)) +
-  geom_histogram() +
-  facet_wrap(vars(NAME), scales = "free_x")
+dat_plot <- dat_new1 %>%
+  filter(NAME %in% params & !is.na(VALUE)) 
 
+if (nrow(dat_plot) > 0){
+  ggplot(dat_plot, aes(x = VALUE)) +
+    geom_histogram() +
+    facet_wrap(vars(NAME), scales = "free_x")
+  
+  # separate for "3-OH-benzo[a]pyren"
+  param_pick <- "1-OH-pyren"
+  param_pick <- "1-OH-fenantren"
+  param_pick <- "3-OH-benzo[a]pyren"
+  ggplot(dat_plot %>% filter(NAME == param_pick), # %>% View(), 
+         aes(x = VALUE)) +
+    geom_histogram(bins = 30) +
+    facet_wrap(vars(FLAG1), nrow = 1) +
+    ggtitle(param_pick)
+
+
+}
+
+  
 ```
+
+
 ### a6. Remove adjusted PAH metabolites (PYR1O, PA1O, BAP3O)  
+
 ```{r}
 
 sel <- dat_new1$NAME %in% c("PA1O", "PYR1O", "BAP3O")
@@ -321,8 +350,10 @@ dat_new2 <- dat_new2 %>%
   mutate(
     PARAM = case_when(
       PARAM %in% c("Ag", "As", "Cd", "Co", "Cr", "Cu", "Hg", "Ni", "Pb", "Sn", "Zn") ~ toupper(PARAM),
+      substr(PARAM,1,3) %in% "PCB" ~ sub("PCB ", "CB", PARAM, fixed = TRUE),
       PARAM %in% "Sølv" ~ "AG",
       PARAM %in% "Kvikksølv" ~ "HG",
+      PARAM %in% "Selen" ~ "SE",
       PARAM %in% "Pentaklorbenzen (QCB)" ~ "QCB",	
       # the following names are not logical - but need to be like this in order to be conistent with old data.
       # Will be changed in 10.
@@ -332,6 +363,11 @@ dat_new2 <- dat_new2 %>%
       PARAM %in% "1-OH-pyren" ~ "PYR1OH",
       PARAM %in% "1-OH-fenantren" ~ "PA1OH",
       PARAM %in% "3-OH-benzo[a]pyren" ~ "BAP3OH",
+      grepl("oktametylsyklotetrasiloksan", PARAM) ~ "D4",
+      grepl("dekametylsyklopentasiloksan", PARAM) ~ "D5",
+      grepl("dodekametylsykloheksasiloksan", PARAM) ~ "D6",
+      grepl("Kortkjedede (SCCP)", PARAM, fixed = TRUE) ~ "SCCP",
+      grepl("Mellomkjedede (MCCP)", PARAM, fixed = TRUE) ~ "MCCP",
       TRUE ~ PARAM)
   )
 
@@ -708,71 +744,7 @@ if (FALSE){
 
 ```
 
-### c. Checks (if needed) 
-```{r}
-#
-# OLD CHECKS
-#
-
-if (FALSE){
-  
-  test1 <- dat_new4 %>%
-    filter(is.na(Preferred_unit))
-  
-  test2 <- dat_new4 %>%
-    filter(UNIT != Preferred_unit & is.na(Conversion_factor))
-  
-  cat("\n")
-  if (nrow(test1) > 0){
-    cat("WARNING! Preferred_unit not found for", 
-        nrow(test1), "records of the following parameters: \n")
-    test1 %>%
-      pull(PARAM) %>%
-      unique() %>%
-      print()
-  } else {
-    cat("Preferred_unit found for all parameters. \n")
-  }
-  
-  cat("\n")
-  if (nrow(test2) > 0){
-    cat("WARNING! Conversion_factor not found for", 
-        nrow(test2), "records of the following parameters: \n")
-    test2 %>%
-      pull(PARAM) %>%
-      unique() %>%
-      print()
-    cat("\n")
-    cat("You must either change the preferred unit or add the lacking conversion factors. \n")
-    test3 <- test2 %>%
-      distinct(PARAM, UNIT, Preferred_unit) %>%
-      count(UNIT, Preferred_unit)
-    for (i in nrow(test3))
-      cat("Cannot convert from", test3$UNIT[i], "to", test3$Preferred_unit[i], "for", test3$n[i], "parameters \n")
-    
-    cat("\n")
-    cat("Table of existing units ('UNIT' in table below) and preferred units: \n")
-    xtabs(~PARAM + Preferred_unit + UNIT,  test2)  
-    
-  } else {
-    cat(" Conversion_factor found for all parameters. \n")
-  }
-  
-  if (nrow(test1) > 0 | nrow(test2) > 0){
-    cat("\n")
-    cat("------------------------------------------------------------ \n")
-    cat("Please edit 'Lookup table - preferred parameter units.xlsx'  \n")
-    cat("(Folder 'Input_data') \n")
-    cat("Download the file to your PC, edit it, and   \n")
-    cat("   upload it back to the 'Input_data' folder.  \n")
-    cat("------------------------------------------------------------ \n")
-  }
-  
-}
-
-
-```
-
+### c. Checks (if needed) - see code in 'Appendix'   
 
 ### d. Check units that are different from preferred units   
 ```{r}
@@ -791,10 +763,22 @@ check_unit2 <- check_unit %>%
 
 if (nrow(check_unit2) > 0){
   stop(nrow(check_unit2), 
-       " param/units have forbidden units and no preferred unit! Fix excel table 'preferred_units'.  (Section 4d)")
+       " param/units have forbidden units and no preferred unit!\n",
+       "Fix excel table 'Lookup table - preferred parameter units.xlsx' (folder Input_data).\n",
+       "Note: this is also where you will notice if some parameter names ('PARAM') should change name,\n",
+       "  so you might go back to section 3.b1 to recode parameter names.\n",
+       "(This error happened in Section 4d)")
 } else {
   message("Test 1 ok (no param/units have have forbidden units combined with no preferred unit)")
 }
+
+#
+# Code such as the following may be useful to run in R on your own computer, after running script 802
+#   to help updating 'preferred parameter units'. Can then copy/paste lots of new parameters to excel. 
+#   Example below copies the names of all PAH metabolites (which all have 'OH' in the name):
+#
+# df_data %>% filter(grepl("OH", NAME)) %>% count(NAME) %>% write.table("clipboard", sep = "\t") 
+#
 
 check_unit3 <- check_unit %>%
   filter(is.na(Preferred_unit))
@@ -814,7 +798,10 @@ check_unit4b <- check_unit4a %>%
 
 if (nrow(check_unit4b) > 0){
   stop(nrow(check_unit4b), 
-       " UNIT - preferred unit pairs lack conversion factor! Fix excel table 'preferred_units'. (Section 4d)")
+       " UNIT - preferred unit pairs lack conversion factor! Fix excel table 'preferred_units'.\n",
+       "Find the file 'Input_data/Lookup table - preferred parameter units.xlsx', download it to your pc,\n",
+       "add the conversion factors lacking (see check_unit4b), and upload it to Jupyterhub again.\n\n",
+       "(This is an error that occured in section 4d)")
 } else {
   message("Test 3 ok (All pairs of UNIT - preferred unit have conversion factor)")
 }
@@ -1201,7 +1188,7 @@ if (FALSE){
 #### PAH metabolites in bile  
 
 "1-OH-fenantren", "1-OH-pyren", "3-OH-benzo[a]pyren" are the same as PA1OH, PYR1OH, BAP3OH  
-- Example of "3-OH-benzo[a]pyren" vs BAP3OH shown below  
+- Example of "3-OH-benzo[a]pyren" vs BAP3OH shown below   
 ```{r}
 
 # for testing (30B 2016 only)
@@ -1257,8 +1244,12 @@ if ("3-OH-benzo[a]pyren" %in% names(check1)){
 #### Delete 3-OH-benzo[a]pyren  
 ```{r}
 
+n1 <- nrow(data_updated)
 data_updated <- data_updated %>%
   filter(!PARAM %in% "3-OH-benzo[a]pyren")
+n2 <- nrow(data_updated)
+
+cat(n1-n2, "rows deleted\n")
                       
 ```
 
@@ -1319,8 +1310,13 @@ if ("1-OH-pyren" %in% names(check1)){
 #### Delete '1-OH-pyren'    
 ```{r}
 
+n1 <- nrow(data_updated)
 data_updated <- data_updated %>%
   filter(!PARAM %in% "1-OH-pyren")
+n2 <- nrow(data_updated)
+
+cat(n1-n2, "rows deleted\n")
+  
                       
 ```
 
@@ -1472,7 +1468,7 @@ for (param in params){
 }
 
 # Manually made conclusion :)
-cat("Conclusion:\n")
+cat("Conclusion (NOTE: MANUALLY MADE):\n")
 cat("-", params[1], ": All stations \n")
 cat("-", params[2], ": None \n")
 cat("-", params[3], ": All stations \n")
@@ -1679,7 +1675,9 @@ message("Number of rows: ", nrow(data_updated2))
 
 ```
 
-### f. Fix EROD and PROTV tissue  
+### f. Fix EROD and PROTV tissue   
+- Change 2021 to "Lever" - not strictly correct but follows previous years  
+- Something strange in 2020, seem to be duplicates for the data ("Lever" + "Liver - microsome")  
 ```{r}
 
 if (FALSE){
@@ -1689,13 +1687,33 @@ if (FALSE){
   xtabs(~MYEAR + TISSUE_NAME, check)
 }
 
-sel <- with(data_updated2, PARAM %in% "EROD" & !TISSUE_NAME %in% "Lever")
-data_updated2$TISSUE_NAME[sel] <- "Lever"
+# BACKUP <- data_updated2
 
-message("TISSUE_NAME set to 'Lever' for ", sum(sel), " EROD records")
+sel <- with(data_updated2, PARAM %in% c("EROD", "PROTV") & !TISSUE_NAME %in% "Lever" & MYEAR == 2021)
+data_updated2$TISSUE_NAME[sel] <- "Lever"
+message("TISSUE_NAME set to 'Lever' for ", sum(sel), " EROD + PROTV records in 2021")
 
 ```
 
+#### g. Fix "liver" for the snail station!
+```{r}
+
+sel <- with(data_updated2, 
+            LATIN_NAME %in% c("Nucella lapillus", "Littorina littorea") & !TISSUE_NAME %in% c("Whole soft body", "SH", "WO"))
+
+if (sum(sel) > 0){
+  
+  xtabs(~TISSUE_NAME + STATION_CODE, data_updated2[sel,])
+  
+  data_updated2$TISSUE_NAME[sel] <- "Whole soft body"
+  
+  cat(sum(sel), "TISSUE_NAME changed for snails")
+  
+}
+
+
+
+```
 
 ## 11. Save the data for later use    
 - We use the date the data was downloaded (in script 101) in the filename   
@@ -1717,14 +1735,18 @@ cat("\n", filename)
 
 
 
-# Note: There is an alternative way of saving in R format:
+# Note: There is an alternative way of saving in R format, which you may be more familiar with:
 #   save(data_updated2, file = filename)
-# You read the data using the sentence
+# For data saved using save(), you read the data using the sentence
 #   load(filename)
-# You may be more familiar with this method. One main difference bertween the two methods is that save() also stores the name given to the data set,
-# in this case 'data_updated2'. When the file is read, the data are automatically given the name 'data_updated2'. If a data set 
-# with that name already exists, it will be overwritten. Fir taht reasin, we should rather use saveRDS() where you are explicit about what name you give the 
-# data when you read it.
+# In these scripts we instead use 
+#   saveRDS()   (for saving data)
+#   readRDS()   (for reading data)
+# A main difference between the two methods is that save() also stores the name given to the data set,
+# in this case 'data_updated2'. When the file is read, the data are automatically given the name 'data_updated2'. 
+# If a data set with that name already exists, it will be overwritten (with no notice/warning). 
+# Therefore, using save() + load() is a bit dangerous, so we instead use saveRDS() + readRDS(),
+#   where you have to explicitly give a name to the data when you read it.
 
 ```
 ### a. Final check for duplicates   
@@ -1847,6 +1869,14 @@ check2 <- data_updated2 %>%
               names_prefix = "n", values_fill = 0) %>%
   mutate(Station_tissue = paste(STATION_CODE, TISSUE_NAME)) 
 
+data_updated2 %>% 
+  filter(PARAM == "EROD" & MYEAR > 2010) %>%
+  count(PARAM, TISSUE_NAME)
+
+data_updated2 %>% 
+  filter(TISSUE_NAME == "Liver - microsome" & MYEAR > 2010) %>%
+  count(MYEAR, PARAM, TISSUE_NAME)
+
 tissues_lost <- check2[check2[[var1]] > 0 & check2[[var2]] == 0,]
 tissues_gain <- check2[check2[[var1]] == 0 & check2[[var2]] > 0,]
 
@@ -1855,6 +1885,7 @@ cat(nrow(tissues_gain), "tissues gained (when station was not gained) \n")
 
 
 ```
+
 
 ### Parameters 'gained' and 'lost' during last year   
 ```{r}
@@ -1949,3 +1980,69 @@ gg
 
 ```
 
+## Appendix  
+
+### Checks used in 'Units part' (section 4) before  
+```{r}
+#
+# OLD CHECKS
+#
+
+if (FALSE){
+  
+  test1 <- dat_new4 %>%
+    filter(is.na(Preferred_unit))
+  
+  test2 <- dat_new4 %>%
+    filter(UNIT != Preferred_unit & is.na(Conversion_factor))
+  
+  cat("\n")
+  if (nrow(test1) > 0){
+    cat("WARNING! Preferred_unit not found for", 
+        nrow(test1), "records of the following parameters: \n")
+    test1 %>%
+      pull(PARAM) %>%
+      unique() %>%
+      print()
+  } else {
+    cat("Preferred_unit found for all parameters. \n")
+  }
+  
+  cat("\n")
+  if (nrow(test2) > 0){
+    cat("WARNING! Conversion_factor not found for", 
+        nrow(test2), "records of the following parameters: \n")
+    test2 %>%
+      pull(PARAM) %>%
+      unique() %>%
+      print()
+    cat("\n")
+    cat("You must either change the preferred unit or add the lacking conversion factors. \n")
+    test3 <- test2 %>%
+      distinct(PARAM, UNIT, Preferred_unit) %>%
+      count(UNIT, Preferred_unit)
+    for (i in nrow(test3))
+      cat("Cannot convert from", test3$UNIT[i], "to", test3$Preferred_unit[i], "for", test3$n[i], "parameters \n")
+    
+    cat("\n")
+    cat("Table of existing units ('UNIT' in table below) and preferred units: \n")
+    xtabs(~PARAM + Preferred_unit + UNIT,  test2)  
+    
+  } else {
+    cat(" Conversion_factor found for all parameters. \n")
+  }
+  
+  if (nrow(test1) > 0 | nrow(test2) > 0){
+    cat("\n")
+    cat("------------------------------------------------------------ \n")
+    cat("Please edit 'Lookup table - preferred parameter units.xlsx'  \n")
+    cat("(Folder 'Input_data') \n")
+    cat("Download the file to your PC, edit it, and   \n")
+    cat("   upload it back to the 'Input_data' folder.  \n")
+    cat("------------------------------------------------------------ \n")
+  }
+  
+}
+
+
+```
