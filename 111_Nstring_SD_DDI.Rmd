@@ -24,10 +24,11 @@ As in script 110, some data series are 'homogenized'
 The year of the last data
 
 ```{r}
-selected_year <- 2020
+
+selected_year <- 2021
 
 if (as.numeric(substr(Sys.Date(), 1, 4)) - selected_year != 1){
-  warning("'selected_year' should usually be last year. Is it set correctly?")
+  warning("NOTE: 'selected_year' should usually be last year. Is it set correctly?")
 } else {
   message("OK ('selected_year' is one year ago)")
 }
@@ -147,41 +148,55 @@ BIOTA_SAMPLENO corresponds to SAMPLE_NO2 in the data (i.e., sample number within
 sel <- df_samples_labware_raw$BIOTA_SAMPLENO == 0
 cat(sum(sel), "samples have BIOTA_SAMPLENO == 0 \n")
 
-# All are BI-Galle
-cat("\nTissue of samples with BIOTA_SAMPLENO == 0: \n")
-xtabs(~TISSUE, df_samples_labware_raw[sel,])
-
-# Exctract sample from DESCRIPTION
-
-# First, remove AQUAMONITOR_CODE part from the DESCRIPTION strings
-description_clipped <- df_samples_labware_raw$DESCRIPTION
-line_numbers <- which(sel)
-
-# Loop through each line and remove AQUAMONITOR_CODE part
-for (i in line_numbers){
-  description_clipped[i] <- sub(
-    df_samples_labware_raw$AQUAMONITOR_CODE[i], 
-    replacement = "",
-    x = description_clipped[i])
-}
-
-# for checking the result
-if (FALSE){
-  # The clipped descriptions
-  description_clipped[sel]
+if (sum(sel) > 0){
+  
+  # All are BI-Galle
+  cat("\nTissue of samples with BIOTA_SAMPLENO == 0: \n")
+  xtabs(~TISSUE, df_samples_labware_raw[sel,])
+  
+  # Exctract sample from DESCRIPTION
+  
+  # First, remove AQUAMONITOR_CODE part from the DESCRIPTION strings
+  description_clipped <- df_samples_labware_raw$DESCRIPTION
+  line_numbers <- which(sel)
+  
+  # Loop through each line and remove AQUAMONITOR_CODE part
+  for (i in line_numbers){
+    description_clipped[i] <- sub(
+      df_samples_labware_raw$AQUAMONITOR_CODE[i], 
+      replacement = "",
+      x = description_clipped[i])
+  }
+  
+  extract_first_match <- function(string, pattern){
+    m <- gregexpr(pattern, string)
+    matches <- regmatches(string, m)
+    sapply(matches, tail, n = 1)
+    # tail(matches, 1)
+  }
+  # Test (vectorised)
+  # extract_first_match(c("36B Færder area - torsk lever 7 og 11", "36B Færder area - torsk muskel 5"), "[0-9]+") 
+  
+  # for checking the result
+  if (FALSE){
+    # The clipped descriptions
+    description_clipped[sel]
+    # Extract number characters
+    description_clipped[sel] %>%
+      extract_first_match("[0-9]+")
+  }
+  
   # Extract number characters
-  description_clipped[sel] %>%
-    stringr::str_extract("[0-9]+")
+  df_samples_labware_raw$BIOTA_SAMPLENO[sel] <- description_clipped[sel] %>%
+    extract_first_match("[0-9]+") %>%
+    as.numeric()
+  
+  cat("\n")
+  cat("Values of BIOTA_SAMPLENO after fix (should no zeros or NAs): \n")
+  xtabs(~addNA(BIOTA_SAMPLENO), df_samples_labware_raw)
+  
 }
 
-# Extract number characters
-df_samples_labware_raw$BIOTA_SAMPLENO[sel] <- description_clipped[sel] %>%
-  stringr::str_extract("[0-9]+") %>%
-  as.numeric()
-
-cat("\n")
-cat("Values of BIOTA_SAMPLENO after fix (should no zeros or NAs): \n")
-xtabs(~addNA(BIOTA_SAMPLENO), df_samples_labware_raw)
 
 
 
@@ -207,7 +222,7 @@ df_samples_labware <- df_samples_labware_raw %>%
          SAMPLE_NO2 = BIOTA_SAMPLENO
   ) %>%
   mutate(
-    TISSUE_NAME = stringr::str_sub(TISSUE, start = 4),
+    TISSUE_NAME = substr(TISSUE, start = 4, stop = 100),
     No_individuals = number_of_ind(X_BULK_BIO)
   ) %>%    # get number of individuals per pooled sample
   select(MYEAR, STATION_CODE, LATIN_NAME, TISSUE_NAME, SAMPLE_NO2, X_BULK_BIO, No_individuals) %>%

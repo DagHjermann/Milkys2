@@ -287,8 +287,15 @@ if (FALSE){
 
 ```{r}
 
+extract_first_word <- function(string, pattern_word_break = "[[[:blank:]]"){
+  m <- regexpr(pattern_word_break, string)
+  substr(string, 1, m-1)
+}
+# Test (vectorised)
+# extract_first_word(c("36B Færder area - torsk lever 7 og 11", "36B2 Færder area - torsk muskel 5")) 
+
 data_medians_ices_1 <- bind_rows(df1, df2, df3) %>%
-  mutate(STATION_CODE = stringr::str_extract(STATN, "[^[[:blank:]]]+"),
+  mutate(STATION_CODE = extract_first_word(STATN),
          TISSUE_NAME = "Galle",
          UNIT = case_when(
            MUNIT %in% 'ug/kg' ~ "UG_P_KG",
@@ -411,7 +418,7 @@ data_med_2 <- data_med_1_added_pahmetab %>%
     cols = c(VALUE_WW, VALUE_DW, VALUE_FB, VALUE_WWa, VALUE_DWa, VALUE_FBa), 
     names_to = "Basis", 
     values_to = "Value") %>%
-  mutate(Basis = stringr::str_sub(Basis, start = 7))
+  mutate(Basis = substr(Basis, start = 7, stop = 100))
 
 data_med_3 <- data_med_2 %>%
   rename(N_median = N) %>%

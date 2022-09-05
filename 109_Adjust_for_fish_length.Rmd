@@ -18,10 +18,12 @@ output:
 if (!"safejoin" %in% installed.packages()){
   devtools::install_github(repo = "moodymudskipper/safejoin", upgrade = "always")
 }
+# install.packages("stringi")
+# install.packages("stringr")
 
 library(dplyr)
 library(purrr)
-library(stringr)
+# library(stringr)
 library(lubridate)
 library(ggplot2)
 library(readr)
@@ -149,7 +151,7 @@ Read and reformat the most recent data (by default)
 
 files <- dir("Input_data", "Labware_samples_") %>% rev()
 
-sel <- selected_year %in% as.numeric(str_sub(files, 17, 20))
+sel <- selected_year %in% as.numeric(substr(files, 17, 20))
 
 if (sum(sel)==0){
   stop("No files from year ", selected_year, "found! Get it from script 801 on your pc.")
@@ -159,16 +161,25 @@ filename <- files[1]
 df_samples <- readRDS(paste0("Input_data/", filename))
 # xtabs(~TISSUE, df_samples)
 
-# 
+# Helper funti0on used below
+extract_last_match <- function(string, pattern){
+  m <- gregexpr(pattern, string)
+  matches <- regmatches(string, m)
+  sapply(matches, tail, n = 1)
+  # tail(matches, 1)
+}
+# Test (vectorised)
+# extract_last_match("[0-9]+", c("36B Færder area - torsk lever 7 og 11", "36B Færder area - torsk muskel 5")) 
+
 # Prepare sample data    
 #
 df_fishsamples <- df_samples %>%
   select(AQUAMONITOR_CODE, BIOTA_SAMPLENO, TISSUE, X_BULK_BIO, DESCRIPTION) %>%
   distinct(AQUAMONITOR_CODE, TISSUE, BIOTA_SAMPLENO, X_BULK_BIO, DESCRIPTION) %>%
   mutate(
-    TISSUE_NAME = str_sub(TISSUE, start = 4),
+    TISSUE_NAME = substr(TISSUE, start = 4, stop = 100),
     # Extract SPECIMEN_NO by getting the last number of DESCRIPTION (using regex):
-    SPECIMEN_NO = str_extract_all(DESCRIPTION, "[0-9]+") %>% map(rev) %>% map_chr(~.[1])) %>% 
+    SPECIMEN_NO = extract_last_match(DESCRIPTION, "[0-9]+")) %>% 
   select(-TISSUE)
 
 # Check sample number of muscle samples
