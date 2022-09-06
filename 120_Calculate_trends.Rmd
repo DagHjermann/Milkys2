@@ -30,10 +30,10 @@ Note 2: If you want to add or replace a few time series, and don't want to run t
 #   - the "save data" section will then automatically add the new series to the existing time trends  
 #     If those time trends already exists, they will be replaced by the new time trends
 
-# add_extra_series <- FALSE
-add_extra_series <- TRUE
+add_extra_series <- FALSE
+# add_extra_series <- TRUE
 
-last_year <- 2020
+last_year <- 2021
 
 series_lastyear <- 2018   # The series must last at least until this year    
                           # Series without data in any of the three last years will be excluded
