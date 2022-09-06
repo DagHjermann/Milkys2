@@ -27,13 +27,21 @@ decimal_comma <- TRUE
 Last year with observations  
 ```{r}
 
-last_year <- 2020
+last_year <- 2021
 
 if (as.numeric(substr(Sys.Date(), 1, 4)) - last_year != 1){
   warning("'last_year' should usually be last year. Is it set correctly?")
 } else {
   message("OK ('last_year' is one year ago)")
 }
+
+```
+### Set name of second last year's table
+```{r}
+
+# "Big_excel_table/Data_xl_2022-01-05_ver01.rds"
+
+fn_secondlastyear <- "Data_xl_2022-01-05_ver01.rds"
 
 ```
 
@@ -56,9 +64,9 @@ library(readxl)
 library(dplyr)        
 library(tidyr)        # gather()
 library(purrr)        # map_ functions
-library(stringr)
+# library(stringr)
 library(lubridate)
-library(openxlsx)
+# library(openxlsx)
 library(mgcv)
 library(AICcmodavg)   # AICc()
 library(safejoin)     # safe_left_join() - from https://github.com/moodymudskipper/safejoin   
@@ -66,7 +74,6 @@ library(safejoin)     # safe_left_join() - from https://github.com/moodymudskipp
 source("002_Utility_functions.R")
 source("201_Make_big_excel_file_functions.R")
 source("201_Time_series_write_to_Excel_functions.R", encoding = "UTF-8")
-
 
 ```
 
@@ -76,7 +83,7 @@ source("201_Time_series_write_to_Excel_functions.R", encoding = "UTF-8")
 
 
 
-### a. Annual medians  
+### a1. Annual medians  
 ```{r, results='hold'}
 
 files <- list_files("Data", 
@@ -92,6 +99,27 @@ data_list <- read_rds_file(folder = "Data",
 
 data_med2 <- data_list$data
 file_date <- data_list$file_date
+
+#
+# FOR 2021 DATA!  DATA WITHOUT STATION CODE!
+#
+
+warning("NOTE!!!! FOR 2021 DATA!  DATA WITHOUT STATION CODE!")
+nrow(data_med2)
+data_med2 <- data_med2 %>%
+  filter(!(is.na(STATION_CODE) & PARAM %in% c("% C", "% N", "C/N", "Delta13C", "Delta15N")))
+nrow(data_med2)
+
+```
+### a2. Check of data_med2    
+```{r}
+
+check <- data_med2 %>%
+  filter(is.na(STATION_CODE))
+
+if (nrow(check) > 0){
+  stop("There are data without 'STATION_CODE'! Check data 'check'.")
+}
 
 ```
 
@@ -290,12 +318,7 @@ dat_ddi <- list_and_read_rds_file(
 4. List of station names     
 5. Data for the extra columns for parameters and stations   
 
-Set name of second last year's table
-```{r}
-fn_secondlastyear <- "Data_xl_2020-08-05_ver16.rds"
-```
 
-  
 ```{r}
 
 #
@@ -435,11 +458,16 @@ Makes 'data_coordinates', added after less-than columns (section 6)
 # Read coordinates used in ICES
 # Will be used for all stations that are *not* in 'data_stations' 
 #
+
 data_ices_coordinates <- read.csv2("Input_data/StationDictionary_20191104_utf8_Norway.csv",
-                                   stringsAsFactors = FALSE) %>%
-  mutate(STATION_CODE = stringr::str_extract(Station_Name, "[^[[:blank:]]]+"),
-         Station_name = stringr::str_extract(Station_Name, "(?<=\\s).*")  # not kower/capital "n"
-         ) %>%
+                                   stringsAsFactors = FALSE)
+
+# Skipping extracting Station_name (due to encoding problems), which any way isn't used 
+#   (in "Add coordinates", line 2002)
+data_ices_coordinates <- data_ices_coordinates %>%
+  mutate(Station_name_orig = Station_Name,
+         first_space = regexpr("[[[:blank:]]", Station_Name),
+         STATION_CODE = substr(Station_Name, 1, first_space-1)) %>%
   group_by(STATION_CODE) %>%
   mutate(StartYear_max = max(StartYear, na.rm = TRUE)) %>%
   filter(StartYear == StartYear_max)
@@ -458,7 +486,7 @@ check_stations3 <- check_stations2 %>%
 
 if (nrow(check_stations3) > 0){
   warning("Coordinates not found for STATION_CODE(s) ", 
-      paste(unique(check2$STATION_CODE), collapse = ", "))
+      paste(unique(check_stations3$STATION_CODE), collapse = ", "))
   cat("These stations have been used the last 5 years \n")
 } else {
   message("All stations used the last 5 years are either in 'data_stations' or 'data_ices_coordinates'.")
@@ -472,7 +500,7 @@ data_coordinates <- bind_rows(
   data_ices_coordinates %>%
     filter(!STATION_CODE %in% data_stations$STATION_CODE) %>%
     rename(Long = Lon) %>%
-    select(STATION_CODE, Station_name, Long, Lat),
+    select(STATION_CODE, Long, Lat),
   # coordinates from kartbase.xlsx:
   data_stations
 )
@@ -2137,8 +2165,10 @@ if (FALSE){
 #
 fns <- dir("Big_excel_table", pattern = "Data_xl_.+.csv") %>% rev()
 fns_date <- substr(fns, 9, 18)
-fns_ver <- stringr::str_extract(fns, "ver[0-9]+") %>% stringr::str_extract("[0-9]+") %>% as.numeric()
-file_versions <- tibble(Filename = fns, Date = fns_date, Version = fns_ver) %>%
+m <- regexpr("ver[0-9]+", fns)
+fns_ver <- regmatches(fns, m) %>% substr(4,5) %>% as.numeric()
+n <- length(fns_ver)
+file_versions <- tibble(Filename = fns[1:n], Date = fns_date[1:n], Version = fns_ver) %>%
   arrange(desc(Date), desc(Version))
 file_versions
 
@@ -2205,12 +2235,13 @@ if (FALSE){
   # OR:
   # fns <- dir("Big_excel_table", pattern = "Data_xl_.+.rds") %>% rev()
   fns_date <- substr(fns, 9, 18)
-  fns_ver <- stringr::str_extract(fns, "ver[0-9]+") %>% stringr::str_extract("[0-9]+") %>% as.numeric()
-  file_versions <- tibble(Filename = fns, Date = fns_date, Version = fns_ver) %>%
+  m <- regexpr("ver[0-9]+", fns)
+  fns_ver <- regmatches(fns, m) %>% substr(4,5) %>% as.numeric()
+  n <- length(fns_ver)
+  file_versions <- tibble(Filename = fns[1:n], Date = fns_date[1:n], Version = fns_ver) %>%
     arrange(desc(Date), desc(Version))
   file_versions
   
-  # Get most recet file (based on date and version in file name)
   fn <- paste0("Big_excel_table/", file_versions$Filename[1])
   fn
 
