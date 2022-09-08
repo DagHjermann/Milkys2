@@ -1,0 +1,224 @@
+---
+title: "125 Calculate time trends using pakage leftadjusted"
+output: html_document
+---
+
+Note: Ca 35 minutes run time for running all trends    
+
+This procedure uses - at this point - data from script 105.  
+- Should finally use data from script 109  
+
+
+## 0. Constants (update each year)     
+```{r}
+
+last_year <- 2021
+
+series_lastyear <- 2018   # The series must last at least until this year    
+                          # Series without data in any of the three last years will be excluded
+
+
+```
+  
+## 1. Libraries and functions  
+```{r, results='hide', message=FALSE, warning=FALSE}
+
+# install.packages("lubridate")
+
+# General purpose
+library(dplyr)
+library(tidyr)
+library(purrr)
+library(mgcv)
+library(ggplot2)
+
+# Specific for the analysis
+library(rjags)
+library(runjags)
+devtools::install_github("DagHjermann/leftcensored")
+library(leftcensored)
+
+# For parallel computing
+install.packages("doParallel")
+library(doParallel)
+
+# Load functions defined in other scripts  
+source("110_Medians_and_PROREF_functions.R")  # for homogenize_series
+source("002_Utility_functions.R")
+
+```
+
+## 2. Read data  
+
+### a. Main data  
+Read and reformat the most recent data (by default)  
+```{r, collapse=TRUE}
+
+# If we have NOT length-adjusted the last year's data:
+filepattern <- "105_data_with_uncertainty_"         # entire file name except date and extension
+
+# Normally, if we have length-adjusted the last year's data:
+# filepattern <- "109_adjusted_data_"       # entire file name except date and extension
+
+filenumber <- 1                           # filenumber = 1 means "read the newest file"
+
+files <- dir("Data", pattern = filepattern) %>% rev()
+
+data_list <- read_rds_file("Data",
+                     files, 
+                     filenumber = filenumber,   # "1" gets the newest file   
+                     get_date = TRUE, time_since_modified = TRUE)
+
+dat_all <- data_list$data
+
+# The file_date text will be used in part 10, when we save the resulting file
+cat("File date text:", data_list$file_date, "\n")
+
+```
+
+
+### b. Homogenize time series  
+Change STATION_CODE, in order to make a single time series for data with different STATION_CODE that in practice should count as the same station   
+* Fixing station 227G1 and 227G2 (shall count as 227G)  
+* Fixing station 36A and 36A1 (36A1 shall count as 36A)  
+  
+Also combines PARAM = VDSI and PARAM = Intersex to PARAM = "VDSI/Intersex" for station 71G  
+
+```{r}
+
+dat_all <- homogenize_series(dat_all)
+
+```
+
+### c. Add N_years, N_years_plus, Trend_model and k_max    
+```{r}
+
+dat_all <- dat_all %>%
+  group_by(PARAM, STATION_CODE, TISSUE_NAME, MYEAR) %>%
+  mutate(
+    N = n(),
+    N_over_LOQ = sum(is.na(FLAG1)),
+    P_over_LOQ = N_over_LOQ/N) %>%
+  group_by(PARAM, STATION_CODE, TISSUE_NAME) %>%
+  mutate(
+    N_years = length(unique(MYEAR)), 
+    N_years_plus = length(unique(MYEAR[N_over_LOQ >= 1])),
+    Last_year = max(MYEAR)
+    )  %>%
+  ungroup() %>%
+  mutate(
+    Trend_model = case_when(
+      N_years_plus <= 1 ~ "No model",
+      N_years_plus %in% 2 & N_years %in% 2 ~ "No model",
+      N_years_plus %in% 2:4 & N_years >= 3 ~ "Mean",
+      N_years_plus %in% 5:6 ~ "Linear",
+      N_years_plus %in% 7:9 ~ "Smooth, k_max=3",
+      N_years_plus %in% 10:14 ~ "Smooth, k_max=4",
+      N_years_plus >= 15 ~ "Smooth, k_max=5"),
+    Trend_model = factor(
+      Trend_model,
+      levels = c("No model", "Mean", "Linear", 
+                 "Smooth, k_max=3", "Smooth, k_max=4", "Smooth, k_max=5")),
+    k_max = case_when(
+      Trend_model %in% "No model" ~ as.numeric(NA),
+      Trend_model %in% "Mean" ~ 1,
+      Trend_model %in% "Linear" ~ 2,
+      Trend_model %in% "Smooth, k_max=3" ~ 3,
+      Trend_model %in% "Smooth, k_max=4" ~ 4,
+      Trend_model %in% "Smooth, k_max=5" ~ 5)
+    )
+
+
+```
+
+
+### d. Statistics per group  
+```{r}
+
+dat_all %>%
+  filter(!is.na(UNCERTAINTY) & Last_year %in% last_year) %>%
+  mutate(
+    Substance.Group = substr(Substance.Group, 1,14)) %>%
+  distinct(Substance.Group, PARAM, STATION_CODE, TISSUE_NAME, Trend_model) %>%
+  count(Substance.Group, Trend_model) %>%
+  pivot_wider(Substance.Group, names_from = Trend_model, values_from = n,
+              names_sort= TRUE)
+
+dat_all %>%
+  filter(!is.na(UNCERTAINTY) & Last_year %in% last_year) %>%
+  mutate(
+    Substance.Group = substr(Substance.Group, 1,14),
+    P_over_LOQ = cut(P_over_LOQ, breaks = seq(0,1,0.2), 
+                     include.lowest = TRUE)) %>%
+  distinct(Substance.Group, PARAM, STATION_CODE, TISSUE_NAME, P_over_LOQ) %>%
+  count(Substance.Group, P_over_LOQ) %>%
+  pivot_wider(Substance.Group, names_from = P_over_LOQ, values_from = n,
+              names_sort= TRUE)
+
+if (FALSE){
+  
+  dat_all %>% xtabs(~ addNA(UNCERTAINTY) + MYEAR, .)
+  dat_all %>% xtabs(~ is.na(UNCERTAINTY) + MYEAR, .)
+  
+  dat_all %>%
+  filter(!is.na(UNCERTAINTY) & UNCERTAINTY > 0 & Last_year %in% last_year) %>%
+  mutate(
+    Substance.Group = substr(Substance.Group, 1,14),
+    PARAM = substr(PARAM, 1,14),
+    P_over_LOQ = cut(P_over_LOQ, breaks = seq(0,1,0.2), 
+                     include.lowest = TRUE)) %>%
+  distinct(Substance.Group, PARAM, STATION_CODE, TISSUE_NAME, P_over_LOQ) %>%
+  count(Substance.Group, PARAM, P_over_LOQ) %>%
+  pivot_wider(c(Substance.Group, PARAM), names_from = P_over_LOQ, values_from = n,
+              names_sort= TRUE)
+
+}
+```
+
+
+## 3. Analysing time trends and saving results    
+
+- We save results as R files as we go, in case something goes wrong  
+
+### Data series to run  
+```{r}
+
+dat_series <- dat_all %>%
+  filter(
+    !Trend_model %in% c("No model", "Mean"),
+    Last_year %in% last_year) %>%
+  distinct(PARAM, STATION_CODE, TISSUE_NAME, Trend_model, k_max)
+
+```
+
+
+### Run analyses using doParallel  
+
+```{r, results='hide'}
+
+if (FALSE){
+  
+  # Do only once
+  future::availableCores()
+  # 4
+  cl <- makeCluster(4)
+  registerDoParallel(cores = 4)
+  
+}
+
+
+#
+# Parallel (for 10 series)
+#
+
+t0 <- Sys.time()
+result <- foreach(i = 1:2, 
+                  .export = c("dat_all","dat_series")) %dopar%
+  get_splines_results_seriesno_s(i, dat_all, dat_series)
+t1 <- Sys.time()
+t1-t0
+# 52.43795 secs  
+
+
+```
+
