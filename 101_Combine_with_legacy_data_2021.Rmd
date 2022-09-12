@@ -5,7 +5,7 @@ output:
     toc: true
     toc_float: true
 editor_options: 
-  chunk_output_type: console
+  chunk_output_type: inline
 ---
 
 **Combine legacy data (data until the year before last year) with new data (downloaded in script 100)**   
@@ -870,28 +870,6 @@ for (i in seq_along(sum_parameters)){     # go through numbers 1 to 9
 ```
 
 
-### Add sum parameters excl. LOQ  
- 
-- denoted "_exloq"  
-- use new function 'add_sumparameter_exloq'  
-
-```{r}
-
-# dat_new5_back <- dat_new5
-
-names(dat_new5)
-nrow(dat_new5)
-
-for (i in seq_along(sum_parameters)){     # go through numbers 1 to 9
-  # We add new rows every time we go through the loop
-  dat_new5 <- add_sumparameter_exloq(i, sum_parameters, dat_new5)
-  }
-
-names(dat_new5)
-nrow(dat_new5)
-
-```
-
 
 ### Check 
 ```{r}
@@ -1753,6 +1731,65 @@ if (sum(sel) > 0){
 
 
 ```
+### h1. Add sum excl. LOQ for entire time series    
+
+- denoted "_exloq"  
+- use new function 'add_sumparameter_exloq'  
+
+```{r}
+
+# names(data_updated2)
+
+# pars <- paste0(names(sum_parameters), "_exloq")
+# nrow(data_updated2)
+# data_updated2 <- data_updated2 %>% filter(!PARAM %in% pars)
+# nrow(data_updated2)
+
+# For back up (debugging)
+# data_updated2_bk <- data_updated2
+# data_updated2 <- data_updated2_bk 
+
+for (i in seq_along(sum_parameters)){     # go through numbers 1 to 9
+  # We add new rows every time we go through the loop
+  data_updated2 <- add_sumparameter_exloq(i, sum_parameters, data_updated2)
+}
+
+```
+
+#### . - check result of sum data    
+```{r}
+
+#
+# All sum parameters
+#
+pars <- c(names(sum_parameters), paste0(names(sum_parameters), "_exloq"))
+
+data_updated2 %>%
+  filter(MYEAR > 2010, PARAM %in% pars, !is.na(VALUE_WW)) %>%
+  xtabs(~PARAM + MYEAR, .)
+
+# 
+# One selected sum parameter pair
+#
+i <- 3
+pars <- c(names(sum_parameters)[i], paste0(names(sum_parameters)[i], "_exloq"))
+
+data_updated2 %>%
+  filter(MYEAR > 2010, PARAM %in% pars,
+         LATIN_NAME == "Mytilus edulis") %>%
+  group_by(PARAM, STATION_CODE) %>%
+  # Keep only thise with 5 years
+  mutate(n_years = length(unique(MYEAR))) %>%
+  filter(n_years >= 5) %>%
+  group_by(PARAM, STATION_CODE, MYEAR) %>%
+  summarise(VALUE_WW = median(VALUE_WW)) %>%
+  ggplot(aes(MYEAR, VALUE_WW, color = PARAM)) +
+  geom_line() +
+  facet_wrap(vars(STATION_CODE))
+
+
+
+```
 
 
 ## 11. Save the data for later use    
@@ -1998,12 +2035,12 @@ if (FALSE){
 }
 
 # Get all parameters for the given tissue with 2019 data from this station  
-pars <- data_updated %>%
+pars <- data_updated2 %>%
   filter(STATION_CODE %in% station & TISSUE_NAME %in% tissue & MYEAR == 2019) %>%
   xtabs(~PARAM, .) %>% names()
 
 # For those parameters, we filter the data set for the data we want...
-gg <- data_updated %>%
+gg <- data_updated2 %>%
   filter(STATION_CODE %in% station & TISSUE_NAME %in% tissue & MYEAR >= 2000 & PARAM %in% pars) %>%
   # ...extract the median value for every PARAM and MYEAR...
   group_by(MYEAR, PARAM) %>%
@@ -2017,6 +2054,7 @@ gg <- data_updated %>%
   labs(title = paste0(station, ", ", tissue))
 
 gg
+
 
 ```
 
