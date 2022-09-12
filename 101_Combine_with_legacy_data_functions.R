@@ -118,11 +118,6 @@ add_sumparameter_exloq <- function(i, pars_list, data){
       summarise(VALUE = sum(VALUE_exloq, na.rm = TRUE), .groups = "drop_last") %>%      # sum of the measurements
       mutate(QUANTIFICATION_LIMIT = NA) %>%
       as.data.frame(stringsAsFactors = FALSE)
-    df2 <- df_grouped %>%
-      summarise(FLAG1 = ifelse(mean(!is.na(FLAG1))==1, "<", as.character(NA)), 
-                .groups = "drop_last") %>%       # If all FLAG1 are "<", FLAG1 = "<", otherwise FLAG1 = NA
-      as.data.frame()
-    df2$FLAG1[df2$FLAG1 %in% "NA"] <- NA
     df3 <- df_grouped %>%
       summarise(N_par = n(), .groups = "drop_last") %>%    # number of measurements
       as.data.frame()
@@ -138,7 +133,7 @@ add_sumparameter_exloq <- function(i, pars_list, data){
     # Change the parameter name
     df1$PARAM <- paste0(names(pars_list)[i], "_exloq")   
     
-    df_to_add <- data.frame(df1, FLAG1 = df2[,"FLAG1"], N_par = df3[,"N_par"], stringsAsFactors = FALSE)  # Make data to add
+    df_to_add <- data.frame(df1, FLAG1 = as.character(NA), N_par = df3[,"N_par"], stringsAsFactors = FALSE)  # Make data to add
     data <- bind_rows(data, df_to_add)   # Add data for this parameter
     cat("Number of rows added:", nrow(df_to_add), "; number of rows in data:", nrow(data), "\n")
   } else {

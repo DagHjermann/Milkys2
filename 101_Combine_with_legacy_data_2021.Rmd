@@ -4,6 +4,8 @@ output:
   html_document:
     toc: true
     toc_float: true
+editor_options: 
+  chunk_output_type: console
 ---
 
 **Combine legacy data (data until the year before last year) with new data (downloaded in script 100)**   
@@ -867,6 +869,30 @@ for (i in seq_along(sum_parameters)){     # go through numbers 1 to 9
 
 ```
 
+
+### Add sum parameters excl. LOQ  
+ 
+- denoted "_exloq"  
+- use new function 'add_sumparameter_exloq'  
+
+```{r}
+
+# dat_new5_back <- dat_new5
+
+names(dat_new5)
+nrow(dat_new5)
+
+for (i in seq_along(sum_parameters)){     # go through numbers 1 to 9
+  # We add new rows every time we go through the loop
+  dat_new5 <- add_sumparameter_exloq(i, sum_parameters, dat_new5)
+  }
+
+names(dat_new5)
+nrow(dat_new5)
+
+```
+
+
 ### Check 
 ```{r}
 
@@ -875,17 +901,30 @@ dat_new5 %>%
   filter(PARAM %in% names(sum_parameters)) %>%
   xtabs(~PARAM + is.na(VALUE), .)
 
+# Same, for ex. LOQ parameters  
+dat_new5 %>%
+  filter(PARAM %in% paste0(names(sum_parameters), "_exloq")) %>%
+  xtabs(~PARAM + is.na(VALUE), .)
+
 
 #
 # PLot one group parameter 
 #
 # Set i, e.g. 1 for sum parameter number 1 (i.e. CB_S7)
-i <- 2
-pars <- c(sum_parameters[[i]], names(sum_parameters)[i])
 
+names(sum_parameters)
+
+tissue <- "Whole soft body"
+i <- 3
+pars <- c(sum_parameters[[i]], 
+          names(sum_parameters)[i], 
+          paste0(names(sum_parameters)[i], "_exloq"))
+
+  
 dat_new5 %>%
   filter(PARAM %in% pars) %>%
-  filter(TISSUE_NAME %in% "Lever" & BASIS %in% "W") %>%
+  # filter(TISSUE_NAME %in% "Lever" & BASIS %in% "W") %>%
+  filter(TISSUE_NAME %in% tissue & BASIS %in% "W") %>%
   group_by(STATION_CODE, MYEAR, PARAM) %>%
   mutate(PARAM = factor(PARAM, levels = pars)) %>%
   summarise(median = median(VALUE), .groups = "drop") %>%
@@ -1695,7 +1734,7 @@ message("TISSUE_NAME set to 'Lever' for ", sum(sel), " EROD + PROTV records in 2
 
 ```
 
-#### g. Fix "liver" for the snail station!
+### g. Fix "liver" for the snail station!
 ```{r}
 
 sel <- with(data_updated2, 
@@ -1714,6 +1753,7 @@ if (sum(sel) > 0){
 
 
 ```
+
 
 ## 11. Save the data for later use    
 - We use the date the data was downloaded (in script 101) in the filename   
