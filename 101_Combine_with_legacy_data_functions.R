@@ -97,7 +97,7 @@ add_sumparameter <- function(i, pars_list, data){
   data
 }
 
-add_sumparameter <- function(i, pars_list, data){
+add_sumparameter_exloq <- function(i, pars_list, data){
   # Add variable N_par, if it's not already there
   if (!"N_par" %in% colnames(data)){
     data$N_par <- 1
@@ -107,10 +107,15 @@ add_sumparameter <- function(i, pars_list, data){
   cat(pars, "\n")
   df_grouped <- data %>%
     filter(PARAM %in% pars & !is.na(SAMPLE_NO2)) %>%                        # select records (only those with SAMPLE_NO2)
-    group_by(STATION_CODE, LATIN_NAME, TISSUE_NAME, MYEAR, SAMPLE_NO2, BASIS, UNIT)  # not PARAM
+    group_by(STATION_CODE, LATIN_NAME, TISSUE_NAME, MYEAR, SAMPLE_NO2, BASIS, UNIT) %>% # not PARAM
+    mutate(
+      VALUE_exloq = case_when(
+        is.na(FLAG1) ~ VALUE,
+        !is.na(FLAG1) ~ 0)
+    )
   if (nrow(df_grouped) > 0){
     df1 <- df_grouped %>%
-      summarise(VALUE = sum(VALUE, na.rm = TRUE), .groups = "drop_last") %>%      # sum of the measurements
+      summarise(VALUE = sum(VALUE_exloq, na.rm = TRUE), .groups = "drop_last") %>%      # sum of the measurements
       mutate(QUANTIFICATION_LIMIT = NA) %>%
       as.data.frame(stringsAsFactors = FALSE)
     df2 <- df_grouped %>%
@@ -131,7 +136,7 @@ add_sumparameter <- function(i, pars_list, data){
     #     apply(check, 2, mean) %>% mean(na.rm = TRUE), "\n")
     
     # Change the parameter name
-    df1$PARAM <- names(pars_list)[i]   
+    df1$PARAM <- paste0(names(pars_list)[i], "_exloq")   
     
     df_to_add <- data.frame(df1, FLAG1 = df2[,"FLAG1"], N_par = df3[,"N_par"], stringsAsFactors = FALSE)  # Make data to add
     data <- bind_rows(data, df_to_add)   # Add data for this parameter
