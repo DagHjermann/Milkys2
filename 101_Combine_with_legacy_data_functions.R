@@ -97,6 +97,52 @@ add_sumparameter <- function(i, pars_list, data){
   data
 }
 
+add_sumparameter <- function(i, pars_list, data){
+  # Add variable N_par, if it's not already there
+  if (!"N_par" %in% colnames(data)){
+    data$N_par <- 1
+  }
+  pars <- pars_list[[i]]
+  cat("==================================================================\n", i, names(pars_list)[i], "\n")
+  cat(pars, "\n")
+  df_grouped <- data %>%
+    filter(PARAM %in% pars & !is.na(SAMPLE_NO2)) %>%                        # select records (only those with SAMPLE_NO2)
+    group_by(STATION_CODE, LATIN_NAME, TISSUE_NAME, MYEAR, SAMPLE_NO2, BASIS, UNIT)  # not PARAM
+  if (nrow(df_grouped) > 0){
+    df1 <- df_grouped %>%
+      summarise(VALUE = sum(VALUE, na.rm = TRUE), .groups = "drop_last") %>%      # sum of the measurements
+      mutate(QUANTIFICATION_LIMIT = NA) %>%
+      as.data.frame(stringsAsFactors = FALSE)
+    df2 <- df_grouped %>%
+      summarise(FLAG1 = ifelse(mean(!is.na(FLAG1))==1, "<", as.character(NA)), 
+                .groups = "drop_last") %>%       # If all FLAG1 are "<", FLAG1 = "<", otherwise FLAG1 = NA
+      as.data.frame()
+    df2$FLAG1[df2$FLAG1 %in% "NA"] <- NA
+    df3 <- df_grouped %>%
+      summarise(N_par = n(), .groups = "drop_last") %>%    # number of measurements
+      as.data.frame()
+    # Should be all 1
+    # check <- df1[,1:9] == df2[,1:9]
+    # cat("Test 1 (should be 1):", 
+    #     apply(check, 2, mean) %>% mean(na.rm = TRUE), "\n")
+    # 
+    # check <- df2[,1:9] == df3[,1:9]
+    # cat("Test 2 (should be 1):", 
+    #     apply(check, 2, mean) %>% mean(na.rm = TRUE), "\n")
+    
+    # Change the parameter name
+    df1$PARAM <- names(pars_list)[i]   
+    
+    df_to_add <- data.frame(df1, FLAG1 = df2[,"FLAG1"], N_par = df3[,"N_par"], stringsAsFactors = FALSE)  # Make data to add
+    data <- bind_rows(data, df_to_add)   # Add data for this parameter
+    cat("Number of rows added:", nrow(df_to_add), "; number of rows in data:", nrow(data), "\n")
+  } else {
+    cat("No rows added (found no data for these parameters)\n")
+  }
+  data
+}
+
+
 # Summarises a sequence into a string, e.g. "1991-1993,1996-1997,2000"
 summarize_sequence <- function(x){
   x <- sort(unique(x))
