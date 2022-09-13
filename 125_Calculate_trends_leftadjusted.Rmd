@@ -17,6 +17,11 @@ last_year <- 2021
 series_lastyear <- 2018   # The series must last at least until this year    
                           # Series without data in any of the three last years will be excluded
 
+folder_results <- paste0("Data/125_results_", last_year)
+
+if (!dir.exists(folder_results)){
+  dir.create(folder_results)
+}
 
 ```
   
@@ -29,22 +34,29 @@ series_lastyear <- 2018   # The series must last at least until this year
 library(dplyr)
 library(tidyr)
 library(purrr)
-library(mgcv)
+library(mgcv)    #  mgcv_1.8-39
+# install.packages("mgcv")  # for mgcv_1.8-40, b
+# packageVersion("mgcv")
+packageVersion("mgcv")
 library(ggplot2)
 
 # Specific for the analysis
 library(rjags)
 library(runjags)
-devtools::install_github("DagHjermann/leftcensored")
+if (!"leftcensored" %in% installed.packages())
+  devtools::install_github("DagHjermann/leftcensored", upgrade = "never", force = TRUE)
 library(leftcensored)
 
 # For parallel computing
-install.packages("doParallel")
+if (!"doParallel" %in% installed.packages())
+  install.packages("doParallel")
 library(doParallel)
 
 # Load functions defined in other scripts  
+source("125_Calculate_trends_leftadjusted_functions.R")
 source("110_Medians_and_PROREF_functions.R")  # for homogenize_series
 source("002_Utility_functions.R")
+
 
 ```
 
@@ -89,32 +101,85 @@ Also combines PARAM = VDSI and PARAM = Intersex to PARAM = "VDSI/Intersex" for s
 dat_all <- homogenize_series(dat_all)
 
 ```
-
-### c. Add N_years, N_years_plus, Trend_model and k_max    
+### c. Prepare data  
 ```{r}
 
-dat_all <- dat_all %>%
-  group_by(PARAM, STATION_CODE, TISSUE_NAME, MYEAR) %>%
-  mutate(
+# These warnings can be ignored:
+# Warning: Unknown or uninitialised column: `threshold`.
+# Warning: Unknown or uninitialised column: `uncensored`.
+
+dat_all_prep1 <- lc_prepare(dat_all,
+                           x = "MYEAR",
+                           y = "VALUE_WW", 
+                           censored = "FLAG1",
+                           log = TRUE,
+                           keep_original_columns = TRUE) 
+
+# Test
+# lc_plot(dat_all_prep1 %>% filter(PARAM %in% "CB153" & STATION_CODE %in% "15A"))
+
+```
+
+### d. Add flags for rule 1 and rule 2 (columns Rule1 and Rule2)   
+
+
+```{r}
+
+# Test
+# test1 <- dat_all_prep1 %>% filter(PARAM %in% "CB153") %>% split(.$STATION_CODE)
+# test2 <- map_dfr(test1, leftcensored:::lc_flag1, show_result = FALSE)
+
+# Make list
+dat_all_prep1_list <- dat_all_prep1 %>% split(.$PARAM, .$STATION_CODE, .$LATIN_NAME, .$TISSUE_NAME)
+dat_all_prep2 <- map_dfr(dat_all_prep1_list, leftcensored:::lc_flag1, show_result = FALSE)
+
+dat_all_prep2_list <- dat_all_prep2 %>% split(.$PARAM, .$STATION_CODE, .$LATIN_NAME, .$TISSUE_NAME)
+dat_all_prep3 <- map_dfr(dat_all_prep2_list, leftcensored:::lc_flag2, show_result = FALSE)
+
+```
+
+
+### e. Make dat_series  
+
+- One line per time series  
+
+```{r}
+
+# version max that tolerates being given an x with length zero without warning
+max_warningless <- function(x)
+  ifelse(length(x)==0, NA, max(x))
+
+# TEST
+# sel <- c(F,F,T,T,F)
+# max_warningless((1:5)[sel])
+# sel <- rep(FALSE,5)
+# max_warningless((1:5)[sel])
+
+  
+dat_series <- dat_all_prep3 %>%
+  group_by(Substance.Group, PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME, x) %>%
+  summarise(
     N = n(),
-    N_over_LOQ = sum(is.na(FLAG1)),
-    P_over_LOQ = N_over_LOQ/N) %>%
-  group_by(PARAM, STATION_CODE, TISSUE_NAME) %>%
-  mutate(
-    N_years = length(unique(MYEAR)), 
-    N_years_plus = length(unique(MYEAR[N_over_LOQ >= 1])),
-    Last_year = max(MYEAR)
-    )  %>%
-  ungroup() %>%
+    N_over_LOQ = sum(uncensored == 1),
+    P_over_LOQ = N_over_LOQ/N,
+    .groups = "drop") %>%
+  group_by(Substance.Group, PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME) %>%
+  summarise(
+    Last_year = max(x),
+    N_years = n(),
+    Years_over_LOQ = sum(N_over_LOQ > 0),
+    Last_year_over_LOQ = max_warningless(x[N_over_LOQ > 0]),
+    .groups = "drop") %>% 
+  filter(Last_year >= last_year) %>%
   mutate(
     Trend_model = case_when(
-      N_years_plus <= 1 ~ "No model",
-      N_years_plus %in% 2 & N_years %in% 2 ~ "No model",
-      N_years_plus %in% 2:4 & N_years >= 3 ~ "Mean",
-      N_years_plus %in% 5:6 ~ "Linear",
-      N_years_plus %in% 7:9 ~ "Smooth, k_max=3",
-      N_years_plus %in% 10:14 ~ "Smooth, k_max=4",
-      N_years_plus >= 15 ~ "Smooth, k_max=5"),
+      Years_over_LOQ <= 1 ~ "No model",
+      Years_over_LOQ %in% 2 & N_years %in% 2 ~ "No model",
+      Years_over_LOQ %in% 2:4 & N_years >= 3 ~ "Mean",
+      Years_over_LOQ %in% 5:6 ~ "Linear",
+      Years_over_LOQ %in% 7:9 ~ "Smooth, k_max=3",
+      Years_over_LOQ %in% 10:14 ~ "Smooth, k_max=4",
+      Years_over_LOQ >= 15 ~ "Smooth, k_max=5"),
     Trend_model = factor(
       Trend_model,
       levels = c("No model", "Mean", "Linear", 
@@ -127,98 +192,293 @@ dat_all <- dat_all %>%
       Trend_model %in% "Smooth, k_max=4" ~ 4,
       Trend_model %in% "Smooth, k_max=5" ~ 5)
     )
+      
+nrow(dat_series)
 
+table(dat_series$Trend_model)
+# xtabs(~Substance.Group + Trend_model,  dat_series)
+  
 
 ```
 
 
-### d. Statistics per group  
+
+### f. Statistics per group  
 ```{r}
 
-dat_all %>%
-  filter(!is.na(UNCERTAINTY) & Last_year %in% last_year) %>%
+dat_series %>%
   mutate(
     Substance.Group = substr(Substance.Group, 1,14)) %>%
-  distinct(Substance.Group, PARAM, STATION_CODE, TISSUE_NAME, Trend_model) %>%
   count(Substance.Group, Trend_model) %>%
-  pivot_wider(Substance.Group, names_from = Trend_model, values_from = n,
+  pivot_wider(Substance.Group, names_from = Trend_model, values_from = n, values_fill = 0,
               names_sort= TRUE)
 
-dat_all %>%
-  filter(!is.na(UNCERTAINTY) & Last_year %in% last_year) %>%
-  mutate(
-    Substance.Group = substr(Substance.Group, 1,14),
-    P_over_LOQ = cut(P_over_LOQ, breaks = seq(0,1,0.2), 
-                     include.lowest = TRUE)) %>%
-  distinct(Substance.Group, PARAM, STATION_CODE, TISSUE_NAME, P_over_LOQ) %>%
-  count(Substance.Group, P_over_LOQ) %>%
-  pivot_wider(Substance.Group, names_from = P_over_LOQ, values_from = n,
-              names_sort= TRUE)
-
-if (FALSE){
-  
-  dat_all %>% xtabs(~ addNA(UNCERTAINTY) + MYEAR, .)
-  dat_all %>% xtabs(~ is.na(UNCERTAINTY) + MYEAR, .)
-  
-  dat_all %>%
-  filter(!is.na(UNCERTAINTY) & UNCERTAINTY > 0 & Last_year %in% last_year) %>%
-  mutate(
-    Substance.Group = substr(Substance.Group, 1,14),
-    PARAM = substr(PARAM, 1,14),
-    P_over_LOQ = cut(P_over_LOQ, breaks = seq(0,1,0.2), 
-                     include.lowest = TRUE)) %>%
-  distinct(Substance.Group, PARAM, STATION_CODE, TISSUE_NAME, P_over_LOQ) %>%
-  count(Substance.Group, PARAM, P_over_LOQ) %>%
-  pivot_wider(c(Substance.Group, PARAM), names_from = P_over_LOQ, values_from = n,
-              names_sort= TRUE)
-
-}
 ```
 
 
-## 3. Analysing time trends and saving results    
 
-- We save results as R files as we go, in case something goes wrong  
-
-### Data series to run  
+### g. Last_year_over_LOQ  
 ```{r}
 
-dat_series <- dat_all %>%
-  filter(
-    !Trend_model %in% c("No model", "Mean"),
-    Last_year %in% last_year) %>%
-  distinct(PARAM, STATION_CODE, TISSUE_NAME, Trend_model, k_max)
+# Last_year_over_LOQ vs Last_year
+
+xtabs(~Last_year + Last_year_over_LOQ, dat_series)
 
 ```
 
+### h. Data series to run  
+```{r}
+
+dat_series_trend <- dat_series %>%
+  filter(!Trend_model %in% "No model") 
+
+```
+
+### i. Save  
+```{r}
+
+saveRDS(dat_series, "Data/125_dat_series.rds")
+saveRDS(dat_series_trend, "Data/125_dat_series_trend.rds")
+saveRDS(dat_all_prep3, "Data/125_dat_all_prep3.rds")
+
+```
+
+
+## 3. Test  
+
+### Single series  
+```{r}
+
+# param <- "AG"
+# station_code <- "30A"
+# param <- "HG"
+# station_code <- "30B"
+
+param <- "PB"
+station_code <- "02B"
+
+param <- "MCCP eksl. LOQ"
+station_code <- "71B"
+
+data_prep <- dat_all_prep3 %>%
+  filter(PARAM == param & STATION_CODE == station_code)
+
+i <- with(dat_series_trend, which(PARAM == param & STATION_CODE == station_code))
+i
+
+lc_plot(data_prep)
+
+last_year_over_LOQ <- dat_series %>%
+  filter(PARAM == param & STATION_CODE == station_code) %>% # View
+  pull(Last_year_over_LOQ)
+
+k_max <- dat_series %>%
+  filter(PARAM == param & STATION_CODE == station_code) %>%
+  pull(k_max)
+k_values <- 1:k_max
+# k_values <- 2:k_max
+
+raftery <- FALSE
+
+if (FALSE){
+
+  # debugonce(leftcensored::lc_fixedsplines_tp)
+  check <- leftcensored::lc_fixedsplines_tp(
+      data = data_prep, 
+      k = 5, 
+      normalize = FALSE, raftery = raftery, measurement_error = "Uncertainty", 
+      predict_x = seq(min(data_prep$x), max(data_prep$x), by = 0.25), 
+      reference_x = last_year_over_LOQ, set_last_equal_x = last_year_over_LOQ)
+  View(check$plot_data)
+  
+}
+
+results_all <- purrr::map(
+    k_values, 
+    ~leftcensored::lc_fixedsplines_tp(
+      data = data_prep, 
+      k = .x, 
+      normalize = FALSE, raftery = raftery, measurement_error = "Uncertainty", 
+      predict_x = seq(min(data_prep$x), max(data_prep$x)), 
+      reference_x = last_year_over_LOQ, set_last_equal_x = last_year_over_LOQ)
+)
+
+# lc_plot(data_prep)
+lc_plot(data_prep, results = results_all, facet = "wrap")
+
+```
+
+### get_splines_results_seriesno  
+
+```{r, results='hide', message=FALSE, warning=FALSE}
+
+get_splines_results_seriesno_s(972, 
+                             data = dat_all_prep3, 
+                             data_series = dat_series_trend, 
+                             foldername = "Data/125_results_2021", 
+                             raftery = FALSE)
+
+
+get_splines_results_seriesno_s(58, 
+                             data = dat_all_prep3, 
+                             data_series = dat_series_trend, 
+                             foldername = "Data/125_results_2021", 
+                             raftery = TRUE)
+
+```
+
+### Check result  
+```{r}
+
+i <- 58
+fn <- sprintf("trend_%04i.rda", i)
+check <- readRDS(paste0("Data/125_results_2021/", fn))
+
+str(check, 1)
+
+get_pointdata <- function(seriesno, data, data_series){
+  subset(data, 
+         PARAM %in% data_series$PARAM[seriesno] & 
+           STATION_CODE %in% data_series$STATION_CODE[seriesno] & 
+           TISSUE_NAME %in% data_series$TISSUE_NAME[seriesno] &
+           LATIN_NAME %in% data_series$LATIN_NAME[seriesno])
+  
+}
+
+# debugonce(get_pointdata)
+df_points <- get_pointdata(i, data = dat_all_prep3, data_series = dat_series_trend)
+
+ggplot(check$plot_data, aes(x, y)) +
+  geom_ribbon(aes(ymin = y_q2.5, ymax = y_q97.5), fill = "lightblue") +
+  geom_point(data = df_points) +
+  geom_point(data = df_points, aes(y = threshold), shape = 6) +
+  geom_line()
+
+```
+
+
+## 4. Analysing time trends and saving results    
+
+- We save results as R files as we go, in case something goes wrong  
 
 ### Run analyses using doParallel  
 
 ```{r, results='hide'}
 
 if (FALSE){
+# if (T){
   
   # Do only once
   future::availableCores()
-  # 4
-  cl <- makeCluster(4)
-  registerDoParallel(cores = 4)
+  # 4 / 16 / 64 
+  cl <- makeCluster(64)
+  registerDoParallel(cores = 64)
   
 }
 
+#
+# Parallel (for 1000 series)
+#
 
-#
-# Parallel (for 10 series)
-#
+series_no <- 1:nrow(dat_series_trend)
+range(series_no)
 
 t0 <- Sys.time()
-result <- foreach(i = 1:2, 
-                  .export = c("dat_all","dat_series")) %dopar%
-  get_splines_results_seriesno_s(i, dat_all, dat_series)
+result <- foreach(i = series_no, 
+                  .export = c("dat_all_prep3","dat_series_trend")) %dopar%
+                   get_splines_results_seriesno_s(i, 
+                                 dat_all_prep3, dat_series_trend, foldername = "Data/125_results_2021",
+                                 raftery = TRUE)
 t1 <- Sys.time()
 t1-t0
-# 52.43795 secs  
+# 30 min for 100 on 16 cores  
+# 4.8 hours for 1960 on 64 cores
+
 
 
 ```
 
+## 5. Check results  
+
+
+### Read files  
+
+```{r}
+
+fns <- dir("Data/125_results_2021", full.names = TRUE) %>% sort()
+result_list <-lapply(fns, readRDS)
+
+```
+
+### Extract data frame for "successes"  
+
+- Meaning that fitting worked (DIC exists)
+
+```{r}
+
+ok <- map_lgl(result_list, ~!is.null(.x$DIC))
+plotno <- map_dbl(result_list, "seriesno")
+PARAM <- map_chr(result_list, "PARAM")
+STATION_CODE <- map_chr(result_list, "STATION_CODE")
+TISSUE_NAME <- map_chr(result_list, "TISSUE_NAME")
+LATIN_NAME <- map_chr(result_list, "LATIN_NAME")
+k_sel <- NA
+k_sel[ok] <- map_int(result_list[ok], "k_sel")
+
+dat_success <- data.frame(ok, plotno, PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME, k_sel)
+
+```
+
+### Plot a single series  
+```{r}
+
+tsplot_seriesno(58)
+
+```
+
+### Check one group of compounds  
+
+```{r}
+
+pno <- df_success %>%
+  filter(PARAM == "MCCP eksl. LOQ" & ok) %>%
+  pull(plotno)
+
+df_modelfit <- map_dfr(pno, extract_modelfit_data)
+df_rawdata <- map_dfr(pno, extract_raw_data)
+
+ggplot(df_modelfit, aes(x, y)) +
+  geom_ribbon(aes(ymin = y_q2.5, ymax = y_q97.5), fill = "lightblue") +
+  geom_point(data = df_rawdata %>% filter(!is.na(y))) +
+  geom_point(data = df_rawdata %>% filter(!is.na(threshold)), aes(y = threshold), shape = 6) +
+  geom_line() +
+  facet_wrap(vars(STATION_CODE), scales = "free_y")
+
+```
+
+## 6. Check Rule1 and Rule2   
+
+- Rule 1. Time series should be truncated from the left until Nplus/N >= 0.5      
+- Rule 2. If a linear/smooth trend is fitted, the first year must be non-censored     
+- Forgot to think of these when the estimations were ran  
+
+```{r}
+
+df_rule1 <- dat_all_prep3 %>%
+  group_by(PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME) %>%
+  summarise(Rule1_first = first(Rule1)) 
+table(df_rule1$Rule1_first)
+
+df_rule2 <- dat_all_prep3 %>%
+  group_by(PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME) %>%
+  summarise(Rule2_first = first(Rule2)) 
+table(df_rule2$Rule2_first)
+
+dat_success <- dat_series_trend %>%
+  left_join(df_rule1) %>%
+  left_join(df_rule2) 
+
+table(dat_success$Rule1_first)  # 6   - should be run again
+table(dat_success$Rule2_first)  # 20  - should be run again
+
+```

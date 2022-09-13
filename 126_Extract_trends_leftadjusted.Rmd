@@ -1,0 +1,196 @@
+---
+title: "126_Extract_trends_leftadjusted"
+author: "DHJ"
+date: '2022-09-13'
+output: html_document
+---
+
+
+## 0. Constants (update each year)     
+
+```{r}
+
+last_year <- 2021
+
+folder_results <- paste0("Data/125_results_", last_year)
+
+```
+
+  
+## 1. Libraries and functions  
+
+```{r, results='hide', message=FALSE, warning=FALSE}
+
+# install.packages("lubridate")
+
+# General purpose
+library(dplyr)
+library(tidyr)
+library(purrr)
+library(mgcv)    #  mgcv_1.8-39
+library(ggplot2)
+
+```
+
+
+## 2. Data  
+
+### a. Main data and data series  
+
+```{r, collapse=TRUE}
+
+dat_series <- readRDS("Data/125_dat_series.rds")
+dat_series_trend <- readRDS("Data/125_dat_series_trend.rds")
+dat_all_prep3 <- readRDS("Data/125_dat_all_prep3.rds")
+
+
+```
+
+### b. Check Rule1 and Rule2   
+
+- Rule 1. Time series should be truncated from the left until Nplus/N >= 0.5     
+- Rule 2. If a linear/smooth trend is fitted, the first year must be non-censored   
+- Get the first value for both of them - if TRUE, the filtering has no effect  
+- Are added to 'dat_success' below  
+
+```{r}
+
+df_rule1 <- dat_all_prep3 %>%
+  group_by(PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME) %>%
+  summarise(Rule1_first = first(Rule1)) 
+
+df_rule2 <- dat_all_prep3 %>%
+  group_by(PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME) %>%
+  summarise(Rule2_first = first(Rule2)) 
+
+```
+
+
+## 3. Check results  
+
+### Read files  
+
+```{r}
+
+fns <- dir("Data/125_results_2021", full.names = TRUE) %>% sort()
+result_list <-lapply(fns, readRDS)
+
+```
+
+### Extract data frame for "successes"  
+
+- Meaning that fitting worked (DIC exists)
+
+```{r}
+
+ok <- map_lgl(result_list, ~!is.null(.x$DIC))
+plotno <- map_dbl(result_list, "seriesno")
+PARAM <- map_chr(result_list, "PARAM")
+STATION_CODE <- map_chr(result_list, "STATION_CODE")
+TISSUE_NAME <- map_chr(result_list, "TISSUE_NAME")
+LATIN_NAME <- map_chr(result_list, "LATIN_NAME")
+k_sel <- NA
+k_sel[ok] <- map_int(result_list[ok], "k_sel")
+
+# Add Rule1_first and Rule2_first
+dat_success <- data.frame(ok, plotno, PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME, k_sel) %>%
+  left_join(df_rule1) %>%
+  left_join(df_rule2) %>%
+  left_join(dat_series_trend %>% select(PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME, N_years, Years_over_LOQ, k_max))
+
+```
+
+
+### Check dat_success and dat_series  
+
+- that they have the same order
+
+```{r}
+
+for (var in c("PARAM", "STATION_CODE", "TISSUE_NAME", "LATIN_NAME")){
+  print(
+    mean(dat_series_trend[[var]] != dat_success[[var]])  
+  )
+}
+
+```
+
+### Statistics  
+
+```{r}
+
+table(dat_success$ok)  
+
+xtabs(~ok + k_max, dat_success)
+
+# xtabs(~ok + N_years, dat_success)
+# xtabs(~ok + Years_over_LOQ, dat_success)
+
+xtabs(~addNA(k_sel) + N_years, dat_success)
+xtabs(~addNA(k_sel) + Years_over_LOQ, dat_success)
+
+dat_success %>%
+  filter(Years_over_LOQ == 5) %>%
+  filter(k_sel == 5)
+
+
+
+```
+
+
+### Plot a single series  
+```{r}
+
+tsplot_seriesno(58)
+tsplot_seriesno(93)
+
+# debugonce(get_splines_results_seriesno)
+get_splines_results_seriesno(93, 
+                             data = dat_all_prep3, 
+                             data_series = dat_series_trend, 
+                             foldername = "Data/125_results_2021_01", 
+                             raftery = FALSE)
+
+```
+
+### Check one group of compounds  
+
+```{r}
+
+pno <- df_success %>%
+  filter(PARAM == "MCCP eksl. LOQ" & ok) %>%
+  pull(plotno)
+
+df_modelfit <- map_dfr(pno, extract_modelfit_data)
+df_rawdata <- map_dfr(pno, extract_raw_data)
+
+ggplot(df_modelfit, aes(x, y)) +
+  geom_ribbon(aes(ymin = y_q2.5, ymax = y_q97.5), fill = "lightblue") +
+  geom_point(data = df_rawdata %>% filter(!is.na(y))) +
+  geom_point(data = df_rawdata %>% filter(!is.na(threshold)), aes(y = threshold), shape = 6) +
+  geom_line() +
+  facet_wrap(vars(STATION_CODE), scales = "free_y")
+
+```
+
+
+## 4. Get trends     
+
+```{r}
+
+df_change <- map_dfr(pno, extract_difference_data)
+
+extract_difference_data_s <- safely(extract_difference_data)
+df_change_list <- map(pno, extract_difference_data)
+
+
+df_rawdata <- map_dfr(pno, extract_raw_data)
+
+ggplot(df_modelfit, aes(x, y)) +
+  geom_ribbon(aes(ymin = y_q2.5, ymax = y_q97.5), fill = "lightblue") +
+  geom_point(data = df_rawdata %>% filter(!is.na(y))) +
+  geom_point(data = df_rawdata %>% filter(!is.na(threshold)), aes(y = threshold), shape = 6) +
+  geom_line() +
+  facet_wrap(vars(STATION_CODE), scales = "free_y")
+
+```
