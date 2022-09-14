@@ -1,5 +1,5 @@
 ---
-title: "125 Calculate time trends using pakage leftadjusted"
+title: "125 Calculate time trends using package leftadjusted"
 output: html_document
 ---
 
@@ -14,14 +14,15 @@ This procedure uses - at this point - data from script 105.
 
 last_year <- 2021
 
+# Not used:
 series_lastyear <- 2018   # The series must last at least until this year    
                           # Series without data in any of the three last years will be excluded
 
-folder_results <- paste0("Data/125_results_", last_year)
-
-if (!dir.exists(folder_results)){
-  dir.create(folder_results)
-}
+# folder_results <- paste0("Data/125_results_", last_year)
+# 
+# if (!dir.exists(folder_results)){
+#   dir.create(folder_results)
+# }
 
 ```
   
@@ -281,19 +282,25 @@ k_values <- 1:k_max
 raftery <- FALSE
 
 if (FALSE){
-
+  
+  # Test for a single 'k' value 
+  
   # debugonce(leftcensored::lc_fixedsplines_tp)
   check <- leftcensored::lc_fixedsplines_tp(
-      data = data_prep, 
-      k = 5, 
-      normalize = FALSE, raftery = raftery, measurement_error = "Uncertainty", 
-      predict_x = seq(min(data_prep$x), max(data_prep$x), by = 0.25), 
-      reference_x = last_year_over_LOQ, set_last_equal_x = last_year_over_LOQ)
+    data = data_prep, 
+    k = 5, 
+    normalize = FALSE, raftery = raftery, measurement_error = "Uncertainty", 
+    predict_x = seq(min(data_prep$x), max(data_prep$x), by = 0.25), 
+    reference_x = last_year_over_LOQ, set_last_equal_x = last_year_over_LOQ)
   View(check$plot_data)
   
 }
 
-results_all <- purrr::map(
+if (FALSE){
+  
+  # Test for all 'k' values ('k_values') 
+  
+  results_all <- purrr::map(
     k_values, 
     ~leftcensored::lc_fixedsplines_tp(
       data = data_prep, 
@@ -301,7 +308,9 @@ results_all <- purrr::map(
       normalize = FALSE, raftery = raftery, measurement_error = "Uncertainty", 
       predict_x = seq(min(data_prep$x), max(data_prep$x)), 
       reference_x = last_year_over_LOQ, set_last_equal_x = last_year_over_LOQ)
-)
+  )
+  
+}
 
 # lc_plot(data_prep)
 lc_plot(data_prep, results = results_all, facet = "wrap")
@@ -318,11 +327,11 @@ get_splines_results_seriesno_s(972,
                              foldername = "Data/125_results_2021", 
                              raftery = FALSE)
 
-
-get_splines_results_seriesno_s(58, 
+# debugonce(get_splines_results_seriesno)
+get_splines_results_seriesno_s(52, 
                              data = dat_all_prep3, 
                              data_series = dat_series_trend, 
-                             foldername = "Data/125_results_2021", 
+                             foldername = "Data/125_results_2021_01",  # test site 
                              raftery = TRUE)
 
 ```
@@ -381,13 +390,27 @@ if (FALSE){
 #
 
 series_no <- 1:nrow(dat_series_trend)
+
+# From section 7:
+# series_no <- c(ser1, ser2)
+
 range(series_no)
+length(series_no) # 1507
+
+# Note folder name!
+
+folder_results <- "Data/125_results_2021_02"
+check_contents <- dir(folder_results)
+
+if (length(check_contents) > 0){
+  warning("You are writing to a folder which already contains ", length(check_contents), ". THESE WILL BE OVERWRITTEN.")
+}
 
 t0 <- Sys.time()
 result <- foreach(i = series_no, 
                   .export = c("dat_all_prep3","dat_series_trend")) %dopar%
                    get_splines_results_seriesno_s(i, 
-                                 dat_all_prep3, dat_series_trend, foldername = "Data/125_results_2021",
+                                 dat_all_prep3, dat_series_trend, foldername = folder_results,
                                  raftery = TRUE)
 t1 <- Sys.time()
 t1-t0
@@ -405,8 +428,13 @@ t1-t0
 
 ```{r}
 
-fns <- dir("Data/125_results_2021", full.names = TRUE) %>% sort()
+fns <- dir(folder_results, full.names = TRUE) %>% sort()
 result_list <-lapply(fns, readRDS)
+length(fns)
+
+fileinfo <- file.info(fns)
+# fileinfo
+fileinfo_no <- substr(rownames(fileinfo)[1], nchar(folder_results) + 8, nchar(folder_results) + 11)
 
 ```
 
@@ -416,7 +444,9 @@ result_list <-lapply(fns, readRDS)
 
 ```{r}
 
+jags_finished <- map_lgl(result_list, ~!is.null(.x$k_values_ok))
 ok <- map_lgl(result_list, ~!is.null(.x$DIC))
+
 plotno <- map_dbl(result_list, "seriesno")
 PARAM <- map_chr(result_list, "PARAM")
 STATION_CODE <- map_chr(result_list, "STATION_CODE")
@@ -425,9 +455,20 @@ LATIN_NAME <- map_chr(result_list, "LATIN_NAME")
 k_sel <- NA
 k_sel[ok] <- map_int(result_list[ok], "k_sel")
 
-dat_success <- data.frame(ok, plotno, PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME, k_sel)
+dat_success <- data.frame(ok, jags_finished, plotno, PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME, k_sel)
+
+tail(dat_success, 100)
+plot(dat_success$jags_finished)
+check <- plotno == as.numeric(fileinfo_no)
+if (sum(check) == 1){
+  dat_success <- dat_success %>%
+  bind_cols(fileinfo %>% select(mtime, size))
+} else {
+  warning("fileinfo not in the same order")
+}
 
 ```
+
 
 ### Plot a single series  
 ```{r}
@@ -440,11 +481,11 @@ tsplot_seriesno(58)
 
 ```{r}
 
-pno <- df_success %>%
+pno <- dat_success %>%
   filter(PARAM == "MCCP eksl. LOQ" & ok) %>%
   pull(plotno)
 
-df_modelfit <- map_dfr(pno, extract_modelfit_data)
+df_modelfit <- map_dfr(pno, extract_modelfit_data, folder = folder_results)
 df_rawdata <- map_dfr(pno, extract_raw_data)
 
 ggplot(df_modelfit, aes(x, y)) +
@@ -482,3 +523,28 @@ table(dat_success$Rule1_first)  # 6   - should be run again
 table(dat_success$Rule2_first)  # 20  - should be run again
 
 ```
+## 7. Run the rest   
+
+- To use if your analyses were interrupted  
+
+```{r}
+
+# Series not run at all   
+
+ser_all <- 1:nrow(dat_series_trend)
+ser1 <- ser_all[!ser_all %in% dat_success$plotno]
+length(ser1)
+# head(ser1, 100)
+# tail(ser1, 100)
+
+# Series not finished     
+ser2 <- dat_success %>%
+  filter(!jags_finished) %>%
+  pull(plotno)
+
+length(ser2)
+
+# used in 4
+
+```
+

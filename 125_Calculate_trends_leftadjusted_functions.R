@@ -5,6 +5,7 @@
 # get_splines_results
 #
 # Get trend results from data  
+# - Note: not used in practice. See 'get_splines_results_seriesno' below
 #
 #o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
 
@@ -88,6 +89,17 @@ if (FALSE){
 # get_splines_results_seriesno
 #
 # Get trend results from series number  
+# - This is the one actually used  
+#
+# Runs analysis for the time series given by row number 'seriesno' in 'data_series'
+# Data are written as a list to an rds file, 3 times:
+# - first, just after the function has started, just the parameter name etc. are written ('result_metadata')
+# - then k_max and k_values_ok are added after JAGS has run (creating 'results_all_s'),
+#   and the first file is overwritten 
+# - then, if JAGS worked for at least one of the k_values, actual results are added to the list,
+#   and the first file is overwritten yet again 
+# - The reason for this is to be able to tell whether JAGS returned no usable results, or whether
+#   the procedure was interrupted (e.g. by the user)
 #
 #o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
 
@@ -183,30 +195,42 @@ get_splines_results_seriesno <- function(seriesno,
   
   results_all_s <- transpose(results_all_s)
   ok <- map_lgl(results_all_s$error, is.null)
-  results_all <- results_all_s$result[ok]
-  
-  names(results_all) <- k_values[ok]
-  
-  # DIC values and dDIC
-  DIC <- purrr::map_dbl(results_all, "dic")
-  dDIC <- DIC - min(DIC)
-  dDIC_min <- sort(DIC)[2] - sort(DIC)[1]
-  
-  result_analysis <- list(
-    DIC = DIC,
-    dDIC = dDIC,
-    dDIC_min = dDIC_min,
+
+  result_run <- list(
     k_max = k_max,
-    k_values_ok = k_values[ok],
-    k_sel = k_values[which.min(DIC)],
-    plot_data = results_all[[which.min(DIC)]]$plot_data,
-    diff_data = results_all[[which.min(DIC)]]$diff_data
+    k_values_ok = k_values[ok]
   )
-  
+
   # Add 'result_analysis' to the metadata and overwrite the list
-  result <- append(result_metadata, result_analysis)
+  result <- append(result_metadata, result_run)
   if (!is.null(save_path))
     saveRDS(result, save_path)
+  
+  if (sum(ok) > 0){
+    
+    results_all <- results_all_s$result[ok]
+    names(results_all) <- k_values[ok]
+    
+    # DIC values and dDIC
+    DIC <- purrr::map_dbl(results_all, "dic")
+    dDIC <- DIC - min(DIC)
+    dDIC_min <- sort(DIC)[2] - sort(DIC)[1]
+    
+    result_analysis <- list(
+      DIC = DIC,
+      dDIC = dDIC,
+      dDIC_min = dDIC_min,
+      k_sel = k_values[which.min(DIC)],
+      plot_data = results_all[[which.min(DIC)]]$plot_data,
+      diff_data = results_all[[which.min(DIC)]]$diff_data
+    )
+    
+    # Add 'result_analysis' to the metadata and overwrite the list
+    result <- append(result, result_analysis)
+    if (!is.null(save_path))
+      saveRDS(result, save_path)
+    
+  }
   
   NULL
   
@@ -244,10 +268,10 @@ extract_raw_data <- function(seriesno,
   
 }
 
-extract_modelfit_data <- function(seriesno, data_series){
+extract_modelfit_data <- function(seriesno, folder, data_series){
   
   fn <- sprintf("trend_%04.0f.rda", seriesno)
-  resultlist <- readRDS(paste0("Data/125_results_2021/", fn))
+  resultlist <- readRDS(paste0(folder, "/", fn))
   data.frame(
     PARAM = resultlist[["PARAM"]],
     STATION_CODE = resultlist[["STATION_CODE"]],
@@ -263,10 +287,10 @@ if (FALSE){
   extract_modelfit_data(187)
 }
 
-extract_difference_data <- function(seriesno, data_series){
+extract_difference_data <- function(seriesno, folder, data_series){
   
   fn <- sprintf("trend_%04.0f.rda", seriesno)
-  resultlist <- readRDS(paste0("Data/125_results_2021/", fn))
+  resultlist <- readRDS(paste0(folder, "/", fn))
   data.frame(
     PARAM = resultlist[["PARAM"]],
     STATION_CODE = resultlist[["STATION_CODE"]],
@@ -286,11 +310,12 @@ if (FALSE){
 # Extract and plot data from results (on files) and data (in memory)
 #
 tsplot_seriesno <- function(seriesno,
+                            folder,
                             data = dat_all_prep3, 
                             data_series = dat_series_trend){
   
   fn <- sprintf("trend_%04.0f.rda", seriesno)
-  resultlist <- readRDS(paste0("Data/125_results_2021/", fn))
+  resultlist <- readRDS(paste0(folder, "/", fn))
   
   # str(resultlist, 1)
   
