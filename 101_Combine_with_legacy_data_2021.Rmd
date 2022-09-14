@@ -319,7 +319,7 @@ if (nrow(df_duplicates) > 0){
 
 ## 3. Reformat recent data to conform with legacy data  
 
-### a. Create 'dat_new2'  
+### a1. Create 'dat_new2'  
 ```{r}
 
 dat_new2 <- dat_new1 %>%
@@ -328,6 +328,8 @@ dat_new2 <- dat_new1 %>%
          BASIS = "W")             # hard-coded
 
 ```
+
+
 
 ### b1. Fix parameter names     
 
@@ -368,8 +370,8 @@ dat_new2 <- dat_new2 %>%
       grepl("oktametylsyklotetrasiloksan", PARAM) ~ "D4",
       grepl("dekametylsyklopentasiloksan", PARAM) ~ "D5",
       grepl("dodekametylsykloheksasiloksan", PARAM) ~ "D6",
-      grepl("Kortkjedede (SCCP)", PARAM, fixed = TRUE) ~ "SCCP",
-      grepl("Mellomkjedede (MCCP)", PARAM, fixed = TRUE) ~ "MCCP",
+      grepl("Kortkjedede (SCCP)", PARAM, fixed = TRUE) ~ "SCCP inkl. LOQ",
+      grepl("Mellomkjedede (MCCP)", PARAM, fixed = TRUE) ~ "MCCP inkl. LOQ",
       TRUE ~ PARAM)
   )
 
