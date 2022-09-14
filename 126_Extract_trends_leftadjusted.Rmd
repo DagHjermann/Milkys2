@@ -12,7 +12,9 @@ output: html_document
 
 last_year <- 2021
 
-folder_results <- paste0("Data/125_results_", last_year)
+folder_results <- paste0("Data/125_results_", last_year, "_02")
+
+indexvars <- c("PARAM", "STATION_CODE", "TISSUE_NAME", "LATIN_NAME")
 
 ```
 
@@ -46,45 +48,77 @@ dat_all_prep3 <- readRDS("Data/125_dat_all_prep3.rds")
 
 ```
 
-### b. Check Rule1 and Rule2   
+### b. Add First_year  
+
+```{r}
+  
+dat_series_extra <- dat_all_prep3 %>%
+  group_by(Substance.Group, PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME) %>%
+  summarise(First_year = min(x), .groups = "drop") 
+
+dat_series <- dat_series %>%
+  left_join(dat_series_extra,
+            by = c("Substance.Group", "PARAM", "STATION_CODE", "TISSUE_NAME", "LATIN_NAME"))
+dat_series_trend <- dat_series_trend %>%
+  left_join(dat_series_extra,
+            by = c("Substance.Group", "PARAM", "STATION_CODE", "TISSUE_NAME", "LATIN_NAME"))
+
+```
+
+### c. Check Rule1 and Rule2   
 
 - Rule 1. Time series should be truncated from the left until Nplus/N >= 0.5     
 - Rule 2. If a linear/smooth trend is fitted, the first year must be non-censored   
-- Get the first value for both of them - if TRUE, the filtering has no effect  
+- Get the first value for both of them 
+    - If Rule 1 or 2 is kicking in, it always effects the first value
+    - if TRUE, the filtering has no effect  
 - Are added to 'dat_success' below  
 
 ```{r}
 
 df_rule1 <- dat_all_prep3 %>%
   group_by(PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME) %>%
-  summarise(Rule1_first = first(Rule1)) 
+  summarise(Rule1 = first(Rule1), .groups = "drop") 
 
 df_rule2 <- dat_all_prep3 %>%
   group_by(PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME) %>%
-  summarise(Rule2_first = first(Rule2)) 
+  summarise(Rule2 = first(Rule2), .groups = "drop") 
 
 ```
 
 
 ## 3. Check results  
 
-### Read files  
+### a. Read files  
 
 ```{r}
 
-fns <- dir("Data/125_results_2021", full.names = TRUE) %>% sort()
+fns <- dir(folder_results, full.names = TRUE) %>% sort()
 result_list <-lapply(fns, readRDS)
+cat(length(fns), "files read \n")
+
+# Get file size and time 
+fileinfo <- file.info(fns)
+# fileinfo
+
+# Extract 'seriesno' from file name (just for checking, see nex chunk)
+fileinfo_no <- substr(rownames(fileinfo)[1], nchar(folder_results) + 8, nchar(folder_results) + 11)
 
 ```
 
-### Extract data frame for "successes"  
+### b. Extract metadata to dataframe for "successes"  
 
-- Meaning that fitting worked (DIC exists)
+
+- jags_finished = TRUE, ok = TRUE: Model fitting done, but did not work for any k values    
+- jags_finished = TRUE, ok = FALSE: Model fitting done, but did not work for any k values    
+- jags_finished = FALSE, ok = FALSE: Model fitting not done (probably because JAGS was interrupted)      
 
 ```{r}
 
+jags_finished <- map_lgl(result_list, ~!is.null(.x$k_values_ok))
 ok <- map_lgl(result_list, ~!is.null(.x$DIC))
-plotno <- map_dbl(result_list, "seriesno")
+
+seriesno <- map_dbl(result_list, "seriesno")
 PARAM <- map_chr(result_list, "PARAM")
 STATION_CODE <- map_chr(result_list, "STATION_CODE")
 TISSUE_NAME <- map_chr(result_list, "TISSUE_NAME")
@@ -92,16 +126,29 @@ LATIN_NAME <- map_chr(result_list, "LATIN_NAME")
 k_sel <- NA
 k_sel[ok] <- map_int(result_list[ok], "k_sel")
 
-# Add Rule1_first and Rule2_first
-dat_success <- data.frame(ok, plotno, PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME, k_sel) %>%
-  left_join(df_rule1) %>%
-  left_join(df_rule2) %>%
-  left_join(dat_series_trend %>% select(PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME, N_years, Years_over_LOQ, k_max))
+dat_success <- data.frame(seriesno, jags_finished, ok,   
+                          PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME, k_sel) %>%
+  # Add Rule1_
+  left_join(df_rule1, by = indexvars) %>%
+  left_join(df_rule2, by = indexvars) %>%
+  # Add N_years, Years_over_LOQ, k_max
+  left_join(dat_series_trend %>% 
+              select(PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME, N_years, Years_over_LOQ, k_max),
+            by = indexvars)
+
+# Check that 'fileinfo' is in same order as 'dat_success' - if so, they can simply be joined
+check <- seriesno == as.numeric(fileinfo_no)
+if (sum(check) == 1){
+  dat_success <- dat_success %>%
+  bind_cols(fileinfo %>% select(mtime, size))
+} else {
+  warning("fileinfo not in the same order")
+}
 
 ```
 
 
-### Check dat_success and dat_series  
+### c. Check dat_success and dat_series  
 
 - that they have the same order
 
@@ -115,7 +162,7 @@ for (var in c("PARAM", "STATION_CODE", "TISSUE_NAME", "LATIN_NAME")){
 
 ```
 
-### Statistics  
+### d. Statistics  
 
 ```{r}
 
@@ -126,42 +173,43 @@ xtabs(~ok + k_max, dat_success)
 # xtabs(~ok + N_years, dat_success)
 # xtabs(~ok + Years_over_LOQ, dat_success)
 
-xtabs(~addNA(k_sel) + N_years, dat_success)
-xtabs(~addNA(k_sel) + Years_over_LOQ, dat_success)
+if (FALSE){
+  
+  xtabs(~addNA(k_sel) + N_years, dat_success)
+  
+  xtabs(~addNA(k_sel) + Years_over_LOQ, dat_success)
 
-dat_success %>%
-  filter(Years_over_LOQ == 5) %>%
-  filter(k_sel == 5)
-
-
-
-```
+}
 
 
-### Plot a single series  
-```{r}
-
-tsplot_seriesno(58)
-tsplot_seriesno(93)
-
-# debugonce(get_splines_results_seriesno)
-get_splines_results_seriesno(93, 
-                             data = dat_all_prep3, 
-                             data_series = dat_series_trend, 
-                             foldername = "Data/125_results_2021_01", 
-                             raftery = FALSE)
 
 ```
 
-### Check one group of compounds  
+
+### e. Plot a single series  
+```{r}
+
+tsplot_seriesno(58, folder_results)
+
+# tsplot_seriesno(93, folder_results)
+
+```
+
+## 4. For one compound  
+
+### a. Plot time series, all stations      
 
 ```{r}
 
-pno <- df_success %>%
-  filter(PARAM == "MCCP eksl. LOQ" & ok) %>%
-  pull(plotno)
+param <- "MCCP eksl. LOQ"
+param <- "CB118"
 
-df_modelfit <- map_dfr(pno, extract_modelfit_data)
+pno <- dat_success %>%
+  filter(PARAM == param,
+         ok) %>%
+  pull(seriesno)
+
+df_modelfit <- map_dfr(pno, extract_modelfit_data, folder = folder_results)
 df_rawdata <- map_dfr(pno, extract_raw_data)
 
 ggplot(df_modelfit, aes(x, y)) +
@@ -169,28 +217,287 @@ ggplot(df_modelfit, aes(x, y)) +
   geom_point(data = df_rawdata %>% filter(!is.na(y))) +
   geom_point(data = df_rawdata %>% filter(!is.na(threshold)), aes(y = threshold), shape = 6) +
   geom_line() +
-  facet_wrap(vars(STATION_CODE), scales = "free_y")
+  facet_wrap(vars(STATION_CODE), scales = "free_y") +
+  labs(title = param)
 
 ```
-
-
-## 4. Get trends     
+### b. Check trend file that goes into the big excel file  
 
 ```{r}
 
-df_change <- map_dfr(pno, extract_difference_data)
+# Check trends in big excel file:  
+# - use code in script 201 section 7 to get 'check' 
+# head(check[c(1, 126:143-9)])
 
-extract_difference_data_s <- safely(extract_difference_data)
-df_change_list <- map(pno, extract_difference_data)
+# Columns added:
+# Trend p(long)  Detectable % change(long)  First Year(long)  Last Year(long)  No of Years(long) 
+# Trend p(short) Detectable % change(short) First Year(short) Last Year(short) No of Years(short) 
+# Trends.2021 ("¢/¢" format)  
 
+# Index columns includes Basis, with values:
+# DW  DWa   FB  FBa   WW  WWa
 
-df_rawdata <- map_dfr(pno, extract_raw_data)
+if (FALSE){
+  c("PARAM", "LATIN_NAME", "TISSUE_NAME", "STATION_CODE", "Basis", 
+    "Trend p(long)", "Detectable % change(long)", "First Year(long)", 
+    "Last Year(long)", "No of Years(long)", "Trend p(short)", "Detectable % change(short)", 
+    "First Year(short)", "Last Year(short)", "No of Years(short)", "Trends.2021")
+}
 
-ggplot(df_modelfit, aes(x, y)) +
-  geom_ribbon(aes(ymin = y_q2.5, ymax = y_q97.5), fill = "lightblue") +
-  geom_point(data = df_rawdata %>% filter(!is.na(y))) +
-  geom_point(data = df_rawdata %>% filter(!is.na(threshold)), aes(y = threshold), shape = 6) +
-  geom_line() +
-  facet_wrap(vars(STATION_CODE), scales = "free_y")
+# The trend symbols are made in 'set_symbol' which uses:
+# Model_used ("Linear", "Nonlinear"), N_data, P_change, Annual_change (needs only Annual_change >0 or <0)
+
+# up = é      ascii 233  Increasing concentration
+# down = ê    ascii 234  Decreasing concentration
+# circle = ¢  ascii 162  No significant time trend
+# square = §  ascii 167  Too few years to make time trend
+# star = «    ascii 171  Too few years with data over LOQ to make time trend
 
 ```
+
+
+### c. Changes for 10 years / entire series       
+
+```{r}
+
+#
+# 1. Time series with trends (linear/non-linear)
+#
+
+pno_change <- dat_success %>%
+  filter(PARAM == param,
+         ok) %>%
+  # No change for those with no trend (k = 1), so we leave them out:
+  filter(k_sel >= 2) %>%
+  pull(seriesno)
+
+# test
+# extract_difference_data(49, folder_results)
+
+df_with_trend_all <- map_dfr(pno_change, extract_difference_data, folder = folder_results)
+
+df_with_trend <- df_with_trend_all %>%
+  group_by(STATION_CODE, TISSUE_NAME, LATIN_NAME) %>%
+  mutate(First_year = min(x)) %>%
+  # Pick 10 year old data, plus the data from the first year  
+  filter(x %in% c(First_year, last_year-10)) %>%
+  mutate(
+    Trend_string = case_when(
+      p < 0.05 & y_mean > 0 ~ "Decreasing",
+      p < 0.05 & y_mean < 0 ~ "Increasing",
+      TRUE ~ "No change"),
+    Trend_type = case_when(
+      x >= (last_year-10) ~ "short",
+      x < (last_year-10) ~ "long")
+  ) %>%
+  left_join(
+    dat_success %>%
+       select(PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME, 
+              ok, k_max, k_sel, N_years, Years_over_LOQ),
+    by = indexvars)
+
+#    Perc_change = round((1-exp(y_mean))/exp(y_mean)*100, 1)
+    
+#
+# 2. Time series without trends (k = 1, or too short series)  
+#
+
+df_no_trend_short <- dat_success %>%
+  filter(PARAM == param) %>%
+  # Pick time series not used in (1)
+  anti_join(df_with_trend, by = indexvars) %>%
+  left_join(dat_series %>% select(PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME, First_year),
+            by = indexvars) %>%
+  mutate(
+    Trend_string = case_when(
+      N_years < 5 ~ "Too few years",
+      N_years >= 5 & Years_over_LOQ < 5 ~ "Too few over-LOQ years",
+      k_sel %in% 1 ~ "No change",
+      TRUE ~ "Estimation failed"),
+    Trend_type = "short",
+    y_mean = 0
+  )
+
+# Add extra (but almost identical) data set for long series (older than 10 years)
+df_no_trend_long <- df_no_trend_short %>%
+  filter(First_year < (last_year-10)) %>%
+  mutate(
+    Trend_type = "long",
+    y_mean = 0)
+
+#
+# 3. Combine time series with and without trends 
+#
+df_trend <- bind_rows(
+  df_with_trend,
+  df_no_trend_short,
+  df_no_trend_long) %>%
+  mutate(
+    Perc_change = round((1-exp(y_mean))/exp(y_mean)*100, 1),
+    Trend_symbol = case_when(
+      is.na(Trend_string) ~ "-",
+      Trend_string %in% "Increasing" ~ "é",
+      Trend_string %in% "Decreasing" ~ "ê",
+      Trend_string %in% "No change" ~ "¢",
+      Trend_string %in% "Too few years" ~ "§",
+      Trend_string %in% "Too few over-LOQ years" ~ "«")
+    ) %>%
+  select(
+    PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME, 
+    x, y_mean, y_sd, p, p_category, First_year, 
+    Trend_string, Trend_symbol, Perc_change, Trend_type,
+    ok, k_max, k_sel, N_years, Years_over_LOQ)
+
+#
+# 4. Put them on wide format (separate columns for short and long) 
+#
+df_trend_wide <- df_trend %>%
+  select(
+    PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME, 
+    Trend_type, Trend_string, Trend_symbol, Perc_change, p, First_year) %>%
+  tidyr::pivot_wider(
+    names_from = Trend_type, 
+    values_from = c(Trend_string, Trend_symbol, Perc_change, p, First_year)) %>% 
+  mutate(
+    Basis = "WW",
+    First_year_short = ifelse(
+      First_year_short < (last_year-10), (last_year-10), First_year_short),
+    Trend_symbol_long = ifelse(is.na(Trend_symbol_long), "-", Trend_symbol_long),
+    Trend_symbol_short = ifelse(is.na(Trend_symbol_short), "-", Trend_symbol_short),
+    Trend_symbol = paste0(Trend_symbol_long, "/", Trend_symbol_short)
+  )
+  
+
+# ?sprintf
+
+```
+
+
+## 5. For all  
+
+### c. Changes for 10 years / entire series    
+
+- Extremely similar coe, just removed the 'filter(PARAM == param) ' two places  
+
+```{r}
+
+#
+# 1. Time series with trends (linear/non-linear)
+#
+
+pno_change <- dat_success %>%
+  filter(ok) %>%
+  # No change for those with no trend (k = 1), so we leave them out:
+  filter(k_sel >= 2) %>%
+  pull(seriesno)
+
+# test
+# extract_difference_data(49, folder_results)
+
+df_with_trend_all <- map_dfr(pno_change, extract_difference_data, folder = folder_results)
+
+df_with_trend <- df_with_trend_all %>%
+  group_by(STATION_CODE, TISSUE_NAME, LATIN_NAME) %>%
+  mutate(First_year = min(x)) %>%
+  # Pick 10 year old data, plus the data from the first year  
+  filter(x %in% c(First_year, last_year-10)) %>%
+  mutate(
+    Trend_string = case_when(
+      p < 0.05 & y_mean > 0 ~ "Decreasing",
+      p < 0.05 & y_mean < 0 ~ "Increasing",
+      TRUE ~ "No change"),
+    Trend_type = case_when(
+      x >= (last_year-10) ~ "short",
+      x < (last_year-10) ~ "long")
+  ) %>%
+  left_join(
+    dat_success %>%
+       select(PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME, 
+              ok, k_max, k_sel, N_years, Years_over_LOQ),
+    by = indexvars)
+
+#    Perc_change = round((1-exp(y_mean))/exp(y_mean)*100, 1)
+    
+#
+# 2. Time series without trends (k = 1, or too short series)  
+#
+
+df_no_trend_short <- dat_success %>%
+  # Pick time series not used in (1)
+  anti_join(df_with_trend, by = indexvars) %>%
+  left_join(dat_series %>% select(PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME, First_year),
+            by = indexvars) %>%
+  mutate(
+    Trend_string = case_when(
+      N_years < 5 ~ "Too few years",
+      N_years >= 5 & Years_over_LOQ < 5 ~ "Too few over-LOQ years",
+      k_sel %in% 1 ~ "No change",
+      TRUE ~ "Estimation failed"),
+    Trend_type = "short",
+    y_mean = 0
+  )
+
+# Add extra (but almost identical) data set for long series (older than 10 years)
+df_no_trend_long <- df_no_trend_short %>%
+  filter(First_year < (last_year-10)) %>%
+  mutate(
+    Trend_type = "long",
+    y_mean = 0)
+
+#
+# 3. Combine time series with and without trends 
+#
+df_trend <- bind_rows(
+  df_with_trend,
+  df_no_trend_short,
+  df_no_trend_long) %>%
+  mutate(
+    Perc_change = round((1-exp(y_mean))/exp(y_mean)*100, 1),
+    Trend_symbol = case_when(
+      is.na(Trend_string) ~ "-",
+      Trend_string %in% "Increasing" ~ "é",
+      Trend_string %in% "Decreasing" ~ "ê",
+      Trend_string %in% "No change" ~ "¢",
+      Trend_string %in% "Too few years" ~ "§",
+      Trend_string %in% "Too few over-LOQ years" ~ "«")
+    ) %>%
+  select(
+    PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME, 
+    x, y_mean, y_sd, p, p_category, First_year, 
+    Trend_string, Trend_symbol, Perc_change, Trend_type,
+    ok, k_max, k_sel, N_years, Years_over_LOQ)
+
+#
+# 4. Put them on wide format (separate columns for short and long) 
+#
+df_trend_wide <- df_trend %>%
+  select(
+    PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME, 
+    Trend_type, Trend_string, Trend_symbol, Perc_change, p, First_year) %>%
+  tidyr::pivot_wider(
+    names_from = Trend_type, 
+    values_from = c(Trend_string, Trend_symbol, Perc_change, p, First_year)) %>% 
+  mutate(
+    First_year_short = ifelse(
+      First_year_short < (last_year-10), (last_year-10), First_year_short),
+    Trend_symbol_long = ifelse(is.na(Trend_symbol_long), "-", Trend_symbol_long),
+    Trend_symbol_short = ifelse(is.na(Trend_symbol_short), "-", Trend_symbol_short),
+    Trend_symbol = paste0(Trend_symbol_long, "/", Trend_symbol_short)
+  ) %>%
+  mutate(
+    Basis = "WW", .after = "LATIN_NAME")
+  
+
+# ?sprintf
+
+
+```
+
+## 6. Save  
+```{r}
+
+saveRDS(df_trend_wide, "Data/126_df_trend_wide_2021.rds")
+
+```
+
+
