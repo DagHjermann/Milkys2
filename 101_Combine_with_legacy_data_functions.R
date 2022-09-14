@@ -29,7 +29,7 @@ sum_parameters <- list(
 get_standard_parametername <- function(x, synonymfile){
   if (is.factor(x))
     x <- levels(x)[as.numeric(x)]
-  synonyms <- read.csv2(synonymfile, stringsAsFactors = FALSE)
+  synonyms <- read.csv(synonymfile, stringsAsFactors = FALSE)
   n_cols <- ncol(synonyms)
   # will search in all columns named "substance"
   cols_synonyms <- grep("substance", colnames(synonyms))  # returns number
