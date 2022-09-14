@@ -439,10 +439,24 @@ if (nrow(check_stations2) > 0){
 }
 
 #
-# 5. Data for the extra columns for parameters and stations
+# 5a. Data for the extra columns for parameters 
 #
-df_par <- read.csv("Input_data/Lookup for big excel - param.csv", sep = ";", dec = ",", stringsAsFactors = FALSE)
+
+#This filewas updated using the code in Appendix 2  
+df_par <- read.csv("Input_data/Lookup for big excel - param.csv", stringsAsFactors = FALSE, row.names = 1)
+
+# More checking
+if (FALSE){
+  a <- table(df_par_old$Substance.Group) %>% names() %>% sort() %>% dput()
+  b <- table(df_par_original$Substance.Group) %>% names() %>% sort() %>% dput()
+  setdiff(a, b)
+  setdiff(b, a)
+}
+#
+# 5b. Data for the extra columns for stations
+#
 df_stationinfo <- readxl::read_excel("Input_data/Lookup for big excel - stations.xlsx")
+
 
 cat("\n")
 message("5. Data for the extra columns for parameters and stations - data read")
@@ -636,6 +650,7 @@ cat("Number of medians, selected, in wide format:", nrow(data_xlvalues), "\n")
 ```
 
 ### b. Make less-than columns (as TRUE/FALSE)  
+
 ```{r, results='hold'}
 
 data_lessthans <- data_med2[select_data,] %>%
@@ -2261,7 +2276,7 @@ if (FALSE){
   # Check, selected columns
   check %>%
     select(PARAM, Substance.Group, LATIN_NAME, TISSUE_NAME, STATION_CODE, Basis, 
-         Yr_2016, Yr_2017, Yr_2018, Yr_2019, EQS_2019, Yr_2020, EQS_2020, N_string, SD_last, EQS) %>%
+         Yr_2016, Yr_2017, Yr_2018, Yr_2019, EQS_2019, Yr_2020, EQS_2020, Yr_2021, EQS_2021, N_string, SD_last, EQS) %>%
     View("check")
 
   # Check data for all TBT
@@ -2320,7 +2335,7 @@ if (FALSE){
 
 
 
-## 8. How to change the .csv file from this script into the finished Excel file     
+## 8. APPENDIX 1. How to change the .csv file from this script into the finished Excel file     
 This needs to be done in Excel, using some macros (stored in 'Data_xl_TEMPLATE.xlsm'). Also, opening the data in MS Excel is not straightforward, due to Linux/Windows differences in encodings.      
 
 NOTE 1 (IMPORTANT!): Some variables in the macros must be adjusted EVERY YEAR, in order to accomodate for an increasing number of columns every year. Otherwise the macros in (4) will not work at all. The instructions for this is given in the macro script file in Excel (View : Macros : View Macros : [choose a random macro] : Edit)
@@ -2367,3 +2382,47 @@ EXPECTED COLUMN POSITIONS FOR EXCEL MACROS TO WORK
 - Column EO = Lt_1981  
 - Column HM = Lt_2019  
 - Distance from Y to EO (Yr1981 to Lt_1981) = 120 columns  
+
+## 9. APPENDIX 2. 
+
+- Update 'Lookup for big excel - param.csv'  
+- See section 2.e1  
+
+```{r}
+
+if (FALSE){
+  
+  df_par_old <- read.csv("Input_data/Lookup for big excel - param - OLD1.csv", sep = ";", dec = ",", stringsAsFactors = FALSE)
+  
+  df_par_original <- readxl::read_excel("Input_data/Lookup table - substance groups.xlsx") %>%
+    # Add IUPAC from 'df_par_old'   
+    left_join(df_par_old %>% select(Parameter.Code, IUPAC), by = c("PARAM" = "Parameter.Code"))
+  
+  # Check differences in Substance.Group 
+  check <- df_par_original %>%
+    full_join(df_par_old %>% select(Parameter.Code, Substance.Group) %>% rename(Substance.Group.old = Substance.Group), 
+              by = c("PARAM" = "Parameter.Code")) %>%
+    filter(!is.na(Substance.Group) & !is.na(Substance.Group.old)) %>%
+    filter(Substance.Group != Substance.Group.old)
+  nrow(check) # 4
+  # 3 of them are Siloxanes -> Siloxans
+  # the last is "Support parameters" to "Fat and dry weight"
+  
+  # Add lacking PARAM from df_par_old
+  df_par_to_add <- df_par_old %>%
+    select(Parameter.Code, Substance.Group, IUPAC) %>%
+    rename(PARAM = Parameter.Code) %>%
+    anti_join(df_par_original, by = "PARAM")
+  
+  df_par <- bind_rows(df_par_original, df_par_to_add)
+  
+  # Fill missing 'Parameter.Name' with PARAM values
+  sel <- is.na(df_par$Parameter.Name)
+  df_par$Parameter.Name[sel] <- df_par$PARAM[sel]
+  
+  write.csv(df_par, "Input_data/Lookup for big excel - param.csv")
+  
+}
+
+```
+
