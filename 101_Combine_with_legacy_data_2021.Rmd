@@ -384,6 +384,7 @@ cat("dat_new2: PARAM = Fett set for", sum(sel), "records \n")
 ```
 
 ### b2. Check for duplicates  
+
 ```{r}
 
 df_duplicates <- dat_new2 %>%
@@ -1616,7 +1617,6 @@ if (FALSE){
 
 ```
 
-
 ### d. Final checks
 
 #### Check all data for duplicates   
@@ -1731,7 +1731,7 @@ if (sum(sel) > 0){
 
 
 ```
-### h1. Add sum excl. LOQ for entire time series    
+### h. Add sum excl. LOQ for entire time series    
 
 - denoted "_exloq"  
 - use new function 'add_sumparameter_exloq'  
@@ -1791,6 +1791,60 @@ data_updated2 %>%
 
 ```
 
+### i. Fix tin in Eider duck   
+
+- Eider duck data 2021 given as SE (selenium) should be SN (tin)
+
+```{r}
+
+data_updated2 %>%
+  filter(MYEAR >= 2010,
+         STATION_CODE == "19N",
+         nchar(PARAM) == 2) %>%
+  xtabs(~MYEAR + PARAM, .)
+
+sel <- with(data_updated2, MYEAR >= 2021 & STATION_CODE == "19N" & PARAM %in% "SE")
+sum(sel)
+# View(data_updated2[sel,])
+
+data_updated2$PARAM[sel] <- "SN"
+
+```
+
+
+### j. Fix HG unit in Eider duck   
+
+- Eider duck data 2021 given as SE (selenium) should be SN (tin)
+
+```{r}
+
+# Check
+data_updated2 %>%
+  filter(MYEAR >= 2010,
+         STATION_CODE == "19N",
+         PARAM == "HG") %>%
+  group_by(MYEAR, TISSUE_NAME) %>%
+  summarise(across(c(VALUE_WW, VALUE_DW, VALUE_FB), ~round(median(.x),3)))
+
+sel <- with(data_updated2, MYEAR >= 2021 & STATION_CODE == "19N" & PARAM %in% "HG")
+# sum(sel)
+
+if (mean(data_updated2$VALUE_WW[sel]) > 10){
+  data_updated2$VALUE_WW[sel] <- data_updated2$VALUE_WW[sel]/1000
+  data_updated2$VALUE_FB[sel] <- data_updated2$VALUE_FB[sel]/1000
+}
+
+# Check again
+data_updated2 %>%
+  filter(MYEAR >= 2010,
+         STATION_CODE == "19N",
+         PARAM == "HG") %>%
+  group_by(MYEAR, TISSUE_NAME) %>%
+  summarise(across(c(VALUE_WW, VALUE_DW, VALUE_FB), ~round(median(.x),3)))
+
+```
+
+
 
 ## 11. Save the data for later use    
 - We use the date the data was downloaded (in script 101) in the filename   
@@ -1805,11 +1859,11 @@ filename <- paste0("Data/101_data_updated_", file_date, ".rds")
 saveRDS(data_updated2, filename)
 
 # To read this data, we use a sentence such as 
-#   data_updated2 <- readRDS(filename)
+#   data_updated2 <- readRDS(filename)    
+
 
 cat("Updated and standardized data saved as:")
 cat("\n", filename)
-
 
 
 # Note: There is an alternative way of saving in R format, which you may be more familiar with:
@@ -1826,8 +1880,11 @@ cat("\n", filename)
 #   where you have to explicitly give a name to the data when you read it.
 
 ```
+
 ### a. Final check for duplicates   
+
 (11-12 seconds)
+
 ```{r}
 
 # if (!exists("df_duplicates_all")){    # recalculate only if it doesn't exist (for testing)
