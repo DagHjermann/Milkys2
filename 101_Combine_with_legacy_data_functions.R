@@ -1,6 +1,7 @@
 
 sum_parameters <- list(
   CB_S7 = c("CB28", "CB52", "CB101", "CB118", "CB138", "CB153", "CB180"), 
+  CB_S6 = c("CB28", "CB52", "CB101", "CB138", "CB153", "CB180"), 
   BDE6S = c("BDE28", "BDE47", "BDE99", "BDE100", "BDE153", "BDE154"), 
   P_S = c("ACNLE", "ACNE", "FLE", "PA", "ANT", "FLU", 
           "PYR", "BAA", "CHR", "BBJF", "BKF", "BAP", "DBA3A", "BGHIP", 
