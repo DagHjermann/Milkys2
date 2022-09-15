@@ -156,36 +156,34 @@ list_and_read_rds_file <- function(folder, pattern,
 ```
 
 
-
 ### b. Time trend results   
 ```{r, results='hold'}
 
 date_pattern <- "[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]"
 version_pattern <- "run[0-9][0-9]"
 
-cat("======================================\n")
-cat(" Trends for last year \n")
-cat("======================================\n")
-
-pattern_10yr_last <- paste0("^120_result_10yr_", last_year, "_", 
-                            date_pattern, "_", version_pattern, ".rds$")
-pattern_long_last <- paste0("^120_result_long_", last_year, "_", 
-                            date_pattern, "_", version_pattern, ".rds$")
-
-dir("Data", pattern = pattern_10yr_last)
-dir("Data", pattern = pattern_10yr_last)
-
-result_10yr_last <- list_and_read_rds_file(
-  folder = "Data", 
-  pattern = pattern_10yr_last, 
-  check_date = data_list$file_date
-)
-result_long_last <- list_and_read_rds_file(
-  folder = "Data", 
-  pattern = pattern_long_last, 
-  check_date = data_list$file_date
-)
-
+# cat("======================================\n")
+# cat(" Trends for last year \n")
+# cat("======================================\n")
+# 
+# pattern_10yr_last <- paste0("^120_result_10yr_", last_year, "_", 
+#                             date_pattern, "_", version_pattern, ".rds$")
+# pattern_long_last <- paste0("^120_result_long_", last_year, "_", 
+#                             date_pattern, "_", version_pattern, ".rds$")
+# 
+# dir("Data", pattern = pattern_10yr_last)
+# dir("Data", pattern = pattern_10yr_last)
+# 
+# result_10yr_last <- list_and_read_rds_file(
+#   folder = "Data", 
+#   pattern = pattern_10yr_last, 
+#   check_date = data_list$file_date
+# )
+# result_long_last <- list_and_read_rds_file(
+#   folder = "Data", 
+#   pattern = pattern_long_last, 
+#   check_date = data_list$file_date
+# )
 
 cat("======================================\n")
 cat(" Trends for second last year \n")
@@ -1371,119 +1369,37 @@ cat("\nNumber of columns:", ncol(data_xl), "\n") # 113
 
 ```
 
-### Trends for last year - preparations
-```{r, results='hold'}
+
+### Trends for last year - make 'trends_for_excel' 
+
+```{r}
+
+# dir("Data", "126")
+
+trends_last_year <- readRDS("Data/126_df_trend_wide_2021.rds")    # NOTE: HARD-CODED!
+# head(trends_last_year)
+
+# Imitate to the last detail the previous version of 'trends_for_excel' data frame  
+trends_for_excel <- trends_last_year %>%
+  mutate(`Last Year(long)` = last_year,
+         `Last Year(short)` = last_year-1) %>%
+  select(PARAM, LATIN_NAME, TISSUE_NAME, STATION_CODE, Basis,
+         p_long, Perc_change_long, First_year_long, `Last Year(long)`, N_years,
+         p_short, Perc_change_short, First_year_short, `Last Year(short)`,  N_years_10yr,
+         Trend_symbol) %>%
+  rename(`Trend p(long)` = p_long, `Detectable % change(long)` = Perc_change_long, `First Year(long)`= First_year_long, 'No of Years(long)' = N_years,
+         `Trend p(short)` = p_short, `Detectable % change(short)` = Perc_change_short, `First Year(short)`= First_year_short, 'No of Years(short)' = N_years_10yr)
+
+names(trends_for_excel)[names(trends_for_excel) == "Trend_symbol"] <- paste0("Trends.", last_year)
+  
+```
+
+
+### Trends for last year - add 'trends_for_excel' columns  
+```{r}
 
 # Key columns:
 cols <- c("PARAM", "LATIN_NAME", "TISSUE_NAME", "STATION_CODE", "Basis")
-# debugonce(set_symbol)
-
-# Make data frames with trend symbols 
-trend_long_for_excel <- make_trend_data_for_excel2(result_long_last, data_xl[,cols])
-trend_10yr_for_excel <- make_trend_data_for_excel2(result_10yr_last, data_xl[,cols])
-
-# head(trend_long_for_excel, 2)
-
-# Combine log + 10yr and prepare even more for Excel
-trends_for_excel <- combine_long_and_short_trends_for_excel2(trend_long_for_excel, trend_10yr_for_excel)
-
-cat("'trends_for_excel', number of lines:", nrow(trends_for_excel), "\n\n")  # 29582
-
-cat("'trends_for_excel', values: \n")  # 29582
-table(trends_for_excel$Trend.year)
-
-# Change column name
-colnumber <- which(colnames(trends_for_excel) %in% "Trend.year")
-colnames(trends_for_excel)[colnumber] <- paste0("Trends.", last_year)
-# colnames(trends_for_excel)
-
-check <- data_xl %>%
-  group_by(STATION_CODE, LATIN_NAME, TISSUE_NAME, PARAM, Basis) %>%
-  summarise(N = n())
-cat("\n")
-cat("Number of duplicates in data_xl (should be zero):", sum(check$N > 1), "\n")   
-
-# If there are duplicates, check data:
-if ( sum(check$N > 1)){
-  check %>% filter(N > 1) %>% head(10)
-  df1 <- check %>% filter(N > 1) %>% head(1)
-  xtabs(~STATION_CODE + PARAM , check %>% filter(N > 1))
-  check2 <- data_xl %>%
-    filter(STATION_CODE %in% df1$STATION_CODE, LATIN_NAME %in% df1$LATIN_NAME,
-           TISSUE_NAME %in% df1$TISSUE_NAME, PARAM %in% df1$PARAM, Basis %in% df1$Basis)
-  check2
-}
-
-check <- trends_for_excel %>%
-  group_by(STATION_CODE, LATIN_NAME, TISSUE_NAME, PARAM, Basis) %>%
-  summarise(N = n())
-cat("Number of duplicates in 'trends_for_excel' (should be zero):", sum(check$N > 1), "\n")   
-
-# If there are duplicates, check data:
-if ( sum(check$N > 1)){
-  table(check$N)
-  check %>% filter(N > 1) %>% head(10)
-  df1 <- check %>% filter(N > 1) %>% head(1)
-  check2 <- trends_for_excel %>% 
-    filter(STATION_CODE %in% df1$STATION_CODE, LATIN_NAME %in% df1$LATIN_NAME, 
-           TISSUE_NAME %in% df1$TISSUE_NAME, PARAM %in% df1$PARAM, Basis %in% df1$Basis)
-  check2
-}
-
-```
-
-### Remove duplicates for PAH metabolites  
-* These were "artifially" added in script 110, part 3B  
-* For some reason this causes duplicates in 'make_trend_data_for_excel2' function  
-* We should check why this happens, but below is a quick fix  
-* Also happens for 'second last year', see below  
-```{r}
-
-if (FALSE){
-  
-  # For demonstrating the problem
-
-  # This one is OK - no duplicates:
-  result_long_last %>%
-    filter(PARAM == "PYR1OH" & Basis == "WW") %>%
-    arrange(STATION_CODE) %>%
-    View()
-  
-  # This one is not OK - duplicates, with identical values:
-  trends_for_excel %>%
-    filter(PARAM == "PYR1OH" & Basis == "WW") %>%
-    arrange(STATION_CODE) %>%
-    View()
-}
-
-check_duplicates <- trends_for_excel %>%
-  count(PARAM, LATIN_NAME, TISSUE_NAME, STATION_CODE, Basis) %>%
-  filter(n > 1)
-
-# Check that the problem is only for PAH metabolites  
-check <- mean(unique(check_duplicates$PARAM) == c("BAP3OH", "PA1OH", "PYR1OH"))
-
-cat("trends_for_excel - number of lines before fixing:", nrow(trends_for_excel), "\n")
-
-if (nrow(check_duplicates) == 0){
-  message("No duplicates to fix")
-} else if (check == 1){
-  trends_for_excel <- trends_for_excel %>%
-    ungroup() %>%
-    group_by(PARAM, LATIN_NAME, TISSUE_NAME, STATION_CODE, Basis) %>%
-    summarise(across(.fns = first), .groups = "drop")
-} else {
-  stop("We seem to have a problem for something else than PAH metabolites!")
-}
-
-cat("\n")
-cat("trends_for_excel - number of lines after fixing:", nrow(trends_for_excel), "\n")
-
-```
-
-
-### Trends for last year - add columns to data
-```{r}
 
 data_xl_b <- data_xl  # backup data
 # data_xl <- data_xl_b  # restore from backup, if needed
