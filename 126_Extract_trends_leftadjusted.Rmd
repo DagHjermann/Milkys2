@@ -470,7 +470,7 @@ df_trend <- bind_rows(
   mutate(
     Perc_change = round((1-exp(y_mean))/exp(y_mean)*100, 1),
     Trend_symbol = case_when(
-      is.na(Trend_string) ~ "-",
+      is.na(Trend_string) ~ "x",
       Trend_string %in% "Increasing" ~ "é",
       Trend_string %in% "Decreasing" ~ "ê",
       Trend_string %in% "No change" ~ "¢",
@@ -499,8 +499,8 @@ df_trend_wide <- df_trend %>%
   mutate(
     First_year_short = ifelse(
       First_year_short < (last_year-10), (last_year-10), First_year_short),
-    Trend_symbol_long = ifelse(is.na(Trend_symbol_long), "-", Trend_symbol_long),
-    Trend_symbol_short = ifelse(is.na(Trend_symbol_short), "-", Trend_symbol_short),
+    Trend_symbol_long = ifelse(is.na(Trend_symbol_long), "x", Trend_symbol_long),
+    Trend_symbol_short = ifelse(is.na(Trend_symbol_short), "x", Trend_symbol_short),
     Trend_symbol = paste0(Trend_symbol_long, "/", Trend_symbol_short)
   ) %>%
   mutate(
@@ -513,9 +513,29 @@ df_trend_wide <- df_trend %>%
 ```{r}
 
 saveRDS(df_trend, "Data/126_df_trend_2021.rds")
-
 saveRDS(df_trend_wide, "Data/126_df_trend_wide_2021.rds")
+saveRDS(dat_all_prep3, "Data/126_dat_all_prep3_2021.rds")
+saveRDS(dat_series_trend, "Data/126_dat_series_trend_2021.rds")
+
+
+if (FALSE){
+  # For reading back
+  df_trend <- readRDS("Data/126_df_trend_2021.rds")
+  df_trend_wide <- readRDS("Data/126_df_trend_wide_2021.rds")
+  df_trend <- readRDS("Data/126_df_trend_2021.rds")
+  dat_series_trend <- readRDS("Data/126_dat_series_trend_2021.rds")
+}
 
 ```
+
+
+## 7. Various checking  
+```{r}
+
+tsplot_param("BDE47", "I023", folder = folder_results)
+tsplot_param("HG", "98B1", folder = folder_results)
+
+```
+
 
 
