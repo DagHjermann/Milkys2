@@ -67,10 +67,10 @@ Read and reformat the most recent data (by default)
 ```{r, collapse=TRUE}
 
 # If we have NOT length-adjusted the last year's data:
-filepattern <- "101_data_updated_"         # entire file name except date and extension
+# filepattern <- "101_data_updated_"         # entire file name except date and extension
 
 # Normally, if we have length-adjusted the last year's data:
-# filepattern <- "109_adjusted_data_"       # entire file name except date and extension
+filepattern <- "109_adjusted_data_"       # entire file name except date and extension
 
 filenumber <- 1                           # filenumber = 1 means "read the newest file"
 
@@ -116,6 +116,13 @@ df_samples_labware_raw_previous <- read_rds_file(
   files, 
   filenumber=1)
 
+labware_yr <- lubridate::year(df_samples_labware_raw_previous$SAMPLED_DATE)
+labware_yr_same <- mean(labware_yr == (selected_year-1), na.rm = TRUE)
+cat(100*labware_yr_same, "% of Labware years are in the expected year\n")
+if (labware_yr_same < 0.75){
+  stop("Too few samples seems to be from the expected year")
+}
+
 # Ultimate year:
 cat("\n")
 files <- list_files(
@@ -125,6 +132,14 @@ df_samples_labware_raw_last <- read_rds_file(
   folder = "Input_data",
   files, 
   filenumber=1)
+
+labware_yr <- lubridate::year(df_samples_labware_raw_last$SAMPLED_DATE)
+labware_yr_same <- mean(labware_yr == selected_year, na.rm = TRUE)
+cat(100*labware_yr_same, "% of Labware years are in the expected year\n")  
+
+if (labware_yr_same < 0.75){
+  stop("Too few samples seems to be from the expected year")
+}
 
 # Combine
 df_samples_labware_raw <- bind_rows(
