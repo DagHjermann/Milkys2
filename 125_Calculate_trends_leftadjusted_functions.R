@@ -322,13 +322,60 @@ tsplot_seriesno <- function(seriesno,
   # debugonce(get_pointdata)
   df_points <- extract_raw_data(seriesno, data = data, data_series = data_series)
   
+  # titlestring <- paste0(resultlist$PARAM, " (", resultlist$Basis, ") at ", resultlist$STATION_CODE, " (", resultlist$TISSUE_NAME, " from ", resultlist$LATIN_NAME, ")")
+  titlestring <- paste0(resultlist$PARAM, " at ", resultlist$STATION_CODE, " (", resultlist$TISSUE_NAME, " from ", resultlist$LATIN_NAME, ")")
+  
   ggplot(resultlist$plot_data, aes(x, y)) +
     geom_ribbon(aes(ymin = y_q2.5, ymax = y_q97.5), fill = "lightblue") +
     geom_point(data = df_points %>% filter(!is.na(y))) +
     geom_point(data = df_points %>% filter(!is.na(threshold)), aes(y = threshold), shape = 6) +
-    geom_line()
+    geom_line() +
+    labs(title = titlestring)
   
   
 }
 
+
+#
+# Extract and plot data from results (on files) and data (in memory)
+#
+tsplot_param <- function(param, stationcode,
+                         tissue = NULL,
+                         species = NULL,
+                         folder,
+                         data = dat_all_prep3, 
+                         data_series = dat_series_trend){
+  
+  sel <- with(data_series, PARAM %in% param & STATION_CODE %in% stationcode)
+  
+  if (!is.null(tissue))
+    sel <- sel & with(data_series, TISSUE_NAME %in% tissue)
+  
+  if (!is.null(species))
+    sel <- sel & with(data_series, LATIN_NAME %in% species)
+
+  if (sum(sel) == 0){
+    stop("No time series found")
+  }
+
+  if (sum(sel) > 1){
+    stop("More than one time series found in data. Please specify 'tissue' and/or 'species'")
+  }
+  
+  seriesno <- which(sel)
+  
+  tsplot_seriesno(seriesno,
+                  folder = folder,
+                  data = data, 
+                  data_series = data_series)
+  
+}
+
+if (FALSE){
+  
+  debugonce(tsplot_param)
+  debugonce(tsplot_seriesno)
+  tsplot_param("CB153", "11X", folder = folder_results)
+  
+}
 
