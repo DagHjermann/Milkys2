@@ -387,17 +387,13 @@ df_trend_wide <- df_trend %>%
 ```
 
 
-## 5. For all  
+## 5. Extract trends (long- and short-term)   
 
-### a. Changes for 10 years / entire series    
+- Almost all code is extremely similar to code for one parameter, just removed the 'filter(PARAM == param) ' two places  
 
-- Extremely similar code, just removed the 'filter(PARAM == param) ' two places  
+### a. Time series with trends (linear/non-linear)    
 
 ```{r}
-
-#
-# 1. Time series with trends (linear/non-linear)
-#
 
 pno_change <- dat_success %>%
   filter(ok) %>%
@@ -431,10 +427,13 @@ df_with_trend <- df_with_trend_all %>%
     by = indexvars)
 
 #    Perc_change = round((1-exp(y_mean))/exp(y_mean)*100, 1)
-    
-#
-# 2. Time series without trends (k = 1, or too short series)  
-#
+
+```
+
+
+### b. Time series without trends (k = 1, or too short series)  
+
+```{r}
 
 df_no_trend_short <- dat_success %>%
   # Pick time series not used in (1)
@@ -458,9 +457,12 @@ df_no_trend_long <- df_no_trend_short %>%
     Trend_type = "long",
     y_mean = 0)
 
-#
-# 3. Combine time series with and without trends 
-#
+```
+
+### c. Combine time series with and without trends    
+
+```{r}
+
 df_trend <- bind_rows(
   df_with_trend,
   df_no_trend_short,
@@ -481,9 +483,12 @@ df_trend <- bind_rows(
     Trend_string, Trend_symbol, Perc_change, Trend_type,
     ok, k_max, k_sel, N_years, N_years_10yr, Years_over_LOQ)
 
-#
-# 4. Put them on wide format (separate columns for short and long) 
-#
+```
+
+### d. Put them on wide format (separate columns for short and long)   
+
+```{r}
+
 df_trend_wide <- df_trend %>%
   select(
     PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME, 
@@ -504,6 +509,7 @@ df_trend_wide <- df_trend %>%
 ```
 
 ## 6. Save  
+
 ```{r}
 
 saveRDS(df_trend, "Data/126_df_trend_2021.rds")
