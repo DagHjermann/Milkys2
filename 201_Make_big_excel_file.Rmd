@@ -746,44 +746,78 @@ colnames(data_xlvalues)
 
 ```
 
-### e. Add EQS limits  
+### e1. Add EQS limits - prepare  
 ```{r}
-
-EQS_limits <- read_excel("Input_data/EQS_limits.xlsx", "EQS")[1:8] %>%
-  filter(!is.na(PARAM)) %>%
-  as.data.frame()
-EQS_limits <- fact2char_df(EQS_limits)  # changes all factor variables to character variables
-EQS_limits$Limit <- as.numeric(EQS_limits$`Grense brukt`)
 
 # Make table based on 'data_xlvalues'
 data_EQS <- data_xlvalues
 colnames(data_EQS) <- sub("Yr_", "EQS_", colnames(data_EQS), fixed = TRUE)
 # head(data_EQS, 2)
 
-# Delete all data values
+# Delete all data values to make table to fill in 
 sel_cols <- grepl("EQS_", colnames(data_EQS))
 data_EQS[,sel_cols] <- NA
 colno_values <- which(sel_cols)
 
-# Add limit
-data_EQS <- safe_left_join(
-  data_EQS, 
-  EQS_limits[,c("PARAM","Limit")] %>% filter(!is.na(PARAM)), 
-  by = "PARAM",
-  na_matches = "never",
-  check = "BCV")
+# Read EQS limits  
+EQS_limits <- read.csv("Input_data/EQS_limits.csv")
+
+# Check EQS limits
+EQS_limits %>%
+  count(is.na(PARAM), is.na(LATIN_NAME), is.na(Basis))
+
+```
+
+### e2. Add EQS limits - add Limit  
+```{r}
+
+# Add Limit1 (species-independent) and Limit2 (depends on species) 
+data_EQS <- data_EQS %>%
+  # Add limit for EQS given only by PARAM and Basis
+  safe_left_join(
+    EQS_limits %>% 
+      filter(!is.na(PARAM) & is.na(LATIN_NAME) & !is.na(Basis)) %>% 
+      select(PARAM, Basis, Limit) %>% 
+      rename(Limit1 = Limit), 
+    by = c("PARAM", "Basis"),
+    na_matches = "never",
+    check = "BCV") %>%
+  # Add limit for EQS given by PARAM, LATIN_NAME and Basis
+  safe_left_join(
+    EQS_limits %>% 
+      filter(!is.na(PARAM) & !is.na(LATIN_NAME) & !is.na(Basis)) %>%   # add LATIN_NAME
+      select(PARAM, LATIN_NAME, Basis, Limit) %>%                      # add LATIN_NAME
+      rename(Limit2 = Limit), 
+    by = c("PARAM", "LATIN_NAME", "Basis"),                            # add LATIN_NAME
+    na_matches = "never",
+    check = "BCV")
+
+check <- with(data_EQS, !is.na(Limit1) & !is.na(Limit2))
+if (sum(check)> 0){
+  stop("Some rows have both Limit1 and Limit2!")
+}
+
+# Add Limit
+data_EQS <- data_EQS %>%
+  mutate(
+    Limit = case_when(
+      !is.na(Limit1) ~ Limit1,
+      !is.na(Limit2) ~ Limit2)
+  ) %>%
+  select(-Limit1, -Limit2)
 
 # Preliminary check:
 # cat("Number of data with/without and EQS limit (with = TRUE): \n ")
 # table(!is.na(data_EQS$Limit))
 
-# Remove limit where Basis isn'n WW or WWa
-sel <- !data_EQS$Basis %in% c("WW","WWa")
-# mean(sel)
-data_EQS$Limit[sel] <- NA
-
 cat("Number of data with/without and EQS limit (with = TRUE): \n ")
 table(!is.na(data_EQS$Limit))
+
+```
+
+### e3. Add "n" in rows with EQS    
+
+```{r}
 
 # Add "n" in rows with EQS and in the columns where 'data_xlvalues' has values
 # Why 'n'? Because it can be changed into a circle in Excel (by changing font to WIngdigs/Webdings)
@@ -802,7 +836,7 @@ for (i in sel_rows){
 data_EQS[,colno_values] <- data_EQS_vals
 
 # Check that the columns fit together
-cat("\n")
+cat("\n\n")
 cat("Check that the columns fit together (row one = data_xlvalues, row two = data_EQS): \n")
 i <- with(data_xlvalues, PARAM %in% "HG" & STATION_CODE %in% "10A2" & Basis == "WW")
 i <- with(data_xlvalues, PARAM %in% "HG" & STATION_CODE %in% "30B" & Basis == "WW")
@@ -819,8 +853,8 @@ rbind(a, b)
 ## 5. Build data set 'data_xl', which will become the big excel file   
 
 
-
 ### Start making data_xl  
+
 ```{r}
 
 data_xl <- data_xlvalues %>% 
@@ -832,6 +866,7 @@ cat("Number of columns in data_xl:",  ncol(data_xl), "\n")
 ```
 
 ### Prepare 'df_stationinfo' (station information)  
+
 ```{r}
 
 # Assure STATION_CODE has no empty values
@@ -857,6 +892,7 @@ colnames(df_stationinfo)[2] <- "Station.Name"
 ```
 
 ### Prepare parameter columns
+
 ```{r, results='hold'}
 
 colnames(df_par)[1] <- "PARAM"
@@ -1278,7 +1314,7 @@ cat("\nNumber of columns:", ncol(data_xl), "\n") # 111
 
 ```
 
-### Add EQS limit (WW and WWa only)   
+### Add EQS limit (not for WWa at this point)     
 
 ```{r}
 # Variable 'EQS'
@@ -1288,17 +1324,13 @@ EQS_limits <- EQS_limits %>%
   rename(EQS = Limit) %>%
   filter(!is.na(PARAM))  
 
-cols <- c("PARAM", "EQS")
-df <- rbind(
-  data.frame(EQS_limits[,cols], Basis = "WW", stringsAsFactors = FALSE),
-  data.frame(EQS_limits[,cols], Basis = "WWa", stringsAsFactors = FALSE)
-)
+cols <- c("PARAM", "LATIN_NAME", "Basis", "EQS")
 # head(df)
 
 data_xl <- safe_left_join(
   data_xl, 
-  df, 
-  by = c("PARAM", "Basis"), 
+  EQS_limits[cols], 
+  by = c("PARAM", "LATIN_NAME", "Basis"), 
   na_matches = "never",
   check = "BCV")
 
