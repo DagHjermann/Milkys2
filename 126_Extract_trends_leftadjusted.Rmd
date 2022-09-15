@@ -32,6 +32,8 @@ library(purrr)
 library(mgcv)    #  mgcv_1.8-39
 library(ggplot2)
 
+source("125_Calculate_trends_leftadjusted_functions.R")
+
 ```
 
 
@@ -48,19 +50,31 @@ dat_all_prep3 <- readRDS("Data/125_dat_all_prep3.rds")
 
 ```
 
-### b. Add First_year  
+### b. Add First_year and number of years in the last 10 years  
 
 ```{r}
-  
-dat_series_extra <- dat_all_prep3 %>%
+
+# Get First_year  
+dat_series_extra1 <- dat_all_prep3 %>%
   group_by(Substance.Group, PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME) %>%
   summarise(First_year = min(x), .groups = "drop") 
 
+# Get N_years_10yr (number of years in the last 10 years)
+dat_series_extra2 <- dat_all_prep3 %>%
+  filter(MYEAR >= (last_year-10)) %>%
+  distinct(Substance.Group, PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME, x) %>%
+  count(Substance.Group, PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME, name = "N_years_10yr")
+
 dat_series <- dat_series %>%
-  left_join(dat_series_extra,
+  left_join(dat_series_extra1,
+            by = c("Substance.Group", "PARAM", "STATION_CODE", "TISSUE_NAME", "LATIN_NAME")) %>%
+  left_join(dat_series_extra2,
             by = c("Substance.Group", "PARAM", "STATION_CODE", "TISSUE_NAME", "LATIN_NAME"))
+
 dat_series_trend <- dat_series_trend %>%
-  left_join(dat_series_extra,
+  left_join(dat_series_extra1,
+            by = c("Substance.Group", "PARAM", "STATION_CODE", "TISSUE_NAME", "LATIN_NAME")) %>%
+  left_join(dat_series_extra2,
             by = c("Substance.Group", "PARAM", "STATION_CODE", "TISSUE_NAME", "LATIN_NAME"))
 
 ```
@@ -133,7 +147,7 @@ dat_success <- data.frame(seriesno, jags_finished, ok,
   left_join(df_rule2, by = indexvars) %>%
   # Add N_years, Years_over_LOQ, k_max
   left_join(dat_series_trend %>% 
-              select(PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME, N_years, Years_over_LOQ, k_max),
+              select(PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME, N_years, N_years_10yr, Years_over_LOQ, k_max),
             by = indexvars)
 
 # Check that 'fileinfo' is in same order as 'dat_success' - if so, they can simply be joined
@@ -293,7 +307,7 @@ df_with_trend <- df_with_trend_all %>%
   left_join(
     dat_success %>%
        select(PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME, 
-              ok, k_max, k_sel, N_years, Years_over_LOQ),
+              ok, k_max, k_sel, N_years, N_years_10yr, Years_over_LOQ),
     by = indexvars)
 
 #    Perc_change = round((1-exp(y_mean))/exp(y_mean)*100, 1)
@@ -375,9 +389,9 @@ df_trend_wide <- df_trend %>%
 
 ## 5. For all  
 
-### c. Changes for 10 years / entire series    
+### a. Changes for 10 years / entire series    
 
-- Extremely similar coe, just removed the 'filter(PARAM == param) ' two places  
+- Extremely similar code, just removed the 'filter(PARAM == param) ' two places  
 
 ```{r}
 
@@ -413,7 +427,7 @@ df_with_trend <- df_with_trend_all %>%
   left_join(
     dat_success %>%
        select(PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME, 
-              ok, k_max, k_sel, N_years, Years_over_LOQ),
+              ok, k_max, k_sel, N_years, N_years_10yr, Years_over_LOQ),
     by = indexvars)
 
 #    Perc_change = round((1-exp(y_mean))/exp(y_mean)*100, 1)
@@ -465,7 +479,7 @@ df_trend <- bind_rows(
     PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME, 
     x, y_mean, y_sd, p, p_category, First_year, 
     Trend_string, Trend_symbol, Perc_change, Trend_type,
-    ok, k_max, k_sel, N_years, Years_over_LOQ)
+    ok, k_max, k_sel, N_years, N_years_10yr, Years_over_LOQ)
 
 #
 # 4. Put them on wide format (separate columns for short and long) 
@@ -473,7 +487,7 @@ df_trend <- bind_rows(
 df_trend_wide <- df_trend %>%
   select(
     PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME, 
-    Trend_type, Trend_string, Trend_symbol, Perc_change, p, First_year) %>%
+    Trend_type, Trend_string, Trend_symbol, Perc_change, p, First_year, N_years, N_years_10yr) %>%
   tidyr::pivot_wider(
     names_from = Trend_type, 
     values_from = c(Trend_string, Trend_symbol, Perc_change, p, First_year)) %>% 
@@ -487,14 +501,12 @@ df_trend_wide <- df_trend %>%
   mutate(
     Basis = "WW", .after = "LATIN_NAME")
   
-
-# ?sprintf
-
-
 ```
 
 ## 6. Save  
 ```{r}
+
+saveRDS(df_trend, "Data/126_df_trend_2021.rds")
 
 saveRDS(df_trend_wide, "Data/126_df_trend_wide_2021.rds")
 
