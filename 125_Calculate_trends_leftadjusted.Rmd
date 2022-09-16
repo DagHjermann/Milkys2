@@ -109,12 +109,47 @@ dat_all <- homogenize_series(dat_all)
 # Warning: Unknown or uninitialised column: `threshold`.
 # Warning: Unknown or uninitialised column: `uncensored`.
 
-dat_all_prep1 <- lc_prepare(dat_all,
+dat_all_isotopes <- dat_all %>%
+  filter(grepl("Delta", PARAM))
+
+dat_all_with_zeros <- dat_all %>%
+  filter(!grepl("Delta", PARAM)) %>%
+  group_by(Substance.Group, PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME) %>%
+  mutate(N_zeros = sum(VALUE_WW <= 0)) %>%
+  filter(N_zeros > 0)
+
+dat_all_sans_zeros <- dat_all %>%
+  filter(!grepl("Delta", PARAM)) %>%
+  group_by(Substance.Group, PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME) %>%
+  mutate(N_zeros = sum(VALUE_WW <= 0)) %>%
+  filter(N_zeros == 0)
+
+dat_all_prep1_isotopes <- lc_prepare(dat_all_isotopes,
+                           x = "MYEAR",
+                           y = "VALUE_WW", 
+                           censored = "FLAG1",
+                           log = FALSE,
+                           keep_original_columns = TRUE) 
+
+dat_all_prep1_with_zeros <- lc_prepare(dat_all_with_zeros,
+                           x = "MYEAR",
+                           y = "VALUE_WW", 
+                           censored = "FLAG1",
+                           log = TRUE, const = 1,
+                           keep_original_columns = TRUE) 
+
+dat_all_prep1_sans_zeros <- lc_prepare(dat_all_sans_zeros,
                            x = "MYEAR",
                            y = "VALUE_WW", 
                            censored = "FLAG1",
                            log = TRUE,
                            keep_original_columns = TRUE) 
+
+dat_all_prep1 <- bind_rows(
+  dat_all_prep1_isotopes,
+  dat_all_prep1_with_zeros,
+  dat_all_prep1_sans_zeros
+)
 
 # Test
 # lc_plot(dat_all_prep1 %>% filter(PARAM %in% "CB153" & STATION_CODE %in% "15A"))
@@ -146,7 +181,7 @@ dat_all_prep3 <- map_dfr(dat_all_prep2_list, leftcensored:::lc_flag2, show_resul
 
 ```{r}
 
-# version max that tolerates being given an x with length zero without warning
+# version of max() that tolerates being given an x with length zero without warning
 max_warningless <- function(x)
   ifelse(length(x)==0, NA, max(x))
 
@@ -166,8 +201,10 @@ dat_series <- dat_all_prep3 %>%
     .groups = "drop") %>%
   group_by(Substance.Group, PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME) %>%
   summarise(
+    First_year = min(x),
     Last_year = max(x),
     N_years = n(),
+    N_years_10yr = sum(unique(x[x >= (last_year-10)])),
     Years_over_LOQ = sum(N_over_LOQ > 0),
     Last_year_over_LOQ = max_warningless(x[N_over_LOQ > 0]),
     .groups = "drop") %>% 
