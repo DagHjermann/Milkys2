@@ -325,16 +325,55 @@ tsplot_seriesno <- function(seriesno,
   # titlestring <- paste0(resultlist$PARAM, " (", resultlist$Basis, ") at ", resultlist$STATION_CODE, " (", resultlist$TISSUE_NAME, " from ", resultlist$LATIN_NAME, ")")
   titlestring <- paste0(resultlist$PARAM, " at ", resultlist$STATION_CODE, " (", resultlist$TISSUE_NAME, " from ", resultlist$LATIN_NAME, ")")
   
-  ggplot(resultlist$plot_data, aes(x, y)) +
-    geom_ribbon(aes(ymin = y_q2.5, ymax = y_q97.5), fill = "lightblue") +
-    geom_point(data = df_points %>% filter(!is.na(y))) +
-    geom_point(data = df_points %>% filter(!is.na(threshold)), aes(y = threshold), shape = 6) +
-    geom_line() +
-    labs(title = titlestring)
+  if (!is.null(resultlist$plot_data)){
+    gg <- ggplot(resultlist$plot_data, aes(x, y)) +
+      geom_ribbon(aes(ymin = y_q2.5, ymax = y_q97.5), fill = "lightblue") +
+      geom_point(data = df_points %>% filter(!is.na(y))) +
+      geom_point(data = df_points %>% filter(!is.na(threshold)), aes(y = threshold), shape = 6) +
+      geom_line() +
+      labs(title = titlestring)
+  } else {
+    df_points <- df_points %>%
+      mutate(y_comb = ifelse(is.na(y), threshold, y))
+    gg <- ggplot(df_points, aes(x, y_comb)) +
+      geom_point(data = df_points %>% filter(!is.na(y))) +
+      geom_point(data = df_points %>% filter(!is.na(threshold)), aes(y = threshold), shape = 6) +
+      labs(title = titlestring)
+  }
   
+  gg
   
 }
 
+#
+# Get series number from PARAM + STATION_CODE (and more if necessary)
+#
+get_seriesno <- function(param, stationcode,
+                         tissue = NULL,
+                         species = NULL,
+                         data_series = dat_series_trend){
+  
+  sel <- with(data_series, PARAM %in% param & STATION_CODE %in% stationcode)
+  
+  if (!is.null(tissue))
+    sel <- sel & with(data_series, TISSUE_NAME %in% tissue)
+  
+  if (!is.null(species))
+    sel <- sel & with(data_series, LATIN_NAME %in% species)
+  
+  if (sum(sel) == 0){
+    stop("No time series found")
+  }
+  
+  if (sum(sel) > 1){
+    cat("Values of TISSUE_NAME found:", unique(data_series$TISSUE_NAME), "\n")
+    cat("Values of LATIN_NAME found:", unique(data_series$LATIN_NAME), "\n")
+    warning(sum(sel), " time series found in data. You may want to specify 'tissue' and/or 'species'.")
+  }
+  
+  which(sel)
+  
+}
 
 #
 # Extract and plot data from results (on files) and data (in memory)
@@ -346,28 +385,23 @@ tsplot_param <- function(param, stationcode,
                          data = dat_all_prep3, 
                          data_series = dat_series_trend){
   
-  sel <- with(data_series, PARAM %in% param & STATION_CODE %in% stationcode)
-  
-  if (!is.null(tissue))
-    sel <- sel & with(data_series, TISSUE_NAME %in% tissue)
-  
-  if (!is.null(species))
-    sel <- sel & with(data_series, LATIN_NAME %in% species)
-
-  if (sum(sel) == 0){
-    stop("No time series found")
-  }
-
-  if (sum(sel) > 1){
-    stop("More than one time series found in data. Please specify 'tissue' and/or 'species'")
+  seriesno <- get_seriesno(
+    param = param, 
+    stationcode = stationcode,
+    tissue = tissue,
+    species = species,
+    data_series = data_series)
+    
+  if (length(seriesno) > 1){
+    stop(">1 series selected")
   }
   
-  seriesno <- which(sel)
-  
-  tsplot_seriesno(seriesno,
+  gg <- tsplot_seriesno(seriesno,
                   folder = folder,
                   data = data, 
                   data_series = data_series)
+  
+  gg
   
 }
 
