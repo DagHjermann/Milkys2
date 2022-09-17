@@ -126,22 +126,45 @@ get_splines_results_seriesno <- function(seriesno,
   
   save_path <- paste0(foldername, "/", sprintf("trend_%04i.rda", seriesno))
   
+  # Get the selected 'data_series' row from the given series number, using column 'series_no' in data_series
+  # - 'seriesno' is used to make the file name of the result file
+  # Before, seriesno was just the row number of data_series
+  # - worked nicely the first time the run is done 
+  # The first time an anlysis is done, 'series_no' can be just be se to 1... and up
+  # - but it can also be picked series if some series needs to be reestimated
+  # - this makes it possible to remake particular result files
+  
+  if (!"series_no" %in% names(data_series)){
+    stop("'data_series' must contain a column called 'series_no' (decides name of result file that will be (over)written) \nSee comments on code")
+  }
+  
+  # Get the selected 'data_series' row 
+  data_series_sel <- data_series %>%
+    filter(series_no %in% seriesno) %>%
+    as.data.frame()
+  
+  if (nrow(data_series_sel) == 0){
+    stop("No 'data_series' row fits the given series number (column 'series_no'")
+  } else if (nrow(data_series_sel) >= 2){
+    stop(nrow(data_series_sel), "rows of 'data_series' row fits the given series number (column 'series_no'")
+  }
+  
   # Save metadata already here - in case the jags part crashes  
   result_metadata <- list(
     seriesno = seriesno,
-    PARAM = data_series$PARAM[seriesno], 
-    STATION_CODE = data_series$STATION_CODE[seriesno], 
-    TISSUE_NAME = data_series$TISSUE_NAME[seriesno],
-    LATIN_NAME = data_series$LATIN_NAME[seriesno]
+    PARAM = data_series_sel$PARAM, 
+    STATION_CODE = data_series_sel$STATION_CODE, 
+    TISSUE_NAME = data_series_sel$TISSUE_NAME,
+    LATIN_NAME = data_series_sel$LATIN_NAME
   )
   if (!is.null(save_path))
     saveRDS(result_metadata, save_path)
   
   data <- subset(data, 
-         PARAM %in% data_series$PARAM[seriesno] & 
-           STATION_CODE %in% data_series$STATION_CODE[seriesno] & 
-           TISSUE_NAME %in% data_series$TISSUE_NAME[seriesno] &
-           LATIN_NAME %in% data_series$LATIN_NAME[seriesno])
+         PARAM %in% data_series_sel$PARAM & 
+           STATION_CODE %in% data_series_sel$STATION_CODE & 
+           TISSUE_NAME %in% data_series_sel$TISSUE_NAME &
+           LATIN_NAME %in% data_series_sel$LATIN_NAME)
 
   if (length(unique(data$PARAM)) > 1){
     stop("More than one PARAM in data")
@@ -159,13 +182,13 @@ get_splines_results_seriesno <- function(seriesno,
     stop("More than one LATIN_NAME in data")
   }
   
-  # Normally 
+  # Normally 'k_values' is set from 'k_max' 
   if (is.null(k_values)){
-    k_max <- pull(data_series[seriesno,], k_max)
+    k_max <- data_series_sel$k_max
     k_values <- 1:k_max
   } 
   
-  last_year_over_LOQ <- pull(data_series[seriesno,], Last_year_over_LOQ)
+  last_year_over_LOQ <- data_series_sel$Last_year_over_LOQ
   
   # Rule 1. Time series should be truncated from the left until Nplus/N >= 0.5     
   # Rule 2. If a linear/smooth trend is fitted, the first year must be non-censored   
