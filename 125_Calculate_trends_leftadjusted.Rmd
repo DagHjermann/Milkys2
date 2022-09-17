@@ -426,8 +426,12 @@ if (FALSE){
 # Parallel 
 #
 
-# From section 7:
-# series_no <- c(ser1, ser2)
+# OLD: seriesno = row number
+# seriesno <- 1:nrow(dat_series_trend) 
+
+# NEW: seriesno = column in the 'dat_series' data
+dat_series_trend$series_no <- 1:nrow(dat_series_trend) 
+seriesno <- dat_series_trend$series_no 
 
 range(series_no)
 length(series_no) # 1507
