@@ -204,7 +204,7 @@ dat_series <- dat_all_prep3 %>%
     First_year = min(x),
     Last_year = max(x),
     N_years = n(),
-    N_years_10yr = sum(unique(x[x >= (last_year-10)])),
+    N_years_10yr = length(unique(x[x >= (last_year-10)])),
     Years_over_LOQ = sum(N_over_LOQ > 0),
     Last_year_over_LOQ = max_warningless(x[N_over_LOQ > 0]),
     .groups = "drop") %>% 
@@ -423,10 +423,8 @@ if (FALSE){
 }
 
 #
-# Parallel (for 1000 series)
+# Parallel 
 #
-
-series_no <- 1:nrow(dat_series_trend)
 
 # From section 7:
 # series_no <- c(ser1, ser2)
