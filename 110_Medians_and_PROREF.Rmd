@@ -405,7 +405,7 @@ proref_updated03 <- bind_rows(
 ### Save    
 ```{r}
 
-write.csv(proref_updated03, "Input_data/Proref_used.csv")
+write.csv(proref_updated03 %>% rename(Proref = Q95), "Input_data/Lookup_tables/Lookup_proref.csv")
 
 ```
 
