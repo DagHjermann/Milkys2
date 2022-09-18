@@ -347,54 +347,63 @@ if (FALSE){
   get_parametervalues()
 }
 
-get_data_tables <- function(paramgroup, 
-                            filename_109 = "Data/109_adjusted_data_2022-06-04.rds",
+get_data_tables <- function(paramgroup,
+                            param = NULL,
+                            filename_109 = "Data/109_adjusted_data_2022-09-01.rds",
+                            filename_110 = "Data/110_mediandata_updated_2022-09-01.rds",
                             filename_lookup_substancegroups = "Input_data/Lookup table - substance groups.xlsx",
-                            filename_lookup_stations= "Input_data/Kartbase_edit.xlsx",
-                            filename_bigexcel = "Big_excel_table/Data_xl_2021-09-15_ver03.rds"){
+                            filename_lookup_stations= "Input_data/Lookup_tables/Lookup_stationorder.csv",
+                            filename_lookup_eqs = "Input_data/EQS_limits.csv",
+                            filename_lookup_proref = "Input_data/Lookup_tables/Lookup_proref.csv"){
   
   
   # Parameter names
-  param_values <- get_parametervalues(paramgroup)
-  
+  if (is.null(param)){
+    param_values <- get_parametervalues(paramgroup)
+  } else {
+    param_values <- param
+  }
+    
   # Parameter groups
   lookup_paramgroup <- read_excel(filename_lookup_substancegroups) %>%
     dplyr::filter(PARAM %in% param_values)
-  
+
   # Raw data
   dat_all <- readRDS(filename_109) %>%
     dplyr::filter(PARAM %in% param_values)
   
-  # Stations
-  lookup_stations <- read_excel(filename_lookup_stations)
-  
-  # EQS and proref
-  lookup_eqs_ww <- readRDS(filename_bigexcel) %>%
+  # Medians
+  dat_medians <- readRDS(filename_110) %>%
     dplyr::filter(PARAM %in% param_values) %>%
-    rename(Proref = Q95) %>%
-    dplyr::filter(
-      Basis %in% "WW"
-    ) %>%
-    distinct(PARAM, LATIN_NAME, TISSUE_NAME, EQS, Proref) %>%
-    mutate(TISSUE_NAME = case_when(
-      TISSUE_NAME == "Muscle" ~ "Muskel",
-      TISSUE_NAME == "Liver" ~ "Lever",
-      TRUE ~ TISSUE_NAME)
-    ) %>%
-    rename(EQS_WW = EQS)
+    rename(Proref = Q95)
   
-  check <- lookup_eqs_ww %>%
-    add_count(PARAM, LATIN_NAME, TISSUE_NAME) %>%
+  # Stations
+  lookup_stations <- read.csv(filename_lookup_stations)
+  
+  # EQS and proref   
+  lookup_proref <- read.csv(filename_lookup_proref) %>%
+    filter(PARAM %in% param) 
+  
+  lookup_eqs <- read.csv(filename_lookup_eqs) %>%
+    filter(PARAM %in% param) %>%
+    rename(EQS = Limit) %>%
+    select(-Long_name, Kommentar)
+
+  check <- lookup_proref %>%
+    add_count(PARAM, LATIN_NAME, TISSUE_NAME, Basis) %>%
     dplyr::filter(n > 1)
   
   if (nrow(check) > 0){
-    stop("More than one EQS per parameter!")
+    stop("More than one EQS per parameter/species/tissue/basis!")
   }
   
-  list(dat_all=dat_all, 
-       lookup_paramgroup=lookup_paramgroup, 
-       lookup_stations=lookup_stations, 
-       lookup_eqs_ww = lookup_eqs_ww)
+  list(data = dat_all, 
+       medians = dat_medians,
+       lookup_paramgroup = lookup_paramgroup, 
+       lookup_stations = lookup_stations, 
+       lookup_proref = lookup_proref,
+       lookup_eqs = lookup_eqs
+       )
   
 }
 
@@ -404,7 +413,77 @@ if (FALSE){
 }
 
 
-get_data <- function(paramgroup, speciesgroup, min_obs = 100){
+get_data <- function(paramgroup, param = NULL, speciesgroup, min_obs = 100){
+  
+  # Parameter names
+  if (is.null(param)){
+    X <- get_data_tables(paramgroup)
+  } else {
+    X <- get_data_tables(param = param)
+  }
+  
+  
+  
+  X$lookup_stations <- X$lookup_stations %>%
+    arrange(Station_order) %>%
+    mutate(
+      Station = paste(STATION_CODE, Station_short),        # This will be shown in graphs - make changes here
+      Station2 = substr(Station, 1, 15),                   # This will be shown in graphs - make changes here
+      Station_name = forcats::fct_inorder(Station_name),
+      Station = forcats::fct_inorder(Station),
+      Station2 = forcats::fct_inorder(Station2),
+      Water_region = forcats::fct_inorder(Water_region)
+    )
+  
+  dat_1 <- X$dat_all %>%
+    left_join(X$lookup_paramgroup %>% select(PARAM, Substance.Group), 
+              by = "PARAM") %>%
+    add_count(PARAM) %>%
+    dplyr::filter(n >= min_obs) %>%
+    # Add 'Station.Name'
+    left_join(X$lookup_stations, by = "STATION_CODE")
+  
+  dat_2 <- dat_1 %>%
+    left_join(X$lookup_eqs_ww, by = c("PARAM", "LATIN_NAME", "TISSUE_NAME")) %>%
+    mutate(
+      Above_EQS = case_when(
+        VALUE_WW > EQS_WW ~ "Over",
+        VALUE_WW <= EQS_WW ~ "Under",
+        TRUE ~ as.character(NA))
+    ) 
+  
+  if (speciesgroup == "fish"){
+    
+    result <- dat_2 %>%
+      dplyr::filter(LATIN_NAME %in% c("Gadus morhua", "Platichthys flesus"))
+    
+  } else if (grepl("mussel", speciesgroup)){
+    
+    result <- dat_2 %>%
+      dplyr::filter(LATIN_NAME %in% c("Mytilus edulis"))
+    
+  } else {
+    
+    result <- dat_2
+  }
+  
+  for (col in c("Station_name", "Station", "Station2", "Water_region"))
+    result[[col]] <- droplevels(result[[col]])
+  
+  result
+  
+}
+
+# Test
+if (FALSE){
+  # debugonce(get_data)
+  x1 <- get_data("metals", "fish")
+  x2 <- get_data("metals", "mussel")
+}
+
+
+
+get_data_param <- function(param, speciesgroup, min_obs = 100){
   
   X <- get_data_tables(paramgroup)
   
@@ -787,6 +866,8 @@ if (FALSE){
   pargroup_boxplot(dat_median_mussel, y = "Proref_ratio_WW", year = 2021)
   
 }
+
+
 
 #
 # Results for time series of single parameter ----
