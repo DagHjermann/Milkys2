@@ -880,9 +880,11 @@ if (FALSE){
 ratioplot <- function(data, x, y, 
                       fill = NULL, tooltip = NULL, data_id = NULL, 
                       ymin = NULL, ymax = NULL,
+                      extra_points = NULL,
                       ylabel = NULL, main_title = NULL,
                       hline = 1,
                       hline_extra = NULL,
+                      jitterwidth = 0,
                       interactive){
   
   data$x <- data[[x]]
@@ -920,6 +922,12 @@ ratioplot <- function(data, x, y,
   
   gg <- ggplot(data, aes(x = x, y = y))
   
+  if (!is.null(extra_points)){
+    extra_points$x <- extra_points[[x]]
+    extra_points$y <- extra_points[[y]]
+    gg <- gg + geom_point(data = extra_points, shape = 19, size = 1)
+  }
+      
   if (!is.null(ymin) & !is.null(ymax))
     gg <- gg + geom_linerange(aes(ymin = ymin, ymax = ymax))
   
@@ -928,7 +936,7 @@ ratioplot <- function(data, x, y,
   
   if (!is.null(fill)){
     gg <- gg +
-      geom_jitter_interactive(aes(fill = fill, tooltip = tooltip, data_id = data_id), pch = 21, size = 2, width = 0.1) +
+      geom_jitter_interactive(aes(fill = fill, tooltip = tooltip, data_id = data_id), pch = 21, size = 2, width = jitterwidth) +
       scale_fill_brewer(fill, palette = "RdBu", direction = -1)
   } 
   

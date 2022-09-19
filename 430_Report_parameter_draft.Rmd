@@ -60,11 +60,18 @@ dat_list <- get_data_tables(param = params$param)
 
 str(dat_list, 1)
 
+# Put raw dat on long format  
+dat_raw <- dat_list$data %>%
+  select(PARAM, STATION_CODE, LATIN_NAME, TISSUE_NAME, MYEAR, 
+         VALUE_WW, VALUE_DW, VALUE_FB, VALUE_WWa, VALUE_DWa, VALUE_FBa) %>%
+  tidyr::pivot_longer(
+    cols = c(VALUE_WW, VALUE_DW, VALUE_FB, VALUE_WWa, VALUE_DWa, VALUE_FBa), 
+    names_to = "Basis", 
+    values_to = "Value") %>%
+  mutate(Basis = sub("VALUE_", "", Basis, fixed = TRUE))
+
 # Add min and max to 'dat_list$medians'  
-df_min_max <- dat_list$data %>%
-  select(PARAM, STATION_CODE, LATIN_NAME, TISSUE_NAME, MYEAR, VALUE_WW, VALUE_WWa) %>%
-  tidyr::pivot_longer(cols = c(VALUE_WW, VALUE_WWa), names_to = "Basis", values_to = "Value") %>%
-  mutate(Basis = sub("VALUE_", "", Basis, fixed = TRUE)) %>%
+df_min_max <- dat_raw %>%
   group_by(PARAM, STATION_CODE, LATIN_NAME, TISSUE_NAME, Basis, MYEAR) %>%
   summarise(Value_min = min(Value, na.rm = TRUE),
             Value_max = max(Value, na.rm = TRUE), .groups = "drop"
@@ -505,9 +512,10 @@ dat_medians_lastyear <- dat_medians %>%
 
 ```
 
+
 ## 8. Proref ratio  
 
-### Static  
+### Static version 1  
 ```{r}
 
 # For fisk: median som fylt punkt med interkvartilt range som strek, med enkeltprøver som mindre svart prikk   
@@ -531,7 +539,60 @@ gg + scale_y_log10()
 
 ```
 
+### Static version 2  
+```{r}
+
+dat_raw_lastyear_01 <- dat_raw %>%
+  filter(LATIN_NAME %in% species,
+         TISSUE_NAME %in% tissue,
+         Basis %in% "WW",
+         MYEAR %in% current_year)
+
+# Add station name
+dat_raw_lastyear_02 <- dat_raw_lastyear_01 %>%
+  left_join(
+    dat_list$lookup_stations %>% 
+      filter(LATIN_NAME %in% species) %>%
+      select(STATION_CODE, LATIN_NAME, Station_name, Region),
+    by = "STATION_CODE"
+  ) %>%
+  mutate(
+    Station = factor(
+      paste(STATION_CODE, Station_name),
+      levels = rev(station_order$Station))
+  )
+
+# Add Proref + EQS
+df_limits <- dat_medians %>%
+  ungroup() %>%
+  distinct(PARAM, LATIN_NAME, TISSUE_NAME, Basis, EQS, Proref)
+if (nrow(df_limits) != 1)
+  stop("We need one and exacly one row here")
+
+dat_raw_lastyear <- dat_raw_lastyear_02 %>%
+  left_join(df_limits) %>%
+  mutate(
+    Proref_ratio = Value/Proref,
+    EQS_ratio = Value/EQS
+  )
+
+# Test    
+# ggplot(dat_raw_lastyear, aes(Station, Proref_ratio)) +
+#   geom_point(shape = 19, size = 1)
+
+gg <- ratioplot(data = dat_medians_lastyear,
+          x = "Station", y = "Proref_ratio", fill = "Region", 
+          tooltip = "Tooltip_text", data_id = "STATION_CODE",
+          ymin = "Proref_ratio_min", ymax = "Proref_ratio_max",
+          extra_points = dat_raw_lastyear) + 
+  labs(y = "Ratio concentration/Proref", x = "")
+
+gg
+
+```
+
 ### Dynamic  
+
 ```{r}
 
 ratioplot_interactive(data = dat_medians_lastyear,
@@ -563,37 +624,9 @@ gg + scale_y_log10()
 
 ```
 
-### Static 
+### Interactive 
 ```{r}
 
-  ratioplot(data = dat_eqsplot,
-                        x = "Station", y = "EQS_ratio", fill = "Region", 
-                        tooltip = "Tooltip_text", data_id = "STATION_CODE",
-                                    ymin = "EQS_ratio_min", ymax = "EQS_ratio_max")  
-```
-  
-```{r}
-  ratioplot_interactive(data = dat_eqsplot,
-                        x = "Station", y = "EQS_ratio", fill = "Region", 
-                        tooltip = "Tooltip_text", data_id = "STATION_CODE",
-                        ymin = "EQS_ratio_min", ymax = "EQS_ratio_max")  
-  
-```
-
-
-
-
-## 8. EQS ratio - interactive 
-```{r}
-
-dat_eqsplot <- dat_plot %>% 
-  ungroup() %>%
-  filter(MYEAR == 2021) %>%
-  mutate(
-    Tooltip_text = paste0(
-      "Conc.: ", Value, " (Min-max: ", Value_min, "-", Value_max, ")"),
-    EQS_ratio_min = Value_min/EQS,
-    EQS_ratio_max = Value_max/EQS)
 
 ratioplot_interactive(data = dat_eqsplot,
                       x = "Station", y = "EQS_ratio", fill = "Region", 
@@ -606,7 +639,7 @@ ratioplot_interactive(data = dat_eqsplot,
 
 
 
-## 7. All time series, interactive  
+## 10. All time series, interactive  
 
 ```{r}
 
