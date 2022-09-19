@@ -242,8 +242,6 @@ girafe(ggobj = gg_tile, height_svg = 5.7, width_svg = 9)
 
 ### Get trends  
 
-- The easier way - see   
-
 ```{r}
 
 # check <- readRDS("Data/126_df_trend_2021.rds")
@@ -252,11 +250,29 @@ girafe(ggobj = gg_tile, height_svg = 5.7, width_svg = 9)
 dat_trends <- readRDS("Data/126_df_trend_2021.rds") %>%
   filter(PARAM %in% params$param)
 
-table(dat_trends$Trend_string)
+xtabs(~Trend_type, dat_trends)                 # should be equally many long and short 
 
-# Keep only actual trends
-# dat_trends <- dat_trends_all %>%
-#   filter(Trend_string %in% c("Increasing", "Decreasing", "No change"))
+xtabs(~Trend_string + Trend_type, dat_trends)
+
+# xtabs(~TISSUE_NAME + Trend_string, dat_trends)
+# xtabs(~STATION_CODE + TISSUE_NAME, dat_trends %>% filter(TISSUE_NAME %in% "Whole soft body"))
+
+if (FALSE){
+  # For testing
+  dat_series_trendrun <- readRDS("Data/125_dat_series.rds") %>%
+    filter(PARAM %in% params$param,
+           TISSUE_NAME %in% tissue)
+  dat_medians %>%
+    distinct(STATION_CODE) %>%
+    left_join(
+      dat_trends %>% filter(Trend_type %in% "long") %>%
+        count(STATION_CODE)
+    ) %>%
+    left_join(dat_series_trendrun) %>% 
+    View("test")
+  # should have data in all rows for column 'n' 
+}
+
 
 ```
 
@@ -289,20 +305,26 @@ dat_trends_plot <- dat_trends %>%
     # Shape and colour: Drop "Too few over-LOQ years" and "Too few years:
     Trend_shape = case_when(
       Trend_string %in% c("Increasing" , "Decreasing", "No change") ~ Trend_string, 
-      Trend_string %in% c("No trend") ~ "No change", 
       TRUE ~ as.character(NA)),
     Trend_shape = factor(Trend_shape, levels = shape_order),
     Trend_color = Trend_shape,
-    # Text: Keep only "Too few over-LOQ years" and "Too few years:
+    # Text: Keep only "Too few over-LOQ years", "Too few years" and "No data before 2012":
     Trend_text = case_when(
-      Trend_string %in% c("Increasing" , "Decreasing", "No change", "No trend") ~ "", 
+      Trend_string %in% c("Increasing" , "Decreasing", "No change") ~ as.character(NA), 
       TRUE ~ Trend_string),
     Perc_annual = case_when(
       Trend_string %in% c("No change", "No trend") ~ 0, 
       TRUE ~ Perc_annual),
     Trend_shape = factor(Trend_shape, levels = shape_order)
   )
-  # %>%
+
+table(dat_trends_plot$Trend_type)   # Should be equal
+xtabs(~addNA(Trend_shape) + Trend_type, dat_trends_plot)   # Should be no NAs
+table(addNA(dat_trends_plot$Trend_string), dat_trends_plot$Trend_type)
+
+# First table (this WITH Trend_shape): should have no 'Trend_text'
+# Second table (this WITHOUT Trend_shape): should all have a 'Trend_text'
+xtabs(~addNA(Trend_text) + Trend_type + is.na(Trend_shape), dat_trends_plot)   
 
 
 ```
@@ -338,6 +360,19 @@ trend_colours <- c("red2", "green4", "grey20") %>% setNames(colour_order)
 trend_fill <- c("red2", "green4", "grey20") %>% setNames(colour_order)
 
 ggplot(dat_trends_plot %>% filter(Trend_type %in% "long"),
+       aes(x = Station, y = Perc_annual)) +
+  geom_linerange(aes(ymin = Perc_annual_lo, ymax = Perc_annual_hi, colour = Trend_color)) +
+  geom_point(aes(colour = Trend_color, fill = Trend_color, shape = Trend_color)) +
+  geom_text(aes(y = 0, label = Trend_text)) +
+  scale_colour_manual(values = trend_colours, drop = FALSE) +
+  scale_fill_manual(values = trend_colours, drop = FALSE) +
+  scale_shape_manual(values = trend_shapes, drop = FALSE) +
+  geom_hline(yintercept = 0) +
+  coord_flip(ylim = y_ran) +
+  theme_bw() 
+
+
+ggplot(dat_trends_plot %>% filter(Trend_type %in% "short"),
        aes(x = Station, y = Perc_annual)) +
   geom_linerange(aes(ymin = Perc_annual_lo, ymax = Perc_annual_hi, colour = Trend_color)) +
   geom_point(aes(colour = Trend_color, fill = Trend_color, shape = Trend_color)) +
