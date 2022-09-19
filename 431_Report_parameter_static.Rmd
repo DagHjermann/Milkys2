@@ -54,11 +54,18 @@ dat_list <- get_data_tables(param = params$param)
 
 # str(dat_list, 1)
 
+# Put raw data on long format  
+dat_raw <- dat_list$data %>%
+  select(PARAM, STATION_CODE, LATIN_NAME, TISSUE_NAME, MYEAR, 
+         VALUE_WW, VALUE_DW, VALUE_FB, VALUE_WWa, VALUE_DWa, VALUE_FBa) %>%
+  tidyr::pivot_longer(
+    cols = c(VALUE_WW, VALUE_DW, VALUE_FB, VALUE_WWa, VALUE_DWa, VALUE_FBa), 
+    names_to = "Basis", 
+    values_to = "Value") %>%
+  mutate(Basis = sub("VALUE_", "", Basis, fixed = TRUE))
+
 # Add min and max to 'dat_list$medians'  
-df_min_max <- dat_list$data %>%
-  select(PARAM, STATION_CODE, LATIN_NAME, TISSUE_NAME, MYEAR, VALUE_WW, VALUE_WWa) %>%
-  tidyr::pivot_longer(cols = c(VALUE_WW, VALUE_WWa), names_to = "Basis", values_to = "Value") %>%
-  mutate(Basis = sub("VALUE_", "", Basis, fixed = TRUE)) %>%
+df_min_max <- dat_raw %>%
   group_by(PARAM, STATION_CODE, LATIN_NAME, TISSUE_NAME, Basis, MYEAR) %>%
   summarise(Value_min = min(Value, na.rm = TRUE),
             Value_max = max(Value, na.rm = TRUE), .groups = "drop"
@@ -118,7 +125,7 @@ dat_medians_03 <- dat_medians_02 %>%
   left_join(
     dat_list$lookup_stations %>% 
       filter(LATIN_NAME %in% species) %>%
-      select(STATION_CODE, LATIN_NAME, Station_name, Region),
+      select(STATION_CODE, Station_name, Region),
     by = "STATION_CODE"
   ) %>%
   mutate(
@@ -333,10 +340,10 @@ ggcomb <- cowplot::plot_grid(gg_tile + theme(legend.position = "none"),
 
 ggcomb_legend <- cowplot::get_legend(gg_tile)
 
-filename <- glue::glue("Figures/430_{params$param}_{tissue}_combo.png")
+filename <- glue::glue("Figures/431/{params$param}_{tissue}_combo.png")
 ggsave(filename, ggcomb, width = 14, height = 8, dpi = 200)
 
-filename <- glue::glue("Figures/430_{params$param}_{tissue}_combo_leg.png")
+filename <- glue::glue("Figures/431/{params$param}_{tissue}_combo_legend.png")
 ggsave(filename, ggdraw(ggcomb_legend), width = 2, height = 4, dpi = 200)
 
 ggcomb
@@ -350,6 +357,9 @@ ggdraw(ggcomb_legend)
 region_order <- c("Viken og Oslo", "Vestfold og Telemark", "Agder", "Vestland", "Møre og Romsdal", 
                   "Trøndelag", "Nordland", "Troms og Finnmark", "Svalbard")
 
+#
+# Median data  
+#
 dat_medians_lastyear <- dat_medians %>% 
   ungroup() %>%
   filter(MYEAR == current_year) %>%
@@ -368,12 +378,53 @@ dat_medians_lastyear <- dat_medians %>%
   ) 
 
 
+#
+# Raw data
+#
+# If we just keep them black, they don't need Region
+#
+
+dat_raw_lastyear_01 <- dat_raw %>%
+  filter(LATIN_NAME %in% species,
+         TISSUE_NAME %in% tissue,
+         Basis %in% "WW",
+         MYEAR %in% current_year)
+
+# Add station name
+dat_raw_lastyear_02 <- dat_raw_lastyear_01 %>%
+  left_join(
+    dat_list$lookup_stations %>% 
+      filter(LATIN_NAME %in% species) %>%
+      select(STATION_CODE, LATIN_NAME, Station_name, Region),
+    by = "STATION_CODE"
+  ) %>%
+  mutate(
+    Station = factor(
+      paste(STATION_CODE, Station_name),
+      levels = rev(station_order$Station))
+  )
+
+# Add Proref + EQS
+df_limits <- dat_medians %>%
+  ungroup() %>%
+  distinct(PARAM, LATIN_NAME, TISSUE_NAME, Basis, EQS, Proref)
+if (nrow(df_limits) != 1)
+  stop("We need one and exacly one row here")
+
+dat_raw_lastyear <- dat_raw_lastyear_02 %>%
+  left_join(df_limits, by = c("PARAM", "TISSUE_NAME", "Basis")) %>%
+  mutate(
+    Proref_ratio = Value/Proref,
+    EQS_ratio = Value/EQS
+  )
+
 ```
 
 ## Proref ratio  
 
 ### Ordinary scale
-```{r 08_proref_ratio}
+
+```{r 08_proref_ratio, warning=FALSE}
 
 # For fisk: median som fylt punkt med interkvartilt range som strek, med enkeltprøver som mindre svart prikk   
 # For blåskjell: median som fylt punkt med range som strek, med punmed punkter som mindre svart prikkkter som mindre svart prikk    
@@ -382,19 +433,24 @@ dat_medians_lastyear <- dat_medians %>%
 gg <- ratioplot(data = dat_medians_lastyear,
           x = "Station", y = "Proref_ratio", fill = "Region", 
           tooltip = "Tooltip_text", data_id = "STATION_CODE",
-          ymin = "Proref_ratio_min", ymax = "Proref_ratio_max") + 
+          ymin = "Proref_ratio_min", ymax = "Proref_ratio_max",
+          extra_points = dat_raw_lastyear) + 
   labs(y = "Ratio concentration/Proref", x = "")
 
-ggsave("Figures/430_HG_Prorefratio_wout_log.png", gg,
-       width = 8, height = 4.5, dpi = 200)
+filename <- glue::glue("Figures/431/{params$param}_{tissue}_proref_ordinary.png")
+ggsave(filename, gg, width = 8, height = 4.5, dpi = 200)
 
 gg
 
 ```
-### Log scale
-```{r 08_proref_ratio_log}
 
-ggsave("Figures/430_HG_Prorefratio_with_log.png", gg + scale_y_log10(),
+
+### Log scale
+
+```{r 08_proref_ratio_log, warning=FALSE}
+
+filename <- glue::glue("Figures/431/{params$param}_{tissue}_proref_logscale.png")
+ggsave(filename, gg + scale_y_log10(),
        width = 8, height = 4.5, dpi = 200)
 
 gg + scale_y_log10()
@@ -406,15 +462,20 @@ gg + scale_y_log10()
 
 ### Ordinary scale  
 
-```{r 09_eqs_ratio}
+```{r 09_eqs_ratio, warning=FALSE}
 
 gg <- ratioplot(data = dat_medians_lastyear,
           x = "Station", y = "EQS_ratio", fill = "Region", 
           tooltip = "EQS_tooltip", data_id = "STATION_CODE",
-          ymin = "EQS_ratio_min", ymax = "EQS_ratio_max") + 
+          ymin = "EQS_ratio_min", ymax = "EQS_ratio_max",
+          extra_points = dat_raw_lastyear) + 
   labs(y = "Ratio concentration/EQS", x = "")
 
 ggsave("Figures/430_HG_EQSratio_wout_log.png", gg,
+       width = 8, height = 4.5, dpi = 200)
+
+filename <- glue::glue("Figures/431/{params$param}_{tissue}_eqs_ordinary.png")
+ggsave(filename, gg,
        width = 8, height = 4.5, dpi = 200)
 
 gg
@@ -423,10 +484,11 @@ gg
 
 ### Log scale 
 
-```{r 09_eqs_ratio_log}
+```{r 09_eqs_ratio_log, warning=FALSE}
 
-ggsave("Figures/430_HG_EQSratio_with_log.png", gg + scale_y_log10(),
-       width = 8, height = 4.5, dpi = 200) 
+filename <- glue::glue("Figures/431/{params$param}_{tissue}_eqs_logscale.png")
+ggsave(filename, gg + scale_y_log10(),
+       width = 8, height = 4.5, dpi = 200)
 
 
 gg + scale_y_log10()
