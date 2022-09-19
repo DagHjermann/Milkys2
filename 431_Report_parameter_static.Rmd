@@ -4,12 +4,17 @@ author: "DHJ"
 date: "18.08.2022"
 params:
   param: "HG"
+  species: "Mytilus edulis"
+  tissue: "Whole soft body"
+  basis: "WW"
 output: 
   html_document:
   keep_md: false
 toc: true
 toc_float: true
 ---
+
+# `r params$param` (`r params$tissue` in `r params$species`, `r params$basis`)
    
 ```{r 01_settings, include=FALSE}
 
@@ -91,9 +96,9 @@ if (n2 != n1){
 
 ```{r 04_medians_data}
 
-species <- "Mytilus edulis"
-tissue <- "Whole soft body"
-basis <- "WW"
+species <- params$species
+tissue <- params$tissue
+basis <- params$basis
 
 if (nrow(dat_list$lookup_eqs) == 1){
   dat_list$lookup_eqs$LATIN_NAME <- species
