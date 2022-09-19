@@ -1,0 +1,626 @@
+---
+title: "Report for parameter (430)"
+author: "DHJ"
+date: "18.08.2022"
+params:
+  param: "HG"
+output: 
+  html_document:
+  keep_md: false
+toc: true
+toc_float: true
+---
+   
+## 1. Settings    
+
+```{r 01_settings}
+
+current_year <- 2021
+knitr::opts_chunk$set(echo = FALSE, results = 'hold')
+
+```
+
+## 2. Packages  
+
+```{r 02_packages, results='hide', message=FALSE, warning=FALSE}
+
+library(dplyr)
+# library(tidyr)
+library(ggplot2)
+library(lubridate)
+library(flextable)
+# library(glue)
+library(readxl)
+library(purrr)
+# library(leftcensored)   # DHJ's package (https://github.com/DagHjermann/leftcensored)
+library(scico)            # colour palettes incl. "Vik" (https://github.com/thomasp85/scico)
+
+library(ggiraph)
+library(cowplot)
+
+# library(safejoin) # https://github.com/moodymudskipper/safejoin
+
+# source("01_Get_chemical_data_NIVAbasen_functions.R")  # for get_standard_parametername()
+# source("824_Report_for_scientists_functions.R")
+source("420_Report_paramgroup_functions.R", encoding = "UTF-8")
+
+source("125_Calculate_trends_leftadjusted_functions.R")
+
+```
+
+
+## 3. Get data  
+
+```{r 03_get_data, warning=FALSE}
+
+chem_params <- params$param
+
+# debugonce(get_data_tables)
+dat_list <- get_data_tables(param = params$param)
+
+str(dat_list, 1)
+
+# Add min and max to 'dat_list$medians'  
+df_min_max <- dat_list$data %>%
+  select(PARAM, STATION_CODE, LATIN_NAME, TISSUE_NAME, MYEAR, VALUE_WW, VALUE_WWa) %>%
+  tidyr::pivot_longer(cols = c(VALUE_WW, VALUE_WWa), names_to = "Basis", values_to = "Value") %>%
+  mutate(Basis = sub("VALUE_", "", Basis, fixed = TRUE)) %>%
+  group_by(PARAM, STATION_CODE, LATIN_NAME, TISSUE_NAME, Basis, MYEAR) %>%
+  summarise(Value_min = min(Value, na.rm = TRUE),
+            Value_max = max(Value, na.rm = TRUE), .groups = "drop"
+            )
+
+n1 <- nrow(dat_list$medians)
+dat_list$medians <- dat_list$medians %>%
+  left_join(df_min_max, by = c("MYEAR", "STATION_CODE", "LATIN_NAME", "TISSUE_NAME", "PARAM", "Basis"))
+n2 <- nrow(dat_list$medians)
+
+if (n2 != n1){
+  stop("Check uniqueness")
+}
+
+# View(dat_list$data)
+# View(dat_list$medians)
+# View(dat_list$medians)
+# View(dat_list$lookup_eqs)
+
+```
+
+## 4. Medians tile plot  
+
+### Data and test plot  
+```{r}
+
+species <- "Mytilus edulis"
+tissue <- "Whole soft body"
+basis <- "WW"
+
+if (nrow(dat_list$lookup_eqs) == 1){
+  dat_list$lookup_eqs$LATIN_NAME <- species
+}
+
+# Select data
+dat_medians_01 <- dat_list$medians %>%
+  filter(LATIN_NAME %in% species,
+         TISSUE_NAME %in% tissue,
+         Basis %in% "WW") %>%
+  # Must have data in 'current_year'  
+  group_by(STATION_CODE) %>%
+  mutate(Series_last_year = max(MYEAR)) %>%
+  filter(Series_last_year %in% current_year)
+
+station_order <- dat_list$lookup_stations %>%
+  filter(STATION_CODE %in% unique(dat_medians_01$STATION_CODE)) %>%
+  mutate(Station = paste(STATION_CODE, Station_name)) %>%
+  select(-Art) %>%
+  arrange(Order)
+
+dat_medians_02 <- dat_medians_01 %>%
+  # Add EQS
+  left_join(dat_list$lookup_eqs, 
+            by = c("LATIN_NAME", "PARAM", "Basis"))
+
+dat_medians_03 <- dat_medians_02 %>%
+  # Add station name
+  left_join(
+    dat_list$lookup_stations %>% 
+      filter(LATIN_NAME %in% species) %>%
+      select(STATION_CODE, LATIN_NAME, Station_name, Region),
+    by = "STATION_CODE"
+  ) %>%
+  mutate(
+    Station = factor(
+      paste(STATION_CODE, Station_name),
+      levels = rev(station_order$Station)),
+    Proref_ratio = Value/Proref,
+    EQS_ratio = Value/EQS,
+    Above_EQS = case_when(
+      Value > EQS ~ "Over",
+      Value <= EQS ~ "Under",
+      TRUE ~ as.character(NA)),
+    Prop_underLOQ = 1 - Over_LOQ/N_median,
+    FLAG1 = case_when(
+      Prop_underLOQ < 0.5 ~ as.character(NA),
+      Prop_underLOQ >= 0.5 ~ "<"),
+    LOQ_label = ifelse(Prop_underLOQ >= 0.5, "<", "")
+  ) %>%
+  filter(!is.na(Station))
+
+# Add 'Proref_ratio_cut'  
+proref_max <- max(dat_medians_03$Proref_ratio, na.rm = TRUE)
+dat_medians <- dat_medians_03 %>%
+  mutate(
+    Proref_ratio_cut = cut(Proref_ratio, breaks = c(0,0.5,0.75,0.9,1,2,3,5,10, proref_max))
+  )
+
+ggplot(dat_medians, aes(MYEAR, Station, fill = Proref_ratio_cut)) +
+  geom_tile()
+
+
+```
+
+### Plot
+```{r, fig.width=10, fig.height=8}
+
+proref_cols <- c(RColorBrewer::brewer.pal(6, "Blues")[5:2],
+            RColorBrewer::brewer.pal(6, "YlOrRd")[1:5])
+  
+col_func <- function(x){cols[x]}
+
+startyr <- 2010
+
+# Trick to avoid red frames also in legend:
+# - put 'fill = Proref_ratio_cut' in aes of the first geom_tile (not in the aes of ggplot)
+# - set 'alpha = 0' so there is no fill in the EQS tiles 
+
+gg_tile <- ggplot(dat_medians, aes(MYEAR, Station)) +
+  geom_tile(aes(fill = Proref_ratio_cut)) + 
+  geom_tile(data = subset(dat_medians, Above_EQS %in% "Over"),
+            color = "red", size = 1, height = 0.9, width = 0.9, alpha = 0) +
+  geom_text(aes(label = round(Value, 3)), nudge_y = -0.1, size = 3) +
+  geom_text(aes(label = LOQ_label), size = 3, nudge_y = 0.3) +
+  scale_fill_manual(values = proref_cols) +
+  scale_color_manual(values = c("red", "white")) +
+  scale_alpha_manual(values = c(1, 0)) +
+  scale_x_continuous(breaks = seq(startyr, 2020, 2), 
+                     limits = c(startyr-0.5, current_year+0.5)) +
+  theme_bw() +
+  guides(colour = "none") +
+  labs(
+    title = paste0(params$param, " in ", species, " (", tissue, ")"),
+    x = "Year", y = "")
+
+gg_tile
+
+```
+### Plot, interactive
+
+```{r, fig.width = 10, fig.height=11}
+
+no_eqs <- mean(is.na(dat_medians$EQS_ratio)) == 1
+
+if (no_eqs){
+  dat_medians2 <- dat_medians %>% filter(MYEAR >= 2010) %>%
+    mutate(
+      Value_txt = paste0(
+        "Proref ratio: ", round(Proref_ratio, 3), "<br>",
+        "Median: ", LOQ_label, round(Value, 4), " ug/kg<br>",
+        "(", round(Value_min, 4), "-", round(Value_max, 4), "; N =", N_median, ")")
+    )
+} else {
+  dat_medians2 <- dat_medians %>% filter(MYEAR >= 2010) %>%
+    mutate(
+      Value_txt = paste0(
+        "Proref ratio: ", round(Proref_ratio, 3), "<br>",
+        "EQS ratio: ", round(EQS_ratio, 3), "<br>",
+        "Median: ", LOQ_label, round(Value, 4), " ug/kg<br>",
+        "(", round(Value_min, 4), "-", round(Value_max, 4), "; N =", N_median, ")")
+    )
+}
+
+gg_tile <- ggplot(dat_plot2, aes(MYEAR, Station, label = round(Value, 3))) +
+  geom_tile(aes(fill = Proref_ratio_cut)) + 
+  geom_tile(data = subset(dat_medians2, Above_EQS %in% "Over"),
+            color = "red", size = 1, height = 0.9, width = 0.9, alpha = 0) +
+  scale_fill_manual("Proref\nratio", values = proref_cols) +
+  scale_color_manual(values = c("red", "white")) +
+  scale_alpha_manual(values = c(1, 0)) +
+  geom_text(aes(label = LOQ_label), size = 3, nudge_y = 0.3) +
+  geom_text_interactive(aes(tooltip = Value_txt), nudge_y = -0.1, size = 3) +
+  scale_x_continuous(breaks = seq(startyr, 2020, 2), limits = c(startyr, current_year)) +
+  theme_bw() +
+  guides(colour = "none") +
+  labs(
+    title = paste0(params$param, " in ", species, " (", tissue, ")"),
+    x = "Year", y = "")
+
+girafe(ggobj = gg_tile, height_svg = 5.7, width_svg = 9)
+
+```
+
+## 5. Trend plots (long + short)   
+
+### Get trends  
+
+```{r}
+
+# check <- readRDS("Data/126_df_trend_2021.rds")
+# table(check$Trend_string)
+
+dat_trends <- readRDS("Data/126_df_trend_2021.rds") %>%
+  filter(PARAM %in% params$param)
+
+xtabs(~Trend_type, dat_trends)                 # should be equally many long and short 
+
+xtabs(~Trend_string + Trend_type, dat_trends)
+
+# xtabs(~TISSUE_NAME + Trend_string, dat_trends)
+# xtabs(~STATION_CODE + TISSUE_NAME, dat_trends %>% filter(TISSUE_NAME %in% "Whole soft body"))
+
+if (FALSE){
+  # For testing
+  dat_series_trendrun <- readRDS("Data/125_dat_series.rds") %>%
+    filter(PARAM %in% params$param,
+           TISSUE_NAME %in% tissue)
+  dat_medians %>%
+    distinct(STATION_CODE) %>%
+    left_join(
+      dat_trends %>% filter(Trend_type %in% "long") %>%
+        count(STATION_CODE)
+    ) %>%
+    left_join(dat_series_trendrun) %>% 
+    View("test")
+  # should have data in all rows for column 'n' 
+}
+
+
+```
+
+
+### Data for trends plot  
+
+* The difference between 'No change' and 'No trend' is very subtle (see script 126):   
+   - 'No change' means that there is a time trend, but no difference between the two actual years compared  
+   - 'No trend' means that there is no time trend (the best model was y = constant)   
+* So we combine the two  
+
+```{r}
+
+shape_order <- c("Increasing", "Decreasing", "No change")
+colour_order <- shape_order
+
+dat_trends_plot <- dat_trends %>%
+  filter(LATIN_NAME %in% species,
+         TISSUE_NAME %in% tissue) %>%
+  # Add station name
+  left_join(
+    dat_list$lookup_stations %>% 
+      select(STATION_CODE, Station_name),
+    by = "STATION_CODE"
+  ) %>%
+  mutate(
+    Station = factor(
+      paste(STATION_CODE, Station_name),
+      levels = rev(station_order$Station)),
+    # Shape and colour: Drop "Too few over-LOQ years" and "Too few years:
+    Trend_shape = case_when(
+      Trend_string %in% c("Increasing" , "Decreasing", "No change") ~ Trend_string, 
+      TRUE ~ as.character(NA)),
+    Trend_shape = factor(Trend_shape, levels = shape_order),
+    Trend_color = Trend_shape,
+    # Text: Keep only "Too few over-LOQ years", "Too few years" and "No data before 2012":
+    Trend_text = case_when(
+      Trend_string %in% c("Increasing" , "Decreasing", "No change") ~ as.character(NA), 
+      TRUE ~ Trend_string),
+    Perc_annual = case_when(
+      Trend_string %in% c("No change", "No trend") ~ 0, 
+      TRUE ~ Perc_annual),
+    Trend_shape = factor(Trend_shape, levels = shape_order)
+  )
+
+table(dat_trends_plot$Trend_type)   # Should be equal
+xtabs(~addNA(Trend_shape) + Trend_type, dat_trends_plot)   # Should be no NAs
+table(addNA(dat_trends_plot$Trend_string), dat_trends_plot$Trend_type)
+
+# First table (this WITH Trend_shape): should have no 'Trend_text'
+# Second table (this WITHOUT Trend_shape): should all have a 'Trend_text'
+xtabs(~addNA(Trend_text) + Trend_type + is.na(Trend_shape), dat_trends_plot)   
+
+
+```
+
+### Test plot   
+
+```{r}
+
+y_ran <- range(dat_trends_plot$Perc_annual, na.rm = TRUE)
+
+ggplot(dat_trends_plot %>% filter(Trend_type %in% "long"),
+       aes(x = Station, y = Perc_annual)) +
+  geom_linerange(aes(ymin = Perc_annual_lo, ymax = Perc_annual_hi, colour = Trend_color)) +
+  geom_point(aes(colour = Trend_color, shape = Trend_color)) +
+  geom_text(aes(y = 0, label = Trend_text)) +
+  coord_flip(ylim = y_ran)
+
+```
+
+
+### Test plot 2  
+
+```{r}
+
+# Tjukkere linjer, større punkter  
+# Linjer som mangler skal ha mellomrom, så de stemmer med den andre grafen
+# Aksetekst "Annual change, %"
+
+y_ran <- range(dat_trends_plot$Perc_annual, na.rm = TRUE)
+
+trend_shapes <- c(24, 25, 21) %>% setNames(shape_order)
+trend_colours <- c("red2", "green4", "grey20") %>% setNames(colour_order)
+trend_fill <- c("red2", "green4", "grey20") %>% setNames(colour_order)
+
+ggplot(dat_trends_plot %>% filter(Trend_type %in% "long"),
+       aes(x = Station, y = Perc_annual)) +
+  geom_linerange(aes(ymin = Perc_annual_lo, ymax = Perc_annual_hi, colour = Trend_color)) +
+  geom_point(aes(colour = Trend_color, fill = Trend_color, shape = Trend_color)) +
+  geom_text(aes(y = 0, label = Trend_text)) +
+  scale_colour_manual(values = trend_colours, drop = FALSE) +
+  scale_fill_manual(values = trend_colours, drop = FALSE) +
+  scale_shape_manual(values = trend_shapes, drop = FALSE) +
+  geom_hline(yintercept = 0) +
+  coord_flip(ylim = y_ran) +
+  theme_bw() 
+
+
+ggplot(dat_trends_plot %>% filter(Trend_type %in% "short"),
+       aes(x = Station, y = Perc_annual)) +
+  geom_linerange(aes(ymin = Perc_annual_lo, ymax = Perc_annual_hi, colour = Trend_color)) +
+  geom_point(aes(colour = Trend_color, fill = Trend_color, shape = Trend_color)) +
+  geom_text(aes(y = 0, label = Trend_text)) +
+  scale_colour_manual(values = trend_colours, drop = FALSE) +
+  scale_fill_manual(values = trend_colours, drop = FALSE) +
+  scale_shape_manual(values = trend_shapes, drop = FALSE) +
+  geom_hline(yintercept = 0) +
+  coord_flip(ylim = y_ran) +
+  theme_bw() 
+
+```
+
+### Make both trend plots   
+
+```{r}
+
+gg_trends <- c("long", "short") %>%
+  map(
+    ~ggplot(dat_trends_plot %>% filter(Trend_type %in% .x),
+       aes(x = Station, y = Perc_annual)) +
+  geom_linerange(aes(ymin = Perc_annual_lo, ymax = Perc_annual_hi, colour = Trend_color)) +
+  geom_point(aes(colour = Trend_color, fill = Trend_color, shape = Trend_color)) +
+  geom_text(aes(y = 0, label = Trend_text)) +
+  scale_colour_manual(values = trend_colours, drop = FALSE) +
+  scale_fill_manual(values = trend_colours, drop = FALSE) +
+  scale_shape_manual(values = trend_shapes, drop = FALSE) +
+  geom_hline(yintercept = 0) +
+  coord_flip(ylim = y_ran) +
+    labs(title = .x, y = "") +
+  theme_bw() 
+  )
+
+gg_trends[[1]]
+gg_trends[[2]]
+
+```
+
+### Test interactive plot  
+
+```{r}
+
+trend_shapes <- c(24, 25, 21) %>% setNames(shape_order)
+trend_colours <- c("red2", "green4", "grey20") %>% setNames(colour_order)
+trend_fill <- c("red2", "green4", "grey20") %>% setNames(colour_order)
+
+dat_trends_plot <- dat_trends_plot %>%
+  mutate(
+    Tooltip_text = case_when(
+      Trend_string %in% c("Increasing", "Decreasing") ~ 
+        paste0(
+          "Trend (", Trend_type, "-term) :" , round(Perc_annual,2), " % (", First_year, "-", current_year, ")\n",
+          "Change since ", First_year, ": ", Perc_change, " % (", p_category, ")\n", 
+          "Trend model: ", ifelse(k_sel >= 3, paste("Non-linear (k = ", k_sel, ")"), "Linear")
+        ),
+      TRUE ~ Trend_string
+    )
+  )
+
+trendtype <- "long"
+
+gg_range <- ggplot(dat_trends_plot %>% filter(Trend_type %in% trendtype),
+       aes(x = Station, y = Perc_annual)) +
+  geom_text(aes(y = 0, label = Trend_text)) +                                                # For "too few years etc.
+  geom_linerange(aes(ymin = Perc_annual_lo, ymax = Perc_annual_hi, colour = Trend_color)) +
+  geom_hline(yintercept = 0) +
+  geom_point_interactive(aes(colour = Trend_color, fill = Trend_color, shape = Trend_color, tooltip = Tooltip_text)) +
+  scale_colour_manual(values = trend_colours, drop = FALSE) +
+  scale_fill_manual(values = trend_colours, drop = FALSE) +
+  scale_shape_manual(values = trend_shapes, drop = FALSE) +
+  coord_flip(ylim = y_ran) +
+  theme_bw() +
+  labs(
+    title = stringr::str_to_sentence(paste0(trendtype, "-term trend"))
+  )
+
+girafe(ggobj = gg_range, height_svg = 5.7, width_svg = 9)
+
+```
+
+
+## 6. Combine tile and trend plots    
+
+```{r, fig.width=10, fig.height=8}
+
+ggcomb <- cowplot::plot_grid(gg_tile + theme(legend.position = "none"), 
+                   gg_trends[[1]] + 
+                     theme(axis.title.y = element_blank(),
+                           axis.text.y = element_blank(),
+                           legend.position = "none"), 
+                   gg_trends[[2]] + 
+                     theme(axis.title.y = element_blank(),
+                           axis.text.y = element_blank()), 
+                   cowplot::get_legend(gg_tile),
+                   nrow = 2, ncol = 3,
+                   rel_heights = c(3,1),
+                   rel_widths = c(2.8, 0.6, 1)
+                   )
+
+ggsave("Figures/430_HG_combo.png", ggcomb,
+       width = 14, height = 8, dpi = 200)
+
+
+```
+
+
+## 7. Ratio plots - data    
+```{r}
+
+region_order <- c("Viken og Oslo", "Vestfold og Telemark", "Agder", "Vestland", "Møre og Romsdal", 
+                  "Trøndelag", "Nordland", "Troms og Finnmark", "Svalbard")
+
+dat_medians_lastyear <- dat_medians %>% 
+  ungroup() %>%
+  filter(MYEAR == current_year) %>%
+  mutate(
+    Proref_ratio_min = Value_min/Proref,
+    Proref_ratio_max = Value_max/Proref,
+    EQS_ratio_min = Value_min/EQS,
+    EQS_ratio_max = Value_max/EQS,
+    Proref_tooltip = paste0(
+      "Conc.: ", Value, " (Min-max: ", Value_min, "-", Value_max, ")\n",
+      "Ratio: ", Proref_ratio, " (Min-max: ", Proref_ratio_min, "-", Proref_ratio_max, ")\n"),
+    EQS_tooltip = paste0(
+      "Conc.: ", Value, " (Min-max: ", Value_min, "-", Value_max, ")"),
+    Station = factor(Station, levels = rev(levels(Station))),
+    Region = factor(Region, levels = rev(region_order))
+  ) 
+
+
+```
+
+## 8. Proref ratio  
+
+### Static  
+```{r}
+
+# For fisk: median som fylt punkt med interkvartilt range som strek, med enkeltprøver som mindre svart prikk   
+# For blåskjell: median som fylt punkt med range som strek, med punmed punkter som mindre svart prikkkter som mindre svart prikk    
+# Ingen whisker  
+
+gg <- ratioplot(data = dat_medians_lastyear,
+          x = "Station", y = "Proref_ratio", fill = "Region", 
+          tooltip = "Tooltip_text", data_id = "STATION_CODE",
+          ymin = "Proref_ratio_min", ymax = "Proref_ratio_max") + 
+  labs(y = "Ratio concentration/Proref", x = "")
+
+ggsave("Figures/430_HG_Prorefratio_wout_log.png", gg,
+       width = 8, height = 4.5, dpi = 200)
+
+ggsave("Figures/430_HG_Prorefratio_with_log.png", gg + scale_y_log10(),
+       width = 8, height = 4.5, dpi = 200)
+
+gg
+gg + scale_y_log10()
+
+```
+
+### Dynamic  
+```{r}
+
+ratioplot_interactive(data = dat_medians_lastyear,
+          x = "Station", y = "Proref_ratio", fill = "Region", 
+          tooltip = "Proref_tooltip", data_id = "STATION_CODE",
+          ymin = "Proref_ratio_min", ymax = "Proref_ratio_max")  
+
+```
+
+## 9. EQS ratio 
+
+### Static  
+```{r}
+
+gg <- ratioplot(data = dat_medians_lastyear,
+          x = "Station", y = "EQS_ratio", fill = "Region", 
+          tooltip = "EQS_tooltip", data_id = "STATION_CODE",
+          ymin = "EQS_ratio_min", ymax = "EQS_ratio_max") + 
+  labs(y = "Ratio concentration/EQS", x = "")
+
+ggsave("Figures/430_HG_EQSratio_wout_log.png", gg,
+       width = 8, height = 4.5, dpi = 200)
+
+ggsave("Figures/430_HG_EQSratio_with_log.png", gg + scale_y_log10(),
+       width = 8, height = 4.5, dpi = 200) 
+
+gg
+gg + scale_y_log10()
+
+```
+
+### Static 
+```{r}
+
+  ratioplot(data = dat_eqsplot,
+                        x = "Station", y = "EQS_ratio", fill = "Region", 
+                        tooltip = "Tooltip_text", data_id = "STATION_CODE",
+                                    ymin = "EQS_ratio_min", ymax = "EQS_ratio_max")  
+```
+  
+```{r}
+  ratioplot_interactive(data = dat_eqsplot,
+                        x = "Station", y = "EQS_ratio", fill = "Region", 
+                        tooltip = "Tooltip_text", data_id = "STATION_CODE",
+                        ymin = "EQS_ratio_min", ymax = "EQS_ratio_max")  
+  
+```
+
+
+
+
+## 8. EQS ratio - interactive 
+```{r}
+
+dat_eqsplot <- dat_plot %>% 
+  ungroup() %>%
+  filter(MYEAR == 2021) %>%
+  mutate(
+    Tooltip_text = paste0(
+      "Conc.: ", Value, " (Min-max: ", Value_min, "-", Value_max, ")"),
+    EQS_ratio_min = Value_min/EQS,
+    EQS_ratio_max = Value_max/EQS)
+
+ratioplot_interactive(data = dat_eqsplot,
+                      x = "Station", y = "EQS_ratio", fill = "Region", 
+                      tooltip = "Tooltip_text", data_id = "STATION_CODE",
+                      ymin = "EQS_ratio_min", ymax = "EQS_ratio_max")  
+
+
+```
+
+
+
+
+## 7. All time series, interactive  
+
+```{r}
+
+library(plotly)
+
+dat <- dat_list$data %>%
+  filter(LATIN_NAME %in% species,
+         TISSUE_NAME %in% tissue)
+
+p <- ggplot(data = dat_plot, aes(x = MYEAR, y = Value, color = Station)) +
+  geom_line() +
+  geom_point() +
+  scale_y_log10()
+
+ggplotly(p)
+
+```
