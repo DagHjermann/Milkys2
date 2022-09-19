@@ -182,7 +182,8 @@ gg_tile <- ggplot(dat_medians, aes(MYEAR, Station)) +
   scale_fill_manual(values = proref_cols) +
   scale_color_manual(values = c("red", "white")) +
   scale_alpha_manual(values = c(1, 0)) +
-  scale_x_continuous(breaks = seq(startyr, 2020, 2), limits = c(startyr, current_year)) +
+  scale_x_continuous(breaks = seq(startyr, 2020, 2), 
+                     limits = c(startyr-0.5, current_year+0.5)) +
   theme_bw() +
   guides(colour = "none") +
   labs(
@@ -325,6 +326,10 @@ ggplot(dat_trends_plot %>% filter(Trend_type %in% "long"),
 ### Test plot 2  
 
 ```{r}
+
+# Tjukkere linjer, større punkter  
+# Linjer som mangler skal ha mellomrom, så de stemmer med den andre grafen
+# Aksetekst "Annual change, %"
 
 y_ran <- range(dat_trends_plot$Perc_annual, na.rm = TRUE)
 
@@ -469,6 +474,10 @@ dat_medians_lastyear <- dat_medians %>%
 
 ### Static  
 ```{r}
+
+# For fisk: median som fylt punkt med interkvartilt range som strek, med enkeltprøver som mindre svart prikk   
+# For blåskjell: median som fylt punkt med range som strek, med punmed punkter som mindre svart prikkkter som mindre svart prikk    
+# Ingen whisker  
 
 gg <- ratioplot(data = dat_medians_lastyear,
           x = "Station", y = "Proref_ratio", fill = "Region", 
