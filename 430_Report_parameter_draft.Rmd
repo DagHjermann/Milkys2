@@ -125,7 +125,7 @@ dat_medians_03 <- dat_medians_02 %>%
   left_join(
     dat_list$lookup_stations %>% 
       filter(LATIN_NAME %in% species) %>%
-      select(STATION_CODE, LATIN_NAME, Station_name, Region),
+      select(STATION_CODE, Station_name, Region),
     by = "STATION_CODE"
   ) %>%
   mutate(
