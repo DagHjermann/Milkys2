@@ -865,41 +865,92 @@ if (FALSE){
   
   pargroup_boxplot(dat_median_mussel, y = "Proref_ratio_WW", year = 2021)
   
+  sel <- is.na(dat_list$lookup_eqs$LATIN_NAME)
+  dat_list$lookup_eqs$LATIN_NAME[sel] <- species 
+  dat_boxplot <- dat_list$data %>%
+    left_join(dat_list$lookup_eqs, by = c("LATIN_NAME", "PARAM"))
+  
+  # debugonce(ratio_boxplot_interactive)
+  
+
+  
 }
 
 
-pargroup_boxplot <- function(data_medians, y, year, ylabel = NULL, main_title = NULL){
+ratioplot <- function(data, x, y, 
+                      fill = NULL, tooltip = NULL, data_id = NULL, 
+                      ymin = NULL, ymax = NULL,
+                      ylabel = NULL, main_title = NULL,
+                      hline = 1,
+                      hline_extra = NULL,
+                      interactive){
   
-  data_medians$y <- data_medians[[y]]
+  data$x <- data[[x]]
+  data$y <- data[[y]]
+  data$tooltip <- data[[tooltip]]
+  data$fill <- data[[fill]]
+  data$data_id <- data[[data_id]]
+
+  if (!is.null(fill)){
+    data$fill <- data[[fill]]
+  } 
+  
+  if (!is.null(tooltip)){
+    data$tooltip <- data[[tooltip]]
+  } else {
+    data$tooltip <- data[[y]]
+  }
+  
+  if (!is.null(data_id)){
+    data$tooltip <- data[[data_id]]
+  } else {
+    data$tooltip <- data[[x]]
+  }
+  
+  if (!is.null(ymin))
+    data$ymin <- data[[ymin]]
+  if (!is.null(ymax))
+    data$ymax <- data[[ymax]]
+  
   
   if (is.null(ylabel))
     ylabel = y
   
-  dat_prorefplot2 <- data_medians %>%    # Change here for fish vs. mussel
-    dplyr::filter(MYEAR == year) %>%
-    mutate(
-      Unit = gsub("_P_", "/", UNIT, fixed = TRUE) %>% tolower(),
-      Tooltip = paste0(Station, "<br>Conc.: (min-median-max): ", VALUE_WW_min, "-", VALUE_WW_med, "-", VALUE_WW_max, " ", Unit))
-  
   # str(dat_prorefplot2)
   
-  gg <- ggplot(dat_prorefplot2, aes(PARAM, y = y)) +
-    geom_hline(yintercept = 1) +
-    geom_boxplot() +
-    geom_jitter_interactive(aes(fill = Water_region, tooltip = Tooltip, data_id = STATION_CODE), pch = 21, size = 2, width = 0.1) +
-    # scale_fill_distiller("Along coast\n(far N/E = blue)", palette = "RdBu", direction = 1) +  # Geogr_position
-    scale_fill_brewer("Water region", palette = "RdBu", direction = -1) +
+  gg <- ggplot(data, aes(x = x, y = y))
+  
+  if (!is.null(ymin) & !is.null(ymax))
+    gg <- gg + geom_linerange(aes(ymin = ymin, ymax = ymax))
+  
+  if (is.numeric(hline))
+    gg <- gg + geom_hline(yintercept = hline)
+  
+  if (!is.null(fill)){
+    gg <- gg +
+      geom_jitter_interactive(aes(fill = fill, tooltip = tooltip, data_id = data_id), pch = 21, size = 2, width = 0.1) +
+      scale_fill_brewer(fill, palette = "RdBu", direction = -1)
+  } 
+  
+ gg <- gg +
     theme_bw() +
     ggeasy::easy_rotate_x_labels(angle = -45) +
     labs(y = ylabel, title = main_title)
-  # gg
   
-  # gg <- gg + coord_flip()
-  # gg
+  gg
+  
+}
+
+
+ratioplot_interactive <- function(...){
+  
+  gg <- ratioplot(...)
+  
+  gg
   
   ggr <- girafe(ggobj = plot_grid(gg + guides(fill = "none") + labs(subtitle = "Medians, ordinary scale"),
-                                  gg + scale_y_log10() + labs(subtitle = "Medians, log scale"), 
-                                  rel_widths = c(1,1.35)), 
+                                  gg + scale_y_log10() + labs(subtitle = "Medians, log scale"),
+                                  rel_widths = c(1,1.35)),
                 width_svg = 10, height_svg = 4)
   
   ggr <- girafe_options(ggr, opts_hover(css = "fill:wheat;stroke:orange;r:5pt;") )
@@ -908,63 +959,29 @@ pargroup_boxplot <- function(data_medians, y, year, ylabel = NULL, main_title = 
   
 }
 
+
+
 if (FALSE){
-  debugonce(pargroup_boxplot)
   
-  pargroup_boxplot(dat_median_fish, y = "EQS_ratio_WW", year = 2021)
-  
-  pargroup_boxplot(dat_median_mussel, y = "Proref_ratio_WW", year = 2021)
-  
-}
-
-
-pargroup_boxplot <- function(data_medians, y, year, ylabel = NULL, main_title = NULL){
-  
-  data_medians$y <- data_medians[[y]]
-  
-  if (is.null(ylabel))
-    ylabel = y
-  
-  dat_prorefplot2 <- data_medians %>%    # Change here for fish vs. mussel
-    dplyr::filter(MYEAR == year) %>%
+  dat_eqsplot <- dat_plot %>% 
+    ungroup() %>%
+    filter(MYEAR == 2021) %>%
     mutate(
-      Unit = gsub("_P_", "/", UNIT, fixed = TRUE) %>% tolower(),
-      Tooltip = paste0(Station, "<br>Conc.: (min-median-max): ", VALUE_WW_min, "-", VALUE_WW_med, "-", VALUE_WW_max, " ", Unit))
+      Tooltip_text = paste0(
+        "Conc.: ", Value, " (Min-max: ", Value_min, "-", Value_max, ")"),
+      EQS_ratio_min = Value_min/EQS,
+      EQS_ratio_max = Value_max/EQS)
   
-  # str(dat_prorefplot2)
+  ratioplot(data = dat_eqsplot,
+                        x = "Station", y = "EQS_ratio", fill = "Region", 
+                        tooltip = "Tooltip_text", data_id = "STATION_CODE",
+                        ymin = "EQS_ratio_min", ymax = "EQS_ratio_max")  
   
-  gg <- ggplot(dat_prorefplot2, aes(PARAM, y = y)) +
-    geom_hline(yintercept = 1) +
-    geom_boxplot() +
-    geom_jitter_interactive(aes(fill = Water_region, tooltip = Tooltip, data_id = STATION_CODE), pch = 21, size = 2, width = 0.1) +
-    # scale_fill_distiller("Along coast\n(far N/E = blue)", palette = "RdBu", direction = 1) +  # Geogr_position
-    scale_fill_brewer("Water region", palette = "RdBu", direction = -1) +
-    theme_bw() +
-    ggeasy::easy_rotate_x_labels(angle = -45) +
-    labs(y = ylabel, title = main_title)
-  # gg
-  
-  # gg <- gg + coord_flip()
-  # gg
-  
-  ggr <- girafe(ggobj = plot_grid(gg + guides(fill = "none") + labs(subtitle = "Medians, ordinary scale"),
-                                  gg + scale_y_log10() + labs(subtitle = "Medians, log scale"), 
-                                  rel_widths = c(1,1.35)), 
-                width_svg = 10, height_svg = 4)
-  
-  ggr <- girafe_options(ggr, opts_hover(css = "fill:wheat;stroke:orange;r:5pt;") )
-  
-  ggr
-  
-}
+  ratioplot_interactive(data = dat_eqsplot,
+                        x = "Station", y = "EQS_ratio", fill = "Region", 
+                        tooltip = "Tooltip_text", data_id = "STATION_CODE",
+                        ymin = "EQS_ratio_min", ymax = "EQS_ratio_max")  
 
-if (FALSE){
-  debugonce(pargroup_boxplot)
-  
-  pargroup_boxplot(dat_median_fish, y = "EQS_ratio_WW", year = 2021)
-  
-  pargroup_boxplot(dat_median_mussel, y = "Proref_ratio_WW", year = 2021)
-  
 }
 
 
