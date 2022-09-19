@@ -452,17 +452,18 @@ df_with_trend_all <- map_dfr(pno_change, extract_difference_data, folder = folde
 ### b. All with trend: Extract up/down trends     
 ```{r}
 
-df_trend_long <- df_with_trend_all %>%
-  group_by(PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME) %>%
-  mutate(Year_pick = min(x)) %>%
-  filter(Year_pick < (last_year-9)) %>%
-  filter(x == Year_pick) 
-
 df_trend_short <- df_with_trend_all %>%
   group_by(PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME) %>%
   mutate(
-    Year_pick = max((last_year-9), min(x))) %>%
+    Year_pick = max((last_year-9), min(x)),
+    Length_adequate = TRUE) %>%
   filter(x == Year_pick)
+
+df_trend_long <- df_with_trend_all %>%
+  group_by(PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME) %>%
+  mutate(Year_pick = min(x),
+         Length_adequate = Year_pick < (last_year-9)) %>%
+  filter(x == Year_pick) 
 
 # Combine
 df_trend_worked <- bind_rows(
@@ -473,6 +474,7 @@ df_trend_worked <- bind_rows(
     Trend_string = case_when(
       p < 0.05 & y_mean > 0 ~ "Decreasing",
       p < 0.05 & y_mean < 0 ~ "Increasing",
+      !Length_adequate ~ paste("No data before", last_year-9),
       TRUE ~ "No change")
   ) %>%
   left_join(
@@ -507,9 +509,11 @@ df_trend_flat_short <- dat_success %>%
      by = indexvars) 
 
 df_trend_flat_long <- df_trend_flat_short %>%
-  filter(First_year < (last_year-9)) %>%
-  mutate(Trend_type = "long")
-
+  mutate(
+    Trend_string = case_when(
+      First_year < (last_year-9) ~ Trend_string,
+      First_year >= (last_year-9) ~ paste("No data before", last_year-9)),
+    Trend_type = "long")
 
 ```
 
@@ -532,8 +536,11 @@ df_trend_failed_short <- dat_success %>%
      by = indexvars) 
 
 df_trend_failed_long <- df_trend_failed_short %>%
-  filter(First_year < (last_year-9)) %>%
-  mutate(Trend_type = "long")
+    mutate(
+      Trend_string = case_when(
+        First_year < (last_year-9) ~ Trend_string,
+        First_year >= (last_year-9) ~ paste("No data before", last_year-9)),
+      Trend_type = "long")
 
 ```
 
@@ -550,14 +557,19 @@ df_trend_toofew_short <- dat_series %>%
   )
 
 df_trend_toofew_long <- df_trend_toofew_short %>%
-  filter(First_year < (last_year-9)) %>%
-  mutate(Trend_type = "long")
+  mutate(
+    Trend_string = case_when(
+      First_year < (last_year-9) ~ Trend_string,
+      First_year >= (last_year-9) ~ paste("No data before", last_year-9)),
+    Trend_type = "long")
 
 ```
 
 ### f. Combine  
 ```{r}
 
+# Column 'dataset' is added only to make it easier to find errors/logical mistakes
+#   (it is removed at the end of this chunk)
 df_trend <- bind_rows(
   df_trend_worked %>% mutate(dataset = 1),
   df_trend_flat_long %>% mutate(dataset = 2), 
@@ -590,6 +602,23 @@ check3 <- df_trend %>%
 if (nrow(check3) > 0){
   stop("Some series lack 'Trend_string'!")
 } 
+
+check4 <- table(df_trend$Trend_type)
+if (nrow(check4) > 0){
+  stop("Some series lack 'long' (or less likely, short) trends")
+} 
+
+check4 <- table(df_trend$Trend_type)
+if (nrow(check4) > 0){
+  stop("Some series lack 'long' (or less likely, short) trends")
+} 
+
+check5 <- table(df_trend$Trend_type, addNA(df_trend$Trend_string))
+j <- grep("No data before", colnames(check5))
+if (check5['short', j] > 0){
+  stop("Some 'short' series have Trend_string = ", sQuote(colnames(check5)[j]))
+} 
+
 
 # If we got this far...
 df_trend <- df_trend %>% select(-dataset)
