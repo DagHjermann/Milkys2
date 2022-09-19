@@ -465,6 +465,12 @@ df_trend_long <- df_with_trend_all %>%
          Length_adequate = Year_pick < (last_year-9)) %>%
   filter(x == Year_pick) 
 
+# Delete irrelevant info in 'df_trend_long'  
+# names(df_trend_long) %>% dput()
+cols_to_delete <- c("x", "y", "y_q2.5", "y_q97.5", "y_mean", "y_sd", "p", "p_category")
+rows_select <- !df_trend_long$Length_adequate
+df_trend_long[rows_select, cols_to_delete] <- NA
+
 # Combine
 df_trend_worked <- bind_rows(
   df_trend_long %>% ungroup() %>% mutate(Trend_type = "long"),
@@ -604,12 +610,8 @@ if (nrow(check3) > 0){
 } 
 
 check4 <- table(df_trend$Trend_type)
-if (nrow(check4) > 0){
-  stop("Some series lack 'long' (or less likely, short) trends")
-} 
-
-check4 <- table(df_trend$Trend_type)
-if (nrow(check4) > 0){
+# table(df_trend$Trend_type, df_trend$dataset)
+if (check4[2] - check4[1] != 0){
   stop("Some series lack 'long' (or less likely, short) trends")
 } 
 
