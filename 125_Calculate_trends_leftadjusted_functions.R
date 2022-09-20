@@ -310,7 +310,7 @@ if (FALSE){
   extract_modelfit_data(187)
 }
 
-extract_difference_data <- function(seriesno, folder, data_series){
+extract_difference_data <- function(seriesno, folder){
   
   fn <- sprintf("trend_%04.0f.rda", seriesno)
   resultlist <- readRDS(paste0(folder, "/", fn))
