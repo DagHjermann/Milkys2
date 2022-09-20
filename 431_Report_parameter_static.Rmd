@@ -33,6 +33,7 @@ library(flextable)
 # library(glue)
 library(readxl)
 library(purrr)
+library(glue)
 # library(leftcensored)   # DHJ's package (https://github.com/DagHjermann/leftcensored)
 library(scico)            # colour palettes incl. "Vik" (https://github.com/thomasp85/scico)
 
@@ -276,9 +277,6 @@ dat_trends_plot <- dat_trends %>%
     Trend_text = case_when(
       Trend_string %in% c("Increasing" , "Decreasing", "No change") ~ as.character(NA), 
       TRUE ~ Trend_string),
-    Perc_annual = case_when(
-      Trend_string %in% c("No change", "No trend") ~ 0, 
-      TRUE ~ Perc_annual),
     Trend_shape = factor(Trend_shape, levels = shape_order)
   )
 
@@ -300,27 +298,28 @@ if (FALSE){
 ```
 
 
-```{r 05_trend_create_plots, warning=FALSE}
+```{r 05_trend_create_plots, fig.width=10, fig.height=9, warning=FALSE}
 
 y_ran <- range(dat_trends_plot$Perc_annual, na.rm = TRUE)
 
 trend_shapes <- c(24, 25, 21) %>% setNames(shape_order)
-trend_colours <- c("red2", "green4", "grey20") %>% setNames(colour_order)
-trend_fill <- c("red2", "green4", "grey20") %>% setNames(colour_order)
+trend_colours <- c("red3", "green4", "grey20") %>% setNames(colour_order)
+trend_fill <- c("red2", "green2", "grey20") %>% setNames(colour_order)
 
 gg_trends <- c("long", "short") %>%
   map(
     ~ggplot(dat_trends_plot %>% filter(Trend_type %in% .x),
        aes(x = Station, y = Perc_annual)) +
-  geom_linerange(aes(ymin = Perc_annual_lo, ymax = Perc_annual_hi, colour = Trend_color)) +
-  geom_point(aes(colour = Trend_color, fill = Trend_color, shape = Trend_color)) +
+  geom_linerange(aes(ymin = Perc_annual_lo, ymax = Perc_annual_hi, colour = Trend_color), size = 1) +
+  geom_point(aes(fill = Trend_color, shape = Trend_color), colour = "black", size = 3) +
   scale_colour_manual(values = trend_colours, drop = FALSE) +
   scale_fill_manual(values = trend_colours, drop = FALSE) +
   scale_shape_manual(values = trend_shapes, drop = FALSE) +
   geom_hline(yintercept = 0, color = "grey30") +
-  geom_label(aes(y = 0, label = Trend_text), fill = "white", color = "blue3", label.size = 0) +
+  geom_label(aes(y = 0, label = Trend_text), fill = "white", color = "blue3", 
+             label.size = 0, size = 3) +
   coord_flip(ylim = y_ran) +
-    labs(title = .x, y = "") +
+    labs(title = glue("Trend ({.x}-term)"), y = "") +
   theme_bw() 
   )
 
@@ -328,6 +327,8 @@ gg_trends <- c("long", "short") %>%
 # gg_trends[[2]]
 
 ```
+
+
 ```{r 06_combine_plots, fig.width=10, fig.height=8, warning=FALSE}
 
 ggcomb <- cowplot::plot_grid(gg_tile + theme(legend.position = "none"), 
@@ -340,7 +341,7 @@ ggcomb <- cowplot::plot_grid(gg_tile + theme(legend.position = "none"),
                            axis.text.y = element_blank()), 
                    nrow = 1, ncol = 3,
                    rel_heights = 3,
-                   rel_widths = c(2.8, 0.6, 1)
+                   rel_widths = c(2.7, 0.75, 1.25)
                    )
 
 ggcomb_legend <- cowplot::get_legend(gg_tile)
@@ -352,9 +353,15 @@ filename <- glue::glue("Figures/431/{params$param}_{tissue}_combo_legend.png")
 ggsave(filename, ggdraw(ggcomb_legend), width = 2, height = 4, dpi = 200)
 
 ggcomb
+
+```
+
+```{r 05_trend_plot_legend}
+
 ggdraw(ggcomb_legend)
 
 ```
+
 
 
 ```{r 07_ratio_data}
