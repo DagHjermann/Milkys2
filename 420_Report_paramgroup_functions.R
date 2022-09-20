@@ -903,7 +903,7 @@ ratioplot <- function(data, x, y,
     data$tooltip <- data[[y]]
   }
   
-  if (!is.null(data_id)){
+  if (!is.null(tooltip)){
     data$tooltip <- data[[data_id]]
   } else {
     data$tooltip <- data[[x]]
