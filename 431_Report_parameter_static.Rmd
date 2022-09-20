@@ -67,7 +67,10 @@ dat_raw <- dat_list$data %>%
     cols = c(VALUE_WW, VALUE_DW, VALUE_FB, VALUE_WWa, VALUE_DWa, VALUE_FBa), 
     names_to = "Basis", 
     values_to = "Value") %>%
-  mutate(Basis = sub("VALUE_", "", Basis, fixed = TRUE))
+  mutate(
+    Basis = sub("VALUE_", "", Basis, fixed = TRUE),
+    STATION_CODE = ifelse(STATION_CODE %in% "36A1", "36A", STATION_CODE))  # 36A1/36A = Tjøme
+
 
 # Add min and max to 'dat_list$medians'  
 df_min_max <- dat_raw %>%
