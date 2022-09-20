@@ -934,6 +934,15 @@ ratioplot <- function(data, x, y,
   if (is.numeric(hline))
     gg <- gg + geom_hline(yintercept = hline)
   
+  if (is.data.frame(hline_extra)){
+    gg <- gg + 
+      geom_hline(data = hline_extra, 
+                          aes(yintercept = yintercept, color = text), 
+                          linetype = "dashed") +
+      scale_colour_manual(values = "red3") +
+      guides(size = "none")
+  }
+  
   if (!is.null(fill)){
     gg <- gg +
       geom_jitter_interactive(aes(fill = fill, tooltip = tooltip, data_id = data_id), pch = 21, size = 2, width = jitterwidth) +
@@ -942,8 +951,8 @@ ratioplot <- function(data, x, y,
   
  gg <- gg +
     theme_bw() +
-    ggeasy::easy_rotate_x_labels(angle = -45) +
-    labs(y = ylabel, title = main_title)
+   theme(legend.title = element_blank()) +
+    ggeasy::easy_rotate_x_labels(angle = -45)
   
   gg
   
