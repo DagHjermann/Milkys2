@@ -4,8 +4,7 @@ author: "DHJ"
 date: "18.08.2022"
 params:
   param: "HG"
-  species: "Mytilus edulis"
-  tissue: "Whole soft body"
+  species: "Gadus morhua"
   basis: "WW"
 output: 
   html_document:
@@ -98,7 +97,10 @@ if (n2 != n1){
 ```{r 04_medians_data}
 
 species <- params$species
-tissue <- params$tissue
+tissue <- ifelse(
+  params$species %in% "Gadus morhua",
+  ifelse(params$param %in% "HG", "Muskel", "Lever"),
+  "Whole soft body")
 basis <- params$basis
 
 if (nrow(dat_list$lookup_eqs) == 1){
@@ -172,7 +174,7 @@ proref_cols <- c(RColorBrewer::brewer.pal(6, "Blues")[5:2],
   
 col_func <- function(x){cols[x]}
 
-startyr <- 2010
+startyr <- 2012
 
 # Trick to avoid red frames also in legend:
 # - put 'fill = Proref_ratio_cut' in aes of the first geom_tile (not in the aes of ggplot)
