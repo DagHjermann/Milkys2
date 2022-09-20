@@ -60,6 +60,16 @@ dat_list <- get_data_tables(param = params$param)
 
 str(dat_list, 1)
 
+# ONLY ONCE:
+# Add Longyearbyen to 'lookup_stations'
+# df_extra <- dat_list$lookup_stations %>% head(1)
+# df_extra$STATION_CODE <- "20B"
+# df_extra$Station_name <- "Longyearbyen, Svalbard"
+# dat_list$lookup_stations$Order <- dat_list$lookup_stations$Order + 1
+# dat_list$lookup_stations <- bind_rows(df_extra, dat_list$lookup_stations)
+# write.csv(dat_list$lookup_stations, "Input_data/Lookup_tables/Lookup_stationorder2.csv", 
+#   row.names = FALSE, quote = TRUE)
+
 # Put raw dat on long format  
 dat_raw <- dat_list$data %>%
   select(PARAM, STATION_CODE, LATIN_NAME, TISSUE_NAME, MYEAR, 
