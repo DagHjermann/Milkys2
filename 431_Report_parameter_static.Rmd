@@ -4,7 +4,7 @@ author: "DHJ"
 date: "18.08.2022"
 params:
   param: "HG"
-  species: "Gadus morhua"
+  species: "Mytilus edulis"
   basis: "WW"
 output: 
   html_document:
@@ -478,11 +478,23 @@ gg + scale_y_log10()
 
 ```{r 09_eqs_ratio, warning=FALSE}
 
+if (params$param == "HG"){
+  proref <- dat_list$lookup_proref %>% 
+    filter(Basis == "WW" & LATIN_NAME %in% params$species & TISSUE_NAME %in% tissue) %>%
+    pull(Proref)
+  proref_eqs_ratio <- data.frame(
+    yintercept = proref/dat_list$lookup_eqs$EQS,
+    text = "Proref")
+} else {
+  proref_eqs_ratio <- NULL
+}
+
 gg <- ratioplot(data = dat_medians_lastyear,
           x = "Station", y = "EQS_ratio", fill = "Region", 
           tooltip = "EQS_tooltip", data_id = "STATION_CODE",
           ymin = "EQS_ratio_min", ymax = "EQS_ratio_max",
-          extra_points = dat_raw_lastyear) + 
+          extra_points = dat_raw_lastyear, 
+          hline_extra = proref_eqs_ratio) + 
   labs(y = "Ratio concentration/EQS", x = "")
 
 ggsave("Figures/430_HG_EQSratio_wout_log.png", gg,
