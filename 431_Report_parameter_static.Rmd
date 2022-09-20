@@ -368,8 +368,9 @@ ggdraw(ggcomb_legend)
 
 ```{r 07_ratio_data}
 
-region_order <- c("Viken og Oslo", "Vestfold og Telemark", "Agder", "Vestland", "Møre og Romsdal", 
-                  "Trøndelag", "Nordland", "Troms og Finnmark", "Svalbard")
+region_order <- c("Svalbard", "Troms og Finnmark", "Nordland", "Trøndelag", 
+                  "Møre og Romsdal", "Vestland", "Agder", "Vestfold og Telemark", 
+                  "Viken og Oslo")
 
 #
 # Median data  
@@ -387,10 +388,9 @@ dat_medians_lastyear <- dat_medians %>%
       "Ratio: ", Proref_ratio, " (Min-max: ", Proref_ratio_min, "-", Proref_ratio_max, ")\n"),
     EQS_tooltip = paste0(
       "Conc.: ", Value, " (Min-max: ", Value_min, "-", Value_max, ")"),
-    Station = factor(Station, levels = rev(levels(Station))),
-    Region = factor(Region, levels = rev(region_order))
+    Station = factor(Station, levels = station_order$Station),
+    Region = factor(Region, levels = region_order)
   ) 
-
 
 #
 # Raw data
@@ -415,7 +415,8 @@ dat_raw_lastyear_02 <- dat_raw_lastyear_01 %>%
   mutate(
     Station = factor(
       paste(STATION_CODE, Station_name),
-      levels = rev(station_order$Station))
+      levels = station_order$Station),
+    Region = factor(Region, levels = region_order)
   )
 
 # Add Proref + EQS
