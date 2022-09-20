@@ -275,6 +275,176 @@ if (FALSE){
 get_splines_results_seriesno_s <- safely(get_splines_results_seriesno)
 
 
+# Note: For "normal" use, don't set k_values and filter_rule2. 
+# - the data should be filtered for rule 2 and the analysis should go through k = 1 to k_max, then let DIC decide
+# - however, if Rule2 is FALSE for the first observation (so it matters) and k = 1 is selected as the best
+#   model, the model can be refitted for k = 1 without filter for rule 2, 
+#   by setting k_values = 1 and filter_rule2 = FALSE.
+
+get_splines_results_seriesno <- function(seriesno, 
+                                         data, 
+                                         data_series, 
+                                         foldername, 
+                                         raftery = TRUE,
+                                         k_values = NULL,     # k_values should normally not be set 
+                                         filter_rule2 = TRUE  # should normally be TRUE
+){   
+  
+  # data must contain variables
+  #   x, y, threshold, uncensored
+  #   k_max
+  
+  save_path <- paste0(foldername, "/", sprintf("trend_%04i.rda", seriesno))
+  
+  # Get the selected 'data_series' row from the given series number, using column 'series_no' in data_series
+  # - 'seriesno' is used to make the file name of the result file
+  # Before, seriesno was just the row number of data_series
+  # - worked nicely the first time the run is done 
+  # The first time an anlysis is done, 'series_no' can be just be se to 1... and up
+  # - but it can also be picked series if some series needs to be reestimated
+  # - this makes it possible to remake particular result files
+  
+  if (!"series_no" %in% names(data_series)){
+    stop("'data_series' must contain a column called 'series_no' (decides name of result file that will be (over)written) \nSee comments on code")
+  }
+  
+  # Get the selected 'data_series' row 
+  data_series_sel <- data_series %>%
+    filter(series_no %in% seriesno) %>%
+    as.data.frame()
+  
+  if (nrow(data_series_sel) == 0){
+    stop("No 'data_series' row fits the given series number (column 'series_no'")
+  } else if (nrow(data_series_sel) >= 2){
+    stop(nrow(data_series_sel), "rows of 'data_series' row fits the given series number (column 'series_no'")
+  }
+  
+  # Save metadata already here - in case the jags part crashes  
+  result_metadata <- list(
+    seriesno = seriesno,
+    PARAM = data_series_sel$PARAM, 
+    STATION_CODE = data_series_sel$STATION_CODE, 
+    TISSUE_NAME = data_series_sel$TISSUE_NAME,
+    LATIN_NAME = data_series_sel$LATIN_NAME
+  )
+  if (!is.null(save_path))
+    saveRDS(result_metadata, save_path)
+  
+  data <- subset(data, 
+                 PARAM %in% data_series_sel$PARAM & 
+                   STATION_CODE %in% data_series_sel$STATION_CODE & 
+                   TISSUE_NAME %in% data_series_sel$TISSUE_NAME &
+                   LATIN_NAME %in% data_series_sel$LATIN_NAME)
+  
+  if (length(unique(data$PARAM)) > 1){
+    stop("More than one PARAM in data")
+  }
+  
+  if (length(unique(data$STATION_CODE)) > 1){
+    stop("More than one STATION_CODE in data")
+  }
+  
+  if (length(unique(data$TISSUE_NAME)) > 1){
+    stop("More than one TISSUE_NAME in data")
+  }
+  
+  if (length(unique(data$LATIN_NAME)) > 1){
+    stop("More than one LATIN_NAME in data")
+  }
+  
+  # Normally 'k_values' is set from 'k_max' 
+  if (is.null(k_values)){
+    k_max <- data_series_sel$k_max
+    k_values <- 1:k_max
+  } 
+  
+  last_year_over_LOQ <- data_series_sel$Last_year_over_LOQ
+  
+  # Rule 1. Time series should be truncated from the left until Nplus/N >= 0.5     
+  # Rule 2. If a linear/smooth trend is fitted, the first year must be non-censored   
+  #   - however, to be able to compare models using DIC, all data need to be of same length        
+  data_clean <- data %>%
+    filter(Rule1)
+  
+  if (filter_rule2){
+    data_clean <- data_clean %>%
+      filter(Rule2)
+  }
+  
+  lc_fixedsplines_tp_s <- safely(leftcensored::lc_fixedsplines_tp)
+  
+  results_all_s <- purrr::map(
+    k_values, 
+    ~lc_fixedsplines_tp_s(
+      data = data_clean, 
+      k = .x, 
+      normalize = FALSE, 
+      raftery = raftery, 
+      measurement_error = "Uncertainty", 
+      predict_x = seq(min(data$x), max(data$x), by = 0.25), 
+      reference_x = last_year_over_LOQ, 
+      set_last_equal_x = last_year_over_LOQ)
+  )
+  
+  results_all_s <- transpose(results_all_s)
+  ok <- map_lgl(results_all_s$error, is.null)
+  
+  result_run <- list(
+    k_max = k_max,
+    k_values_ok = k_values[ok]
+  )
+  
+  # Add 'result_analysis' to the metadata and overwrite the list
+  result <- append(result_metadata, result_run)
+  if (!is.null(save_path))
+    saveRDS(result, save_path)
+  
+  if (sum(ok) > 0){
+    
+    results_all <- results_all_s$result[ok]
+    names(results_all) <- k_values[ok]
+    
+    # DIC values and dDIC
+    DIC <- purrr::map_dbl(results_all, "dic")
+    dDIC <- DIC - min(DIC)
+    dDIC_min <- sort(DIC)[2] - sort(DIC)[1]
+    
+    result_analysis <- list(
+      DIC = DIC,
+      dDIC = dDIC,
+      dDIC_min = dDIC_min,
+      k_sel = k_values[which.min(DIC)],
+      plot_data = results_all[[which.min(DIC)]]$plot_data,
+      diff_data = results_all[[which.min(DIC)]]$diff_data
+    )
+    
+    # Add 'result_analysis' to the metadata and overwrite the list
+    result <- append(result, result_analysis)
+    if (!is.null(save_path))
+      saveRDS(result, save_path)
+    
+  }
+  
+  NULL
+  
+}
+
+if (FALSE){
+  
+  # test
+  
+  param <- "CB28"
+  station <- "36A"
+  
+  debugonce(get_splines_results)
+  test <- get_splines_results(
+    subset(dat_all, PARAM %in% param & STATION_CODE %in% station))
+}
+
+# "Safe" version
+get_splines_results_seriesno_s <- safely(get_splines_results_seriesno)
+
+
 
 #
 # Extract raw data (point data)
