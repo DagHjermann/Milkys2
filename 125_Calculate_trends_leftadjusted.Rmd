@@ -3,8 +3,6 @@ title: "125 Calculate time trends using package leftadjusted"
 output: html_document
 ---
 
-Note: Ca 35 minutes run time for running all trends    
-
 This procedure uses - at this point - data from script 105.  
 - Should finally use data from script 109  
 
@@ -153,24 +151,73 @@ dat_all_prep1 <- bind_rows(
 
 # Test
 # lc_plot(dat_all_prep1 %>% filter(PARAM %in% "CB153" & STATION_CODE %in% "15A"))
-
+# lc_plot(dat_all_prep1 %>% filter(PARAM %in% "SN" & STATION_CODE %in% "80B"))
 ```
 
-### d. Add flags for rule 1 and rule 2 (columns Rule1 and Rule2)   
-
+### d1. Add flags for rule 1 and rule 2 (columns Rule1 and Rule2)   
 
 ```{r}
 
-# Test
-# test1 <- dat_all_prep1 %>% filter(PARAM %in% "CB153") %>% split(.$STATION_CODE)
-# test2 <- map_dfr(test1, leftcensored:::lc_flag1, show_result = FALSE)
+if (FALSE){
+ # Testing
+ test1 <- dat_all_prep1 %>% filter(PARAM %in% "SN" & STATION_CODE %in% "80B")
+ test2 <- leftcensored:::lc_flag1(test1)
+ test3 <- leftcensored:::lc_flag2(test2)
+}
 
-# Make list
-dat_all_prep1_list <- dat_all_prep1 %>% split(.$PARAM, .$STATION_CODE, .$LATIN_NAME, .$TISSUE_NAME)
-dat_all_prep2 <- map_dfr(dat_all_prep1_list, leftcensored:::lc_flag1, show_result = FALSE)
+lc_flag1_seriesno <- function(i, seriesdata, data){
+  data %>%
+    filter(PARAM %in% seriesdata$PARAM[i],
+           STATION_CODE %in% seriesdata$STATION_CODE[i],
+           LATIN_NAME %in% seriesdata$LATIN_NAME[i],
+           TISSUE_NAME %in% seriesdata$TISSUE_NAME[i]) %>%
+    leftcensored:::lc_flag1(show_result = FALSE)
+}
 
-dat_all_prep2_list <- dat_all_prep2 %>% split(.$PARAM, .$STATION_CODE, .$LATIN_NAME, .$TISSUE_NAME)
-dat_all_prep3 <- map_dfr(dat_all_prep2_list, leftcensored:::lc_flag2, show_result = FALSE)
+lc_flag2_seriesno <- function(i, seriesdata, data){
+  data %>%
+    filter(PARAM %in% seriesdata$PARAM[i],
+           STATION_CODE %in% seriesdata$STATION_CODE[i],
+           LATIN_NAME %in% seriesdata$LATIN_NAME[i],
+           TISSUE_NAME %in% seriesdata$TISSUE_NAME[i]) %>%
+    leftcensored:::lc_flag2(show_result = FALSE)
+}
+
+# Only series existing in the last year
+dat_series_for_flag <- dat_all_prep1 %>%
+  filter(MYEAR == last_year) %>%     
+  distinct(PARAM, STATION_CODE, LATIN_NAME, TISSUE_NAME) %>%
+  as.data.frame()
+dat_series_for_flag$Rowno <- 1:nrow(dat_series_for_flag) # only for interactive checking
+
+if (FALSE){
+ # Testing
+ test2 <- lc_flag1_seriesno(1537, dat_series_for_flag, dat_all_prep1)
+ test3 <- lc_flag2_seriesno(1537, dat_series_for_flag, dat_all_prep1)
+ xtabs(~Rule2 + MYEAR, test3)
+}
+
+# SLOW! 9 minutes for flag1, 4 minutes fpr flag2 - but it works, at least
+dat_all_prep2 <- map_dfr(
+  1:nrow(dat_series_for_flag), lc_flag1_seriesno,
+  seriesdata = dat_series_for_flag,
+  data = dat_all_prep1)
+
+dat_all_prep3 <- map_dfr(
+  1:nrow(dat_series_for_flag), lc_flag2_seriesno,
+  seriesdata = dat_series_for_flag,
+  data = dat_all_prep2)
+
+# test4 <- dat_all_prep3 %>% filter(PARAM %in% "SN" & STATION_CODE %in% "80B")
+
+
+
+```
+
+### d2. Save
+```{r}
+
+saveRDS(dat_all_prep3, "Data/125_dat_all_prep3.rds")
 
 ```
 
@@ -310,6 +357,7 @@ last_year_over_LOQ <- dat_series %>%
   filter(PARAM == param & STATION_CODE == station_code) %>% # View
   pull(Last_year_over_LOQ)
 
+
 k_max <- dat_series %>%
   filter(PARAM == param & STATION_CODE == station_code) %>%
   pull(k_max)
@@ -325,7 +373,7 @@ if (FALSE){
   # debugonce(leftcensored::lc_fixedsplines_tp)
   check <- leftcensored::lc_fixedsplines_tp(
     data = data_prep, 
-    k = 5, 
+    k = 2, 
     normalize = FALSE, raftery = raftery, measurement_error = "Uncertainty", 
     predict_x = seq(min(data_prep$x), max(data_prep$x), by = 0.25), 
     reference_x = last_year_over_LOQ, set_last_equal_x = last_year_over_LOQ)
