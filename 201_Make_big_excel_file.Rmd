@@ -156,38 +156,40 @@ list_and_read_rds_file <- function(folder, pattern,
 ```
 
 
-### b. Time trend results   
-```{r, results='hold'}
+### b1. Time trends for last year  
 
-date_pattern <- "[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]"
-version_pattern <- "run[0-9][0-9]"
+```{r}
 
-# cat("======================================\n")
-# cat(" Trends for last year \n")
-# cat("======================================\n")
-# 
-# pattern_10yr_last <- paste0("^120_result_10yr_", last_year, "_", 
-#                             date_pattern, "_", version_pattern, ".rds$")
-# pattern_long_last <- paste0("^120_result_long_", last_year, "_", 
-#                             date_pattern, "_", version_pattern, ".rds$")
-# 
-# dir("Data", pattern = pattern_10yr_last)
-# dir("Data", pattern = pattern_10yr_last)
-# 
-# result_10yr_last <- list_and_read_rds_file(
-#   folder = "Data", 
-#   pattern = pattern_10yr_last, 
-#   check_date = data_list$file_date
-# )
-# result_long_last <- list_and_read_rds_file(
-#   folder = "Data", 
-#   pattern = pattern_long_last, 
-#   check_date = data_list$file_date
-# )
+warning("Make sure you have selected the latest trend results (although we will try to do it for you).\n\n")
+
+# All trend folders
+folders <- dir("Data", pattern = "125_results_2021_*", include.dirs = TRUE, full.names = TRUE)
+
+# Find folder with the latest results
+sel_type <- substr(folders, 26, 31) == "output"
+sel_year <- as.numeric(substr(folders, 18, 21)) %in% last_year
+folders_last_year <- folders[sel_type & sel_year]
+versions <- as.numeric(substr(folders_last_year, 23, 24)) 
+
+folders_last_year_latest <- folders_last_year[which.max(versions)]
+
+# Get data
+trends_last_year <- readRDS(paste0(folders_last_year_latest, "/126_df_trend_wide_2021.rds"))  
+
+message(nrow(trends_last_year), " trends read")
+
+```
+
+### b2. Time trends for second last year  
+
+```{r}
 
 cat("======================================\n")
 cat(" Trends for second last year \n")
 cat("======================================\n")
+
+date_pattern <- "[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]"
+version_pattern <- "run[0-9][0-9]"
 
 pattern_10yr_seclast <- paste0("^120_result_10yr_", last_year - 1, "_", 
                             date_pattern, "_", version_pattern, ".rds$")
