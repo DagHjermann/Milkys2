@@ -15,7 +15,8 @@ output: html_document
 
 last_year <- 2021
 
-folder_results <- paste0("Data/125_results_", last_year, "_02")
+folder_results <- paste0("Data/125_results_2021_03")
+folder_input <- paste0("Data/125_results_2021_03_input")
 
 indexvars <- c("PARAM", "STATION_CODE", "TISSUE_NAME", "LATIN_NAME")
 
@@ -46,47 +47,13 @@ source("125_Calculate_trends_leftadjusted_functions.R")
 
 ```{r, collapse=TRUE}
 
-dat_series <- readRDS("Data/125_dat_series.rds")
-dat_series_trend <- readRDS("Data/125_dat_series_trend.rds")
-dat_all_prep3 <- readRDS("Data/125_dat_all_prep3.rds")
-
-
-```
-
-### b. Add First_year, Last_year and number of years in the last 10 years  
-
-```{r}
-
-#if (FALSE){
-if (T){
-# Get First_year  
-  
-dat_series_extra1 <- dat_all_prep3 %>%
-  group_by(Substance.Group, PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME) %>%
-  summarise(First_year = min(x), .groups = "drop") 
-
-# Get N_years_10yr (number of years in the last 10 years)
-dat_series_extra2 <- dat_all_prep3 %>%
-  filter(MYEAR >= (last_year-9)) %>%
-  distinct(Substance.Group, PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME, x) %>%
-  count(Substance.Group, PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME, name = "N_years_10yr")
-
-dat_series <- dat_series %>%
-  left_join(dat_series_extra1,
-            by = c("Substance.Group", "PARAM", "STATION_CODE", "TISSUE_NAME", "LATIN_NAME")) %>%
-  left_join(dat_series_extra2,
-            by = c("Substance.Group", "PARAM", "STATION_CODE", "TISSUE_NAME", "LATIN_NAME"))
-
-dat_series_trend <- dat_series_trend %>%
-  left_join(dat_series_extra1,
-            by = c("Substance.Group", "PARAM", "STATION_CODE", "TISSUE_NAME", "LATIN_NAME")) %>%
-  left_join(dat_series_extra2,
-            by = c("Substance.Group", "PARAM", "STATION_CODE", "TISSUE_NAME", "LATIN_NAME"))
-}
+dat_series <- readRDS(paste0(folder_input, "/125_dat_series.rds"))
+dat_series_trend <- readRDS(paste0(folder_input, "/125_dat_series_trend.rds"))
+dat_all_prep3 <- readRDS(paste0(folder_input, "/125_dat_all_prep3.rds"))
 
 ```
 
-### c. Check Rule1 and Rule2   
+### b. Make Rule1 / Rule2    
 
 - Rule 1. Time series should be truncated from the left until Nplus/N >= 0.5     
 - Rule 2. If a linear/smooth trend is fitted, the first year must be non-censored   
@@ -97,13 +64,12 @@ dat_series_trend <- dat_series_trend %>%
 
 ```{r}
 
-df_rule1 <- dat_all_prep3 %>%
+df_rule12 <- dat_all_prep3 %>%
   group_by(PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME) %>%
-  summarise(Rule1 = first(Rule1), .groups = "drop") 
+  summarise(Rule1 = first(Rule1), 
+            Rule2 = first(Rule2), .groups = "drop") 
 
-df_rule2 <- dat_all_prep3 %>%
-  group_by(PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME) %>%
-  summarise(Rule2 = first(Rule2), .groups = "drop") 
+xtabs(~Rule1 + Rule2, df_rule12)
 
 ```
 
@@ -149,9 +115,8 @@ k_sel[ok] <- map_int(result_list[ok], "k_sel")
 
 dat_success <- data.frame(seriesno, jags_finished, ok,   
                           PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME, k_sel) %>%
-  # Add Rule1_
-  left_join(df_rule1, by = indexvars) %>%
-  left_join(df_rule2, by = indexvars) %>%
+  # Add Rule1 and 2
+  left_join(df_rule12, by = indexvars) %>%
   # Add N_years, Years_over_LOQ, k_max
   left_join(dat_series_trend %>% 
               select(PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME, N_years, N_years_10yr, Years_over_LOQ, k_max),
