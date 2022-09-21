@@ -357,7 +357,7 @@ get_splines_results_seriesno <- function(seriesno,
     k_max <- data_series_sel$k_max
     k_values <- 1:k_max
   } 
-  
+
   last_year_over_LOQ <- data_series_sel$Last_year_over_LOQ
   
   # Rule 1. Time series should be truncated from the left until Nplus/N >= 0.5     
@@ -409,13 +409,25 @@ get_splines_results_seriesno <- function(seriesno,
     dDIC <- DIC - min(DIC)
     dDIC_min <- sort(DIC)[2] - sort(DIC)[1]
     
+    # Sum deviance and difference between deviances
+    dev <- map(results_all, "deviance") %>% map_dbl(sum) 
+    ddev <- -diff(dev)
+    # Likelihood ratio test (= difference between deviances)
+    df <- diff(k_values[ok])
+    p_values <- map2_dbl(ddev, df, ~1-pchisq(.x, .y))
+    lr_table = data.frame(k = names(dev), dev=dev, ddev = c(NA,ddev), p = c(NA,p_values))
+    model_sel <- which(p_values > 0.05)[1]  # select the last model before the first P > 0.05
+    k_sel <- k_values[ok][model_sel]
+    
     result_analysis <- list(
+      k_values = k_values[ok],
       DIC = DIC,
       dDIC = dDIC,
       dDIC_min = dDIC_min,
-      k_sel = k_values[which.min(DIC)],
-      plot_data = results_all[[which.min(DIC)]]$plot_data,
-      diff_data = results_all[[which.min(DIC)]]$diff_data
+      lr_table = lr_table,
+      k_sel = k_sel,
+      plot_data = map(results_all, "plot_data"),
+      diff_data = map(results_all, "diff_data")
     )
     
     # Add 'result_analysis' to the metadata and overwrite the list
