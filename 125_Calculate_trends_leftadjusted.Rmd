@@ -8,6 +8,7 @@ This procedure uses - at this point - data from script 105.
 
 
 ## 0. Constants (update each year)     
+
 ```{r}
 
 last_year <- 2021
@@ -29,6 +30,7 @@ folder_input <- paste0(folder_results, "_input")
 ```
   
 ## 1. Libraries and functions  
+
 ```{r, results='hide', message=FALSE, warning=FALSE}
 
 # install.packages("lubridate")
@@ -67,6 +69,7 @@ source("002_Utility_functions.R")
 
 ### a. Main data  
 Read and reformat the most recent data (by default)  
+
 ```{r, collapse=TRUE}
 
 # If we have NOT length-adjusted the last year's data:
@@ -104,7 +107,9 @@ Also combines PARAM = VDSI and PARAM = Intersex to PARAM = "VDSI/Intersex" for s
 dat_all <- homogenize_series(dat_all)
 
 ```
+
 ### c. Prepare data  
+
 ```{r}
 
 # These warnings can be ignored:
@@ -219,6 +224,7 @@ dat_all_prep3 <- map_dfr(
 ```
 
 ### d2. Save
+
 ```{r}
 
 saveRDS(dat_all_prep3, "Data/125_results_2021_03_input/125_dat_all_prep3.rds")
@@ -306,6 +312,7 @@ table(dat_series$Trend_model)
 
 
 ### f. Statistics per group  
+
 ```{r}
 
 dat_series %>%
@@ -320,6 +327,7 @@ dat_series %>%
 
 
 ### g. Last_year_over_LOQ  
+
 ```{r}
 
 # Last_year_over_LOQ vs Last_year
@@ -329,6 +337,7 @@ xtabs(~Last_year + Last_year_over_LOQ, dat_series)
 ```
 
 ### h. Data series to run  
+
 ```{r}
 
 dat_series_trend <- dat_series %>%
@@ -340,6 +349,7 @@ dat_series_trend$series_no <- 1:nrow(dat_series_trend)
 ```
 
 ### i. Save  
+
 ```{r}
 
 saveRDS(dat_series, 
@@ -360,6 +370,7 @@ if (FALSE){
 ## 3. Test  
 
 ### Single series  
+
 ```{r}
 
 # param <- "AG"
@@ -465,6 +476,7 @@ get_splines_results_seriesno_s(409,
 ```
 
 ### Check result  
+
 ```{r}
 
 i <- 409
