@@ -311,15 +311,37 @@ extract_modelfit_data <- function(seriesno, folder, data_series){
   
   fn <- sprintf("trend_%04.0f.rda", seriesno)
   resultlist <- readRDS(paste0(folder, "/", fn))
-  data.frame(
-    PARAM = resultlist[["PARAM"]],
-    STATION_CODE = resultlist[["STATION_CODE"]],
-    TISSUE_NAME = resultlist[["TISSUE_NAME"]],
-    LATIN_NAME = resultlist[["LATIN_NAME"]],
-    resultlist$plot_data[[resultlist$k_sel]]
-  )
-
+  if (!is.null(resultlist$plot_data)){
+    k_sel <- resultlist$k_sel
+    # The following was only an issue before correcting code of 
+    #   at the end of get_splines_results_seriesno
+    if (is.na(k_sel) & sum(resultlist$lr_table$p[-1] > 0.05) == 0){
+      k_sel <- length(resultlist$k_values_ok)
+    }
+    result <- data.frame(
+      PARAM = resultlist[["PARAM"]],
+      STATION_CODE = resultlist[["STATION_CODE"]],
+      TISSUE_NAME = resultlist[["TISSUE_NAME"]],
+      LATIN_NAME = resultlist[["LATIN_NAME"]],
+      resultlist$plot_data[[k_sel]]
+    )
+  } else {
+    result <- data.frame(
+      PARAM = resultlist[["PARAM"]],
+      STATION_CODE = resultlist[["STATION_CODE"]],
+      TISSUE_NAME = resultlist[["TISSUE_NAME"]],
+      LATIN_NAME = resultlist[["LATIN_NAME"]]
+    )
+  }
+  result
 }
+
+# Eaxmple of failed model = 2
+# $ seriesno    : int 890
+# $ PARAM       : chr "HG"
+# $ STATION_CODE: chr "24B"
+# $ TISSUE_NAME : chr "Muskel"
+# $ LATIN_NAME  : chr "Gadus morhua"
 
 if (FALSE){
   debugonce(extract_modelfit_data)
@@ -330,13 +352,30 @@ extract_difference_data <- function(seriesno, folder){
   
   fn <- sprintf("trend_%04.0f.rda", seriesno)
   resultlist <- readRDS(paste0(folder, "/", fn))
-  data.frame(
-    PARAM = resultlist[["PARAM"]],
-    STATION_CODE = resultlist[["STATION_CODE"]],
-    TISSUE_NAME = resultlist[["TISSUE_NAME"]],
-    LATIN_NAME = resultlist[["LATIN_NAME"]],
-    resultlist$diff_data[[resultlist$k_sel]]
-  )
+  fn <- sprintf("trend_%04.0f.rda", seriesno)
+  resultlist <- readRDS(paste0(folder, "/", fn))
+  if (!is.null(resultlist$plot_data)){
+    k_sel <- resultlist$k_sel
+    # The following was only an issue before correcting code of 
+    #   at the end of get_splines_results_seriesno
+    if (is.na(k_sel) & sum(resultlist$lr_table$p[-1] > 0.05) == 0){
+      k_sel <- length(resultlist$k_values_ok)
+    }
+    result <- data.frame(
+      PARAM = resultlist[["PARAM"]],
+      STATION_CODE = resultlist[["STATION_CODE"]],
+      TISSUE_NAME = resultlist[["TISSUE_NAME"]],
+      LATIN_NAME = resultlist[["LATIN_NAME"]],
+      resultlist$diff_data[[resultlist$k_sel]]
+    )
+  } else {
+    result <- data.frame(
+      PARAM = resultlist[["PARAM"]],
+      STATION_CODE = resultlist[["STATION_CODE"]],
+      TISSUE_NAME = resultlist[["TISSUE_NAME"]],
+      LATIN_NAME = resultlist[["LATIN_NAME"]]
+    )
+  }
   
 }
 
