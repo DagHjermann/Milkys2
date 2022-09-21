@@ -15,9 +15,9 @@ output: html_document
 
 last_year <- 2021
 
-folder_results <- paste0("Data/125_results_2021_03")
-folder_input <- paste0("Data/125_results_2021_03_input")
-folder_output <- paste0("Data/125_results_2021_03_output")
+folder_results <- "Data/125_results_2021_03"
+folder_input <- paste0(folder_results, "_input")
+folder_output <- paste0(folder_results, "_output")
 
 indexvars <- c("PARAM", "STATION_CODE", "TISSUE_NAME", "LATIN_NAME")
 

@@ -18,7 +18,7 @@ series_lastyear <- 2018   # The series must last at least until this year
 
 # Folder for saving input files and results
 folder_results <- "Data/125_results_2021_03"
-folder_input <- "Data/125_results_2021_03_input/"
+folder_input <- paste0(folder_results, "_input")
 
 # folder_results <- paste0("Data/125_results_", last_year)
 # 
