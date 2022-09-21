@@ -246,8 +246,12 @@ get_splines_results_seriesno <- function(seriesno,
     df <- diff(k_values[ok])
     p_values <- map2_dbl(ddev, df, ~1-pchisq(.x, .y))
     lr_table = data.frame(k = names(dev), dev=dev, ddev = c(NA,ddev), p = c(NA,p_values))
-    model_sel <- which(p_values > 0.05)[1]  # select the last model before the first P > 0.05
-    k_sel <- k_values[ok][model_sel]
+    if (sum(p_values > 0.05) > 0){
+      model_sel <- which(p_values > 0.05)[1]  # select the last model before the first P > 0.05
+      k_sel <- k_values[ok][model_sel]
+    } else {
+      k_sel <- tail(k_values[ok], 1)
+    }
     
     result_analysis <- list(
       k_values = k_values[ok],
