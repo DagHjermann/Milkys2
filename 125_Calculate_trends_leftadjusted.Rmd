@@ -16,6 +16,10 @@ last_year <- 2021
 series_lastyear <- 2018   # The series must last at least until this year    
                           # Series without data in any of the three last years will be excluded
 
+# Folder for saving input files and results
+folder_results <- "Data/125_results_2021_03"
+folder_input <- "Data/125_results_2021_03_input/"
+
 # folder_results <- paste0("Data/125_results_", last_year)
 # 
 # if (!dir.exists(folder_results)){
@@ -217,7 +221,7 @@ dat_all_prep3 <- map_dfr(
 ### d2. Save
 ```{r}
 
-saveRDS(dat_all_prep3, "Data/125_dat_all_prep3.rds")
+saveRDS(dat_all_prep3, "Data/125_results_2021_03_input/125_dat_all_prep3.rds")
 
 ```
 
@@ -228,9 +232,11 @@ saveRDS(dat_all_prep3, "Data/125_dat_all_prep3.rds")
 
 ```{r}
 
-# version of max() that tolerates being given an x with length zero without warning
+# version of max() and min() that tolerates being given an x with length zero without warning
 max_warningless <- function(x)
   ifelse(length(x)==0, NA, max(x))
+min_warningless <- function(x)
+  ifelse(length(x)==0, NA, min(x))
 
 # TEST
 # sel <- c(F,F,T,T,F)
@@ -239,26 +245,37 @@ max_warningless <- function(x)
 # max_warningless((1:5)[sel])
 
   
-dat_series <- dat_all_prep3 %>%
+ dat_series_1 <- dat_all_prep3 %>%
   group_by(Substance.Group, PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME, x) %>%
   summarise(
     N = n(),
     N_over_LOQ = sum(uncensored == 1),
     P_over_LOQ = N_over_LOQ/N,
+    Rule1 = first(Rule1),
+    Rule2 = first(Rule2),
     .groups = "drop") %>%
   group_by(Substance.Group, PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME) %>%
   summarise(
-    First_year = min(x),
-    Last_year = max(x),
-    N_years = n(),
-    N_years_10yr = length(unique(x[x >= (last_year-10)])),
-    Years_over_LOQ = sum(N_over_LOQ > 0),
-    Last_year_over_LOQ = max_warningless(x[N_over_LOQ > 0]),
-    .groups = "drop") %>% 
-  filter(Last_year >= last_year) %>%
+    First_year_overall = min(x),
+    Last_year_overall = max(x),
+    First_year = min_warningless(x[Rule1 & Rule2]),
+    Last_year = max_warningless(x[Rule1 & Rule2]),
+    N_years = length(unique(x[Rule1 & Rule2])),
+    N_years_10yr = length(unique(x[Rule1 & Rule2 & x >= (last_year-10)])),
+    Years_over_LOQ = sum(Rule1 & Rule2 & N_over_LOQ > 0),
+    Last_year_over_LOQ = max_warningless(x[Rule1 & Rule2 & N_over_LOQ > 0]),
+    .groups = "drop") 
+
+ if (FALSE){ 
+   dat_series_1 %>% filter(PARAM %in% "CB28") %>% View() 
+   dat_all_prep3 %>% filter(PARAM %in% "CB28" & STATION_CODE %in% "98A2") %>% lc_plot()
+ }
+ 
+dat_series <- dat_series_1 %>%
+  filter(Last_year_overall >= last_year & N_years_10yr > 0) %>%
   mutate(
     Trend_model = case_when(
-      Years_over_LOQ <= 1 ~ "No model",
+      Years_over_LOQ %in% 1 ~ "No model",
       Years_over_LOQ %in% 2 & N_years %in% 2 ~ "No model",
       Years_over_LOQ %in% 2:4 & N_years >= 3 ~ "Mean",
       Years_over_LOQ %in% 5:6 ~ "Linear",
@@ -317,14 +334,25 @@ xtabs(~Last_year + Last_year_over_LOQ, dat_series)
 dat_series_trend <- dat_series %>%
   filter(!Trend_model %in% "No model") 
 
+# 'series_no' decides name of result file that will be (over)written  
+dat_series_trend$series_no <- 1:nrow(dat_series_trend)
+
 ```
 
 ### i. Save  
 ```{r}
 
-saveRDS(dat_series, "Data/125_dat_series.rds")
-saveRDS(dat_series_trend, "Data/125_dat_series_trend.rds")
-saveRDS(dat_all_prep3, "Data/125_dat_all_prep3.rds")
+saveRDS(dat_series, 
+        paste0(folder_input, "/125_dat_series.rds"))
+saveRDS(dat_series_trend, 
+        paste0(folder_input, "/125_dat_series_trend.rds"))
+
+if (FALSE){
+  # Read back
+  dat_all_prep3 <- readRDS(paste0(folder_input, "/125_dat_all_prep3.rds"))
+  dat_series <- readRDS(paste0(folder_input, "/125_dat_series.rds"))
+  dat_series_trend <- readRDS(paste0(folder_input, "/125_dat_series_trend.rds"))
+}
 
 ```
 
@@ -345,18 +373,30 @@ station_code <- "02B"
 param <- "MCCP eksl. LOQ"
 station_code <- "71B"
 
+#
+# Example 1
+#
+
+# MCMC stops - Compilation error on line 22.  Unknown variable zero
+param <- "HG"
+station_code <- "36A"
+
+# Fairly fast
+param <- "CB52"
+station_code <- "65A"
+
 data_prep <- dat_all_prep3 %>%
   filter(PARAM == param & STATION_CODE == station_code)
 
 i <- with(dat_series_trend, which(PARAM == param & STATION_CODE == station_code))
 i
+dat_series_trend[i,]
 
 lc_plot(data_prep)
 
 last_year_over_LOQ <- dat_series %>%
   filter(PARAM == param & STATION_CODE == station_code) %>% # View
   pull(Last_year_over_LOQ)
-
 
 k_max <- dat_series %>%
   filter(PARAM == param & STATION_CODE == station_code) %>%
@@ -395,6 +435,15 @@ if (FALSE){
       reference_x = last_year_over_LOQ, set_last_equal_x = last_year_over_LOQ)
   )
   
+  names(results_all) <- k_values
+  str(results_all, 1) 
+  str(results_all[[1]], 1) 
+  str(results_all[[1]]$deviance, 1) 
+  dev <- map(results_all, "deviance", .id = "k") %>% map_dbl(sum) 
+  ddev <- -diff(dev)
+  p_values <- 1-pchisq(ddev, 1)
+  data.frame(k = names(dev), dev=dev, ddev = c(NA,ddev), p = c(NA,p_values))
+  
 }
 
 # lc_plot(data_prep)
@@ -406,27 +455,21 @@ lc_plot(data_prep, results = results_all, facet = "wrap")
 
 ```{r, results='hide', message=FALSE, warning=FALSE}
 
-get_splines_results_seriesno_s(972, 
-                             data = dat_all_prep3, 
-                             data_series = dat_series_trend, 
-                             foldername = "Data/125_results_2021", 
-                             raftery = FALSE)
-
 # debugonce(get_splines_results_seriesno)
-get_splines_results_seriesno_s(52, 
+get_splines_results_seriesno_s(409, 
                              data = dat_all_prep3, 
                              data_series = dat_series_trend, 
-                             foldername = "Data/125_results_2021_01",  # test site 
-                             raftery = TRUE)
+                             foldername = folder_results,  # test site 
+                             raftery = FALSE)
 
 ```
 
 ### Check result  
 ```{r}
 
-i <- 58
+i <- 409
 fn <- sprintf("trend_%04i.rda", i)
-check <- readRDS(paste0("Data/125_results_2021/", fn))
+check <- readRDS(paste0(folder_results, "/", fn))
 
 str(check, 1)
 
@@ -464,9 +507,10 @@ if (FALSE){
   
   # Do only once
   future::availableCores()
+  
   # 4 / 16 / 64 
-  cl <- makeCluster(64)
-  registerDoParallel(cores = 64)
+  cl <- makeCluster(63)
+  registerDoParallel(cores = 63)
   
 }
 
@@ -478,15 +522,13 @@ if (FALSE){
 # seriesno <- 1:nrow(dat_series_trend) 
 
 # NEW: seriesno = column in the 'dat_series' data
-dat_series_trend$series_no <- 1:nrow(dat_series_trend) 
-seriesno <- dat_series_trend$series_no 
+series_no <- dat_series_trend$series_no 
 
 range(series_no)
 length(series_no) # 1507
 
 # Note folder name!
 
-folder_results <- "Data/125_results_2021_02"
 check_contents <- dir(folder_results)
 
 if (length(check_contents) > 0){
@@ -610,6 +652,7 @@ table(dat_success$Rule1_first)  # 6   - should be run again
 table(dat_success$Rule2_first)  # 20  - should be run again
 
 ```
+
 ## 7. Run the rest   
 
 - To use if your analyses were interrupted  
