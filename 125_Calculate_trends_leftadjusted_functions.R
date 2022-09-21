@@ -361,7 +361,8 @@ tsplot_seriesno <- function(seriesno,
   titlestring <- paste0(resultlist$PARAM, " at ", resultlist$STATION_CODE, " (", resultlist$TISSUE_NAME, " from ", resultlist$LATIN_NAME, ")")
   
   if (!is.null(resultlist$plot_data)){
-    gg <- ggplot(resultlist$plot_data, aes(x, y)) +
+    k_sel <- resultlist$k_sel
+    gg <- ggplot(resultlist$plot_data[[k_sel]], aes(x, y)) +
       geom_ribbon(aes(ymin = y_q2.5, ymax = y_q97.5), fill = "lightblue") +
       geom_point(data = df_points %>% filter(!is.na(y))) +
       geom_point(data = df_points %>% filter(!is.na(threshold)), aes(y = threshold), shape = 6) +
