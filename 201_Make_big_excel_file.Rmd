@@ -242,8 +242,6 @@ result_long_seclast <- list_and_read_rds_file(
   pattern = pattern_long_seclast, 
 )
 
-
-
 ```
 
 ### c. Labware data  
@@ -404,7 +402,6 @@ if (FALSE){
 
 # names(df)
 # PARAM", "LATIN_NAME", "TISSUE_NAME", "STATION_CODE", "Basis
-
 
 #
 # 4. List of station names and coordinates     
@@ -748,61 +745,86 @@ colnames(data_xlvalues)
 ```{r}
 
 # Make table based on 'data_xlvalues'
-data_EQS <- data_xlvalues
-colnames(data_EQS) <- sub("Yr_", "EQS_", colnames(data_EQS), fixed = TRUE)
-# head(data_EQS, 2)
+data_EQS1 <- data_xlvalues
+colnames(data_EQS1) <- sub("Yr_", "EQS_", colnames(data_EQS1), fixed = TRUE)
+# head(data_EQS1, 2)
 
 # Delete all data values to make table to fill in 
-sel_cols <- grepl("EQS_", colnames(data_EQS))
-data_EQS[,sel_cols] <- NA
+sel_cols <- grepl("EQS_", colnames(data_EQS1))
+data_EQS1[,sel_cols] <- NA
 colno_values <- which(sel_cols)
 
 # Read EQS limits  
 EQS_limits <- read.csv("Input_data/EQS_limits.csv")
 
-# Check EQS limits
+# Check which combinations of PARAM, LATIN_NAME and Basis that are given  
+# E.g., how many are species-unspecific (LATIN_NAME = NA)
 EQS_limits %>%
-  count(is.na(PARAM), is.na(LATIN_NAME), is.na(Basis))
+  count(!is.na(PARAM), !is.na(LATIN_NAME), !is.na(Basis))
+  
 
 ```
 
-### e2. Add EQS limits - add Limit  
+### e2. Add EQS limits - add 'Limit'  
 ```{r}
 
-# Add Limit1 (species-independent) and Limit2 (depends on species) 
-data_EQS <- data_EQS %>%
-  # Add limit for EQS given only by PARAM and Basis
-  safe_left_join(
-    EQS_limits %>% 
+df_eqslimits1 <- EQS_limits %>% 
       filter(!is.na(PARAM) & is.na(LATIN_NAME) & !is.na(Basis)) %>% 
       select(PARAM, Basis, Limit) %>% 
-      rename(Limit1 = Limit), 
-    by = c("PARAM", "Basis"),
-    na_matches = "never",
-    check = "BCV") %>%
-  # Add limit for EQS given by PARAM, LATIN_NAME and Basis
-  safe_left_join(
-    EQS_limits %>% 
+      rename(Limit1 = Limit)
+df_eqslimits2 <- EQS_limits %>% 
       filter(!is.na(PARAM) & !is.na(LATIN_NAME) & !is.na(Basis)) %>%   # add LATIN_NAME
       select(PARAM, LATIN_NAME, Basis, Limit) %>%                      # add LATIN_NAME
-      rename(Limit2 = Limit), 
+      rename(Limit2 = Limit)
+
+# Add Limit1 (species-independent) and Limit2 (depends on species) 
+data_EQS2 <- data_EQS1 %>%
+  # Add limit for EQS given only by PARAM and Basis
+  safe_left_join(
+   df_eqslimits1, 
+    by = c("PARAM", "Basis"),
+    na_matches = "never",
+    check = "BCV") %>% # View("Lim1")
+  # Add limit for EQS given by PARAM, LATIN_NAME and Basis
+  safe_left_join(
+    df_eqslimits2, 
     by = c("PARAM", "LATIN_NAME", "Basis"),                            # add LATIN_NAME
     na_matches = "never",
     check = "BCV")
 
-check <- with(data_EQS, !is.na(Limit1) & !is.na(Limit2))
+check <- with(data_EQS2, !is.na(Limit1) & !is.na(Limit2))
 if (sum(check)> 0){
   stop("Some rows have both Limit1 and Limit2!")
 }
 
+if (FALSE){
+  # For checking / pedagogic crutches
+  data_EQS2 %>%
+    filter(PARAM %in% unique(EQS_limits$PARAM) & Basis == "WW" |
+             PARAM %in% "CB118" & Basis == "FB") %>%
+    select(PARAM, LATIN_NAME, Basis, Limit1, Limit2) %>%
+    View("species-independent limits")
+  data_EQS2 %>%
+    filter(PARAM %in% "CB_S6" & Basis == "WW") %>%
+    select(PARAM, LATIN_NAME, Basis, Limit1, Limit2) %>%
+    View("species-dependent limits")
+  
+}
+
 # Add Limit
-data_EQS <- data_EQS %>%
+data_EQS <- data_EQS2 %>%
   mutate(
     Limit = case_when(
       !is.na(Limit1) ~ Limit1,
       !is.na(Limit2) ~ Limit2)
   ) %>%
   select(-Limit1, -Limit2)
+
+if (FALSE){
+  # For checking / pedagogic crutches
+  data_EQS %>% filter(PARAM %in% unique(EQS_limits$PARAM) & Basis == "WW" | PARAM %in% "CB118" & Basis == "FB") %>% select(PARAM, LATIN_NAME, Basis, Limit) %>%
+    View("species-independent limits")
+}
 
 # Preliminary check:
 # cat("Number of data with/without and EQS limit (with = TRUE): \n ")
@@ -1172,7 +1194,7 @@ cat("\nNumber of columns:", ncol(data_xl), "\n") # 105
 ```
 
 
-#### Add EQSclass and EQS for last year   
+#### Add EQSclass and EQS for second last year   
 ```{r}
 
 cols <- c("PARAM", "LATIN_NAME", "TISSUE_NAME", "STATION_CODE", "Basis",
@@ -1181,7 +1203,6 @@ cols <- c("PARAM", "LATIN_NAME", "TISSUE_NAME", "STATION_CODE", "Basis",
 
 select_rows <- complete.cases(
   results_seclast_year[c("PARAM", "LATIN_NAME", "TISSUE_NAME", "STATION_CODE", "Basis")])
-
 
 # cols %in% colnames(results_seclast_year)
 data_xl <- safe_left_join(
@@ -1308,32 +1329,45 @@ cat("\nNumber of columns:", ncol(data_xl), "\n") # 110
 # Then we will change the name, also 
 data_xl$EQSclass_lastyear <- NA
 
-cat("\nNumber of columns:", ncol(data_xl), "\n") # 111
+cat("\nNumber of columns:", ncol(data_xl), "\n") # 115 (2021 data)
 
 ```
 
-### Add EQS limit (not for WWa at this point)     
+### EQS limit (not for WWa at this point)     
 
 ```{r}
+
 # Variable 'EQS'
 # head(EQS_limits, 2)
 
-EQS_limits <- EQS_limits %>%
-  rename(EQS = Limit) %>%
-  filter(!is.na(PARAM))  
+data_xl_back <- data_xl
 
-cols <- c("PARAM", "LATIN_NAME", "Basis", "EQS")
-# head(df)
+data_xl <- data_xl %>%
+  safe_left_join(
+    df_eqslimits1, 
+    by = c("PARAM", "Basis"), 
+    na_matches = "never",
+    check = "BCV") %>%
+  safe_left_join(
+    df_eqslimits2, 
+    by = c("PARAM", "LATIN_NAME", "Basis"), 
+    na_matches = "never",
+    check = "BCV") %>%
+  mutate(
+    EQS = case_when(
+      !is.na(Limit1) ~ Limit1,
+      !is.na(Limit2) ~ Limit2)
+  ) %>%
+  select(-Limit1, -Limit2)
 
-data_xl <- safe_left_join(
-  data_xl, 
-  EQS_limits[cols], 
-  by = c("PARAM", "LATIN_NAME", "Basis"), 
-  na_matches = "never",
-  check = "BCV")
+if (FALSE){
+  # For checking
+  data_xl %>% filter(Basis %in% c("WW","FB") & PARAM %in% EQS_limits$PARAM) %>% select(PARAM, LATIN_NAME, Basis, EQS) %>% View("eqs1") 
+  data_xl %>% filter(Basis %in% c("WW") & PARAM %in% "CB_S6_exloq") %>% select(PARAM, LATIN_NAME, Basis, EQS) %>% View("eqs2") 
+}
 
 # colnames(data_xl)
-cat("\nNumber of columns:", ncol(data_xl), "\n") # 112
+cat("\nNumber of columns:", ncol(data_xl), "\n") # 116 (2021 data)
 
 ```
 
@@ -1355,7 +1389,13 @@ data_xl$EQSclass_lastyear <- cut(value_lastyear/data_xl$EQS, breaks = c(-999999,
 colnumber <- which(colnames(data_xl) %in% "EQSclass_lastyear")
 colnames(data_xl)[colnumber] <- paste0("EQSclass_", last_year)
 
-cat("\nNumber of columns:", ncol(data_xl), "\n") # still 112
+if (FALSE){
+  # For checking
+  data_xl %>% filter(Basis %in% c("WW","FB") & PARAM %in% EQS_limits$PARAM) %>% select(PARAM, LATIN_NAME, Basis, Yr_2021, EQSclass_2021, EQS) %>% View("eqs1") 
+  data_xl %>% filter(Basis %in% c("WW") & PARAM %in% "CB_S6_exloq") %>% select(PARAM, LATIN_NAME, Basis, Yr_2021, EQSclass_2021, EQS) %>% View("eqs2") 
+}
+
+cat("\nNumber of columns:", ncol(data_xl), "\n") # still 116
 
 
 ```
@@ -1375,9 +1415,6 @@ cat("\nNumber of columns:", ncol(data_xl), "\n") # 113
 ```{r}
 
 # dir("Data", "126")
-
-trends_last_year <- readRDS("Data/126_df_trend_wide_2021.rds")    # NOTE: HARD-CODED!
-# head(trends_last_year)
 
 # Imitate to the last detail the previous version of 'trends_for_excel' data frame  
 trends_for_excel <- trends_last_year %>%
@@ -1615,7 +1652,6 @@ cat("\nNumber of columns:", ncol(data_xl), "\n") # 138
 
 
 ```
-
 ### Add trend and EQS change  
 4 columns: TREND_CHANGE	CLASS_CHANGE	EQS_CHANGE	EAC_CHANGE  
 ```{r}
@@ -2208,12 +2244,12 @@ if (FALSE){
   fn <- paste0("Big_excel_table/", file_versions$Filename[1])
   fn
 
-  
+
   # read R data (fast)
   check <- readRDS(file = sub(".csv", ".rds", fn, fixed = TRUE))
 
   # OR read csv (slow)
-  check <- read.csv2(file = fn)
+  # check <- read.csv2(file = fn)
 
   # Check header of csv:
   # readLines(fn, n = 1)
@@ -2371,6 +2407,41 @@ if (FALSE){
   write.csv(df_par, "Input_data/Lookup for big excel - param.csv")
   
 }
+
+```
+
+
+## APPENDIX 3. Old code for getting last time trend results      
+
+```{r, results='hold'}
+
+# date_pattern <- "[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]"
+# version_pattern <- "run[0-9][0-9]"
+
+# cat("======================================\n")
+# cat(" Trends for last year \n")
+# cat("======================================\n")
+# 
+# pattern_10yr_last <- paste0("^120_result_10yr_", last_year, "_", 
+#                             date_pattern, "_", version_pattern, ".rds$")
+# pattern_long_last <- paste0("^120_result_long_", last_year, "_", 
+#                             date_pattern, "_", version_pattern, ".rds$")
+# 
+# dir("Data", pattern = pattern_10yr_last)
+# dir("Data", pattern = pattern_10yr_last)
+# 
+# result_10yr_last <- list_and_read_rds_file(
+#   folder = "Data", 
+#   pattern = pattern_10yr_last, 
+#   check_date = data_list$file_date
+# )
+# result_long_last <- list_and_read_rds_file(
+#   folder = "Data", 
+#   pattern = pattern_long_last, 
+#   check_date = data_list$file_date
+# )
+
+
 
 ```
 
