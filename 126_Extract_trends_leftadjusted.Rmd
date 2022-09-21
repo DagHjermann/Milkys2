@@ -141,10 +141,12 @@ if (sum(check) == 1){
 ```{r}
 
 for (var in c("PARAM", "STATION_CODE", "TISSUE_NAME", "LATIN_NAME")){
-  print(
-    mean(dat_series_trend[[var]] != dat_success[[var]])  
-  )
-}
+  if (sum(dat_series_trend[[var]] != dat_success[[var]]) > 0){
+    stop("Key columns have different order")
+  }  
+} 
+
+cat("If you got this far, all key columns have the same order")
 
 ```
 
@@ -162,21 +164,22 @@ cat("PARAM for those with ok = FALSE :\n")
 table(subset(dat_success, !ok)$PARAM)
 
 cat("\n")
-cat("Station for PARAM = CB_S7_exloq :\n\n")
-xtabs(~ok + STATION_CODE, subset(dat_success, PARAM == "CB_S7_exloq"))
-
-cat("\n")
-cat("Station for PARAM = BDE49 :\n\n")
-xtabs(~ok + STATION_CODE, subset(dat_success, PARAM == "BDE49"))
+cat("STATION_CODE for those with ok = FALSE :\n")
+table(subset(dat_success, !ok)$STATION_CODE)
 
 cat("\n")
 cat("Estimation success vs k_max :\n\n")
 xtabs(~ok + k_max, dat_success)
 
-# xtabs(~ok + N_years, dat_success)
-# xtabs(~ok + Years_over_LOQ, dat_success)
-
 if (FALSE){
+  
+  cat("\n")
+  cat("Station for PARAM = CB_S7_exloq :\n\n")
+  xtabs(~ok + STATION_CODE, subset(dat_success, PARAM == "CB_S7_exloq"))
+  
+  cat("\n")
+  cat("Station for PARAM = BDE49 :\n\n")
+  xtabs(~ok + STATION_CODE, subset(dat_success, PARAM == "BDE49"))
   
   xtabs(~addNA(k_sel) + N_years, dat_success)
   
@@ -185,7 +188,11 @@ if (FALSE){
 }
 
 ```
+
 ### e. Check number of -Inf data  
+
+- Should be "zero" only (no series that didn't work, did it because they had zeroes)   
+
 ```{r}
 
 dat_lackof_success <-subset(dat_success, !ok)
@@ -197,11 +204,6 @@ dat_lackof_success$n_infin <- map_int(
 
 table(dat_lackof_success$n_infin)  
 
-# xtabs(~PARAM + n_infin, dat_lackof_success)
-
-dat_lackof_success %>%
-  filter(n_infin == 0)
-
 ```
 
 
@@ -209,9 +211,8 @@ dat_lackof_success %>%
 ```{r}
 
 # Worked:
+# debugonce(tsplot_seriesno)
 tsplot_seriesno(58, folder_results)
-
-# tsplot_seriesno(93, folder_results)
 
 ```
 
@@ -219,29 +220,43 @@ tsplot_seriesno(58, folder_results)
 
 ### a. Plot time series, all stations      
 
-```{r}
+```{r, fig.width=13, fig.height=10}
 
 param <- "MCCP eksl. LOQ"
 param <- "CB118"
 param <- "HG"
 
-pno <- dat_success %>%
+dat_success_pick <- dat_success %>%
   filter(PARAM == param,
-         ok) %>%
-  pull(seriesno)
+         ok)
+
+pno <- dat_success_pick %>% pull(seriesno)
+
+# debugonce(extract_modelfit_data)
+test <- extract_modelfit_data(pno[5], folder = folder_results)    # last model is best
+test <- extract_modelfit_data(pno[13], folder = folder_results)   # k = 2 didn't work, model 3 is best
+
 
 df_modelfit <- map_dfr(pno, extract_modelfit_data, folder = folder_results)
+# if the previous line doesn't work:
+# extract_modelfit_data_s <- safely(extract_modelfit_data)
+# df_modelfit <- map(pno, extract_modelfit_data_s, folder = folder_results) %>% 
+#   transpose()
+# df_modelfit$error %>% map_lgl(is.null) %>% which()
+
 df_rawdata <- map_dfr(pno, extract_raw_data)
 
 ggplot(df_modelfit, aes(x, y)) +
   geom_ribbon(aes(ymin = y_q2.5, ymax = y_q97.5), fill = "lightblue") +
   geom_point(data = df_rawdata %>% filter(!is.na(y))) +
   geom_point(data = df_rawdata %>% filter(!is.na(threshold)), aes(y = threshold), shape = 6) +
-  geom_line() +
+  geom_line(color = "red2") +
   facet_wrap(vars(STATION_CODE), scales = "free_y") +
   labs(title = param)
 
 ```
+
+
 ### b. Check trend file that goes into the big excel file  
 
 ```{r}
