@@ -312,7 +312,7 @@ extract_modelfit_data <- function(seriesno, folder, data_series){
     STATION_CODE = resultlist[["STATION_CODE"]],
     TISSUE_NAME = resultlist[["TISSUE_NAME"]],
     LATIN_NAME = resultlist[["LATIN_NAME"]],
-    resultlist$plot_data
+    resultlist$plot_data[[resultlist$k_sel]]
   )
 
 }
@@ -331,7 +331,7 @@ extract_difference_data <- function(seriesno, folder){
     STATION_CODE = resultlist[["STATION_CODE"]],
     TISSUE_NAME = resultlist[["TISSUE_NAME"]],
     LATIN_NAME = resultlist[["LATIN_NAME"]],
-    resultlist$diff_data
+    resultlist$diff_data[[resultlist$k_sel]]
   )
   
 }
