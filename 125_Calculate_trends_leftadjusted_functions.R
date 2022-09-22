@@ -94,7 +94,7 @@ if (FALSE){
 # Runs analysis for the time series given by row number 'seriesno' in 'data_series'
 # Data are written as a list to an rds file, 3 times:
 # - first, just after the function has started, just the parameter name etc. are written ('result_metadata')
-# - then k_max and k_values_ok are added after JAGS has run (creating 'results_all_s'),
+# - then k_max and k_values are added after JAGS has run (creating 'results_all_s'),
 #   and the first file is overwritten 
 # - then, if JAGS worked for at least one of the k_values, actual results are added to the list,
 #   and the first file is overwritten yet again 
@@ -219,9 +219,10 @@ get_splines_results_seriesno <- function(seriesno,
   results_all_s <- transpose(results_all_s)
   ok <- map_lgl(results_all_s$error, is.null)
   
+  k_values <- k_values[ok]
   result_run <- list(
     k_max = k_max,
-    k_values_ok = k_values[ok]
+    k_values = k_values
   )
   
   # Add 'result_analysis' to the metadata and overwrite the list
@@ -232,34 +233,59 @@ get_splines_results_seriesno <- function(seriesno,
   if (sum(ok) > 0){
     
     results_all <- results_all_s$result[ok]
-    names(results_all) <- k_values[ok]
+    names(results_all) <- k_values
     
     # DIC values and dDIC
     DIC <- purrr::map_dbl(results_all, "dic")
     dDIC <- DIC - min(DIC)
+    k_sel_dic <- which.min(DIC)
     dDIC_min <- sort(DIC)[2] - sort(DIC)[1]
     
     # Sum deviance and difference between deviances
     dev <- map(results_all, "deviance") %>% map_dbl(sum) 
     ddev <- -diff(dev)
     # Likelihood ratio test (= difference between deviances)
-    df <- diff(k_values[ok])
+    df <- diff(k_values)
     p_values <- map2_dbl(ddev, df, ~1-pchisq(.x, .y))
     lr_table = data.frame(k = names(dev), dev=dev, ddev = c(NA,ddev), p = c(NA,p_values))
+    
+    # Forward selection based on p-values  
     if (sum(p_values > 0.05) > 0){
       model_sel <- which(p_values > 0.05)[1]  # select the last model before the first P > 0.05
-      k_sel <- k_values[ok][model_sel]
+      k_sel_forward <- k_values[model_sel]
     } else {
-      k_sel <- tail(k_values[ok], 1)
+      k_sel_forward <- tail(k_values, 1)
     }
     
+    # Largest k which is better (P < 0.05) than all models with lower k
+    # Make matrix of p-values (i = null hypothesis, j = alt. hypothesis)
+    n <- length(dev)
+    ddev_matrix <- matrix(NA, nrow = n, ncol = n)
+    k_matrix <- matrix(NA, nrow = n, ncol = n)
+    p_matrix <- matrix(NA, nrow = n, ncol = n)
+    for (i in 1:(n-1)) { 
+      for (j in (i+1):n) { 
+        ddev_matrix[i,j] <- dev[i] - dev[j]
+        k_matrix[i,j] <- k_values[j] - k_values[i] 
+        p_matrix[i,j] <- 1 - pchisq(ddev_matrix[i,j], k_matrix[i,j]) 
+      }}
+    # Largest p for every alternative hypothesis
+    p_max <- apply(p_matrix, 2, max, na.rm = TRUE)
+    # Largest k which fulfills (largest p < 0.05)
+    k_sel <- max(k_values[which(p_max < 0.05)])
+
     result_analysis <- list(
-      k_values = k_values[ok],
+      k_values = k_values,
       DIC = DIC,
       dDIC = dDIC,
       dDIC_min = dDIC_min,
       lr_table = lr_table,
+      ddev_matrix = ddev_matrix,
+      k_matrix = k_matrix,
+      p_matrix = p_matrix,
       k_sel = k_sel,
+      k_sel_forward = k_sel_forward,
+      k_sel_dic = k_sel_dic,
       plot_data = map(results_all, "plot_data"),
       diff_data = map(results_all, "diff_data")
     )
