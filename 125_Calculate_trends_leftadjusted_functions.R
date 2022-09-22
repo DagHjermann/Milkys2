@@ -333,23 +333,18 @@ extract_raw_data <- function(seriesno,
   
 }
 
-extract_modelfit_data <- function(seriesno, folder, data_series){
+extract_modelfit_data <- function(seriesno, folder, data_series, selection = "k_sel"){
   
   fn <- sprintf("trend_%04.0f.rda", seriesno)
   resultlist <- readRDS(paste0(folder, "/", fn))
   if (!is.null(resultlist$plot_data)){
-    k_sel <- resultlist$k_sel
-    # The following was only an issue before correcting code of 
-    #   at the end of get_splines_results_seriesno
-    if (is.na(k_sel) & sum(resultlist$lr_table$p[-1] > 0.05) == 0){
-      k_sel <- length(resultlist$k_values_ok)
-    }
+    k_sel <- resultlist[[selection]]
     result <- data.frame(
       PARAM = resultlist[["PARAM"]],
       STATION_CODE = resultlist[["STATION_CODE"]],
       TISSUE_NAME = resultlist[["TISSUE_NAME"]],
       LATIN_NAME = resultlist[["LATIN_NAME"]],
-      resultlist$plot_data[[k_sel]]
+      resultlist$plot_data[[as.character(k_sel)]]
     )
   } else {
     result <- data.frame(
@@ -371,28 +366,24 @@ extract_modelfit_data <- function(seriesno, folder, data_series){
 
 if (FALSE){
   debugonce(extract_modelfit_data)
-  extract_modelfit_data(187)
+  extract_modelfit_data(58, "Data/125_results_2021_04")  %>% head(5)
+  extract_modelfit_data(58, "Data/125_results_2021_04", selection = "k_sel_dic")  %>% head(5)
 }
 
-extract_difference_data <- function(seriesno, folder){
+extract_difference_data <- function(seriesno, folder, selection = "k_sel"){
   
   fn <- sprintf("trend_%04.0f.rda", seriesno)
   resultlist <- readRDS(paste0(folder, "/", fn))
   fn <- sprintf("trend_%04.0f.rda", seriesno)
   resultlist <- readRDS(paste0(folder, "/", fn))
   if (!is.null(resultlist$plot_data)){
-    k_sel <- resultlist$k_sel
-    # The following was only an issue before correcting code of 
-    #   at the end of get_splines_results_seriesno
-    if (is.na(k_sel) & sum(resultlist$lr_table$p[-1] > 0.05) == 0){
-      k_sel <- length(resultlist$k_values_ok)
-    }
+    k_sel <- resultlist[[selection]]
     result <- data.frame(
       PARAM = resultlist[["PARAM"]],
       STATION_CODE = resultlist[["STATION_CODE"]],
       TISSUE_NAME = resultlist[["TISSUE_NAME"]],
       LATIN_NAME = resultlist[["LATIN_NAME"]],
-      resultlist$diff_data[[resultlist$k_sel]]
+      resultlist$diff_data[[as.character(k_sel)]]
     )
   } else {
     result <- data.frame(
@@ -403,10 +394,13 @@ extract_difference_data <- function(seriesno, folder){
     )
   }
   
+  result
+  
 }
 
 if (FALSE){
-  extract_difference_data(58)
+  extract_difference_data(58, "Data/125_results_2021_04")
+  extract_difference_data(58, "Data/125_results_2021_04", selection = "k_sel_dic")
 }
 
 
