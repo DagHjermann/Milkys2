@@ -173,10 +173,12 @@ versions <- as.numeric(substr(folders_last_year, 23, 24))
 
 folders_last_year_latest <- folders_last_year[which.max(versions)]
 
+cat("\nSelected folder: \n   ", folders_last_year_latest, "\n")
+
 # Get data
 trends_last_year <- readRDS(paste0(folders_last_year_latest, "/126_df_trend_wide_2021.rds"))  
 
-message(nrow(trends_last_year), " trends read")
+cat("\n", nrow(trends_last_year), "trends read")
 
 ```
 
@@ -1654,8 +1656,155 @@ cat("\nNumber of columns:", ncol(data_xl), "\n") # 138
 
 
 ```
+
+### Detection limit for BDESS_exloq (1) 
+
+**WARNING: HARD_CODED FOR 2021!** 
+
+- Sum BDE 6 (excl LOQ) 
+- Get/estimate detection limit   
+
+
+```{r}
+
+if (FALSE){
+  
+  # Columns to check
+  put(tail(names(data_xl), 30))
+  nm <- c("PARAM", "LATIN_NAME", "TISSUE_NAME", "Yr_2021", "EQS_2021", "EQSclass_2021", "EQS", "Det_limit_2020", "Det_limit_2021")
+  
+  # all data
+  data_xl[nm] %>% View("all")  
+  
+  # List parameters  
+  data_xl %>% filter(grepl("BDE", PARAM) & Basis %in% "WW") %>% pull(PARAM) %>% unique()
+
+  # BDE209 as example - Det_limit_2021 varies  
+  data_xl %>%
+    filter(!is.na(Det_limit_2021) & PARAM %in% "BDE209" & Basis %in% "WW") %>% .[nm] %>% View("bde")
+
+  # BDE6S as example - only exists for eider duck blood  
+  data_xl %>%
+    filter(!is.na(Det_limit_2021) & PARAM %in% "BDE6S" & Basis %in% "WW") %>% .[nm] %>% View("bde")
+
+}
+
+params <- c("BDE28", "BDE47", "BDE99", "BDE100", "BDE153", "BDE154")    # from script "101...functions.R"  
+
+df1 <- data_xl %>%
+  filter(PARAM %in% params & !is.na(Det_limit_2021)) %>%
+  group_by(PARAM, LATIN_NAME, TISSUE_NAME, Basis) %>%
+  summarize(
+    Det_limit_2021 = median(Det_limit_2021, na.rm  = TRUE), 
+    Det_limit_2021_min = min(Det_limit_2021, na.rm  = TRUE),  
+    Det_limit_2021_max = max(Det_limit_2021, na.rm  = TRUE),  
+    Det_limit_2021_range = Det_limit_2021_max - Det_limit_2021_min,
+    .groups = "drop") %>%
+  arrange(Basis, LATIN_NAME, TISSUE_NAME)
+
+table(df1$PARAM)
+
+# Show existence of LOQ by parameter and species-tissue  
+xtabs(~PARAM + paste(LATIN_NAME, TISSUE_NAME), df1)
+
+# Show level of LOQ by parameter and species-tissue  
+df1 %>%
+  filter(Basis == "WW") %>%
+  mutate(Species_tissue = paste(LATIN_NAME, TISSUE_NAME)) %>%
+  select(Species_tissue, PARAM, Det_limit_2021) %>%
+  pivot_wider(names_from = Species_tissue, values_from = Det_limit_2021)
+
+df2 <- df1 %>%
+  group_by(LATIN_NAME, TISSUE_NAME, Basis) %>%
+  summarize(Det_limit_2021_sum = sum(Det_limit_2021), 
+            Det_limit_2021_min = min(Det_limit_2021), 
+            n = n(), .groups = "drop") %>%
+  #       Estimate      = sum LOQ for 3-6       (number of lacking)*(minimum LOQ)
+  mutate(Det_limit_2021_new = Det_limit_2021_sum + (6-n)*Det_limit_2021_min,
+         PARAM = "BDESS_exloq")
+
+```
+
+
+### Detection limit for BDESS_exloq (2)  
+
+**WARNING: HARD_CODED FOR 2021!** 
+
+- Add to data
+
+```{r}
+
+# data_xl_back <- data_xl
+
+n1 <- nrow(data_xl)
+
+data_xl_new <- data_xl %>%
+  # Add column 'Det_limit_2021_new'
+  left_join(df2 %>% select(PARAM, LATIN_NAME, TISSUE_NAME, Basis, Det_limit_2021_new), 
+            by = c("PARAM", "LATIN_NAME", "TISSUE_NAME", "Basis")) %>%
+  # Set missing values in column 'Det_limit_2021'
+  mutate(Det_limit_2021 = case_when(
+    PARAM %in% "BDESS_exloq" & is.na(Det_limit_2021) ~ Det_limit_2021_new,
+    TRUE ~ Det_limit_2021)
+    )
+
+n2 <- nrow(data_xl_new)
+
+if (n1 != n2){
+  stop("Left join - row numbers should not change!")
+}
+
+# Check
+# data_xl_new %>% filter(PARAM %in% "BDESS_exloq" & Basis %in% "WW") %>% count(PARAM, LATIN_NAME, TISSUE_NAME, Basis, Det_limit_2021, Det_limit_2021_new)
+
+# Remove column 'Det_limit_2021_new'
+data_xl <- data_xl_new %>%
+  select(-Det_limit_2021_new)
+
+```
+
+
+### Remove last year's EQS where it is lower than detection limit  
+
+**WARNING: HARD_CODED FOR 2021!** 
+
+
+```{r}
+
+sel1 <- !is.na(data_xl$Det_limit_2021) & !is.na(data_xl$EQS); sum(sel1)
+sel2 <- with(data_xl, sel1 & EQS < Det_limit_2021); sum(sel2)
+
+# Check
+# data_xl[sel2, nm] %>% View("EQS problem")  
+
+data_xl[sel2, "EQS_2021"] <- ""
+data_xl[sel2, "EQSclass_2021"] <- NA
+
+cat(sum(sel2), "EQS values deleted becaus they were lower than detection limit \n\n")  
+
+cat("Deleted: \n")
+xtabs(~paste(LATIN_NAME, TISSUE_NAME) + PARAM, data_xl[sel2,])
+
+if (FALSE){
+  
+  param <- "BDESS_exloq"
+  param <- "BDE47"
+  sel <- with(data_xl, PARAM %in% param & Basis %in% "WW")
+  data_xl[sel, nm] %>% View(param)  
+  
+  data_med2 %>% 
+    filter(PARAM %in% param & Basis %in% "WW" & MYEAR == 2021) %>%
+    group_by(LATIN_NAME, TISSUE_NAME, Basis) %>%
+    summarize(Over_LOQ, N_median)
+    
+}
+```
+
+
 ### Add trend and EQS change  
+
 4 columns: TREND_CHANGE	CLASS_CHANGE	EQS_CHANGE	EAC_CHANGE  
+
 ```{r}
 
 # TREND_CHANGE
@@ -2229,6 +2378,7 @@ cat("Excel file", sQuote(fn_stations), "(one line per station) written to folder
 #   and then by reading the rds file. You only need to do one of them.)
 #
 if (FALSE){
+  
   #
   # Existing file names (dates and versions)
   #
@@ -2243,6 +2393,7 @@ if (FALSE){
     arrange(desc(Date), desc(Version))
   file_versions
   
+  # Newest version = version 1 (Filename[1])
   fn <- paste0("Big_excel_table/", file_versions$Filename[1])
   fn
 
@@ -2263,6 +2414,13 @@ if (FALSE){
   check %>%
     select(PARAM, Substance.Group, LATIN_NAME, TISSUE_NAME, STATION_CODE, Basis, 
          Yr_2016, Yr_2017, Yr_2018, Yr_2019, EQS_2019, Yr_2020, EQS_2020, Yr_2021, EQS_2021, N_string, SD_last, EQS) %>%
+    View("check")
+
+  # Check, selected columns with trends
+  check %>%
+    filter(Basis == "WW") %>%
+    select(PARAM, Substance.Group, LATIN_NAME, TISSUE_NAME, STATION_CODE, Basis, 
+         Yr_2019, EQS_2019, Yr_2020, EQS_2020, Yr_2021, EQS_2021, N_string, SD_last, EQS, Trends.2020, Trends.2021) %>%
     View("check")
 
   # Check data for all TBT
