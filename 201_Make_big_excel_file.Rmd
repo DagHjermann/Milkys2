@@ -2275,7 +2275,25 @@ x[i1:i2]
 
 ```
 
+### Fix problem of scientific notation in csv
+```{r}
+
+# Round p-values
+
+vars <- c("Trend p(long) this year", "Trend p(short) this year",
+          "Trend. p(long) last year"  "Trend. p(short) last year")
+for (var in vars){
+  data_xl_lessthans[[var]] <- round(data_xl_lessthans[[var]], 6)
+  }
+
+old_options <- options(scipen = 50)
+
+```
+
+
+
 ### For checking
+
 ```{r}
 if (FALSE){
   
