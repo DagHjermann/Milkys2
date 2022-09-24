@@ -38,6 +38,10 @@ editor_options:
     - PROREF values - found in "Proref_report_2017.xlsx" and "Proref_paper.xlsx" (both in Input_data)   
     - Possibly EQS - found in "Input_data/EQS_limits.xlsx"   
     - Code in a few places (only script 210?)  
+    
+* The data is checked for duplicates repeatedly, in the following sections: 
+2a7, 3b3, 3g, 7, 8c, 10d, 11a   
+    - Errors often shows in these checks  
 
 ## 1. Load libraries and functions   
 ```{r, results='hide', message=FALSE, warning=FALSE}
@@ -107,13 +111,23 @@ if (length(files) == 0){
   
 }
 
-n1 <- nrow(dat_new1)
-dat_new1 <- dat_new1 %>%
-  filter(!is.na(VALUE))
-n2 <- nrow(dat_new1)
+cat("\n")
 
-
-message("\n", n1-n2, " rows with no value of VALUE were removed")
+# If you want to remove VALUE = NA, change FALSE to TRUE in the next line  
+if (FALSE){
+  
+  n1 <- nrow(dat_new1)
+  dat_new1 <- dat_new1 %>%
+    filter(!is.na(VALUE))
+  n2 <- nrow(dat_new1)
+  
+  message("\n", n1-n2, " rows with no value of VALUE were removed")
+  
+} else {
+  
+  warning("There are ", sum(is.na(dat_new1$VALUE)), " rows with VALUE = NA. These have NOT been removed")
+  
+}
 
 
 ```
@@ -249,6 +263,7 @@ dat_new1 <- dat_new1[!sel,]
 cat("dat_new1:", sum(sel), "records with adjusted PAHs removed\n")   
 
 ```
+
 ### a7. Check for duplicates  
 ```{r}
 
@@ -266,6 +281,97 @@ if (nrow(df_duplicates) > 0){
 }
 
 ```
+### a8. For eider duck, change names of CCP  
+
+* Use "eksl. LOQ, that is most similar to cod/blue mussel usage 
+
+```{r}
+
+sel <- with(dat_new1, STATION_CODE %in% "19N" & grepl("SCCP", NAME))
+# View(dat_new1[sel,])
+dat_new1$NAME[sel] <- "SCCP eksl. LOQ"
+
+sel <- with(dat_new1, STATION_CODE %in% "19N" & grepl("MCCP", NAME))
+# View(dat_new1[sel,])
+dat_new1$NAME[sel] <- "MCCP eksl. LOQ"
+
+```
+
+
+### a9. Change SCCP and MCCP values  
+
+- Change 'SCCP eksl. LOQ' by setting VALUE = 0 and FLAG = NA for data < LOQ  
+    - This is best for getting medians  
+- Add new parameter 'SCCP' which is just the same as the old 'SCCP eksl. LOQ'  
+    - This is intended to be used for trends mainly  
+- Same for MCCP  
+
+```{r}
+#
+# SCCPs
+#
+
+cat("SCCP: \n\n")
+
+# Check
+check <- dat_new1 %>% 
+  filter(NAME %in% c("SCCP eksl. LOQ", "SCCP inkl. LOQ"),
+         STATION_CODE != "19N") %>% # View("SCCP")          # 19N doesn't have 'inkl LOQ'
+  xtabs(~NAME + STATION_CODE, .)
+if (!identical(check[1,], check[2,])){
+  stop("Row 1 and row 2 should be identical!")
+}
+
+# Add rows with new parameter 'SCCP' 
+dat_to_add_SCCP <- dat_new1 %>% 
+  filter(NAME %in% "SCCP eksl. LOQ") 
+dat_to_add_SCCP$NAME <- "SCCP"
+
+if (sum(dat_new1$NAME %in% "SCCP") == 0)
+  dat_new1 <- bind_rows(dat_new1, dat_to_add_SCCP)
+cat(nrow(dat_to_add_SCCP), "rows added to the data, NAME = SCCP")
+
+# Change existing 'SCCP eksl. LOQ'  
+sel <- with(dat_new1, NAME %in% "SCCP eksl. LOQ" & FLAG1 %in% "<") 
+dat_new1$VALUE[sel] <- 0
+dat_new1$FLAG1[sel] <- as.character(NA)
+cat(sum(sel), "'SCCP eksl. LOQ' rows: VALUE changed to zero \n")
+
+#
+# MCCPs
+#
+
+cat("\n\n\nMCCP: \n\n")
+
+#
+# MCCPs
+check <- dat_new1 %>% 
+  filter(NAME %in% c("MCCP eksl. LOQ", "MCCP inkl. LOQ"),
+         STATION_CODE != "19N") %>%                         # 19N doesn't have 'inkl LOQ'
+  xtabs(~NAME + STATION_CODE, .)
+if (!identical(check[1,], check[2,])){
+  stop("Row 1 and row 2 should be identical!")
+}
+
+
+# Add rows with new parameter 'MCCP' 
+dat_to_add_MCCP <- dat_new1 %>% 
+  filter(NAME %in% "MCCP eksl. LOQ") 
+dat_to_add_MCCP$NAME <- "MCCP"
+
+if (sum(dat_new1$NAME %in% "MCCP") == 0)
+  dat_new1 <- bind_rows(dat_new1, dat_to_add_MCCP)
+cat(nrow(dat_to_add_MCCP), "rows added to the data, NAME = MCCP")
+
+# Change existing 'MCCP eksl. LOQ'  
+sel <- with(dat_new1, NAME %in% "MCCP eksl. LOQ" & FLAG1 %in% "<") 
+dat_new1$VALUE[sel] <- 0
+dat_new1$FLAG1[sel] <- as.character(NA)
+cat(sum(sel), "'MCCP eksl. LOQ' rows: VALUE changed to zero \n")
+
+
+```
+
 
 ### b1. Read legacy data  
 The data go up to 2017 and combines data from the Access database (up to 2015) and NIVAbasen (2016-17). 
@@ -385,7 +491,7 @@ cat("dat_new2: PARAM = Fett set for", sum(sel), "records \n")
 
 ```
 
-### b2. Check for duplicates  
+### b3. Check for duplicates  
 
 ```{r}
 
@@ -591,15 +697,11 @@ if (FALSE){
   
 }
 
-
+# 2021: Nothing is deleted
 ids <- colnames(tab)
 ids_to_delete <- ids[!ids %in% c("245999", "246000", "246001")]
-
 cat("ids_to_delete: \n")
 ids_to_delete
-
-# The only thing we lose by deleting these are MCCP eksl. LOQ, SCCP eksl. LOQ
-#   (see "check3")
 
 dat_new3 <- dat_new2 %>%
   filter(!SAMPLE_ID %in% ids_to_delete)  
@@ -706,9 +808,8 @@ if (FALSE){
 * Creates data 'dat_new4'  
 ```{r}
 
-fn <- "Input_data/Lookup table - preferred parameter units.xlsx"
-preferred_units <- read_excel(fn, sheet = "Preferred units")
-unit_conversion <- read_excel(fn, sheet = "Conversion factors")  
+preferred_units <- readr::read_csv("Input_data/Lookup table - preferred parameter units.csv", col_types = "c")
+unit_conversion <- readr::read_csv("Input_data/Lookup table - unit conversions.csv", col_types = "ccn")
 
 # Fix the spaces in 'UNIT' in unit_conversion:
 # find 'space_16bit' (non-breaking space) and replace with 'space_8bit' (ordinary space)    
@@ -769,7 +870,7 @@ check_unit2 <- check_unit %>%
 if (nrow(check_unit2) > 0){
   stop(nrow(check_unit2), 
        " param/units have forbidden units and no preferred unit!\n",
-       "Fix excel table 'Lookup table - preferred parameter units.xlsx' (folder Input_data).\n",
+       "Fix the csv table 'Lookup table - preferred parameter units.csv' (folder Input_data).\n",
        "Note: this is also where you will notice if some parameter names ('PARAM') should change name,\n",
        "  so you might go back to section 3.b1 to recode parameter names.\n",
        "(This error happened in Section 4d)")
@@ -795,7 +896,7 @@ if (nrow(check_unit3) > 0){
 }
 
 check_unit4a <- dat_new4 %>%
-  filter(UNIT != Preferred_unit & is.na(Conversion_factor)) %>%
+  filter(UNIT != Preferred_unit & is.na(Conversion_factor)) %>% # View()
   count(PARAM, UNIT, Preferred_unit, Conversion_factor)
 
 check_unit4b <- check_unit4a %>%
@@ -994,6 +1095,8 @@ if (check2 == 0){
 
 
 ## 8. Calculate VALUE_WW, VALUE_DW and VALUE_FB   
+
+### a. Calculation
 ```{r}
 
 dat_new6 <- dat_new6 %>%
@@ -1020,7 +1123,7 @@ dat_new6 <- dat_new6 %>%
 
 ```
 
-### Tables dry-weight and fat basis, last year    
+### b. Tables dry-weight and fat basis, last year    
 Note: the Somateria mollissima (eider duck) data (19N) are only 
 ```{r}
 
@@ -1099,7 +1202,7 @@ if (FALSE){
 
 ```
 
-###  Check duplicates again  
+###  c. Check duplicates again  
 ```{r}
 
 df_duplicates <- dat_new6 %>%
@@ -1814,7 +1917,7 @@ data_updated2$PARAM[sel] <- "SN"
 ```
 
 
-### j. Fix HG unit in Eider duck   
+### j. Fix HG value in Eider duck (instead of fixing theunit)   
 
 - Eider duck data 2021 given as SE (selenium) should be SN (tin)
 
@@ -1846,6 +1949,71 @@ data_updated2 %>%
 
 ```
 
+
+### l. Add SCCP and MCCP without LOQ for eider duck (S. mollissima)
+
+```{r}
+# 
+# data_updated2_backup <- data_updated2
+# 
+# data_updated2 %>%
+#   filter(grepl("SCCP", PARAM),
+#          LATIN_NAME %in% "Somateria mollissima") %>%
+#   xtabs(~MYEAR + PARAM, .)
+# 
+# # Get existing rows for eider duck
+# sel1 <- grepl("SCCP", data_updated2$PARAM) & data_updated2$LATIN_NAME %in% "Somateria mollissima"
+# sel2 <- grepl("MCCP", data_updated2$PARAM) & data_updated2$LATIN_NAME %in% "Somateria mollissima"
+# sel <- sel1 | sel2
+# cat(sum(sel), "eider duck rows selected")
+# 
+# dat_to_add <- dat_orig <- data_updated2[sel,]
+# 
+# # Pick LOQ rows
+# sel_loq <- dat_orig$FLAG1 %in% "<"
+# cat(sum(sel_loq), "rows <LOQ selected")
+# 
+# # For the new data with <LOQ, set value to 0 and set FLAG1 to NA
+# dat_to_add$VALUE_WW[sel_loq] <- 0
+# dat_to_add$VALUE_DW[sel_loq] <- 0
+# dat_to_add$VALUE_FB[sel_loq] <- 0
+# dat_to_add$FLAG1[sel_loq] <- as.character(NA)
+# # For ALL the new data (regardless of <LOQ), change PARAM to "SCCP eksl. LOQ" / "MCCP eksl. LOQ"
+# dat_to_add$PARAM <- sub("inkl", "eksl", dat_to_add$PARAM)
+# 
+# # Check
+# if (FALSE){
+#   bind_cols(
+#     dat_orig %>% select(LATIN_NAME, PARAM, VALUE_WW, FLAG1),
+#     dat_to_add %>% select(LATIN_NAME, PARAM, VALUE_WW, FLAG1)
+#   ) %>% View()
+# }
+# 
+# # Add to data  
+# n1 <- nrow(data_updated2)
+# 
+# # Check if it already has been added
+# check <- grepl("SCCP eksl", data_updated2$PARAM) & data_updated2$LATIN_NAME %in% "Somateria mollissima"
+# 
+# 
+# # Add only if the "eksl. LOQ" data are NOT there
+# if (sum(check) == 0){
+#   data_updated2 <- bind_rows(data_updated2, dat_to_add)
+# }
+# n2 <- nrow(data_updated2)
+# 
+# cat(n2-n1, "rows of 'eksl. LOQ' data for eider duck added to data set \n")
+
+```
+#### . - check again
+```{r}
+
+data_updated2 %>%
+  filter((grepl("SCCP", PARAM) | grepl("MCCP", PARAM)),
+         LATIN_NAME %in% "Somateria mollissima") %>%
+  xtabs(~MYEAR + PARAM, .)  
+
+```
 
 
 ## 11. Save the data for later use    
@@ -1901,7 +2069,7 @@ if (nrow(df_duplicates) > 0){
   xtabs(~PARAM, df_duplicates) %>% print()
   xtabs(~MYEAR, df_duplicates) %>% print()
   xtabs(~MYEAR + PARAM, df_duplicates) %>% print()
-  stop("Duplicates in the data! Check 'df_duplicates'. (Section 10d)\n")
+  stop("Duplicates in the data! Check 'df_duplicates'. (Section 11a)\n")
 } else {
   cat("No duplicates found in the data. \n")
 }
