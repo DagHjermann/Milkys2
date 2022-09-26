@@ -369,7 +369,9 @@ message("nrow(df_lnmea): ", nrow(df_lnmea))  # 752
 
 ```
 
-## 3b. Add LNMEA data from previous years  
+## 3b. Add LNMEA data from previous years 
+
+- 2019 onwards, but not the last year  
 
 ### Get LNMEA
 ```{r}
@@ -384,8 +386,9 @@ filename <- rev(filenames)[i]
 data_all_previous <- readRDS(paste0("Data/", filename))
 message("Read data set ", sQuote(filename))
 
+# Get 'past' lengths from 2019 onwards
 df_lnmea_previous <- data_all_previous %>%
-  filter(!is.na(LNMEA) & MYEAR == (selected_year-1)) %>%
+  filter(!is.na(LNMEA) & MYEAR >= 2019 & MYEAR < selected_year) %>%
   group_by(MYEAR, STATION_CODE, TISSUE_NAME, SAMPLE_NO2) %>%
   summarise(
     LNMEA_diff = diff(range(LNMEA)),
@@ -416,11 +419,12 @@ df_lnmea_since_previous <- bind_rows(
 
 ## 4. Add mean length (LNMEA) to last year's data  
 
-### Pick last year's data and add LNMEA  
+### Pick data from 2019 onwards and add LNMEA   
+
 ```{r}
 
 data_lastyear <- data_all %>%
-  filter(MYEAR >= (selected_year-1)) %>%
+  filter(MYEAR >= 2019) %>%
   # remove LNMEA for last year (empty anyway)
   select(-LNMEA) %>%
   # Also here we must specify Lever - microsome for EROD
@@ -467,16 +471,20 @@ if (FALSE){
 
 ### Check uniqueness
 ```{r}
+
 check <- data_lastyear %>%
   ungroup() %>%
   group_by(STATION_CODE, LATIN_NAME, TISSUE_NAME, MYEAR, SAMPLE_NO2, UNIT, PARAM) %>%
   mutate(n = n()) %>%
   filter(n > 1)
 nrow(check)  # should be 0
+
 ```
 
 ### Create data_all2 by adding last years' data to the rest  
-Creates data_all2  
+
+- Creates data_all2  
+- Data until 2018 combined with data after that
 
 ```{r}
 
@@ -484,7 +492,7 @@ Creates data_all2
 # names(data_lastyear)
 
 data_all2 <- bind_rows(
-  data_all %>% filter(MYEAR < (selected_year-1)),
+  data_all %>% filter(MYEAR <= 2018),
   data_lastyear %>% select(-WTMEAN)
 ) %>%
   mutate(VALUE_WWa = NA,
@@ -907,6 +915,7 @@ if (nrow(check) > 0){
 
 ### e. Test graphs
 ```{r, fig.width=9, fig.height=6}
+
 par <- "CB_S7"
 par <- "HG"
 
