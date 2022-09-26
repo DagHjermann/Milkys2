@@ -628,7 +628,8 @@ for (i in 1:nrow(check)){
 data_for_select_data <- data_med2 %>%
   select(STATION_CODE, LATIN_NAME, PARAM, Basis, UNIT, MYEAR, Value) %>%
   group_by(STATION_CODE, LATIN_NAME, PARAM, Basis, UNIT) %>%
-  mutate(Present_last7year = max(MYEAR) >= (last_year-7)) %>% 
+  mutate(Present_last7year = max(MYEAR) >= (last_year-7),
+         Value = round(Value, 7)) %>% 
   ungroup()
 
 data_for_select_data %>%
@@ -2281,7 +2282,8 @@ x[i1:i2]
 # Round p-values
 
 vars <- c("Trend p(long) this year", "Trend p(short) this year",
-          "Trend. p(long) last year"  "Trend. p(short) last year")
+          "Trend. p(long) last year",  "Trend. p(short) last year")
+
 for (var in vars){
   data_xl_lessthans[[var]] <- round(data_xl_lessthans[[var]], 6)
   }
@@ -2364,6 +2366,8 @@ if (fn %in% dir("Big_excel_table")){
   # Save CSV
   if (decimal_comma){
     write.csv2(data_xl_lessthans, file = fn_full, quote = FALSE, na = "", row.names = FALSE)
+    fn_full_usformat <- sub(".csv", "_dec.csv", fn_full, fixed = TRUE)
+    write.csv(data_xl_lessthans, file = fn_full_usformat, quote = FALSE, na = "", row.names = FALSE)
   } else {
     write.csv(data_xl_lessthans, file = fn_full, quote = FALSE, na = "", row.names = FALSE)
   }
@@ -2418,7 +2422,7 @@ if (FALSE){
 
   # read R data (fast)
   check <- readRDS(file = sub(".csv", ".rds", fn, fixed = TRUE))
-
+  
   # OR read csv (slow)
   # check <- read.csv2(file = fn)
 
