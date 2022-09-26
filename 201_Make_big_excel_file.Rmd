@@ -760,7 +760,7 @@ data_EQS1[,sel_cols] <- NA
 colno_values <- which(sel_cols)
 
 # Read EQS limits  
-EQS_limits <- read.csv("Input_data/EQS_limits.csv")
+EQS_limits <- read.csv("Input_data/Lookup_tables/Lookup_EQS_limits.csv")
 
 # Check which combinations of PARAM, LATIN_NAME and Basis that are given  
 # E.g., how many are species-unspecific (LATIN_NAME = NA)

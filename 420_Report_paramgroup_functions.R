@@ -353,7 +353,7 @@ get_data_tables <- function(paramgroup,
                             filename_110 = "Data/110_mediandata_updated_2022-09-01.rds",
                             filename_lookup_substancegroups = "Input_data/Lookup table - substance groups.xlsx",
                             filename_lookup_stations= "Input_data/Lookup_tables/Lookup_stationorder.csv",
-                            filename_lookup_eqs = "Input_data/EQS_limits.csv",
+                            filename_lookup_eqs = "Input_data/Lookup_table/Lookup_EQS_limits.csv",
                             filename_lookup_proref = "Input_data/Lookup_tables/Lookup_proref.csv"){
   
   
@@ -904,7 +904,7 @@ ratioplot <- function(data, x, y,
   }
   
   if (!is.null(tooltip)){
-    data$tooltip <- data[[data_id]]
+    data$tooltip <- data[[tooltip]]
   } else {
     data$tooltip <- data[[x]]
   }
