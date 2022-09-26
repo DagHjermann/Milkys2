@@ -8,7 +8,25 @@ output:
 
 ## Notes  
 
-* Before this script is run, you need to download the sample data (from LIMS) on your PC using script 801 from project 'Milkys2_pc"  
+* Before this script is run, you need to download the sample data (from LIMS) on your PC using script 801 from project 'Milkys2_pc"    
+
+## Overview  
+
+- 1. Packages & functions  
+- 2. Read data  
+    - 2a. Reads 'data_all', which is the most recent 101 file and has LNMEA through 2018  
+    - 2b. Length data  
+    - 2c. Sample data (from LIMS/Labware)
+- 2a. Reads 'data_all', which is the most recent 101 file and has LNMEA through 2018
+- 3. Makes 'df_lnmea_since_previous', which should contain all LNMEA values for 2019, 2020 and 2021
+    - Two steps: 
+    - 3a. Makes 'df_lnmea_previous' - for 2021 only. Made based on LIMS + excel data  
+    - 3b. Makes 'data_all_previous' - for 2019-2020. Based on file no. 109 from last year.  
+- 4. Makes 'dat_all2', which equals 'dat_all' (see 2a) with LNMEA added for 2019,2020 and 2021 
+    - Make 'data_lastyear' by pcking data from 2019, 2020 and 2021, and adding LNMEA 
+    - Combine 'dat_all' through 2018 with 'data_lastyear'
+- 5. Makes 'data_lengthreg' - one row per data series  
+- 6. Perform length adjustment procedure using function 'adjust_selected'    
 
 ## 1. Packages
 ```{r}
@@ -484,7 +502,7 @@ nrow(check)  # should be 0
 ### Create data_all2 by adding last years' data to the rest  
 
 - Creates data_all2  
-- Data until 2018 combined with data after that
+- Data until 2018 combined with data after that 
 
 ```{r}
 
@@ -918,6 +936,7 @@ if (nrow(check) > 0){
 
 par <- "CB_S7"
 par <- "HG"
+par <- "CD"
 
 if (FALSE){
   # Not length-adjusted 
@@ -935,7 +954,7 @@ if (FALSE){
 
 # Length-adjusted 
 data_all2 %>% 
-  filter(LATIN_NAME %in% "Gadus morhua" & PARAM %in% par) %>%
+  filter(LATIN_NAME %in% "Gadus morhua" & PARAM %in% par & MYEAR >= 2011) %>%
   group_by(STATION_CODE) %>%
   mutate(n_year = length(unique(MYEAR))) %>%
   filter(n_year >= 7) %>%
@@ -967,7 +986,7 @@ tissue <- case_when(
 
 data_all2 %>% 
   filter(LATIN_NAME %in% "Gadus morhua" & PARAM %in% par & 
-           TISSUE_NAME %in% tissue) %>%
+           TISSUE_NAME %in% tissue & MYEAR >= 2011) %>%
   tidyr::pivot_longer(c(VALUE_WW, VALUE_WWa), names_to = "Type", values_to = "Concentration", 
                       names_prefix = "VALUE_") %>%
   group_by(STATION_CODE, MYEAR, Type) %>%
