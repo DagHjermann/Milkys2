@@ -152,7 +152,7 @@ dat_all_prep3$Uncertainty[sel] <- 0.3
 #o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
 
 if (FALSE){
-
+  
   #
   # Do only once: registering cores
   #
@@ -160,7 +160,7 @@ if (FALSE){
   n_cores <- future::availableCores()
   n_cores
   # 4 / 16 / 64 
-
+  
   # If 4 cores 
   cl <- makeCluster(n_cores)
   registerDoParallel(cores = (n_cores))
@@ -184,12 +184,12 @@ length(series_no) # 1507
 # . test run ----
 #
 if (FALSE){
-# TEST
-series_no[1]   # 1841
-debugonce(get_splines_results_seriesno)
-# debugonce(lc_fixedsplines_tp)
-get_splines_results_seriesno(series_no[1], 
-                             dat_all_prep3, dat_series_pick, foldername = folder_results,
+  # TEST
+  series_no[1]   # 1841
+  debugonce(get_splines_results_seriesno)
+  # debugonce(lc_fixedsplines_tp)
+  get_splines_results_seriesno(series_no[1], 
+                               dat_all_prep3, dat_series_pick, foldername = folder_results,
                                raftery = TRUE)
 }
 
