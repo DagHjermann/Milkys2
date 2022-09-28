@@ -7,7 +7,23 @@ This procedure uses - at this point - data from script 105.
 - Should finally use data from script 109  
 
 
-## 0. Constants (update each year)     
+## Install leftcensored   
+
+- And make sure it's the right version  
+
+```{r}
+
+#devtools::install_github("DagHjermann/leftcensored", upgrade = "never", force = TRUE)
+
+# Check model syntax
+cat(leftcensored:::get_jags_model_code())
+
+# LINE 10 SHOULD BE
+# prob[j] <- min(max(pnorm(cut[j], mu[n+j], tau), 0.01),0.99)
+
+```
+
+## 0a. Constants (update each year)     
 
 ```{r}
 
@@ -17,20 +33,48 @@ last_year <- 2021
 series_lastyear <- 2018   # The series must last at least until this year    
                           # Series without data in any of the three last years will be excluded
 
+#
 # Folder for saving input files and results
-folder_results <- "Data/125_results_2021_03"
+#
+
+# folder_5: full new run of all series, JAGS model including "prob[j] <- min(max(..." (see above)  
+# folder_6: time trends of length-adjusted series, only HG so far  
+
+folder_results <- "Data/125_results_2021_05"          # all
+# folder_results <- "Data/125_results_2021_06"        # length-adjusted HG
 folder_input <- paste0(folder_results, "_input")
 
 # folder_results <- paste0("Data/125_results_", last_year)
 # 
-# if (!dir.exists(folder_results)){
-#   dir.create(folder_results)
-# }
+if (!dir.exists(folder_results)){
+  dir.create(folder_results)
+}
+if (!dir.exists(folder_input)){
+  dir.create(folder_input)
+}
 
 ```
+
+
+### Type of value (wet-weight, wet-weight length-adjusted, etc.)
+
+
+```{r}
+
+# For runs up until folder_5:
+
+value_column <- "VALUE_WW"
+# For folder_6:
+# value_column <- "VALUE_WWa"
+
+message("Selected value column: ", value_column)
+
+```
+
   
 ## 1. Libraries and functions  
 
+### The rest
 ```{r, results='hide', message=FALSE, warning=FALSE}
 
 # install.packages("lubridate")
@@ -48,8 +92,6 @@ library(ggplot2)
 # Specific for the analysis
 library(rjags)
 library(runjags)
-if (!"leftcensored" %in% installed.packages())
-  devtools::install_github("DagHjermann/leftcensored", upgrade = "never", force = TRUE)
 library(leftcensored)
 
 # For parallel computing
@@ -62,7 +104,6 @@ source("125_Calculate_trends_leftadjusted_functions.R")
 source("110_Medians_and_PROREF_functions.R")  # for homogenize_series
 source("002_Utility_functions.R")
 
-
 ```
 
 ## 2. Read data  
@@ -73,24 +114,24 @@ Read and reformat the most recent data (by default)
 ```{r, collapse=TRUE}
 
 # If we have NOT length-adjusted the last year's data:
-filepattern <- "105_data_with_uncertainty_"         # entire file name except date and extension
+# filepattern <- "105_data_with_uncertainty_"         # entire file name except date and extension
 
 # Normally, if we have length-adjusted the last year's data:
-# filepattern <- "109_adjusted_data_"       # entire file name except date and extension
+filepattern <- "109_adjusted_data_"       # entire file name except date and extension
 
 filenumber <- 1                           # filenumber = 1 means "read the newest file"
 
 files <- dir("Data", pattern = filepattern) %>% rev()
 
-data_list <- read_rds_file("Data",
+dat_all <- read_rds_file("Data",
                      files, 
                      filenumber = filenumber,   # "1" gets the newest file   
-                     get_date = TRUE, time_since_modified = TRUE)
+                     get_date = FALSE, time_since_modified = TRUE)
 
-dat_all <- data_list$data
+# dat_all <- data_list$data
 
 # The file_date text will be used in part 10, when we save the resulting file
-cat("File date text:", data_list$file_date, "\n")
+# cat("File date text:", data_list$file_date, "\n")
 
 ```
 
@@ -108,7 +149,11 @@ dat_all <- homogenize_series(dat_all)
 
 ```
 
-### c. Prepare data  
+### c. Prepare data   
+
+- **Important**: set 'value_column' (WW or WWa)
+
+- NOTE: part c-d1 (d1 at least) are slow and can be skipped by going to d2 and read the saved data  
 
 ```{r}
 
@@ -121,33 +166,33 @@ dat_all_isotopes <- dat_all %>%
 
 dat_all_with_zeros <- dat_all %>%
   filter(!grepl("Delta", PARAM)) %>%
-  group_by(Substance.Group, PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME) %>%
+  group_by(PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME) %>%
   mutate(N_zeros = sum(VALUE_WW <= 0)) %>%
   filter(N_zeros > 0)
 
 dat_all_sans_zeros <- dat_all %>%
   filter(!grepl("Delta", PARAM)) %>%
-  group_by(Substance.Group, PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME) %>%
+  group_by(PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME) %>%
   mutate(N_zeros = sum(VALUE_WW <= 0)) %>%
   filter(N_zeros == 0)
 
 dat_all_prep1_isotopes <- lc_prepare(dat_all_isotopes,
                            x = "MYEAR",
-                           y = "VALUE_WW", 
+                           y = value_column, 
                            censored = "FLAG1",
                            log = FALSE,
                            keep_original_columns = TRUE) 
 
 dat_all_prep1_with_zeros <- lc_prepare(dat_all_with_zeros,
                            x = "MYEAR",
-                           y = "VALUE_WW", 
+                           y = value_column, 
                            censored = "FLAG1",
                            log = TRUE, const = 1,
                            keep_original_columns = TRUE) 
 
 dat_all_prep1_sans_zeros <- lc_prepare(dat_all_sans_zeros,
                            x = "MYEAR",
-                           y = "VALUE_WW", 
+                           y = value_column, 
                            censored = "FLAG1",
                            log = TRUE,
                            keep_original_columns = TRUE) 
@@ -163,6 +208,21 @@ dat_all_prep1 <- bind_rows(
 # lc_plot(dat_all_prep1 %>% filter(PARAM %in% "SN" & STATION_CODE %in% "80B"))
 ```
 
+
+
+
+### c2. HG ONLY  
+
+**NOTE**
+
+```{r}
+
+# dat_all_prep1 <- dat_all_prep1 %>%
+#   filter(PARAM %in% "HG")
+
+```
+
+
 ### d1. Add flags for rule 1 and rule 2 (columns Rule1 and Rule2)   
 
 ```{r}
@@ -174,60 +234,72 @@ if (FALSE){
  test3 <- leftcensored:::lc_flag2(test2)
 }
 
-lc_flag1_seriesno <- function(i, seriesdata, data){
-  data %>%
-    filter(PARAM %in% seriesdata$PARAM[i],
-           STATION_CODE %in% seriesdata$STATION_CODE[i],
-           LATIN_NAME %in% seriesdata$LATIN_NAME[i],
-           TISSUE_NAME %in% seriesdata$TISSUE_NAME[i]) %>%
-    leftcensored:::lc_flag1(show_result = FALSE)
+
+#
+# Create 'dat_all_prep3'
+#
+
+# File name for saving data
+fn_dat_all <- paste0(folder_input, "/125_dat_all_prep3.rds")
+
+if (!file.exists(fn_dat_all)){
+  
+  # If file doesn't exist, we create it and store it
+  
+  lc_flag1_seriesno <- function(i, seriesdata, data){
+    data %>%
+      filter(PARAM %in% seriesdata$PARAM[i],
+             STATION_CODE %in% seriesdata$STATION_CODE[i],
+             LATIN_NAME %in% seriesdata$LATIN_NAME[i],
+             TISSUE_NAME %in% seriesdata$TISSUE_NAME[i]) %>%
+      leftcensored:::lc_flag1(show_result = FALSE)
+  }
+  
+  lc_flag2_seriesno <- function(i, seriesdata, data){
+    data %>%
+      filter(PARAM %in% seriesdata$PARAM[i],
+             STATION_CODE %in% seriesdata$STATION_CODE[i],
+             LATIN_NAME %in% seriesdata$LATIN_NAME[i],
+             TISSUE_NAME %in% seriesdata$TISSUE_NAME[i]) %>%
+      leftcensored:::lc_flag2(show_result = FALSE)
+  }
+  
+  # Only series existing in the last year
+  dat_series_for_flag <- dat_all_prep1 %>%
+    filter(MYEAR == last_year) %>%     
+    distinct(PARAM, STATION_CODE, LATIN_NAME, TISSUE_NAME) %>%
+    as.data.frame()
+  dat_series_for_flag$Rowno <- 1:nrow(dat_series_for_flag) # only for interactive checking
+  
+  if (FALSE){
+    # Testing
+    test2 <- lc_flag1_seriesno(1537, dat_series_for_flag, dat_all_prep1)
+    test3 <- lc_flag2_seriesno(1537, dat_series_for_flag, dat_all_prep1)
+    xtabs(~Rule2 + MYEAR, test3)
+  }
+  
+  # SLOW! 9 minutes for flag1, 4 minutes fpr flag2 - but it works, at least
+  dat_all_prep2 <- map_dfr(
+    1:nrow(dat_series_for_flag), lc_flag1_seriesno,
+    seriesdata = dat_series_for_flag,
+    data = dat_all_prep1)
+  
+  dat_all_prep3 <- map_dfr(
+    1:nrow(dat_series_for_flag), lc_flag2_seriesno,
+    seriesdata = dat_series_for_flag,
+    data = dat_all_prep2)
+  
+  # test4 <- dat_all_prep3 %>% filter(PARAM %in% "SN" & STATION_CODE %in% "80B")
+  
+  saveRDS(dat_all_prep3, fn_dat_all)
+  
+} else {
+  
+  # If file does exist, we just read it
+  
+  dat_all_prep3 <- readRDS(fn_dat_all)
+  
 }
-
-lc_flag2_seriesno <- function(i, seriesdata, data){
-  data %>%
-    filter(PARAM %in% seriesdata$PARAM[i],
-           STATION_CODE %in% seriesdata$STATION_CODE[i],
-           LATIN_NAME %in% seriesdata$LATIN_NAME[i],
-           TISSUE_NAME %in% seriesdata$TISSUE_NAME[i]) %>%
-    leftcensored:::lc_flag2(show_result = FALSE)
-}
-
-# Only series existing in the last year
-dat_series_for_flag <- dat_all_prep1 %>%
-  filter(MYEAR == last_year) %>%     
-  distinct(PARAM, STATION_CODE, LATIN_NAME, TISSUE_NAME) %>%
-  as.data.frame()
-dat_series_for_flag$Rowno <- 1:nrow(dat_series_for_flag) # only for interactive checking
-
-if (FALSE){
- # Testing
- test2 <- lc_flag1_seriesno(1537, dat_series_for_flag, dat_all_prep1)
- test3 <- lc_flag2_seriesno(1537, dat_series_for_flag, dat_all_prep1)
- xtabs(~Rule2 + MYEAR, test3)
-}
-
-# SLOW! 9 minutes for flag1, 4 minutes fpr flag2 - but it works, at least
-dat_all_prep2 <- map_dfr(
-  1:nrow(dat_series_for_flag), lc_flag1_seriesno,
-  seriesdata = dat_series_for_flag,
-  data = dat_all_prep1)
-
-dat_all_prep3 <- map_dfr(
-  1:nrow(dat_series_for_flag), lc_flag2_seriesno,
-  seriesdata = dat_series_for_flag,
-  data = dat_all_prep2)
-
-# test4 <- dat_all_prep3 %>% filter(PARAM %in% "SN" & STATION_CODE %in% "80B")
-
-
-
-```
-
-### d2. Save
-
-```{r}
-
-saveRDS(dat_all_prep3, "Data/125_results_2021_03_input/125_dat_all_prep3.rds")
 
 ```
 
@@ -252,7 +324,7 @@ min_warningless <- function(x)
 
   
  dat_series_1 <- dat_all_prep3 %>%
-  group_by(Substance.Group, PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME, x) %>%
+  group_by(PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME, x) %>%
   summarise(
     N = n(),
     N_over_LOQ = sum(uncensored == 1),
@@ -260,7 +332,7 @@ min_warningless <- function(x)
     Rule1 = first(Rule1),
     Rule2 = first(Rule2),
     .groups = "drop") %>%
-  group_by(Substance.Group, PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME) %>%
+  group_by(PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME) %>%
   summarise(
     First_year_overall = min(x),
     Last_year_overall = max(x),
@@ -311,15 +383,16 @@ table(dat_series$Trend_model)
 
 
 
-### f. Statistics per group  
+### f. Statistics per substance  
+
+- Selected substances  
 
 ```{r}
 
 dat_series %>%
-  mutate(
-    Substance.Group = substr(Substance.Group, 1,14)) %>%
-  count(Substance.Group, Trend_model) %>%
-  pivot_wider(Substance.Group, names_from = Trend_model, values_from = n, values_fill = 0,
+  filter(PARAM %in% c("HG", "CD", "CB118", "BAP")) %>%
+  count(PARAM, Trend_model) %>%
+  pivot_wider(PARAM, names_from = Trend_model, values_from = n, values_fill = 0,
               names_sort= TRUE)
 
 ```
@@ -338,17 +411,25 @@ xtabs(~Last_year + Last_year_over_LOQ, dat_series)
 
 ### h. Data series to run  
 
+#### For first-time run  
 ```{r}
 
 dat_series_trend <- dat_series %>%
-  filter(!Trend_model %in% "No model") 
+  filter(!Trend_model %in% "No model") #%>%
+#  filter(PARAM %in% "HG")
 
 # 'series_no' decides name of result file that will be (over)written  
 dat_series_trend$series_no <- 1:nrow(dat_series_trend)
 
 ```
 
-### i. Save  
+#### For finishing run that has started, but was interrupted   
+
+See APPENDIX 1 below
+
+
+
+### i. Save series (and read saved files)   
 
 ```{r}
 
@@ -362,6 +443,10 @@ if (FALSE){
   dat_all_prep3 <- readRDS(paste0(folder_input, "/125_dat_all_prep3.rds"))
   dat_series <- readRDS(paste0(folder_input, "/125_dat_series.rds"))
   dat_series_trend <- readRDS(paste0(folder_input, "/125_dat_series_trend.rds"))
+  
+  # If series lacking:
+  # dat_series_trend <- readRDS(paste0(folder_input, "/125_dat_series_trend_lacking.rds"))
+
 }
 
 ```
@@ -383,6 +468,9 @@ station_code <- "02B"
 
 param <- "MCCP eksl. LOQ"
 station_code <- "71B"
+
+param <- "CB101"
+station_code <- "30B"
 
 #
 # Example 1
@@ -466,8 +554,18 @@ lc_plot(data_prep, results = results_all, facet = "wrap")
 
 ```{r, results='hide', message=FALSE, warning=FALSE}
 
+# Fairly fast
+param <- "CB52"
+# param <- "HG"
+station_code <- "65A"
+
+param <- "HG"
+station_code <- "30B"
+
+get_seriesno(param, station_code, data_series = dat_series_trend)
+
 # debugonce(get_splines_results_seriesno)
-get_splines_results_seriesno_s(409, 
+get_splines_results_seriesno_s(6, 
                              data = dat_all_prep3, 
                              data_series = dat_series_trend, 
                              foldername = folder_results,  # test site 
@@ -521,17 +619,16 @@ if (FALSE){
   future::availableCores()
   
   # 4 / 16 / 64 
-  cl <- makeCluster(63)
-  registerDoParallel(cores = 63)
+  cl <- makeCluster(4)
+  registerDoParallel(cores = 4)
+  
+  # stopCluster(cl)
   
 }
 
 #
 # Parallel 
 #
-
-# OLD: seriesno = row number
-# seriesno <- 1:nrow(dat_series_trend) 
 
 # NEW: seriesno = column in the 'dat_series' data
 series_no <- dat_series_trend$series_no 
@@ -544,12 +641,18 @@ length(series_no) # 1507
 check_contents <- dir(folder_results)
 
 if (length(check_contents) > 0){
-  warning("You are writing to a folder which already contains ", length(check_contents), ". THESE WILL BE OVERWRITTEN.")
+  warning("You are writing to a folder which already contains ", length(check_contents), " files. THESE MAY BE OVERWRITTEN.")
 }
+
+# Run analyses
+# For following the number of files from the terminal, use
+#   ls -lrt
+#   find -newermt '2 hours ago' | wc -l
+# (1) lists files with the newest file last, the second counts number of files younger than 2 hour 
 
 t0 <- Sys.time()
 result <- foreach(i = series_no, 
-                  .export = c("dat_all_prep3","dat_series_trend")) %dopar%
+                  .export = c("dat_all_prep3", "dat_series_trend")) %dopar%
                    get_splines_results_seriesno_s(i, 
                                  dat_all_prep3, dat_series_trend, foldername = folder_results,
                                  raftery = TRUE)
@@ -569,14 +672,19 @@ t1-t0
 
 ```{r}
 
-fns <- dir(folder_results, full.names = TRUE) %>% sort()
-result_list <-lapply(fns, readRDS)
-length(fns)
-
-fileinfo <- file.info(fns)
-# fileinfo
-fileinfo_no <- substr(rownames(fileinfo)[1], nchar(folder_results) + 8, nchar(folder_results) + 11)
-
+  # File names and numbers  
+  fns <- dir(folder_results, full.names = TRUE) %>% sort()
+  length(fns)
+  fileinfo_no <- substr(fns, nchar(folder_results) + 8, nchar(folder_results) + 11)
+  names(fns) <- fileinfo_no 
+  
+  # Read file content
+  result_list <-lapply(fns, readRDS)
+  
+  # Check length of each result
+  result_length <-  map_int(result_list, length)
+  table(result_length)
+  
 ```
 
 ### Extract data frame for "successes"  
@@ -585,7 +693,7 @@ fileinfo_no <- substr(rownames(fileinfo)[1], nchar(folder_results) + 8, nchar(fo
 
 ```{r}
 
-jags_finished <- map_lgl(result_list, ~!is.null(.x$k_values_ok))
+jags_finished <- map_lgl(result_list, ~!is.null(.x$k_values))
 ok <- map_lgl(result_list, ~!is.null(.x$DIC))
 
 plotno <- map_dbl(result_list, "seriesno")
@@ -593,20 +701,14 @@ PARAM <- map_chr(result_list, "PARAM")
 STATION_CODE <- map_chr(result_list, "STATION_CODE")
 TISSUE_NAME <- map_chr(result_list, "TISSUE_NAME")
 LATIN_NAME <- map_chr(result_list, "LATIN_NAME")
+k_max <- map_chr(result_list, "k_max")
 k_sel <- NA
 k_sel[ok] <- map_int(result_list[ok], "k_sel")
 
-dat_success <- data.frame(ok, jags_finished, plotno, PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME, k_sel)
+dat_success <- data.frame(ok, jags_finished, plotno, PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME, k_max, k_sel)
 
-tail(dat_success, 100)
-plot(dat_success$jags_finished)
-check <- plotno == as.numeric(fileinfo_no)
-if (sum(check) == 1){
-  dat_success <- dat_success %>%
-  bind_cols(fileinfo %>% select(mtime, size))
-} else {
-  warning("fileinfo not in the same order")
-}
+xtabs(~jags_finished + ok, dat_success)
+xtabs(~k_max + ok, dat_success)
 
 ```
 
@@ -614,7 +716,8 @@ if (sum(check) == 1){
 ### Plot a single series  
 ```{r}
 
-tsplot_seriesno(58)
+tsplot_seriesno(58, folder = folder_results)
+tsplot_seriesno(58, folder = folder_results)
 
 ```
 
@@ -665,28 +768,53 @@ table(dat_success$Rule2_first)  # 20  - should be run again
 
 ```
 
-## 7. Run the rest   
+## APPENDIX 1
 
-- To use if your analyses were interrupted  
-
+#### For finishing run that has started, but was interrupted  
 ```{r}
 
-# Series not run at all   
+if (FALSE){
+  
+  # FIRST, RE-MAKE 'dat_series_trend'  
+  # THEN:
 
-ser_all <- 1:nrow(dat_series_trend)
-ser1 <- ser_all[!ser_all %in% dat_success$plotno]
-length(ser1)
-# head(ser1, 100)
-# tail(ser1, 100)
+  # File names and numbers  
+  fns <- dir(folder_results, full.names = TRUE) %>% sort()
+  length(fns)
+  fileinfo_no <- substr(fns, nchar(folder_results) + 8, nchar(folder_results) + 11)
+  names(fns) <- fileinfo_no 
+  
+  # Read file content
+  result_list <-lapply(fns, readRDS)
+  
+  result_length <-  map_int(result_list, length)
+  table(result_length)
+  #  5    7   20 
+  # 38  405 1233 
 
-# Series not finished     
-ser2 <- dat_success %>%
-  filter(!jags_finished) %>%
-  pull(plotno)
+  if (FALSE){
+    # Examples
+    i <- which(result_length == 5)[1]  
+    str(result_list[[i]], 1)
+    i <- which(result_length == 7)[1]  
+    str(result_list[[i]], 1)
+    i <- which(result_length == 20)[1]  
+    str(result_list[[i]], 1)
+  }
+  
+  serno_incomplete <- fileinfo_no[result_length == 5] %>% as.numeric()
+  serno_lacking <- which(!dat_series_trend$series_no %in% as.numeric(fileinfo_no))
+  serno_torun <- c(serno_incomplete, serno_lacking)
+  
+  # Update dat_series_trend 
+  nrow(dat_series_trend)
+  dat_series_trend <- dat_series_trend[serno_torun,]
+  nrow(dat_series_trend)
+  
+  # DON'T save dat_series_trend (i.e.. don't run 2.i)
+  
+  # GO DIRECTLY TO 4
 
-length(ser2)
-
-# used in 4
+}
 
 ```
-

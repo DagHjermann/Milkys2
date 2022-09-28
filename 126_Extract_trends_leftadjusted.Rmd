@@ -15,13 +15,36 @@ output: html_document
 
 last_year <- 2021
 
-folder_results <- "Data/125_results_2021_03"
+#
+# REMEMBER TO UPDATE!
+#
+
+# 04 is the run for all WW data, used in the big excel, before JAGS model code was updated  
+# 05 is a later run for all WW data, after JAGS model code was updated
+# 06 is also later, but for WWa (length-adjusted) HG (2 series only)
+
+folder_results <- "Data/125_results_2021_06"         
 folder_input <- paste0(folder_results, "_input")
 folder_output <- paste0(folder_results, "_output")
+
+if (!dir.exists(folder_output)){
+  dir.create(folder_output)
+}
 
 indexvars <- c("PARAM", "STATION_CODE", "TISSUE_NAME", "LATIN_NAME")
 
 ```
+
+### Basis   
+
+Not recorded in any way during the procedure of 125 - must be set manually!   
+```{r}
+
+given_basis <- "WW"   # for folder 01-05 
+given_basis <- "WWa"  # for folder 06
+
+```
+
 
   
 ## 1. Libraries and functions  
@@ -50,6 +73,7 @@ source("125_Calculate_trends_leftadjusted_functions.R")
 
 dat_series <- readRDS(paste0(folder_input, "/125_dat_series.rds"))
 dat_series_trend <- readRDS(paste0(folder_input, "/125_dat_series_trend.rds"))
+# dat_series_trend <- dat_series     # special case for folder 06
 dat_all_prep3 <- readRDS(paste0(folder_input, "/125_dat_all_prep3.rds"))
 
 ```
@@ -77,7 +101,7 @@ xtabs(~Rule1 + Rule2, df_rule12)
 
 ## 3. Check results  
 
-### a. Read files  
+### a1. Read result files  
 
 ```{r}
 
@@ -113,6 +137,10 @@ TISSUE_NAME <- map_chr(result_list, "TISSUE_NAME")
 LATIN_NAME <- map_chr(result_list, "LATIN_NAME")
 k_sel <- NA
 k_sel[ok] <- map_int(result_list[ok], "k_sel")
+k_sel_dic <- NA
+k_sel_dic[ok] <- map_int(result_list[ok], "k_sel_dic")
+k_sel_forward <- NA
+k_sel_forward[ok] <- map_int(result_list[ok], "k_sel_forward")
 
 dat_success <- data.frame(seriesno, jags_finished, ok,   
                           PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME, k_sel) %>%
@@ -121,7 +149,8 @@ dat_success <- data.frame(seriesno, jags_finished, ok,
   # Add N_years, Years_over_LOQ, k_max
   left_join(dat_series_trend %>% 
               select(PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME, N_years, N_years_10yr, Years_over_LOQ, k_max),
-            by = indexvars)
+            by = indexvars) %>%
+  arrange(seriesno)
 
 # Check that 'fileinfo' is in same order as 'dat_success' - if so, they can simply be joined
 check <- seriesno == as.numeric(fileinfo_no)
@@ -129,13 +158,52 @@ if (sum(check) == 1){
   dat_success <- dat_success %>%
   bind_cols(fileinfo %>% select(mtime, size))
 } else {
-  warning("fileinfo not in the same order")
+  warning("fileinfo not in the same order. Did not add mtime, size")
 }
 
 ```
 
 
-### c. Check dat_success and dat_series  
+
+
+### b2. In case of missing files    
+
+```{r}
+
+n_files_lacking <- nrow(dat_series_trend) - nrow(dat_success)
+
+if (n_files_lacking > 0){
+  stop("Not all files have been generated")
+}
+
+if (n_files_lacking){
+  
+  cat(n_files_lacking, "files lacking \n")
+
+  # Plot series number of files
+  plot(dat_success$seriesno)
+
+  ser_orig <- 1:nrow(dat_series_trend)
+  ser_lacking <- setdiff(ser_orig, dat_success$seriesno)
+  plot(ser_lacking)
+  tail(ser_lacking, 200)
+  
+  dat_series_trend_lacking <- dat_series_trend %>%
+    filter(series_no %in% ser_lacking)
+  
+  if (FALSE){
+  saveRDS(dat_series_trend_lacking, 
+          paste0(folder_input, "/125_dat_series_trend_lacking.rds"))
+  }
+  
+}
+
+```
+
+
+
+
+### c1. Check dat_success and dat_series  
 
 - that they have the same order
 
@@ -147,11 +215,11 @@ for (var in c("PARAM", "STATION_CODE", "TISSUE_NAME", "LATIN_NAME")){
   }  
 } 
 
-cat("If you got this far, all key columns have the same order")
+cat("If you got this far, all key columns have the same order")  
 
 ```
 
-### d. Statistics  
+### d1. Statistics  
 
 - VDSI, VDSI/Intersex, "_exloq" parameters, and siloxanes D4-D6 at 19N contains zeros => becomes "-Inf" after log   
 - Some (BDE49 at 30A) have k_max = 1 (ie no trend analysis)     
@@ -161,12 +229,12 @@ cat("If you got this far, all key columns have the same order")
 xtabs(~ok, dat_success)  
 
 cat("\n")
-cat("PARAM for those with ok = FALSE :\n")
-table(subset(dat_success, !ok)$PARAM)
+cat("PARAM for those with ok = FALSE (top 15) :\n")
+table(subset(dat_success, !ok)$PARAM) %>% sort(decreasing = TRUE) %>% head(15)
 
 cat("\n")
-cat("STATION_CODE for those with ok = FALSE :\n")
-table(subset(dat_success, !ok)$STATION_CODE)
+cat("STATION_CODE for those with ok = FALSE (top 15) :\n")
+table(subset(dat_success, !ok)$STATION_CODE) %>% sort(decreasing = TRUE) %>% head(15)
 
 cat("\n")
 cat("Estimation success vs k_max :\n\n")
@@ -189,6 +257,15 @@ if (FALSE){
 }
 
 ```
+### d2. Statistics on selected k (model selection)
+```{r}
+
+xtabs(~k_sel + k_sel_dic, dat_success); cat("\n")
+xtabs(~k_sel + k_sel_forward, dat_success)
+
+# xtabs(~k_sel_dic + k_sel_forward + k_sel, dat_success)
+
+```
 
 ### e. Check number of -Inf data  
 
@@ -196,19 +273,26 @@ if (FALSE){
 
 ```{r}
 
-dat_lackof_success <-subset(dat_success, !ok)
-
-dat_lackof_success$n_infin <- map_int(
-  dat_lackof_success$seriesno,
-  ~sum(is.infinite(extract_raw_data(.x)$y))
-)
-
-table(dat_lackof_success$n_infin)  
+if (FALSE){
+  
+  # Can be skipped - should not be a problem anymore 
+  # (after rewriting 2b in script 125)
+  
+  dat_lackof_success <-subset(dat_success, !ok)
+  
+  dat_lackof_success$n_infin <- map_int(
+    dat_lackof_success$seriesno,
+    ~sum(is.infinite(extract_raw_data(.x)$y))
+  )
+  
+  table(dat_lackof_success$n_infin)  
+  
+}
 
 ```
 
 
-### e. Plot a single series  
+### f. Plot a single series  
 ```{r}
 
 # Worked:
@@ -217,7 +301,10 @@ tsplot_seriesno(58, folder_results)
 
 ```
 
-## 4. For one compound  
+
+
+
+## 4b. For one compound  
 
 ### a. Plot time series, all stations      
 
@@ -234,16 +321,16 @@ dat_success_pick <- dat_success %>%
 pno <- dat_success_pick %>% pull(seriesno)
 
 # debugonce(extract_modelfit_data)
+test <- extract_modelfit_data(pno[8], folder = folder_results)    # last model is best
 test <- extract_modelfit_data(pno[5], folder = folder_results)    # last model is best
 test <- extract_modelfit_data(pno[13], folder = folder_results)   # k = 2 didn't work, model 3 is best
-
 
 df_modelfit <- map_dfr(pno, extract_modelfit_data, folder = folder_results)
 # if the previous line doesn't work:
 # extract_modelfit_data_s <- safely(extract_modelfit_data)
-# df_modelfit <- map(pno, extract_modelfit_data_s, folder = folder_results) %>% 
+# df_modelfit <- map(pno, extract_modelfit_data_s, folder = folder_results) %>%
 #   transpose()
-# df_modelfit$error %>% map_lgl(is.null) %>% which()
+# df_modelfit$error %>% map_lgl(~!is.null(.x)) %>% which()    # the ones that didn't work
 
 df_rawdata <- map_dfr(pno, extract_raw_data)
 
@@ -396,7 +483,7 @@ df_trend_wide <- df_trend %>%
     names_from = Trend_type, 
     values_from = c(Trend_string, Trend_symbol, Perc_change, p, First_year)) %>% 
   mutate(
-    Basis = "WW",
+    Basis = given_basis,
     First_year_short = ifelse(
       First_year_short < (last_year-9), (last_year-9), First_year_short),
     Trend_symbol_long = ifelse(is.na(Trend_symbol_long), "-", Trend_symbol_long),
@@ -570,6 +657,11 @@ df_trend <- bind_rows(
   df_trend_toofew_short %>% mutate(dataset = 7)
   )
 
+if (FALSE){
+  param <- "HG"; station <- "10B"
+  df_trend %>% filter(PARAM %in% param & STATION_CODE %in% station) %>% View(paste(param,station, "1"))
+}
+
 check1 <- df_trend %>%
   add_count(PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME, Trend_type) %>%
   arrange(PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME, Trend_type) %>%
@@ -652,6 +744,7 @@ df_trend <- df_trend %>%
       Trend_string %in% "Increasing" ~ "é",
       Trend_string %in% "Decreasing" ~ "ê",
       Trend_string %in% "No change" ~ "¢",
+      Trend_string %in% "No trend" ~ "¢",
       Trend_string %in% "Too few years" ~ "§",
       Trend_string %in% "Too few over-LOQ years" ~ "«")
     )
@@ -687,10 +780,16 @@ df_trend_wide <- df_trend %>%
   mutate(
     Basis = "WW", .after = "LATIN_NAME")
 
+if (FALSE){
+  # HARD_CODED
+  df_trend_wide$Last_year_long <- last_year
+  df_trend_wide$Last_year_short <- last_year
+}
+
 ```
 
 
-## 6. Save  
+## 6. Save + read  
 
 ```{r}
 
@@ -708,20 +807,19 @@ if (FALSE){
 ```
 
 
-## 7. Various checking   
+## APPENDIX 1:  Various checking   
+
 
 ### Some that failed  
 ```{r}
-
-# Contains -Inf 
-tsplot_param("CB_S7_exloq", "10A2", folder = folder_results)
-tsplot_param("D5", "19B", folder = folder_results)
 
 # Short series (n = 4)
 tsplot_param("BDE49", "30A", folder = folder_results)
 
 # No apparent reason for failure?
-tsplot_param("CB101", "30B", folder = folder_results)
+tsplot_param("D5", "19B", folder = folder_results)
+tsplot_param("D5", "19N", tissue = "Egg", folder = folder_results)
+tsplot_param("CB101", "30B", folder = folder_results)             # Now works
 # extract_raw_data(get_seriesno("CB101", "30B")) %>% View()
 
 ```
@@ -729,11 +827,92 @@ tsplot_param("CB101", "30B", folder = folder_results)
 ### Some that worked
 ```{r}
 
+# debugonce(tsplot_seriesno)
+
+tsplot_param("CB118", "30B", folder = folder_results)
+tsplot_param("HG", "30B", folder = folder_results)
 tsplot_param("BDE47", "I023", folder = folder_results)
-tsplot_param("HG", "98B1", folder = folder_results)
+tsplot_param("HG", "98B1", folder = folder_results, )
 tsplot_param("MCCP eksl. LOQ", "28B", folder = folder_results)  
+tsplot_param("CB_S7_exloq", "10A2", folder = folder_results)
+
+```
+
+## APPENDIX 2. Get series that didn't work  
+
+- For re-run, after revising the models used by the trend analyses  
+
+```{r}
+
+dat_rerun <- dat_success %>%
+  filter(!ok & k_max >= 2) %>%
+  filter(!grepl("SCCP", PARAM)) %>%
+  filter(!grepl("MCCP", PARAM))
+
+xtabs(~N_years, dat_rerun)  
 
 ```
 
 
+## APPENDIX 3. Old model selection stuff
 
+### Check trend tables
+
+```{r}
+
+if (FALSE){
+  
+param <- "HG"; station <- "10B"
+df_trend %>% filter(PARAM %in% param & STATION_CODE %in% station) %>% View(paste(param,station, "1"))
+df_trend_wide %>% filter(PARAM %in% param & STATION_CODE %in% station) %>% View(paste(param,station, "2"))
+
+# And plot
+tsplot_param(param, station, folder = folder_results)
+
+# And model result table  
+seriesno <-  get_seriesno(param, station)
+fn <- sprintf("trend_%04.0f.rda", seriesno)
+resultlist <- readRDS(paste0(folder_results, "/", fn))
+resultlist$dDIC
+
+# And model log.likelihood ratio test  
+resultlist$lr_table
+
+# Model 1 is selected because model 2 is worse than model 1, and we use a strict forward selection
+# But if we had skipped model 2, model 3 would be better than model 1  
+
+}
+
+```
+
+
+### Check what would have happend if we skipped model 2, or model 2+3
+```{r}
+
+if (FALSE){
+
+# Skip model 2
+
+tab2 <- resultlist$lr_table[-2,]
+# Recalculate ddev and p
+tab2$ddev <- c(NA, -diff(tab2$dev))
+for (i in 2:nrow(tab2)){
+  k_diff <- as.numeric(tab2$k[i]) - as.numeric(tab2$k[i-1])
+  tab2$p[i] <- 1 - pchisq(tab2$ddev[i], k_diff)
+}
+tab2
+
+# Skip model 2+3
+
+tab3 <- resultlist$lr_table[-(2:3),]
+# Recalculate ddev and p
+tab3$ddev <- c(NA, -diff(tab3$dev))
+for (i in 2:nrow(tab3)){
+  k_diff <- as.numeric(tab3$k[i]) - as.numeric(tab3$k[i-1])
+  tab3$p[i] <- 1 - pchisq(tab3$ddev[i], k_diff)
+}
+tab3
+
+}
+
+```
