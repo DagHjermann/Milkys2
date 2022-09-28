@@ -15,6 +15,9 @@ output:
 The resulting file will be imported into Excel, so set set   
 * decimal_comma = TRUE of you use European-style Excel (`,` for decimal numbers, columns separated by semicolon)   
 * decimal_comma = FALSE of you use American-style Excel (`.` for decimal numbers, columns separated by comma)   
+
+NEW as of Sept. 2022: download the .rds file to PC, not the csv file. Then convert it to csv using R on your PC.
+
 ```{r}
 
 decimal_comma <- TRUE
@@ -181,6 +184,19 @@ trends_last_year <- readRDS(paste0(folders_last_year_latest, "/126_df_trend_wide
 cat("\n", nrow(trends_last_year), "trends read")
 
 ```
+
+### b1. EXTRA  
+
+* This should normally NOT be what we do  
+
+**FROM 126_add_lengthadjusted** 
+
+```{r}
+
+# trends_last_year <- readRDS("Data/125_results_2021_04_output/126_df_trend_wide_2021_updated_01.rds")  
+
+```
+
 
 ### b2. Time trends for second last year  
 
@@ -2373,6 +2389,9 @@ if (fn %in% dir("Big_excel_table")){
   }
   cat("Text file", sQuote(fn), "written to folder 'Big_Excel_table'\n")
   # Save RDS
+  # If csv from Jupyterhub doesn't work download this file instead,
+  #   and make csv fil on your computer (see script 'RDS_to_CSV.R' in project 'Milkys2_pc'
+  #   folder 'Files_from_Jupyterhub_2021\Big_excel_table')
   saveRDS(data_xl_lessthans_oldnames, sub("csv", "rds", fn_full))
   cat("R data file", sQuote(sub("csv", "rds", fn)), "written to folder 'Big_Excel_table'\n")
 }
