@@ -1,0 +1,114 @@
+---
+title: "126_add_lengthadjusted"
+author: "DHJ"
+date: "2022-09-28"
+output: html_document
+---
+
+
+```{r}
+
+last_year <- 2021
+
+# 04 is the run for all WW data, used in the big excel, before JAGS model code was updated  
+# 05 is a later run for all WW data, after JAGS model code was updated
+# 06 is also later, but for WWa (length-adjusted) HG (2 series only)
+
+
+indexvars <- c("PARAM", "STATION_CODE", "TISSUE_NAME", "LATIN_NAME")
+
+```
+
+  
+## 1. Libraries and functions  
+
+```{r, results='hide', message=FALSE, warning=FALSE}
+
+# install.packages("lubridate")
+
+# General purpose
+library(dplyr)
+library(tidyr)
+library(purrr)
+library(ggplot2)
+
+source("125_Calculate_trends_leftadjusted_functions.R")
+
+```
+
+
+## Read results  
+
+```{r}
+
+df_trend_wide_04 <- readRDS("Data/125_results_2021_04_output/126_df_trend_wide_2021.rds")
+df_trend_wide_05 <- readRDS("Data/125_results_2021_05_output/126_df_trend_wide_2021.rds")
+df_trend_wide_06 <- readRDS("Data/125_results_2021_06_output/126_df_trend_wide_2021.rds") %>%
+  mutate(Basis = "WWa")
+
+```
+
+## Combine results,  check changes from 04 to 05  
+
+```{r}
+
+# Combine (for comparison only)
+df_trend_wide_04_compare <- df_trend_wide_04 %>%
+  rename(Trend_string_long_04 = Trend_string_long, Trend_string_short_04 = Trend_string_short, Trend_symbol_04 = Trend_symbol) %>%
+  left_join(
+    df_trend_wide_05 %>% 
+      select(PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME, Basis, Trend_string_long, Trend_string_short, Trend_symbol) %>%
+      rename(Trend_string_long_05 = Trend_string_long, Trend_string_short_05 = Trend_string_short, Trend_symbol_05 = Trend_symbol),
+    by = c("PARAM", "STATION_CODE", "TISSUE_NAME", "LATIN_NAME", "Basis")  
+  )
+
+xtabs(~Trend_string_long_04 + Trend_string_long_05, df_trend_wide_04_compare)
+xtabs(~Trend_string_short_04 + Trend_string_short_05, df_trend_wide_04_compare)
+
+
+```
+
+### Make 'df_trend_wide_04_updated'  
+
+*-* We only update the cases where 04 = "Estimation failed"   
+
+* 'df_trend_wide_05_to_replace' - new rows with results from 05  
+* 'df_trend_wide_04_original' - old rows from 04  
+* df_trend_wide_06 - Hg lengthadjusted  
+
+
+```{r}
+
+df_trend_wide_05_to_replace <- df_trend_wide_04 %>%
+  filter(Trend_string_long %in% "Estimation failed" | Trend_string_short %in% "Estimation failed") %>%
+  select(PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME, Basis) %>%
+  left_join(df_trend_wide_05)
+
+df_trend_wide_04_original <- df_trend_wide_04 %>%
+  anti_join(df_trend_wide_05_to_replace, 
+            by = c("PARAM", "STATION_CODE", "TISSUE_NAME", "LATIN_NAME", "Basis"))
+
+df_trend_wide_04_updated <- bind_rows(
+  df_trend_wide_04_original,
+  df_trend_wide_05_to_replace,
+  df_trend_wide_06
+)
+
+```
+
+
+### Check Trend_symbol  
+
+```{r}
+
+xtabs(~addNA(Trend_symbol), df_trend_wide_04_updated)
+
+```
+## Save  
+```{r}
+
+saveRDS(df_trend_wide_04_updated, "Data/125_results_2021_04_output/126_df_trend_wide_2021_updated_01.rds")
+
+
+```
+
