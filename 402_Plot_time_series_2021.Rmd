@@ -1,0 +1,93 @@
+---
+title: "402_Plot_time_series_2021"
+author: "DHJ"
+date: "2022-09-26"
+runtime: shiny
+output: html_document
+---
+
+
+
+## 0. Packages and functions  
+
+```{r, message=FALSE, warning=FALSE, results='hide'}
+
+library(dplyr)
+library(purrr)
+library(ggplot2)
+library(lubridate)
+library(AICcmodavg)   # AICc()
+library(svglite)
+# font_import(pattern = "Wingdings.ttf")    # if not already installed on your PC
+
+# Functions  
+source("125_Calculate_trends_leftadjusted_functions.R")
+source("402_Plot_time_series_functions.R")
+
+```
+
+## 1. Data  
+
+```{r}
+
+lookup_stations <- read.csv("Input_data/Lookup_tables/Lookup_stationorder.csv") %>%
+  mutate(Station = paste(STATION_CODE, Station_name)) %>%
+  select(STATION_CODE, Station)
+  
+folder_results <- "Data/125_results_2021_04"
+
+folder_input <- paste0(folder_results, "_input")
+folder_output <- paste0(folder_results, "_output")
+dat_series_trend <- readRDS(paste0(folder_input, "/125_dat_series_trend.rds")) %>%
+  left_join(lookup_stations, by = "STATION_CODE")
+dat_all_prep3 <- readRDS(paste0(folder_input, "/125_dat_all_prep3.rds"))
+df_trend <- readRDS(paste0(folder_output, "/126_df_trend_2021.rds"))
+
+# browser()
+
+params <- unique(dat_series_trend$PARAM) %>% sort()
+stations <- unique(dat_series_trend$Station) %>% sort()
+tissues <- unique(dat_series_trend$TISSUE_NAME) %>% sort()
+tissues <- c("(automatic)", tissues)
+
+```
+
+
+## 2. Interactive plot   
+
+### Selection   
+```{r echo=FALSE}
+
+shiny::selectInput(inputId = "param", label = "Parameter", choices = params, selected = "HG")
+shiny::selectInput(inputId = "station", label = "Station code", choices = stations, selected = "98B1")  
+shiny::selectInput(inputId = "tissue", label = "Tissue", choices = tissues, selected = )    
+
+```
+
+### Plot   
+
+```{r echo=FALSE}
+
+renderPlot({
+  
+  stationcode <- subset(lookup_stations, Station %in% input$station)$STATION_CODE
+  if (input$tissue == "(automatic)"){
+    tsplot <- plot_timeseries(input$param, stationcode, 
+                              folder = folder_results, 
+                              data = dat_all_prep3, 
+                              data_series = dat_series_trend, data_trend = df_trend)
+  } else {
+    tsplot <- plot_timeseries(input$param, stationcode, tissue = input$tissue, 
+                              folder = folder_results, 
+                              data = dat_all_prep3, 
+                              data_series = dat_series_trend, data_trend = df_trend)
+    
+  }
+  tsplot
+  
+})
+
+```
+
+
+
