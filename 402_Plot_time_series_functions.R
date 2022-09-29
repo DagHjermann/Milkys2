@@ -9,6 +9,7 @@
 plot_timeseries <- function(param, stationcode,
                             tissue = NULL,
                             species = NULL,
+                            y_scale = "ordinary",
                             folder,
                             data = dat_all_prep3, 
                             data_series = dat_series_trend,
@@ -32,12 +33,13 @@ plot_timeseries <- function(param, stationcode,
          txt1, txt2)
   }
   
-  gg <- tsplot_seriesno(seriesno,
-                        folder = folder,
-                        data = data, 
-                        data_series = data_series,
-                        data_trend = data_trend,
-                        allsamples = allsamples)
+  gg <- plot_timeseries_seriesno(seriesno,
+                                 y_scale = y_scale,
+                                 folder = folder,
+                                 data = data, 
+                                 data_series = data_series,
+                                 data_trend = data_trend,
+                                 allsamples = allsamples)
   
   gg
   
@@ -45,10 +47,10 @@ plot_timeseries <- function(param, stationcode,
 
 if (FALSE){
   
-  debugonce(tsplot_param)
-  debugonce(tsplot_seriesno)
-  tsplot_param("CB153", "11X", folder = folder_results)
-  tsplot_param("CB153", "19N", folder = folder_results)
+  debugonce(plot_timeseries)
+  debugonce(plot_timeseries_seriesno)
+  plot_timeseries("CB153", "11X", folder = folder_results)
+  plot_timeseries("CB153", "19N", folder = folder_results)
   
 }
 
@@ -56,7 +58,8 @@ if (FALSE){
 #
 # Extract and plot data from results (on files) and data (in memory)
 #
-tsplot_seriesno <- function(seriesno,
+plot_timeseries_seriesno <- function(seriesno,
+                                     y_scale = "ordinary",
                             folder,
                             data = dat_all_prep3, 
                             data_series = dat_series_trend,
@@ -89,10 +92,25 @@ tsplot_seriesno <- function(seriesno,
   # titlestring <- paste0(resultlist$PARAM, " (", resultlist$Basis, ") at ", resultlist$STATION_CODE, " (", resultlist$TISSUE_NAME, " from ", resultlist$LATIN_NAME, ")")
   titlestring <- paste0(resultlist$PARAM, " at ", resultlist$STATION_CODE, " (", resultlist$TISSUE_NAME, " from ", resultlist$LATIN_NAME, ")")
   
+  if (y_scale %in% c("ordinary", "log scale")){
+    df_median <- df_median %>% 
+      mutate(
+        y = exp(y),
+        ymin = exp(ymin),
+        ymax = exp(ymax))
+  }
+  
   gg <- ggplot(df_median, aes(x, y))
   
   if (!is.null(resultlist$plot_data)){
     k_sel <- resultlist$k_sel
+    if (y_scale %in% c("ordinary", "log scale")){
+      resultlist$plot_data[[k_sel]] <- resultlist$plot_data[[k_sel]] %>% 
+        mutate(
+          y = exp(y),
+          y_q2.5 = exp(y_q2.5),
+          y_q97.5 = exp(y_q97.5))
+    }
     gg <- gg +
       geom_ribbon(data = resultlist$plot_data[[k_sel]], aes(ymin = y_q2.5, ymax = y_q97.5), fill = "grey70") +
       geom_line(data = resultlist$plot_data[[k_sel]])
@@ -121,6 +139,10 @@ tsplot_seriesno <- function(seriesno,
     trendstring <- paste0(
       "Long-term: ", subset(df_trend_sel, Trend_type == "long")$Trend_string, "\n",
       "Short-term: ", subset(df_trend_sel, Trend_type == "short")$Trend_string)
+    if (y_scale == "log scale"){
+      gg <- gg +
+        scale_y_log10()
+    }
     gg <- gg +
       annotate("text", x = Inf, y = Inf, label = trendstring, hjust = 1.1, vjust = 1.2, size = trendtext_size, colour = "blue3")
   }

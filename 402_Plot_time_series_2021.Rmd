@@ -61,23 +61,26 @@ tissues <- c("(automatic)", tissues)
 shiny::selectInput(inputId = "param", label = "Parameter", choices = params, selected = "HG")
 shiny::selectInput(inputId = "station", label = "Station code", choices = stations, selected = "98B1")  
 shiny::selectInput(inputId = "tissue", label = "Tissue", choices = tissues, selected = )    
+shiny::selectInput(inputId = "y_scale", label = "Y-scale", choices = c("ordinary", "log numbers", "log scale"), selected = "ordinary")    
 
 ```
 
 ### Plot   
 
-```{r echo=FALSE}
+```{r, echo=FALSE, fig.width=9, fig.height=7}
 
 renderPlot({
   
   stationcode <- subset(lookup_stations, Station %in% input$station)$STATION_CODE
   if (input$tissue == "(automatic)"){
-    tsplot <- plot_timeseries(input$param, stationcode, 
+    tsplot <- plot_timeseries(input$param, stationcode,
+                              y_scale = input$y_scale,
                               folder = folder_results, 
                               data = dat_all_prep3, 
                               data_series = dat_series_trend, data_trend = df_trend)
   } else {
     tsplot <- plot_timeseries(input$param, stationcode, tissue = input$tissue, 
+                              y_scale = input$y_scale,
                               folder = folder_results, 
                               data = dat_all_prep3, 
                               data_series = dat_series_trend, data_trend = df_trend)
@@ -85,9 +88,7 @@ renderPlot({
   }
   tsplot
   
-})
+}, width = 500, height = 300)
 
 ```
-
-
 
