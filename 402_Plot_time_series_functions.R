@@ -4,14 +4,16 @@
 #
 # Extract and plot data from results (on files) and data (in memory)
 #
-tsplot_param <- function(param, stationcode,
-                         tissue = NULL,
-                         species = NULL,
-                         folder,
-                         data = dat_all_prep3, 
-                         data_series = dat_series_trend,
-                         data_trend = NULL,
-                         allsamples = FALSE){
+# This function is built on 'tsplot_param' from script 125..functions, but has been adapted
+#
+plot_timeseries <- function(param, stationcode,
+                            tissue = NULL,
+                            species = NULL,
+                            folder,
+                            data = dat_all_prep3, 
+                            data_series = dat_series_trend,
+                            data_trend = NULL,
+                            allsamples = FALSE){
   
   # browser()
   
@@ -23,7 +25,11 @@ tsplot_param <- function(param, stationcode,
     data_series = data_series)
   
   if (length(seriesno) > 1){
-    stop(">1 series selected")
+    rawdata <- extract_raw_data(seriesno, data = data, data_series = data_series)
+    txt1 <- paste("Species found:", paste(unique(rawdata$LATIN_NAME), collapse = ", "), "\n")    
+    txt2 <- paste("Tissues found:", paste(unique(rawdata$TISSUE_NAME), collapse = ", "), "\n") 
+    stop(">1 series selected. You must probably add 'tissue = ...' (see below for tissues at this station) \n\n",
+         txt1, txt2)
   }
   
   gg <- tsplot_seriesno(seriesno,
@@ -42,6 +48,7 @@ if (FALSE){
   debugonce(tsplot_param)
   debugonce(tsplot_seriesno)
   tsplot_param("CB153", "11X", folder = folder_results)
+  tsplot_param("CB153", "19N", folder = folder_results)
   
 }
 
