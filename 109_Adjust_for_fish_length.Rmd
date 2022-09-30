@@ -478,8 +478,51 @@ message("nrow(data_all), since previous year: ", nrow(data_all %>% filter(MYEAR 
 message("nrow(data_lastyear): ", nrow(data_lastyear))  # 752
 
 ```
+### Check 1: Length data not used    
 
-### Checks
+```{r}
+
+cat("Length data not used:\n\n")
+df_lnmea_since_previous %>%
+  filter(!is.na(LNMEA)) %>%
+  anti_join(data_lastyear, by = c("MYEAR", "STATION_CODE", "TISSUE_NAME", "SAMPLE_NO2")) %>%
+  xtabs(~paste(STATION_CODE, TISSUE_NAME) + MYEAR, .)
+
+```
+### Check 2: Length data not used    
+
+```{r}
+
+cat("Data without length data, by parameter:\n\n")
+tab1 <- data_lastyear %>%
+  filter(is.na(LNMEA) & TISSUE_NAME %in% c("Lever", "Muskel")) %>% # View
+  xtabs(~ MYEAR + PARAM, .)
+tab1
+
+cat("\n\n")
+cat("Data without length data, except EROD and siloxans - including SAMPLE_NO2:\n\n")
+tab2 <- data_lastyear %>%
+  filter(is.na(LNMEA) & TISSUE_NAME %in% c("Lever", "Muskel")) %>% # View
+  filter(!PARAM %in% c("EROD", "D4", "D5", "D6")) %>% # View("ch")
+  xtabs(~ paste(MYEAR, SAMPLE_NO2) + PARAM + paste(STATION_CODE, TISSUE_NAME), .)  
+
+tab2
+
+cat("\n")
+
+# Max tolerated number of rows - if above this, stop  
+row_limit <- 5
+
+if (nrow(tab2) > 0 & nrow(tab2) <= row_limit){
+  warning("Section 4: Some samples lack length data, but <=", row_limit, " (see bottom table above)")
+} else if (nrow(tab2) > row_limit){
+  stop("Section 4: More than", row_limit, "samples lack length data")
+}
+
+
+```
+
+### Checks 3
 ```{r}
 
 if (FALSE){
