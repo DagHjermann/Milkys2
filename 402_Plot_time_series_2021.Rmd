@@ -10,6 +10,7 @@ library(dplyr)
 library(purrr)
 library(ggplot2)
 library(lubridate)
+library(stringr)
 # library(AICcmodavg)   # AICc()
 library(svglite)
 # font_import(pattern = "Wingdings.ttf")    # if not already installed on your PC
@@ -49,6 +50,19 @@ dat_all_prep3 <- dat_all_prep3 %>%
       TISSUE_NAME %in% "Galle" ~ "Bile",
       TRUE ~ TISSUE_NAME)
   )
+
+# Add 'Species_name' to data    
+dat_all_prep3 <- dat_all_prep3 %>%
+  left_join(
+    read.csv("Input_data/Lookup_tables/Lookup_speciesnames.csv"), 
+    by = "LATIN_NAME") %>%
+  mutate(Species_name = ifelse(is.na(Species_name), LATIN_NAME, Species_name))
+
+# Add station names + Region 
+dat_stationnames <- read.csv("Input_data/Lookup_tables/Lookup_stationorder.csv") %>%
+  select(STATION_CODE, Station_name, Region)
+dat_all_prep3 <- dat_all_prep3 %>%
+  left_join(dat_stationnames, by = "STATION_CODE")
 
 # Lookup files for EQS and Proref   
 dat_eqs <- read.csv("Input_data/Lookup_tables/Lookup_EQS_limits.csv") %>%
