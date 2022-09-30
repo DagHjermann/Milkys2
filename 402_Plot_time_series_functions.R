@@ -12,6 +12,7 @@ plot_timeseries <- function(param, stationcode,
                             y_scale = "ordinary",
                             ymax_perc = 100,
                             xmin_rel = 0, xmax_rel = 0,
+                            eqs = TRUE,
                             folder,
                             data = dat_all_prep3, 
                             data_series = dat_series_trend,
@@ -39,6 +40,7 @@ plot_timeseries <- function(param, stationcode,
                                  y_scale = y_scale,
                                  ymax_perc = ymax_perc,
                                  xmin_rel = xmin_rel, xmax_rel = xmax_rel,
+                                 eqs = eqs,
                                  folder = folder,
                                  data = data, 
                                  data_series = data_series,
@@ -66,6 +68,7 @@ plot_timeseries_seriesno <- function(seriesno,
                                      y_scale = "ordinary",
                                      ymax_perc = 100,
                                      xmin_rel = 0, xmax_rel = 0,
+                                     eqs = TRUE,
                                      folder,
                                      data = dat_all_prep3, 
                                      data_series = dat_series_trend,
@@ -83,6 +86,9 @@ plot_timeseries_seriesno <- function(seriesno,
   # debugonce(get_pointdata)
   df_points <- extract_raw_data(seriesno, data = data, data_series = data_series) %>%
     mutate(y_comb = ifelse(is.na(y), threshold, y))
+  
+  # EQS
+  include_eqs <- !is.na(df_points$EQS[1]) & eqs
   
   # Get unit to print on y axis  
   unit_print <- get_unit_text(tail(df_points$UNIT, 1), "WW", tail(df_points$PARAM, 1))
@@ -108,9 +114,18 @@ plot_timeseries_seriesno <- function(seriesno,
         ymin = exp(ymin),
         ymax = exp(ymax))
   }
+    
+  # Set x limits
+  x_limits <- range(df_points$x) + c(xmin_rel, xmax_rel)
+  
+  # Set y limits
   rn <- c(min(df_median$ymin), max(df_median$ymax))
   y_limits <- c(rn[1], rn[1] + (rn[2]-rn[1])*ymax_perc/100)
-    
+  if (include_eqs){
+    y_limits[1] <- min(rn[1], df_points$EQS[1])
+  }
+  
+  
   gg <- ggplot(df_median, aes(x, y))
   
   if (!is.null(resultlist$plot_data)){
@@ -154,10 +169,15 @@ plot_timeseries_seriesno <- function(seriesno,
       gg <- gg +
         scale_y_log10()
     }
+    if (include_eqs){
+      gg <- gg +
+        geom_hline(yintercept = df_points$EQS[1], color = "red2", linetype = "dashed", size = rel(1.5)) +
+        annotate("text", x = x_limits[1], y = df_points$EQS[1], label = "EQS", hjust = 0.5, vjust = -1.3, 
+                 size = 5, color = "red2")
+          
+    }
     gg <- gg +
-      coord_cartesian(
-        xlim = range(df_points$x) + c(xmin_rel, xmax_rel),
-        ylim = y_limits) +
+      coord_cartesian(xlim = x_limits, ylim = y_limits) +
       labs(y = unit_print, x = "") +
       annotate("text", x = Inf, y = Inf, label = trendstring, hjust = 1.1, vjust = 1.2, size = trendtext_size, colour = "blue3")
   }

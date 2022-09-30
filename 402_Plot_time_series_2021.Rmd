@@ -35,7 +35,21 @@ dat_series_trend <- readRDS(paste0(folder_input, "/125_dat_series_trend.rds")) %
 dat_all_prep3 <- readRDS(paste0(folder_input, "/125_dat_all_prep3.rds"))
 df_trend <- readRDS(paste0(folder_output, "/126_df_trend_2021.rds"))
 
+# Lookup files   
+dat_eqs <- read.csv("Input_data/Lookup_tables/Lookup_EQS_limits.csv") %>%
+  filter(Basis %in% "WW") %>%
+  select(-Long_name, -Kommentar) %>%
+  rename(EQS = Limit)
+dat_proref <- read.csv("Input_data/Lookup_tables/Lookup_proref.csv")
 
+dat_all_prep3 <- bind_rows(
+  dat_all_prep3 %>%
+    filter(PARAM != "CB118") %>%
+    left_join(dat_eqs %>% filter(PARAM != "CB118") %>% select(-LATIN_NAME), by = "PARAM"),
+  dat_all_prep3 %>%
+    filter(PARAM == "CB118") %>%
+    left_join(dat_eqs %>% filter(PARAM == "CB118"), by = c("PARAM", "LATIN_NAME"))
+)
 
 # browser()
 
@@ -81,6 +95,7 @@ tsplot_r <- reactive({
                               ymax_perc = input$ymax_perc,
                               xmin_rel = input$xmin_rel,
                               xmax_rel = input$xmax_rel,
+                              eqs = input$eqs,
                               folder = folder_results, 
                               data = dat_all_prep3, 
                               data_series = dat_series_trend, data_trend = df_trend)
@@ -88,6 +103,9 @@ tsplot_r <- reactive({
     tsplot <- plot_timeseries(input$param, stationcode, tissue = input$tissue, 
                               y_scale = input$y_scale,
                               ymax_perc = input$ymax_perc,
+                              xmin_rel = input$xmin_rel,
+                              xmax_rel = input$xmax_rel,
+                              eqs = input$eqs,
                               folder = folder_results, 
                               data = dat_all_prep3, 
                               data_series = dat_series_trend, data_trend = df_trend)
