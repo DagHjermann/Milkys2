@@ -42,6 +42,8 @@ editor_options:
 * The data is checked for duplicates repeatedly, in the following sections: 
 2a7, 3b3, 3g, 7, 8c, 10d, 11a   
     - Errors often shows in these checks  
+    - These checks can be sped up using data.table (https://stackoverflow.com/a/7450633), 
+    or possibly dtplyr::lazy_dt 
 
 ## 1. Load libraries and functions   
 ```{r, results='hide', message=FALSE, warning=FALSE}
