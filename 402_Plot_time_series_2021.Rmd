@@ -4,7 +4,6 @@ runtime: shiny
 output: html_document
 ---
 
-
 ```{r libraries, echo=FALSE, message=FALSE, warning=FALSE, results='hide'}
 
 library(dplyr)
@@ -36,6 +35,8 @@ dat_series_trend <- readRDS(paste0(folder_input, "/125_dat_series_trend.rds")) %
 dat_all_prep3 <- readRDS(paste0(folder_input, "/125_dat_all_prep3.rds"))
 df_trend <- readRDS(paste0(folder_output, "/126_df_trend_2021.rds"))
 
+
+
 # browser()
 
 params <- unique(dat_series_trend$PARAM) %>% sort()
@@ -43,14 +44,15 @@ stations <- unique(dat_series_trend$Station) %>% sort()
 tissues <- unique(dat_series_trend$TISSUE_NAME) %>% sort()
 tissues <- c("(automatic)", tissues)
 
+# Folder for saving plots
 folder <- "Figures_402/Til 2021-rapporten/"
-savedplots_filename <- paste0(folder, "_saved_plots.csv")  
 
 # Save metadata for saved plots
+savedplots_filename <- paste0(folder, "_saved_plots.csv")  
 file_exists <- file.exists(savedplots_filename)
 if (!file_exists){
   zz <- file(savedplots_filename, "w")  # open an output file connection
-  cat("Filename, PARAM, STATION_CODE, TISSUE_NAME, y_scale\n", file = zz)
+  cat("Filename, PARAM, STATION_CODE, TISSUE_NAME, y_scale, ymax_perc, xmin_rel, xmax_rel\n", file = zz)
   close(zz)
 }
   
@@ -77,6 +79,8 @@ tsplot_r <- reactive({
     tsplot <- plot_timeseries(input$param, stationcode,
                               y_scale = input$y_scale,
                               ymax_perc = input$ymax_perc,
+                              xmin_rel = input$xmin_rel,
+                              xmax_rel = input$xmax_rel,
                               folder = folder_results, 
                               data = dat_all_prep3, 
                               data_series = dat_series_trend, data_trend = df_trend)
@@ -116,7 +120,8 @@ observeEvent(input$save, {
   save_plot(tsplot_r(), paste0("Figures_402/Til 2021-rapporten/", fn_base, ".png"))
   # Write metadata for saved plot
   fileconn <- file(savedplots_filename, "at")
-  cat(paste(paste0(fn_base, ".png"), input$param, stationcode, input$tissue, input$y_scale, sep = ","), "\n",
+  cat(paste(paste0(fn_base, ".png"), input$param, stationcode, input$tissue, input$y_scale, 
+            input$ymax_perc, input$xmin_rel, input$xmax_rel, sep = ","), "\n",
       file = fileconn)
   close(fileconn)
   
@@ -127,8 +132,11 @@ observeEvent(input$save, {
 
 ```{r save_button, echo=FALSE}
 
-shiny::sliderInput("ymax_perc", "Max y (%)", value = 100, min = 2, max = 200, step = 2)
 shiny::actionButton("save", "Save plot")
+shiny::sliderInput("ymax_perc", "Max y (%)", value = 100, min = 2, max = 200, step = 2)
+shiny::sliderInput("xmin_rel", "Change x min.", value = 0, min = -10, max = 40, step = 1)
+shiny::sliderInput("xmax_rel", "Change x max.", value = 0, min = -40, max = 10, step = 1)
+shiny::checkboxInput("eqs", "Include EQS line", value = TRUE)
 
 ```
 

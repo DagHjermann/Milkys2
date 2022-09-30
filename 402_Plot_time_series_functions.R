@@ -11,6 +11,7 @@ plot_timeseries <- function(param, stationcode,
                             species = NULL,
                             y_scale = "ordinary",
                             ymax_perc = 100,
+                            xmin_rel = 0, xmax_rel = 0,
                             folder,
                             data = dat_all_prep3, 
                             data_series = dat_series_trend,
@@ -37,6 +38,7 @@ plot_timeseries <- function(param, stationcode,
   gg <- plot_timeseries_seriesno(seriesno,
                                  y_scale = y_scale,
                                  ymax_perc = ymax_perc,
+                                 xmin_rel = xmin_rel, xmax_rel = xmax_rel,
                                  folder = folder,
                                  data = data, 
                                  data_series = data_series,
@@ -63,6 +65,7 @@ if (FALSE){
 plot_timeseries_seriesno <- function(seriesno,
                                      y_scale = "ordinary",
                                      ymax_perc = 100,
+                                     xmin_rel = 0, xmax_rel = 0,
                                      folder,
                                      data = dat_all_prep3, 
                                      data_series = dat_series_trend,
@@ -152,7 +155,9 @@ plot_timeseries_seriesno <- function(seriesno,
         scale_y_log10()
     }
     gg <- gg +
-      coord_cartesian(ylim = y_limits) +
+      coord_cartesian(
+        xlim = range(df_points$x) + c(xmin_rel, xmax_rel),
+        ylim = y_limits) +
       labs(y = unit_print, x = "") +
       annotate("text", x = Inf, y = Inf, label = trendstring, hjust = 1.1, vjust = 1.2, size = trendtext_size, colour = "blue3")
   }
