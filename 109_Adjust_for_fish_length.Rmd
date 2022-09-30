@@ -84,7 +84,13 @@ data_all <- readRDS(paste0("Data/", filename))
 
 # We save the date part of the text (e.g., '2020-04-23')
 # This will be used in part 10, when we save the resulting file
-file_date <- substr(filename, 18, 27)    # pick out the part of the text from character no. 17 to no. 26
+file_date <- substr(filename, 27, 36)    # pick out the part of the text from character no. 17 to no. 26
+
+check <- lubridate::ymd(file_date)
+if (is.na(check)){
+  stop("Section 2a1: 'file_date' appears not to be a valid date. Please check code.")
+}
+
 
 ```
 
@@ -805,11 +811,13 @@ Takes 2-3 minutes on DHJ's PC
 ```{r, error=FALSE, warning=FALSE, message=FALSE, results='hide'}
 
 if (FALSE){
-  par <- "CB118"
+  par <- "HG"
   data_all2 %>% 
     filter(STATION_CODE %in% "15B" & PARAM %in% par & MYEAR == "selected_year" & SAMPLE_NO2 == 1) 
   data_all2 %>% 
     filter(STATION_CODE %in% "15B" & PARAM %in% par & MYEAR == "selected_year" & SAMPLE_NO2 == 1) 
+  # Test for only one parameter:
+  data_lengthreg <- data_lengthreg %>% filter(PARAM %in% "HG")
 }
 
 i_max <- nrow(data_lengthreg)
@@ -929,7 +937,7 @@ data_all2 <- as_tibble(data_all2)
 
 ```{r}
 
-param <- "CB118"
+param <- "HG"
 
 # How many have length?
 data_all2 %>%
@@ -1122,7 +1130,7 @@ filename <- paste0("Data/109_adjusted_data_", file_date, ".rds")
 
 saveRDS(data_all2, filename)
 
-cat("Data of medians saved as: \n")
+cat("Data saved as: \n")
 cat(" ", filename, "\n")
 
 if (FALSE){
