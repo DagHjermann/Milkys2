@@ -1,16 +1,11 @@
 ---
-title: "402_Plot_time_series_2021"
-author: "DHJ"
-date: "2022-09-26"
+title: "Plot time series (2021)"
 runtime: shiny
 output: html_document
 ---
 
 
-
-## 0. Packages and functions  
-
-```{r, message=FALSE, warning=FALSE, results='hide'}
+```{r libraries, echo=FALSE, message=FALSE, warning=FALSE, results='hide'}
 
 library(dplyr)
 library(purrr)
@@ -26,10 +21,7 @@ source("402_Plot_time_series_functions.R")
 
 ```
 
-## 1. Data  
-
-
-```{r}
+```{r data, echo=FALSE}
 
 lookup_stations <- read.csv("Input_data/Lookup_tables/Lookup_stationorder.csv") %>%
   mutate(Station = paste(STATION_CODE, Station_name)) %>%
@@ -51,13 +43,20 @@ stations <- unique(dat_series_trend$Station) %>% sort()
 tissues <- unique(dat_series_trend$TISSUE_NAME) %>% sort()
 tissues <- c("(automatic)", tissues)
 
+folder <- "Figures_402/Til 2021-rapporten/"
+savedplots_filename <- paste0(folder, "_saved_plots.csv")  
+
+# Save metadata for saved plots
+file_exists <- file.exists(savedplots_filename)
+if (!file_exists){
+  zz <- file(savedplots_filename, "w")  # open an output file connection
+  cat("PARAM, STATION_CODE, TISSUE_NAME, y_scale\n", file = zz)
+  close(zz)
+}
+  
 ```
 
-
-## 2. Interactive plot   
-
-### Selection   
-```{r echo=FALSE}
+```{r main_menus, echo=FALSE}
 
 shiny::selectInput(inputId = "param", label = "Parameter", choices = params, selected = "HG")
 shiny::selectInput(inputId = "station", label = "Station code", choices = stations, selected = "98B1")  
@@ -66,9 +65,7 @@ shiny::selectInput(inputId = "y_scale", label = "Y-scale", choices = c("ordinary
 
 ```
 
-### Plot   
-
-```{r, echo=FALSE, fig.width=9, fig.height=7}
+```{r plot, echo=FALSE, fig.width=9, fig.height=7}
 
 #
 # Get ggplot object   
