@@ -126,7 +126,13 @@ if (!file.exists(filename)){
   stop("The file ", filename, " wasn't found. This file must be created from script 150.")
 }
 
-data_ind_fish <- readRDS(filename)
+data_ind_fish <- readRDS(filename) %>%
+  mutate(
+    STATION_CODE = case_when(
+      STATION_CODE %in% "43B" ~ "43B2",
+      STATION_CODE %in% "98B" ~ "98B1",
+      TRUE ~ STATION_CODE)
+  )
 
 cat("\nStations:")
 table(addNA(data_ind_fish$STATION_CODE))
@@ -303,6 +309,9 @@ df_fishsamples_temp <- tidyr::separate_rows(df_fishsamples, X_BULK_BIO)
 #
 check <- check_variable_is_numeric(df_fishsamples_temp, "X_BULK_BIO")
 
+if (nrow(check)>0)
+  stop("Not all 'X_BULK_BIO' are numeric (error in 3A)")
+
 #
 # Special case for 2020 data (after check above) 
 # Remove "G" from someeider duck X_BULK_BIO    
@@ -312,6 +321,8 @@ df_fishsamples_temp$X_BULK_BIO[sel] <- sub("G", "", df_fishsamples_temp$X_BULK_B
 
 # Repeat check - should be OK now
 check <- check_variable_is_numeric(df_fishsamples_temp, "X_BULK_BIO")
+if (nrow(check)>0)
+  stop("Not all 'X_BULK_BIO' are numeric (error in 3A)")
 
 #
 # Special case, end
@@ -495,7 +506,9 @@ check <- data_lastyear %>%
   group_by(STATION_CODE, LATIN_NAME, TISSUE_NAME, MYEAR, SAMPLE_NO2, UNIT, PARAM) %>%
   mutate(n = n()) %>%
   filter(n > 1)
-nrow(check)  # should be 0
+
+if (nrow(check) > 0)
+  stop("Should be 0 (part 4 - check uniqueness)")
 
 ```
 
@@ -624,14 +637,18 @@ check1 <- data_all2 %>%
   group_by(STATION_CODE, LATIN_NAME, TISSUE_NAME, MYEAR, SAMPLE_NO2, UNIT, PARAM) %>%
   mutate(n = n()) %>%
   filter(n > 1)
-nrow(check1)  # should be zero!
+
+if (nrow(check1) > 0)
+  stop("Should be 0 (part 5d - check uniqueness 1)")
 
 check2 <- data_lengthreg %>%
   ungroup() %>%
   group_by(STATION_CODE, LATIN_NAME, TISSUE_NAME, PARAM) %>%
   mutate(n = n()) %>%
   filter(n > 1)
-nrow(check2)  # should be zero!
+
+if (nrow(check2) > 0)
+  stop("Should be 0 (part 5d - check uniqueness 2)")
   
 ```
 
@@ -640,8 +657,8 @@ nrow(check2)  # should be zero!
 ### Select data  
 ```{r}
 
-station <- "13B"
-par <- "CB118"
+station <- "43B2"
+par <- "HG"
 
 cat("Chosen", par, "at", station, "\n\n")
 
@@ -1068,6 +1085,7 @@ cat(" ", filename, "\n")
 if (FALSE){
   # For reading the file instead 
   data_all2 <- readRDS(filename)
+  data_all2 <- readRDS("Data/109_adjusted_data_2022-09-23.rds")
 }
 
 ```
