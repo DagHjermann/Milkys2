@@ -12,7 +12,7 @@ plot_timeseries <- function(param, stationcode,
                             y_scale = "ordinary",
                             ymax_perc = 100,
                             xmin_rel = 0, xmax_rel = 0,
-                            eqs = TRUE, proref = TRUE,
+                            eqs = TRUE, proref = 1,
                             folder,
                             data = dat_all_prep3, 
                             data_series = dat_series_trend,
@@ -68,7 +68,7 @@ plot_timeseries_seriesno <- function(seriesno,
                                      y_scale = "ordinary",
                                      ymax_perc = 100,
                                      xmin_rel = 0, xmax_rel = 0,
-                                     eqs = TRUE, proref = TRUE,
+                                     eqs = TRUE, proref = 1,
                                      folder,
                                      data = dat_all_prep3, 
                                      data_series = dat_series_trend,
@@ -89,7 +89,9 @@ plot_timeseries_seriesno <- function(seriesno,
   
   # EQS and Proref
   include_eqs <- !is.na(df_points$EQS[1]) & eqs
-  include_proref <- !is.na(df_points$Proref[1]) & proref
+  
+  proref_x <- as.numeric(strsplit(proref, split = ",")[[1]])
+  include_proref <- !is.na(df_points$Proref[1]) & length(proref_x) > 0
   
   # Get unit to print on y axis  
   unit_print <- get_unit_text(tail(df_points$UNIT, 1), "WW", tail(df_points$PARAM, 1))
@@ -178,10 +180,16 @@ plot_timeseries_seriesno <- function(seriesno,
                  size = 5, color = "red2")
     }
     if (include_proref){
+      proref_vals <- df_points$Proref[1]*proref_x
+      if (identical(proref_x,1)){
+        proref_text <- "PROREF"
+      } else {
+        proref_text <- paste0(proref_x, "x PROREF")
+      }
       gg <- gg +
-        geom_hline(yintercept = df_points$Proref[1], color = "blue2", linetype = "dotted", 
+        geom_hline(yintercept = proref_vals, color = "blue2", linetype = "dotted", 
                    size = rel(1)) +
-        annotate("text", x = x_limits[1], y = df_points$Proref[1], label = "PROREF", 
+        annotate("text", x = x_limits[1], y = proref_vals, label = proref_text, 
                  hjust = 0.25, vjust = -1, 
                  size = 4, color = "blue2")
     }
