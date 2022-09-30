@@ -50,7 +50,7 @@ savedplots_filename <- paste0(folder, "_saved_plots.csv")
 file_exists <- file.exists(savedplots_filename)
 if (!file_exists){
   zz <- file(savedplots_filename, "w")  # open an output file connection
-  cat("PARAM, STATION_CODE, TISSUE_NAME, y_scale\n", file = zz)
+  cat("Filename, PARAM, STATION_CODE, TISSUE_NAME, y_scale\n", file = zz)
   close(zz)
 }
   
@@ -106,17 +106,24 @@ renderPlot({
 observeEvent(input$save, {
   stationcode <- subset(lookup_stations, Station %in% input$station)$STATION_CODE
   if (input$tissue == "(automatic)"){
-  fn_base <- paste(input$param, stationcode, sep = "_")
+    fn_base <- paste(input$param, stationcode, sep = "_")
   } else {
-  fn_base <- paste(input$param, stationcode, input$tissue, sep = "_")
+    fn_base <- paste(input$param, stationcode, input$tissue, sep = "_")
   }
+  # Save plot
   save_plot(tsplot_r(), paste0("Figures_402/Til 2021-rapporten/", fn_base, ".png"))
+  # Write metadata for saved plot
+  fileconn <- file(savedplots_filename, "at")
+  cat(paste(paste0(fn_base, ".png"), input$param, stationcode, input$tissue, input$y_scale, sep = ","), "\n",
+      file = fileconn)
+  close(fileconn)
+  
 })
 
 ```
 
 
-```{r}
+```{r save_button, echo=FALSE}
 
 shiny::actionButton("save", "Save plot")
 
