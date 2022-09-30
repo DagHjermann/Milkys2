@@ -16,7 +16,7 @@ library(dplyr)
 library(purrr)
 library(ggplot2)
 library(lubridate)
-library(AICcmodavg)   # AICc()
+# library(AICcmodavg)   # AICc()
 library(svglite)
 # font_import(pattern = "Wingdings.ttf")    # if not already installed on your PC
 
@@ -27,6 +27,7 @@ source("402_Plot_time_series_functions.R")
 ```
 
 ## 1. Data  
+
 
 ```{r}
 
@@ -61,7 +62,7 @@ tissues <- c("(automatic)", tissues)
 shiny::selectInput(inputId = "param", label = "Parameter", choices = params, selected = "HG")
 shiny::selectInput(inputId = "station", label = "Station code", choices = stations, selected = "98B1")  
 shiny::selectInput(inputId = "tissue", label = "Tissue", choices = tissues, selected = )    
-shiny::selectInput(inputId = "y_scale", label = "Y-scale", choices = c("ordinary", "log numbers", "log scale"), selected = "ordinary")    
+shiny::selectInput(inputId = "y_scale", label = "Y-scale", choices = c("ordinary", "log numbers", "log scale"), selected = "ordinary")  
 
 ```
 
@@ -69,8 +70,11 @@ shiny::selectInput(inputId = "y_scale", label = "Y-scale", choices = c("ordinary
 
 ```{r, echo=FALSE, fig.width=9, fig.height=7}
 
-renderPlot({
-  
+#
+# Get ggplot object   
+#
+
+tsplot_r <- reactive({
   stationcode <- subset(lookup_stations, Station %in% input$station)$STATION_CODE
   if (input$tissue == "(automatic)"){
     tsplot <- plot_timeseries(input$param, stationcode,
@@ -87,8 +91,37 @@ renderPlot({
     
   }
   tsplot
+})
+
+#
+# Show on screen
+#
+renderPlot({
+  
+  tsplot_r()
   
 }, width = 500, height = 300)
+
+#
+# Save to file
+#
+
+observeEvent(input$save, {
+  stationcode <- subset(lookup_stations, Station %in% input$station)$STATION_CODE
+  if (input$tissue == "(automatic)"){
+  fn_base <- paste(input$param, stationcode, sep = "_")
+  } else {
+  fn_base <- paste(input$param, stationcode, input$tissue, sep = "_")
+  }
+  save_plot(tsplot_r(), paste0("Figures_402/Til 2021-rapporten/", fn_base, ".png"))
+})
+
+```
+
+
+```{r}
+
+shiny::actionButton("save", "Save plot")
 
 ```
 
