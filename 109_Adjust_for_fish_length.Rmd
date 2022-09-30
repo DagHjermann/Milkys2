@@ -1258,5 +1258,25 @@ cat("\nData written to \n")
 cat(" ", fn, "\n")
 
 ```
+## 9. Final check for HG in cod  
+```{r}
+
+param <- "HG"
+
+data_all2 %>%
+  # Select only stations with data for last year (3 lines)  
+  group_by(STATION_CODE) %>% 
+  mutate(Data_last_year = sum(MYEAR %in% selected_year)) %>%
+  filter(Data_last_year > 0) %>%
+  # Select parameter ++
+  filter(LATIN_NAME == "Gadus morhua" & MYEAR >= 2000 & PARAM %in% param) %>% # View()
+  group_by(STATION_CODE, MYEAR) %>%
+  summarise(Fraction_WWa = round(mean(is.finite(VALUE_WWa)/is.finite(VALUE_WW)), 2),
+            .groups = "drop") %>%
+  ggplot(aes(MYEAR, STATION_CODE, fill = Fraction_WWa)) + 
+  geom_tile() +
+  labs(title = paste("Fraction of data with length-adjusted values,", param))
+
+```
 
 
