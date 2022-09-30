@@ -12,7 +12,7 @@ plot_timeseries <- function(param, stationcode,
                             y_scale = "ordinary",
                             ymax_perc = 100,
                             xmin_rel = 0, xmax_rel = 0,
-                            eqs = TRUE,
+                            eqs = TRUE, proref = TRUE,
                             folder,
                             data = dat_all_prep3, 
                             data_series = dat_series_trend,
@@ -40,7 +40,7 @@ plot_timeseries <- function(param, stationcode,
                                  y_scale = y_scale,
                                  ymax_perc = ymax_perc,
                                  xmin_rel = xmin_rel, xmax_rel = xmax_rel,
-                                 eqs = eqs,
+                                 eqs = eqs, proref = proref,
                                  folder = folder,
                                  data = data, 
                                  data_series = data_series,
@@ -68,7 +68,7 @@ plot_timeseries_seriesno <- function(seriesno,
                                      y_scale = "ordinary",
                                      ymax_perc = 100,
                                      xmin_rel = 0, xmax_rel = 0,
-                                     eqs = TRUE,
+                                     eqs = TRUE, proref = TRUE,
                                      folder,
                                      data = dat_all_prep3, 
                                      data_series = dat_series_trend,
@@ -87,8 +87,9 @@ plot_timeseries_seriesno <- function(seriesno,
   df_points <- extract_raw_data(seriesno, data = data, data_series = data_series) %>%
     mutate(y_comb = ifelse(is.na(y), threshold, y))
   
-  # EQS
+  # EQS and Proref
   include_eqs <- !is.na(df_points$EQS[1]) & eqs
+  include_proref <- !is.na(df_points$Proref[1]) & proref
   
   # Get unit to print on y axis  
   unit_print <- get_unit_text(tail(df_points$UNIT, 1), "WW", tail(df_points$PARAM, 1))
@@ -172,9 +173,17 @@ plot_timeseries_seriesno <- function(seriesno,
     if (include_eqs){
       gg <- gg +
         geom_hline(yintercept = df_points$EQS[1], color = "red2", linetype = "dashed", size = rel(1.5)) +
-        annotate("text", x = x_limits[1], y = df_points$EQS[1], label = "EQS", hjust = 0.5, vjust = -1.3, 
+        annotate("text", x = x_limits[1], y = df_points$EQS[1], label = "EQS", 
+                 hjust = 0.5, vjust = -1, 
                  size = 5, color = "red2")
-          
+    }
+    if (include_proref){
+      gg <- gg +
+        geom_hline(yintercept = df_points$Proref[1], color = "blue2", linetype = "dotted", 
+                   size = rel(1)) +
+        annotate("text", x = x_limits[1], y = df_points$Proref[1], label = "PROREF", 
+                 hjust = 0.25, vjust = -1, 
+                 size = 4, color = "blue2")
     }
     gg <- gg +
       coord_cartesian(xlim = x_limits, ylim = y_limits) +

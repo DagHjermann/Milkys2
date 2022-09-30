@@ -40,8 +40,10 @@ dat_eqs <- read.csv("Input_data/Lookup_tables/Lookup_EQS_limits.csv") %>%
   filter(Basis %in% "WW") %>%
   select(-Long_name, -Kommentar) %>%
   rename(EQS = Limit)
-dat_proref <- read.csv("Input_data/Lookup_tables/Lookup_proref.csv")
-
+dat_proref <- read.csv("Input_data/Lookup_tables/Lookup_proref.csv") %>%
+  filter(Basis %in% "WW") %>%
+  select(PARAM, LATIN_NAME, TISSUE_NAME, Proref) 
+  
 dat_all_prep3 <- bind_rows(
   dat_all_prep3 %>%
     filter(PARAM != "CB118") %>%
@@ -49,7 +51,9 @@ dat_all_prep3 <- bind_rows(
   dat_all_prep3 %>%
     filter(PARAM == "CB118") %>%
     left_join(dat_eqs %>% filter(PARAM == "CB118"), by = c("PARAM", "LATIN_NAME"))
-)
+) %>%
+left_join(dat_proref, by = c("PARAM", "LATIN_NAME", "TISSUE_NAME"))
+
 
 # browser()
 
@@ -96,6 +100,7 @@ tsplot_r <- reactive({
                               xmin_rel = input$xmin_rel,
                               xmax_rel = input$xmax_rel,
                               eqs = input$eqs,
+                              proref = input$proref,
                               folder = folder_results, 
                               data = dat_all_prep3, 
                               data_series = dat_series_trend, data_trend = df_trend)
@@ -106,6 +111,7 @@ tsplot_r <- reactive({
                               xmin_rel = input$xmin_rel,
                               xmax_rel = input$xmax_rel,
                               eqs = input$eqs,
+                              proref = input$proref,
                               folder = folder_results, 
                               data = dat_all_prep3, 
                               data_series = dat_series_trend, data_trend = df_trend)
@@ -155,6 +161,7 @@ shiny::sliderInput("ymax_perc", "Max y (%)", value = 100, min = 2, max = 200, st
 shiny::sliderInput("xmin_rel", "Change x min.", value = 0, min = -10, max = 40, step = 1)
 shiny::sliderInput("xmax_rel", "Change x max.", value = 0, min = -40, max = 10, step = 1)
 shiny::checkboxInput("eqs", "Include EQS line", value = TRUE)
+shiny::checkboxInput("proref", "Include Proref line", value = TRUE)
 
 ```
 
