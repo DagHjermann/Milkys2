@@ -100,7 +100,7 @@ savedplots_filename <- paste0(folder, "_saved_plots.csv")
 file_exists <- file.exists(savedplots_filename)
 if (!file_exists){
   zz <- file(savedplots_filename, "w")  # open an output file connection
-  cat("Filename, PARAM, STATION_CODE, TISSUE_NAME, y_scale, ymax_perc, xmin_rel, xmax_rel, eqs, proref\n", file = zz)
+  cat("Filename, Time_GMT, PARAM, STATION_CODE, TISSUE_NAME, y_scale, ymax_perc, xmin_rel, xmax_rel, eqs, proref\n", file = zz)
   close(zz)
 }
   
@@ -176,7 +176,8 @@ observeEvent(input$save, {
   save_plot(tsplot_r(), paste0("Figures_402/Til 2021-rapporten/", fn_base, ".png"))
   # Write metadata for saved plot
   fileconn <- file(savedplots_filename, "at")
-  cat(paste(paste0(fn_base, ".png"), input$param, stationcode, input$tissue, input$y_scale, 
+  cat(paste(paste0(fn_base, ".png"), as.character(Sys.time()),
+            input$param, stationcode, input$tissue, input$y_scale, 
             input$ymax_perc, input$xmin_rel, input$xmax_rel, 
             as.character(input$eqs), sQuote(input$proref), sep = ","), "\n",
       file = fileconn)
