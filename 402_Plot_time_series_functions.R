@@ -10,6 +10,7 @@ plot_timeseries <- function(param, stationcode,
                             tissue = NULL,
                             species = NULL,
                             y_scale = "ordinary",
+                            ymax_perc = 100,
                             folder,
                             data = dat_all_prep3, 
                             data_series = dat_series_trend,
@@ -35,6 +36,7 @@ plot_timeseries <- function(param, stationcode,
   
   gg <- plot_timeseries_seriesno(seriesno,
                                  y_scale = y_scale,
+                                 ymax_perc = ymax_perc,
                                  folder = folder,
                                  data = data, 
                                  data_series = data_series,
@@ -60,12 +62,13 @@ if (FALSE){
 #
 plot_timeseries_seriesno <- function(seriesno,
                                      y_scale = "ordinary",
-                            folder,
-                            data = dat_all_prep3, 
-                            data_series = dat_series_trend,
-                            data_trend = NULL,
-                            allsamples = FALSE,
-                            trendtext_size = 4){
+                                     ymax_perc = 100,
+                                     folder,
+                                     data = dat_all_prep3, 
+                                     data_series = dat_series_trend,
+                                     data_trend = NULL,
+                                     allsamples = FALSE,
+                                     trendtext_size = 4){
   
   # browser()
   
@@ -102,7 +105,9 @@ plot_timeseries_seriesno <- function(seriesno,
         ymin = exp(ymin),
         ymax = exp(ymax))
   }
-  
+  rn <- c(min(df_median$ymin), max(df_median$ymax))
+  y_limits <- c(rn[1], rn[1] + (rn[2]-rn[1])*ymax_perc/100)
+    
   gg <- ggplot(df_median, aes(x, y))
   
   if (!is.null(resultlist$plot_data)){
@@ -147,6 +152,7 @@ plot_timeseries_seriesno <- function(seriesno,
         scale_y_log10()
     }
     gg <- gg +
+      coord_cartesian(ylim = y_limits) +
       labs(y = unit_print, x = "") +
       annotate("text", x = Inf, y = Inf, label = trendstring, hjust = 1.1, vjust = 1.2, size = trendtext_size, colour = "blue3")
   }

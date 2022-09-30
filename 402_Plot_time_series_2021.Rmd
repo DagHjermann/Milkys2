@@ -76,12 +76,14 @@ tsplot_r <- reactive({
   if (input$tissue == "(automatic)"){
     tsplot <- plot_timeseries(input$param, stationcode,
                               y_scale = input$y_scale,
+                              ymax_perc = input$ymax_perc,
                               folder = folder_results, 
                               data = dat_all_prep3, 
                               data_series = dat_series_trend, data_trend = df_trend)
   } else {
     tsplot <- plot_timeseries(input$param, stationcode, tissue = input$tissue, 
                               y_scale = input$y_scale,
+                              ymax_perc = input$ymax_perc,
                               folder = folder_results, 
                               data = dat_all_prep3, 
                               data_series = dat_series_trend, data_trend = df_trend)
@@ -125,6 +127,7 @@ observeEvent(input$save, {
 
 ```{r save_button, echo=FALSE}
 
+shiny::sliderInput("ymax_perc", "Max y (%)", value = 100, min = 2, max = 200, step = 2)
 shiny::actionButton("save", "Save plot")
 
 ```
