@@ -106,7 +106,7 @@ plot_timeseries_seriesno <- function(seriesno,
     mutate(overLOQ = n_overLOQ > (0.5*n))
   
   # titlestring <- paste0(resultlist$PARAM, " (", resultlist$Basis, ") at ", resultlist$STATION_CODE, " (", resultlist$TISSUE_NAME, " from ", resultlist$LATIN_NAME, ")")
-  titlestring <- paste0(resultlist$PARAM, " at ", resultlist$STATION_CODE, " (", resultlist$TISSUE_NAME, " from ", resultlist$LATIN_NAME, ")")
+  titlestring <- paste0(df_points$Param_name[1], " at ", resultlist$STATION_CODE, " (", df_points$Tissue_name[1], " from ", resultlist$LATIN_NAME, ")")
   
   if (y_scale %in% c("ordinary", "log scale")){
     df_median <- df_median %>% 

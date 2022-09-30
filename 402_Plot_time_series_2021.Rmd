@@ -35,7 +35,22 @@ dat_series_trend <- readRDS(paste0(folder_input, "/125_dat_series_trend.rds")) %
 dat_all_prep3 <- readRDS(paste0(folder_input, "/125_dat_all_prep3.rds"))
 df_trend <- readRDS(paste0(folder_output, "/126_df_trend_2021.rds"))
 
-# Lookup files   
+# Lookup file for full parameter names
+df_paramnames <- readxl::read_excel("Input_data/Lookup table - parameter names for plots.xlsx")
+
+# Add 'Param_name' and 'Tissue_name' to data    
+dat_all_prep3 <- dat_all_prep3 %>%
+  left_join(df_paramnames, by = "PARAM") %>%
+  mutate(
+    Param_name = ifelse(is.na(Param_name), PARAM, Param_name),  # use PARAM if Param_name is lacking
+    Tissue_name = case_when(
+      TISSUE_NAME %in% "Lever" ~ "Liver",
+      TISSUE_NAME %in% "Muskel" ~ "Muscle",
+      TISSUE_NAME %in% "Galle" ~ "Bile",
+      TRUE ~ TISSUE_NAME)
+  )
+
+# Lookup files for EQS and Proref   
 dat_eqs <- read.csv("Input_data/Lookup_tables/Lookup_EQS_limits.csv") %>%
   filter(Basis %in% "WW") %>%
   select(-Long_name, -Kommentar) %>%
@@ -43,7 +58,8 @@ dat_eqs <- read.csv("Input_data/Lookup_tables/Lookup_EQS_limits.csv") %>%
 dat_proref <- read.csv("Input_data/Lookup_tables/Lookup_proref.csv") %>%
   filter(Basis %in% "WW") %>%
   select(PARAM, LATIN_NAME, TISSUE_NAME, Proref) 
-  
+
+# Add EQS and Proref to data    
 dat_all_prep3 <- bind_rows(
   dat_all_prep3 %>%
     filter(PARAM != "CB118") %>%
@@ -80,8 +96,9 @@ if (!file_exists){
 
 shiny::selectInput(inputId = "param", label = "Parameter", choices = params, selected = "HG")
 shiny::selectInput(inputId = "station", label = "Station code", choices = stations, selected = "98B1")  
-shiny::selectInput(inputId = "tissue", label = "Tissue", choices = tissues, selected = )    
-shiny::selectInput(inputId = "y_scale", label = "Y-scale", choices = c("ordinary", "log numbers", "log scale"), selected = "ordinary")  
+shiny::selectInput(inputId = "tissue", label = "Tissue", choices = tissues, selected = "(automatic)")    
+shiny::selectInput(inputId = "y_scale", label = "Y-scale", choices = c("ordinary", "log numbers", "log scale"), 
+                   selected = "ordinary")  
 
 ```
 
@@ -158,8 +175,8 @@ observeEvent(input$save, {
 
 shiny::actionButton("save", "Save plot")
 shiny::sliderInput("ymax_perc", "Max y (%)", value = 100, min = 2, max = 200, step = 2)
-shiny::sliderInput("xmin_rel", "Change x min.", value = 0, min = -10, max = 40, step = 1)
-shiny::sliderInput("xmax_rel", "Change x max.", value = 0, min = -40, max = 10, step = 1)
+shiny::sliderInput("xmin_rel", "Change x min.", value = 0, min = -10, max = 40, step = 0.5)
+shiny::sliderInput("xmax_rel", "Change x max.", value = 0, min = -40, max = 10, step = 0.5)
 shiny::checkboxInput("eqs", "Include EQS line", value = TRUE)
 shiny::checkboxInput("proref", "Include Proref line", value = TRUE)
 
