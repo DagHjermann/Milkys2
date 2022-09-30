@@ -583,7 +583,7 @@ data_all2 <- bind_rows(
 ### a. Make data set 'data_lengthreg' to save regression results
 ```{r}
 
-data_lengthreg <- subset(data_all2, MYEAR %in% 1980:2017 & is.finite(VALUE_WW) &
+data_lengthreg <- subset(data_all2, MYEAR %in% 1980:selected_year & is.finite(VALUE_WW) &
                            LATIN_NAME %in% "Gadus morhua") %>%
     group_by(STATION_CODE, PARAM, LATIN_NAME, TISSUE_NAME) %>%
     summarise(N = n(), yr_start = min(MYEAR), yr_end = max(MYEAR)) %>%
