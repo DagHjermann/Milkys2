@@ -100,7 +100,7 @@ savedplots_filename <- paste0(folder, "_saved_plots.csv")
 file_exists <- file.exists(savedplots_filename)
 if (!file_exists){
   zz <- file(savedplots_filename, "w")  # open an output file connection
-  cat("Filename, PARAM, STATION_CODE, TISSUE_NAME, y_scale, ymax_perc, xmin_rel, xmax_rel\n", file = zz)
+  cat("Filename, PARAM, STATION_CODE, TISSUE_NAME, y_scale, ymax_perc, xmin_rel, xmax_rel, eqs, proref\n", file = zz)
   close(zz)
 }
   
@@ -172,11 +172,13 @@ observeEvent(input$save, {
     fn_base <- paste(input$param, stationcode, input$tissue, sep = "_")
   }
   # Save plot
+  fn_base <- paste0(fn_base, input$filename_add)
   save_plot(tsplot_r(), paste0("Figures_402/Til 2021-rapporten/", fn_base, ".png"))
   # Write metadata for saved plot
   fileconn <- file(savedplots_filename, "at")
   cat(paste(paste0(fn_base, ".png"), input$param, stationcode, input$tissue, input$y_scale, 
-            input$ymax_perc, input$xmin_rel, input$xmax_rel, sep = ","), "\n",
+            input$ymax_perc, input$xmin_rel, input$xmax_rel, 
+            as.character(input$eqs), sQuote(input$proref), sep = ","), "\n",
       file = fileconn)
   close(fileconn)
   
@@ -193,6 +195,7 @@ shiny::sliderInput("xmin_rel", "Change x min.", value = 0, min = -10, max = 40, 
 shiny::sliderInput("xmax_rel", "Change x max.", value = 0, min = -40, max = 10, step = 0.5)
 shiny::checkboxInput("eqs", "Include EQS line", value = TRUE)
 shiny::textInput("proref", "Proref lines, separated by comma (e.g. 1,2,5)", value = "1")
+shiny::textInput("filename_add", "Text to add to filename (e.g., '_ver02')", value = "")
 
 ```
 
