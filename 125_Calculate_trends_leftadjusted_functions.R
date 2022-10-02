@@ -492,9 +492,10 @@ tsplot_seriesno <- function(seriesno,
 #
 # Get series number from PARAM + STATION_CODE (and more if necessary)
 #
-get_seriesno <- function(param, stationcode,
+get_seriesno <- function(param, stationcode, 
                          tissue = NULL,
                          species = NULL,
+                         basis = NULL,
                          data_series = dat_series_trend){
   
   # browser()
@@ -507,6 +508,9 @@ get_seriesno <- function(param, stationcode,
   if (!is.null(species))
     sel <- sel & with(data_series, LATIN_NAME %in% species)
   
+  if (!is.null(basis))
+    sel <- sel & with(data_series, Basis %in% basis)
+  
   if (sum(sel) == 0){
     stop("No time series found")
   }
@@ -517,7 +521,7 @@ get_seriesno <- function(param, stationcode,
     warning(sum(sel), " time series found in data. You may want to specify 'tissue' and/or 'species'.")
   }
   
-  which(sel)
+  data_series$series_no[sel]
   
 }
 
@@ -527,6 +531,7 @@ get_seriesno <- function(param, stationcode,
 tsplot_param <- function(param, stationcode,
                          tissue = NULL,
                          species = NULL,
+                         basis = NULL,
                          folder,
                          data = dat_all_prep3, 
                          data_series = dat_series_trend,
@@ -540,6 +545,7 @@ tsplot_param <- function(param, stationcode,
     stationcode = stationcode,
     tissue = tissue,
     species = species,
+    basis = basis,
     data_series = data_series)
     
   if (length(seriesno) > 1){
