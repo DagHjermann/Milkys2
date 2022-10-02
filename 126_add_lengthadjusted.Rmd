@@ -12,7 +12,7 @@ last_year <- 2021
 
 # 04 is the run for all WW data, used in the big excel, before JAGS model code was updated  
 # 05 is a later run for all WW data, after JAGS model code was updated
-# 06 is also later, but for WWa (length-adjusted) HG (2 series only)
+# 06 is also later, but for WWa (length-adjusted) HG (12 series only)
 
 
 indexvars <- c("PARAM", "STATION_CODE", "TISSUE_NAME", "LATIN_NAME")
@@ -68,7 +68,36 @@ xtabs(~Trend_string_short_04 + Trend_string_short_05, df_trend_wide_04_compare)
 
 ```
 
-### Make 'df_trend_wide_04_updated'  
+### Check "Estimation failed"  
+
+```{r}
+
+# df_index <- readRDS("Data/125_results_2021_04_input/125_dat_series_trend.rds")  
+
+xtabs(~N_years_10yr +Trend_string_short_05, df_trend_wide_04_compare)
+
+df_trend_wide_04_compare %>%
+  mutate(N_years = cut(N_years, breaks = c(1:9, seq(10,40,5)), include.lowest = TRUE)) %>%
+  xtabs(~N_years + Trend_string_long_05, .)
+
+
+
+```
+
+### Check 'Estimation failed' series for the longer time series   
+```{r}
+
+df_trend_wide_06 %>%
+  filter(Trend_string_long == "Estimation failed" & N_years > 5)
+  
+df_trend_wide_04_compare %>%
+  filter(Trend_string_long_05 == "Estimation failed" & N_years)
+
+
+```
+
+
+## Make 'df_trend_wide_04_updated'  
 
 *-* We only update the cases where 04 = "Estimation failed"   
 
