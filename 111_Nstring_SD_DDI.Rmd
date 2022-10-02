@@ -356,8 +356,12 @@ dat_sample_string <- dat_sample_string_temporary %>%
 if (FALSE){
   View(dat_sample_string)
   dat_sample_string %>% 
-    filter(MYEAR == 2020 & STATION_CODE == "45B2") %>% 
+    filter(MYEAR == 2021 & STATION_CODE == "45B2") %>% 
     View("45B2")
+  
+  data_all_samples %>% 
+    filter(MYEAR == 2021 & STATION_CODE == "45B2") %>% 
+    View("45B2 all")
   
   sel <- grepl("NA", dat_sample_string$N_string)
   View(dat_sample_string[sel,])
@@ -546,6 +550,7 @@ saveRDS(dat_sample_string, filename)
 cat("Data of N_string saved as: \n")
 cat(" ", filename, "\n")
 
+cat("\n")
 filename <- paste0("Data/111_Nstring_tissue_updated_", file_date, ".xlsx")
 writexl::write_xlsx(dat_sample_string_tissue, filename)
 cat("Data of N_string, tissue-wise, saved to Excel (for ELU) as: \n")

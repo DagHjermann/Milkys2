@@ -21,7 +21,7 @@ library(readxl)
 library(tidyr)
 
 #
-# Dropping dtplyr (it only saves 20 seconds or so in this script)
+# Dropping dtplyr (it only ses 20 seconds or so in this script)
 #
 # install.packages("dtplyr")
 # library(data.table)
@@ -429,6 +429,20 @@ nrow(data_med_2)  # 525960
 nrow(data_med_3)  # 525960
 
 ```
+
+### Remove SCCP/MCCP prorefs (for now)   
+
+But there are none  
+
+```{r}
+
+sel <- with(data_med_3, grepl("CCP eksl. LOQ", PARAM))
+
+# View(data_med_3[sel,])
+# table(data_med_3[sel,]$Q95)
+
+```
+
 
 ### Checks 
 
