@@ -3,22 +3,24 @@ title: "125 Calculate time trends using package leftadjusted"
 output: html_document
 ---
 
-This procedure uses - at this point - data from script 105.  
-- Should finally use data from script 109  
+This procedure uses data from script 109    
+
+**NOTE: Changes in this file and the 'functions' file should be made so 'Basis' is selected and added to the result file** 
+**See APPENDIX 2 for modificating and combining files after** 
 
 
 ## Install leftcensored   
 
-- And make sure it's the right version  
+- And make sure it's the right version! See comment below.    
 
 ```{r}
 
-#devtools::install_github("DagHjermann/leftcensored", upgrade = "never", force = TRUE)
+devtools::install_github("DagHjermann/leftcensored", upgrade = "never", force = TRUE)
 
 # Check model syntax
 cat(leftcensored:::get_jags_model_code())
 
-# LINE 10 SHOULD BE
+# LINE 10 SHOULD have 'min(max(...', as this:
 # prob[j] <- min(max(pnorm(cut[j], mu[n+j], tau), 0.01),0.99)
 
 ```
@@ -40,8 +42,10 @@ series_lastyear <- 2018   # The series must last at least until this year
 # folder_5: full new run of all series, JAGS model including "prob[j] <- min(max(..." (see above)  
 # folder_6: time trends of length-adjusted series, only HG so far  
 
-folder_results <- "Data/125_results_2021_05"          # all
-# folder_results <- "Data/125_results_2021_06"        # length-adjusted HG
+folder_results <- "Data/125_results_2021_05"          # Basis WW, all
+# folder_results <- "Data/125_results_2021_06"        # Basis WWa (length-adjusted), HG only
+# folder_results <- "Data/125_results_2021_07"        # combining folder 05 and 06, see APPENDIX 2 below
+
 folder_input <- paste0(folder_results, "_input")
 
 # folder_results <- paste0("Data/125_results_", last_year)
@@ -202,6 +206,9 @@ dat_all_prep1 <- bind_rows(
   dat_all_prep1_with_zeros,
   dat_all_prep1_sans_zeros
 )
+
+# For folder_results = 125_results_2021_06:
+# dat_all_prep1 <- dat_all_prep1_sans_zeros
 
 # Test
 # lc_plot(dat_all_prep1 %>% filter(PARAM %in% "CB153" & STATION_CODE %in% "15A"))
@@ -560,12 +567,12 @@ param <- "CB52"
 station_code <- "65A"
 
 param <- "HG"
-station_code <- "30B"
+station_code <- "43B2"
 
 get_seriesno(param, station_code, data_series = dat_series_trend)
 
 # debugonce(get_splines_results_seriesno)
-get_splines_results_seriesno_s(6, 
+get_splines_results_seriesno_s(11, 
                              data = dat_all_prep3, 
                              data_series = dat_series_trend, 
                              foldername = folder_results,  # test site 
@@ -632,6 +639,7 @@ if (FALSE){
 
 # NEW: seriesno = column in the 'dat_series' data
 series_no <- dat_series_trend$series_no 
+# series_no <- c(6,7,8)
 
 range(series_no)
 length(series_no) # 1507
@@ -665,19 +673,39 @@ t1-t0
 
 ```
 
+### Run analyses without doParallel
+```{r}
+
+for (i in c(15:17)){
+  result <- get_splines_results_seriesno_s(i, 
+                                 data = dat_all_prep3, 
+                                 data_series = dat_series_trend, 
+                                 foldername = folder_results,  # test site 
+                                 raftery = TRUE)
+}
+
+# i = 14: HG	71B
+# no non-missing arguments to max; returning -Inf>
+# dat_series_trend[14,]
+
+```
+
+
 ## 5. Check results  
 
 
-### Read files  
+### Read and quick check of files  
 
 ```{r}
+
+# folder_results <- "Data/125_results_2021_06"
 
   # File names and numbers  
   fns <- dir(folder_results, full.names = TRUE) %>% sort()
   length(fns)
   fileinfo_no <- substr(fns, nchar(folder_results) + 8, nchar(folder_results) + 11)
   names(fns) <- fileinfo_no 
-  
+
   # Read file content
   result_list <-lapply(fns, readRDS)
   
@@ -818,3 +846,206 @@ if (FALSE){
 }
 
 ```
+
+## APPENDIX 2 - Combine WW and WWa runs
+
+- folder 07  
+- Ths will be used for plotting etc.  
+- combine files from folders 05 (WW) and 06 (WWa)  
+- As we stupidly didn't included 'Basis' anywhere, some changes needs to be done  
+
+```{r}
+
+last_year <- 2021
+
+# folder_results <- "Data/125_results_2021_05"          # WW (wet-weight), all parameters  
+# folder_results <- "Data/125_results_2021_06"          # WWa (wet-weight length-adjusted), HG only
+
+
+#
+# 1. Made folder 'Data/125_results_2021_07'  
+#
+
+#
+# 2. Set these
+#
+
+folder_results <- "Data/125_results_2021_07"        # length-adjusted HG
+folder_input <- paste0(folder_results, "_input")
+
+if (!dir.exists(folder_input)){
+  dir.create(folder_input)
+}
+
+
+#
+# Parts 3-5: Read files from folder 06 (WWa), modify them, and write to folder 07
+#
+
+# Modification:
+# 1. add 3000 to file names, so the numbers will not overlap with the files in 05 (the WW files) that has numbers to a bit over 2000
+# 2. add 3000 to 'seriesno' inside result files (list element number 1) 
+# 3. Add Basis = 'WWa' as list element after 'LATIN_NAME' (which is element no. 5)
+
+#
+# 3. Make new file names/paths
+#
+
+# Original folder and file names  
+folder_results_orig <- "Data/125_results_2021_06"   
+fns_orig <- dir(folder_results_orig, full.names = TRUE) %>% sort()
+fns_orig
+
+# Original file number  
+fileinfo_no_orig <- substr(fns_orig, nchar(folder_results_orig) + 8, nchar(folder_results_orig) + 11)
+
+# New file names  
+fns_new <- sprintf("trend_%04i.rda", as.numeric(fileinfo_no_orig) + add_constant)
+fns_new <- paste0(folder_results, "/", fns_new)
+
+# Check
+# 2 things differ: folder (06 vs 07), and file number  
+cbind(fns_orig[1:3], fns_new[1:3])
+
+#
+# 4. Read all original files  
+#
+
+# Read file contents of all files  
+result_list_orig <-lapply(fns_orig, readRDS)
+
+# Check file no. 1
+str(result_list_orig[[1]], 1)  
+str(result_list_orig[[5]], 1)  
+
+#
+# 5. Make modifications 2-3 and save   
+#
+
+# Change 'seriesno' in all files, and save new versions
+# - must only be done once (that goes for several of these steps)
+for (i in 1:length(fns_orig)){
+  X <- result_list_orig[[i]]
+  # Modification 3: Add Basis
+  X2 <- c(
+    X[seq(1,5)],             # first 5 list elements
+    list(Basis = "WWa"),     # Add Basis
+    X[seq(6,length(X))]      # rest of the original list elements
+  )
+  # Modification 2: Increase seriesno by 3000
+  X2$seriesno <- X2$seriesno + add_constant
+  # Save to the new file name/path
+  saveRDS(X2, fns_new[i])      
+}
+
+
+# Checks
+result_list_new <-lapply(dir(folder_results, full.names = TRUE), readRDS)
+
+str(result_list_new[[1]], 1)
+str(result_list_new[[5]], 1)
+
+
+#
+# Parts 6-8: Read files from folder 05 (WWa), modify them, and write to folder 07
+#
+
+# Only modification number 3: Add Basis = 'WW' as list element after 'LATIN_NAME' (which is element no. 5)
+
+#
+# 6. Make new file names/paths
+#
+#
+# Changes from part3 are commented above
+#
+
+# Original folder and file names  
+folder_results_orig <- "Data/125_results_2021_05"   
+fns_orig <- dir(folder_results_orig, full.names = TRUE) %>% sort()
+head(fns_orig)
+
+# Original file number  
+fileinfo_no_orig <- substr(fns_orig, nchar(folder_results_orig) + 8, nchar(folder_results_orig) + 11)
+
+# New file names  
+fns_new <- sprintf("trend_%04i.rda", as.numeric(fileinfo_no_orig))  # no 'add_constant' here (cf. part 3 above)
+fns_new <- paste0(folder_results, "/", fns_new)
+head(fns_new)
+
+# Check
+# 1 thing differ: folder (06 vs 07) -  cf. part 3 above
+cbind(fns_orig[1:3], fns_new[1:3])
+
+#
+# 7. Read all original files
+#
+# Same code as part 4 above
+#
+
+# Read file contents of all files  
+result_list_orig <-lapply(fns_orig, readRDS)
+
+# Check file no. 1
+str(result_list_orig[[1]], 1)  
+
+#
+# 8. Make modification (just add Basis) and save   
+#
+
+# Change 'seriesno' in all files, and save new versions
+# - must only be done once (that goes for several of these steps)
+for (i in 1:length(fns_orig)){
+  X <- result_list_orig[[i]]
+  # Modification: Add Basis
+  X2 <- c(
+    X[seq(1,5)],             # first 5 list elements
+    list(Basis = "WW"),     # Add Basis (CHECK - cf. part 5 above)
+    X[seq(6,length(X))]      # rest of the original list elements
+  )
+  # Modification 2: Increase seriesno by 3000 - not needed (cf. part 5 above)
+  # Save to the new file name/path
+  saveRDS(X2, fns_new[i])      
+}
+
+
+#
+# 9. Combine 'series_trend' files  
+#
+
+# Read
+dat_series_trend_1 <- readRDS("Data/125_results_2021_05_input/125_dat_series_trend.rds")  # WW 
+dat_series_trend_2 <- readRDS("Data/125_results_2021_06_input/125_dat_series_trend.rds")  # WWa
+
+# Check
+range(dat_series_trend_1$series_no)
+range(dat_series_trend_2$series_no) 
+
+# Combine, adding 3000 to series_no for the second file  
+dat_series_trend <- bind_rows(
+  dat_series_trend_1,
+  dat_series_trend_2 %>% mutate(series_no = series_no + add_constant)
+)
+
+# Save
+saveRDS(dat_series_trend, "Data/125_results_2021_07_input/125_dat_series_trend.rds")  # WW + WWa
+
+#
+# 10. Combine raw data files
+#
+
+# Need to add 'Basis'  
+
+dat_1 <- readRDS("Data/125_results_2021_05_input/125_dat_all_prep3.rds")  # WW 
+dat_2 <- readRDS("Data/125_results_2021_06_input/125_dat_all_prep3.rds")  # WWa
+
+# Combine
+dat_all_prep3 <- bind_rows(
+  dat_1 %>% mutate(Basis = "WW"), 
+  dat_2 %>% mutate(Basis = "WWa"))
+
+# Save
+saveRDS(dat_all_prep3, "Data/125_results_2021_07_input/125_dat_all_prep3.rds")  # WW + WWa
+
+
+```
+
