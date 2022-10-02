@@ -23,25 +23,40 @@ source("402_Plot_time_series_functions.R")
 
 ```{r data, echo=FALSE}
 
+# Lookup file for station names  
 lookup_stations <- read.csv("Input_data/Lookup_tables/Lookup_stationorder.csv") %>%
   mutate(Station = paste(STATION_CODE, Station_name)) %>%
-  select(STATION_CODE, Station)
-  
-folder_results <- "Data/125_results_2021_07"
+  select(STATION_CODE, Station_name, Station, Region)
 
+# Lookup files for EQS and Proref   
+lookup_eqs <- read.csv("Input_data/Lookup_tables/Lookup_EQS_limits.csv") %>%
+  filter(Basis %in% c("WW", "WWa")) %>%
+  select(-Long_name, -Kommentar) %>%
+  rename(EQS = Limit)
+lookup_proref <- read.csv("Input_data/Lookup_tables/Lookup_proref.csv") %>%
+  filter(Basis %in% c("WW", "WWa")) %>%
+  select(PARAM, LATIN_NAME, TISSUE_NAME, Basis, Proref) 
+
+# Lookup file for full parameter names
+lookup_paramnames <- readxl::read_excel("Input_data/Lookup table - parameter names for plots.xlsx")
+
+# Lookup file for species names
+lookup_speciesnames <- read.csv("Input_data/Lookup_tables/Lookup_speciesnames.csv")
+
+# Folders from where to fetch trend analysis results and fits  
+folder_results <- "Data/125_results_2021_07"
 folder_input <- paste0(folder_results, "_input")
 folder_output <- paste0(folder_results, "_output")
+
+# Data
 dat_series_trend <- readRDS(paste0(folder_input, "/125_dat_series_trend.rds")) %>%
-  left_join(lookup_stations, by = "STATION_CODE")
+  left_join(lookup_stations %>% select(STATION_CODE, Station), by = "STATION_CODE")
 dat_all_prep3 <- readRDS(paste0(folder_input, "/125_dat_all_prep3.rds"))
 df_trend <- readRDS(paste0(folder_output, "/126_df_trend_2021.rds"))
 
-# Lookup file for full parameter names
-df_paramnames <- readxl::read_excel("Input_data/Lookup table - parameter names for plots.xlsx")
-
 # Add 'Param_name' and 'Tissue_name' to data    
 dat_all_prep3 <- dat_all_prep3 %>%
-  left_join(df_paramnames, by = "PARAM") %>%
+  left_join(lookup_paramnames, by = "PARAM") %>%
   mutate(
     Param_name = ifelse(is.na(Param_name), PARAM, Param_name),  # use PARAM if Param_name is lacking
     Tissue_name = case_when(
@@ -53,40 +68,25 @@ dat_all_prep3 <- dat_all_prep3 %>%
 
 # Add 'Species_name' to data    
 dat_all_prep3 <- dat_all_prep3 %>%
-  left_join(
-    read.csv("Input_data/Lookup_tables/Lookup_speciesnames.csv"), 
-    by = "LATIN_NAME") %>%
+  left_join(lookup_speciesnames, by = "LATIN_NAME") %>%
   mutate(Species_name = ifelse(is.na(Species_name), LATIN_NAME, Species_name))
 
 # Add station names + Region 
-dat_stationnames <- read.csv("Input_data/Lookup_tables/Lookup_stationorder.csv") %>%
-  select(STATION_CODE, Station_name, Region)
 dat_all_prep3 <- dat_all_prep3 %>%
-  left_join(dat_stationnames, by = "STATION_CODE")
-
-# Lookup files for EQS and Proref   
-dat_eqs <- read.csv("Input_data/Lookup_tables/Lookup_EQS_limits.csv") %>%
-  filter(Basis %in% c("WW", "WWa")) %>%
-  select(-Long_name, -Kommentar) %>%
-  rename(EQS = Limit)
-dat_proref <- read.csv("Input_data/Lookup_tables/Lookup_proref.csv") %>%
-  filter(Basis %in% c("WW", "WWa")) %>%
-  select(PARAM, LATIN_NAME, TISSUE_NAME, Basis, Proref) 
+  left_join(lookup_stations %>% select(STATION_CODE, Station_name, Region), by = "STATION_CODE")
 
 # Add EQS and Proref to data    
 dat_all_prep3 <- bind_rows(
   dat_all_prep3 %>%
     filter(PARAM != "CB118") %>%
-    left_join(dat_eqs %>% filter(PARAM != "CB118") %>% select(-LATIN_NAME), by = c("PARAM", "Basis")),
+    left_join(lookup_eqs %>% filter(PARAM != "CB118") %>% select(-LATIN_NAME), by = c("PARAM", "Basis")),
   dat_all_prep3 %>%
     filter(PARAM == "CB118") %>%
-    left_join(dat_eqs %>% filter(PARAM == "CB118"), by = c("PARAM", "Basis", "LATIN_NAME"))
+    left_join(lookup_eqs %>% filter(PARAM == "CB118"), by = c("PARAM", "Basis", "LATIN_NAME"))
 ) %>%
-left_join(dat_proref, by = c("PARAM", "LATIN_NAME", "TISSUE_NAME", "Basis"))
+left_join(lookup_proref, by = c("PARAM", "LATIN_NAME", "TISSUE_NAME", "Basis"))
 
-
-# browser()
-
+# For the menus
 params <- unique(dat_series_trend$PARAM) %>% sort()
 stations <- unique(dat_series_trend$Station) %>% sort()
 tissues <- unique(dat_series_trend$TISSUE_NAME) %>% sort()
