@@ -96,7 +96,7 @@ plot_timeseries_seriesno <- function(seriesno,
   include_proref <- !is.na(df_points$Proref[1]) & length(proref_x) > 0
   
   # Get unit to print on y axis  
-  unit_print <- get_unit_text(tail(df_points$UNIT, 1), df_points$Basis, tail(df_points$PARAM, 1))
+  unit_print <- get_unit_text(tail(df_points$UNIT, 1), tail(df_points$Basis, 1), tail(df_points$PARAM, 1))
   
   df_median <- df_points %>%
     group_by(x) %>%
@@ -110,7 +110,8 @@ plot_timeseries_seriesno <- function(seriesno,
     mutate(overLOQ = n_overLOQ > (0.5*n))
   
   titlestring <- paste0(df_points$Param_name[1], " in ", df_points$Species_name[1], " at ", df_points$Station_name[1])
-  subtitlestring <- paste0("Station code: ", resultlist$STATION_CODE, " (region:", df_points$Region[1], "). ", str_to_sentence(df_points$Tissue_name[1]), ", ", resultlist$LATIN_NAME)
+  subtitlestring <- paste0("Station code: ", resultlist$STATION_CODE, " (region: ", df_points$Region[1], "). ", 
+                           str_to_sentence(df_points$Tissue_name[1]), " (basis ", resultlist$Basis, "), ", resultlist$LATIN_NAME)
 
   if (y_scale %in% c("ordinary", "log scale")){
     df_median <- df_median %>% 
@@ -197,8 +198,11 @@ plot_timeseries_seriesno <- function(seriesno,
                  size = 4, color = "blue2")
     }
     gg <- gg +
-      coord_cartesian(xlim = x_limits, ylim = y_limits) +
-      labs(y = unit_print, x = "") +
+      coord_cartesian(
+        xlim = x_limits, ylim = y_limits) +
+      labs(
+        y = paste0("Concentration, ", unit_print), 
+        x = "") +
       annotate("text", x = Inf, y = Inf, label = trendstring, hjust = 1.1, vjust = 1.2, size = trendtext_size, colour = "blue3")
   }
   

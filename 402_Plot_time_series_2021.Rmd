@@ -27,7 +27,7 @@ lookup_stations <- read.csv("Input_data/Lookup_tables/Lookup_stationorder.csv") 
   mutate(Station = paste(STATION_CODE, Station_name)) %>%
   select(STATION_CODE, Station)
   
-folder_results <- "Data/125_results_2021_04"
+folder_results <- "Data/125_results_2021_07"
 
 folder_input <- paste0(folder_results, "_input")
 folder_output <- paste0(folder_results, "_output")
@@ -66,23 +66,23 @@ dat_all_prep3 <- dat_all_prep3 %>%
 
 # Lookup files for EQS and Proref   
 dat_eqs <- read.csv("Input_data/Lookup_tables/Lookup_EQS_limits.csv") %>%
-  filter(Basis %in% "WW") %>%
+  filter(Basis %in% c("WW", "WWa")) %>%
   select(-Long_name, -Kommentar) %>%
   rename(EQS = Limit)
 dat_proref <- read.csv("Input_data/Lookup_tables/Lookup_proref.csv") %>%
-  filter(Basis %in% "WW") %>%
-  select(PARAM, LATIN_NAME, TISSUE_NAME, Proref) 
+  filter(Basis %in% c("WW", "WWa")) %>%
+  select(PARAM, LATIN_NAME, TISSUE_NAME, Basis, Proref) 
 
 # Add EQS and Proref to data    
 dat_all_prep3 <- bind_rows(
   dat_all_prep3 %>%
     filter(PARAM != "CB118") %>%
-    left_join(dat_eqs %>% filter(PARAM != "CB118") %>% select(-LATIN_NAME), by = "PARAM"),
+    left_join(dat_eqs %>% filter(PARAM != "CB118") %>% select(-LATIN_NAME), by = c("PARAM", "Basis")),
   dat_all_prep3 %>%
     filter(PARAM == "CB118") %>%
-    left_join(dat_eqs %>% filter(PARAM == "CB118"), by = c("PARAM", "LATIN_NAME"))
+    left_join(dat_eqs %>% filter(PARAM == "CB118"), by = c("PARAM", "Basis", "LATIN_NAME"))
 ) %>%
-left_join(dat_proref, by = c("PARAM", "LATIN_NAME", "TISSUE_NAME"))
+left_join(dat_proref, by = c("PARAM", "LATIN_NAME", "TISSUE_NAME", "Basis"))
 
 
 # browser()
@@ -91,6 +91,7 @@ params <- unique(dat_series_trend$PARAM) %>% sort()
 stations <- unique(dat_series_trend$Station) %>% sort()
 tissues <- unique(dat_series_trend$TISSUE_NAME) %>% sort()
 tissues <- c("(automatic)", tissues)
+basises <- unique(dat_series_trend$Basis) %>% sort()
 
 # Folder for saving plots
 folder <- "Figures_402/Til 2021-rapporten/"
@@ -100,21 +101,24 @@ savedplots_filename <- paste0(folder, "_saved_plots.csv")
 file_exists <- file.exists(savedplots_filename)
 if (!file_exists){
   zz <- file(savedplots_filename, "w")  # open an output file connection
-  cat("Filename, Time_GMT, PARAM, STATION_CODE, TISSUE_NAME, y_scale, ymax_perc, xmin_rel, xmax_rel, eqs, proref\n", file = zz)
+  cat("Filename, Time_GMT, PARAM, STATION_CODE, TISSUE_NAME, Basis, y_scale, ymax_perc, xmin_rel, xmax_rel, eqs, proref\n", file = zz)
   close(zz)
 }
   
 ```
+
 
 ```{r main_menus, echo=FALSE}
 
 shiny::selectInput(inputId = "param", label = "Parameter", choices = params, selected = "HG")
 shiny::selectInput(inputId = "station", label = "Station code", choices = stations, selected = "98B1")  
 shiny::selectInput(inputId = "tissue", label = "Tissue", choices = tissues, selected = "(automatic)")    
+shiny::selectInput(inputId = "basis", label = "Basis", choices = basises, selected = "WW")    
 shiny::selectInput(inputId = "y_scale", label = "Y-scale", choices = c("ordinary", "log numbers", "log scale"), 
                    selected = "ordinary")  
 
 ```
+
 
 ```{r plot, echo=FALSE, fig.width=9, fig.height=7}
 
@@ -125,7 +129,7 @@ shiny::selectInput(inputId = "y_scale", label = "Y-scale", choices = c("ordinary
 tsplot_r <- reactive({
   stationcode <- subset(lookup_stations, Station %in% input$station)$STATION_CODE
   if (input$tissue == "(automatic)"){
-    tsplot <- plot_timeseries(input$param, stationcode,
+    tsplot <- plot_timeseries(param = input$param, stationcode = stationcode, basis = input$basis, 
                               y_scale = input$y_scale,
                               ymax_perc = input$ymax_perc,
                               xmin_rel = input$xmin_rel,
@@ -136,7 +140,7 @@ tsplot_r <- reactive({
                               data = dat_all_prep3, 
                               data_series = dat_series_trend, data_trend = df_trend)
   } else {
-    tsplot <- plot_timeseries(input$param, stationcode, tissue = input$tissue, 
+    tsplot <- plot_timeseries(param = input$param, stationcode = stationcode, basis = input$basis, 
                               y_scale = input$y_scale,
                               ymax_perc = input$ymax_perc,
                               xmin_rel = input$xmin_rel,
@@ -177,7 +181,7 @@ observeEvent(input$save, {
   # Write metadata for saved plot
   fileconn <- file(savedplots_filename, "at")
   cat(paste(paste0(fn_base, ".png"), as.character(Sys.time()),
-            input$param, stationcode, input$tissue, input$y_scale, 
+            input$param, stationcode, input$tissue, input$basis, input$y_scale, 
             input$ymax_perc, input$xmin_rel, input$xmax_rel, 
             as.character(input$eqs), sQuote(input$proref), sep = ","), "\n",
       file = fileconn)
@@ -200,3 +204,24 @@ shiny::textInput("filename_add", "Text to add to filename (e.g., '_ver02')", val
 
 ```
 
+```{r test_code, echo=FALSE}
+
+if (FALSE){
+  # debugonce(plot_timeseries)
+  # debugonce(get_seriesno)
+  debugonce(plot_timeseries_seriesno)
+  # debugonce(get_unit_text)
+  plot_timeseries("HG", "30B",
+                            basis = "WWa",
+                              y_scale = "ordinary",
+                              ymax_perc = 100,
+                              xmin_rel = 0,
+                              xmax_rel = 0,
+                              eqs = FALSE,
+                              proref = "",
+                              folder = folder_results, 
+                              data = dat_all_prep3, 
+                              data_series = dat_series_trend, data_trend = df_trend)
+}
+
+```
