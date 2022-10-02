@@ -856,8 +856,6 @@ if (FALSE){
 
 ```{r}
 
-last_year <- 2021
-
 # folder_results <- "Data/125_results_2021_05"          # WW (wet-weight), all parameters  
 # folder_results <- "Data/125_results_2021_06"          # WWa (wet-weight length-adjusted), HG only
 
@@ -873,6 +871,9 @@ last_year <- 2021
 folder_results <- "Data/125_results_2021_07"        # length-adjusted HG
 folder_input <- paste0(folder_results, "_input")
 
+if (!dir.exists(folder_results)){
+  dir.create(folder_results)
+}
 if (!dir.exists(folder_input)){
   dir.create(folder_input)
 }
@@ -886,6 +887,8 @@ if (!dir.exists(folder_input)){
 # 1. add 3000 to file names, so the numbers will not overlap with the files in 05 (the WW files) that has numbers to a bit over 2000
 # 2. add 3000 to 'seriesno' inside result files (list element number 1) 
 # 3. Add Basis = 'WWa' as list element after 'LATIN_NAME' (which is element no. 5)
+
+add_constant <- 3000
 
 #
 # 3. Make new file names/paths
@@ -1022,15 +1025,37 @@ range(dat_series_trend_2$series_no)
 
 # Combine, adding 3000 to series_no for the second file  
 dat_series_trend <- bind_rows(
-  dat_series_trend_1,
-  dat_series_trend_2 %>% mutate(series_no = series_no + add_constant)
+  dat_series_trend_1 %>% mutate(Basis = "WW"),
+  dat_series_trend_2 %>% mutate(Basis = "WWa", series_no = series_no + add_constant)
 )
 
 # Save
 saveRDS(dat_series_trend, "Data/125_results_2021_07_input/125_dat_series_trend.rds")  # WW + WWa
 
 #
-# 10. Combine raw data files
+# 10. Combine 'series' files  
+#
+
+# Needed for script 126
+
+# Read
+dat_series_1 <- readRDS("Data/125_results_2021_05_input/125_dat_series.rds")  # WW 
+dat_series_2 <- readRDS("Data/125_results_2021_06_input/125_dat_series.rds")  # WWa
+
+# no 'series_no' column 
+
+# Combine, adding 3000 to series_no for the second file  
+dat_series <- bind_rows(
+  dat_series_1 %>% mutate(Basis = "WW"),
+  dat_series_2 %>% mutate(Basis = "WWa")
+)
+
+# Save
+saveRDS(dat_series, "Data/125_results_2021_07_input/125_dat_series.rds")  # WW + WWa
+
+
+#
+# 11. Combine raw data files
 #
 
 # Need to add 'Basis'  

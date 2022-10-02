@@ -9,6 +9,7 @@
 plot_timeseries <- function(param, stationcode,
                             tissue = NULL,
                             species = NULL,
+                            basis = NULL,
                             y_scale = "ordinary",
                             ymax_perc = 100,
                             xmin_rel = 0, xmax_rel = 0,
@@ -26,6 +27,7 @@ plot_timeseries <- function(param, stationcode,
     stationcode = stationcode,
     tissue = tissue,
     species = species,
+    basis = basis,
     data_series = data_series)
   
   if (length(seriesno) > 1){
@@ -94,7 +96,7 @@ plot_timeseries_seriesno <- function(seriesno,
   include_proref <- !is.na(df_points$Proref[1]) & length(proref_x) > 0
   
   # Get unit to print on y axis  
-  unit_print <- get_unit_text(tail(df_points$UNIT, 1), "WW", tail(df_points$PARAM, 1))
+  unit_print <- get_unit_text(tail(df_points$UNIT, 1), df_points$Basis, tail(df_points$PARAM, 1))
   
   df_median <- df_points %>%
     group_by(x) %>%
@@ -163,7 +165,8 @@ plot_timeseries_seriesno <- function(seriesno,
       filter(PARAM %in% resultlist$PARAM,
              STATION_CODE %in% resultlist$STATION_CODE,
              TISSUE_NAME %in% resultlist$TISSUE_NAME,
-             LATIN_NAME %in% resultlist$LATIN_NAME) %>%
+             LATIN_NAME %in% resultlist$LATIN_NAME,
+             Basis  %in% resultlist$Basis) %>%
       as.data.frame()
     trendstring <- paste0(
       "Long-term: ", subset(df_trend_sel, Trend_type == "long")$Trend_string, "\n",
