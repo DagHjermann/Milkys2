@@ -169,9 +169,12 @@ plot_timeseries_seriesno <- function(seriesno,
              LATIN_NAME %in% resultlist$LATIN_NAME,
              Basis  %in% resultlist$Basis) %>%
       as.data.frame()
-    trendstring <- paste0(
-      "Long-term: ", subset(df_trend_sel, Trend_type == "long")$Trend_string, "\n",
-      "Short-term: ", subset(df_trend_sel, Trend_type == "short")$Trend_string)
+    trendstring <- map_chr(c("long","short"), get_trendstring, trenddata = df_trend_sel)
+    trendstring_comb <- paste0(                  # paste0(trendstring[1], "\n", trendstring[2])
+      "Long-term: ", trendstring[1], "\n",
+      "Short-term: ", trendstring[2])
+    #    "Long-term: ", subset(df_trend_sel, Trend_type == "long")$Trend_string, "\n",
+    #   "Short-term: ", subset(df_trend_sel, Trend_type == "short")$Trend_string)
     if (y_scale == "log scale"){
       gg <- gg +
         scale_y_log10()
@@ -197,18 +200,45 @@ plot_timeseries_seriesno <- function(seriesno,
                  hjust = 0.25, vjust = -1, 
                  size = 4, color = "blue2")
     }
+    trendstring_x <- x_limits[2] + 0.02*diff(x_limits)
     gg <- gg +
       coord_cartesian(
         xlim = x_limits, ylim = y_limits) +
       labs(
         y = paste0("Concentration, ", unit_print), 
         x = "") +
-      annotate("text", x = Inf, y = Inf, label = trendstring, hjust = 1.1, vjust = 1.2, size = trendtext_size, colour = "blue3")
+      annotate("text", x = trendstring_x, y = Inf, label = trendstring_comb, hjust = 1, vjust = 1.2, size = trendtext_size, colour = "blue3")
   }
   
   gg
   
 }
+
+
+#
+# Get trend string, with percent pro anno increase/decrease
+#
+get_trendstring <- function(x, trenddata){
+  trenddata_selected <- trenddata[trenddata$Trend_type %in% x,]
+  if (nrow(trenddata_selected) > 1)
+    warning(">1 row in trend results selected")
+  txt <- trenddata_selected$Trend_string[1]
+  perc_change <- trenddata_selected$Perc_annual[1]
+  ifelse(
+    txt %in% c("Increasing", "Decreasing"),
+    paste0(txt, " (", sprintf("%+.1f", perc_change), "% annually)"),
+    txt
+  )
+}
+
+if (FALSE){
+  test <- df_trend %>% filter(PARAM %in% "HG" & STATION_CODE == "30B" & Basis == "WWa")
+  # debugonce(get_trendstring)
+  get_trendstring("long", test)
+  get_trendstring("short", test)
+  map_chr(c("long", "short"), get_trendstring, trenddata = test)
+}
+
 
 #
 # Given unit, basis and param, make a suitable "unit text" for y axis label
