@@ -23,7 +23,7 @@ last_year <- 2021
 # 05 is a later run for all WW data, after JAGS model code was updated
 # 06 is also later, but for WWa (length-adjusted) HG (2 series only)
 
-folder_results <- "Data/125_results_2021_06"         
+folder_results <- "Data/125_results_2021_07"         
 folder_input <- paste0(folder_results, "_input")
 folder_output <- paste0(folder_results, "_output")
 
@@ -31,7 +31,7 @@ if (!dir.exists(folder_output)){
   dir.create(folder_output)
 }
 
-indexvars <- c("PARAM", "STATION_CODE", "TISSUE_NAME", "LATIN_NAME")
+indexvars <- c("PARAM", "STATION_CODE", "TISSUE_NAME", "LATIN_NAME", "Basis")
 
 ```
 
@@ -40,8 +40,8 @@ indexvars <- c("PARAM", "STATION_CODE", "TISSUE_NAME", "LATIN_NAME")
 Not recorded in any way during the procedure of 125 - must be set manually!   
 ```{r}
 
-given_basis <- "WW"   # for folder 01-05 
-given_basis <- "WWa"  # for folder 06
+# given_basis <- "WW"   # for folder 01-05 
+# given_basis <- "WWa"  # for folder 06
 
 ```
 
@@ -90,7 +90,7 @@ dat_all_prep3 <- readRDS(paste0(folder_input, "/125_dat_all_prep3.rds"))
 ```{r}
 
 df_rule12 <- dat_all_prep3 %>%
-  group_by(PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME) %>%
+  group_by(PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME, Basis) %>%
   summarise(Rule1 = first(Rule1), 
             Rule2 = first(Rule2), .groups = "drop") 
 
@@ -114,7 +114,7 @@ fileinfo <- file.info(fns)
 # fileinfo
 
 # Extract 'seriesno' from file name (just for checking, see nex chunk)
-fileinfo_no <- substr(rownames(fileinfo)[1], nchar(folder_results) + 8, nchar(folder_results) + 11)
+fileinfo_no <- substr(rownames(fileinfo), nchar(folder_results) + 8, nchar(folder_results) + 11)
 
 ```
 
@@ -135,6 +135,7 @@ PARAM <- map_chr(result_list, "PARAM")
 STATION_CODE <- map_chr(result_list, "STATION_CODE")
 TISSUE_NAME <- map_chr(result_list, "TISSUE_NAME")
 LATIN_NAME <- map_chr(result_list, "LATIN_NAME")
+Basis <- map_chr(result_list, "Basis")
 k_sel <- NA
 k_sel[ok] <- map_int(result_list[ok], "k_sel")
 k_sel_dic <- NA
@@ -143,12 +144,12 @@ k_sel_forward <- NA
 k_sel_forward[ok] <- map_int(result_list[ok], "k_sel_forward")
 
 dat_success <- data.frame(seriesno, jags_finished, ok,   
-                          PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME, k_sel) %>%
+                          PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME, Basis, k_sel) %>%
   # Add Rule1 and 2
   left_join(df_rule12, by = indexvars) %>%
   # Add N_years, Years_over_LOQ, k_max
   left_join(dat_series_trend %>% 
-              select(PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME, N_years, N_years_10yr, Years_over_LOQ, k_max),
+              select(PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME, Basis, N_years, N_years_10yr, Years_over_LOQ, k_max),
             by = indexvars) %>%
   arrange(seriesno)
 
@@ -158,7 +159,7 @@ if (sum(check) == 1){
   dat_success <- dat_success %>%
   bind_cols(fileinfo %>% select(mtime, size))
 } else {
-  warning("fileinfo not in the same order. Did not add mtime, size")
+  warning("fileinfo not in the same order. Did not add mtime, size. (But that doesn't really matter.)")
 }
 
 ```
@@ -312,10 +313,14 @@ tsplot_seriesno(58, folder_results)
 
 param <- "MCCP eksl. LOQ"
 param <- "CB118"
+basis <- "WW"
+
 param <- "HG"
+basis <- "WWa"
 
 dat_success_pick <- dat_success %>%
   filter(PARAM == param,
+         Basis %in% basis,
          ok)
 
 pno <- dat_success_pick %>% pull(seriesno)
@@ -333,6 +338,9 @@ df_modelfit <- map_dfr(pno, extract_modelfit_data, folder = folder_results)
 # df_modelfit$error %>% map_lgl(~!is.null(.x)) %>% which()    # the ones that didn't work
 
 df_rawdata <- map_dfr(pno, extract_raw_data)
+
+# debugonce(extract_raw_data)
+# extract_raw_data(3001)
 
 ggplot(df_modelfit, aes(x, y)) +
   geom_ribbon(aes(ymin = y_q2.5, ymax = y_q97.5), fill = "lightblue") +
@@ -521,14 +529,14 @@ df_with_trend_all <- map_dfr(pno_change, extract_difference_data, folder = folde
 ```{r}
 
 df_trend_short <- df_with_trend_all %>%
-  group_by(PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME) %>%
+  group_by(PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME, Basis) %>%
   mutate(
     Year_pick = max((last_year-9), min(x)),
     Length_adequate = TRUE) %>%
   filter(x == Year_pick)
 
 df_trend_long <- df_with_trend_all %>%
-  group_by(PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME) %>%
+  group_by(PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME, Basis) %>%
   mutate(Year_pick = min(x),
          Length_adequate = Year_pick < (last_year-9)) %>%
   filter(x == Year_pick) 
@@ -553,12 +561,12 @@ df_trend_worked <- bind_rows(
   ) %>%
   left_join(
     dat_success %>%
-       select(PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME, 
+       select(PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME, Basis, 
               ok, k_max, k_sel, N_years, N_years_10yr, Years_over_LOQ),
     by = indexvars) %>%
   left_join(
     dat_series %>%
-       select(PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME, First_year, Trend_model),
+       select(PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME, Basis, First_year, Trend_model),
      by = indexvars)
 
 ```
@@ -567,7 +575,7 @@ df_trend_worked <- bind_rows(
 ```{r}
 
 df_trend_flat_short <- dat_success %>%
-  select(PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME, 
+  select(PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME, Basis, 
               ok, k_max, k_sel, N_years, N_years_10yr, Years_over_LOQ) %>%
   filter(ok, 
          k_sel == 1) %>%
@@ -579,7 +587,7 @@ df_trend_flat_short <- dat_success %>%
     Trend_type = "short") %>%
   left_join(
     dat_series %>%
-       select(PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME, First_year, Last_year, Trend_model),
+       select(PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME, Basis, First_year, Last_year, Trend_model),
      by = indexvars) 
 
 df_trend_flat_long <- df_trend_flat_short %>%
@@ -595,7 +603,7 @@ df_trend_flat_long <- df_trend_flat_short %>%
 ```{r}
 
 df_trend_failed_short <- dat_success %>%
-  select(PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME, 
+  select(PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME, Basis, 
               ok, k_max, k_sel, N_years, N_years_10yr, Years_over_LOQ) %>%
   filter(!ok) %>%
   mutate(
@@ -606,7 +614,7 @@ df_trend_failed_short <- dat_success %>%
     Trend_type = "short") %>%
   left_join(
     dat_series %>%
-       select(PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME, First_year, Last_year, Trend_model),
+       select(PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME, Basis, First_year, Last_year, Trend_model),
      by = indexvars) 
 
 df_trend_failed_long <- df_trend_failed_short %>%
@@ -663,8 +671,8 @@ if (FALSE){
 }
 
 check1 <- df_trend %>%
-  add_count(PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME, Trend_type) %>%
-  arrange(PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME, Trend_type) %>%
+  add_count(PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME, Basis, Trend_type) %>%
+  arrange(PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME, Basis, Trend_type) %>%
   filter(n > 1)
 
 if (nrow(check1) > 0){
@@ -712,7 +720,7 @@ df_trend <- df_trend %>% select(-dataset)
 head(check[c(1, 126:143-9)])
 
 # Columns needed:
-#   "PARAM", "LATIN_NAME", "TISSUE_NAME", "STATION_CODE", "Basis", 
+#   "PARAM", "LATIN_NAME", "Basis", "TISSUE_NAME", "STATION_CODE", "Basis", 
 #   "Trend p(long)", "Detectable % change(long)", "First Year(long)", "Last Year(long)", "No of Years(long)", 
 #   "Trend p(short)", "Detectable % change(short)", "First Year(short)", "Last Year(short)", "No of Years(short)", 
 #   "Trends.2021"
@@ -765,7 +773,7 @@ if (nrow(check1) > 0){
    
 df_trend_wide <- df_trend %>%
   select(
-    PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME, 
+    PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME, Basis, 
     Trend_type, Trend_string, Trend_symbol, Perc_change, p, First_year, Last_year, N_years, N_years_10yr) %>%
   tidyr::pivot_wider(
     names_from = Trend_type, 
@@ -776,9 +784,7 @@ df_trend_wide <- df_trend %>%
     Trend_symbol_long = ifelse(is.na(Trend_symbol_long), " ", Trend_symbol_long),
     Trend_symbol_short = ifelse(is.na(Trend_symbol_short), " ", Trend_symbol_short),
     Trend_symbol = paste0(Trend_symbol_long, "/", Trend_symbol_short)
-  ) %>%
-  mutate(
-    Basis = "WW", .after = "LATIN_NAME")
+  )
 
 if (FALSE){
   # HARD_CODED
