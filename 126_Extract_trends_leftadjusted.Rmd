@@ -21,7 +21,9 @@ last_year <- 2021
 
 # 04 is the run for all WW data, used in the big excel, before JAGS model code was updated  
 # 05 is a later run for all WW data, after JAGS model code was updated
-# 06 is also later, but for WWa (length-adjusted) HG (2 series only)
+# 06 is also later, but for WWa (length-adjusted) HG (17 series only)
+# 07 combines 05 and 06, and also adds 'Basis' to all relevant files ('series' data)
+#   and to trend result files (see Appendix 2, script 125)
 
 folder_results <- "Data/125_results_2021_07"         
 folder_input <- paste0(folder_results, "_input")

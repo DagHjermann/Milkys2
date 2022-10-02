@@ -5,8 +5,9 @@ output: html_document
 
 This procedure uses data from script 109    
 
-**NOTE: Changes in this file and the 'functions' file should be made so 'Basis' is selected and added to the result file** 
-**See APPENDIX 2 for modificating and combining files after** 
+**Basis has now been added to all relevant "series" files, the plot result files, and functions (scr. 125...functions + 402..functions** 
+**This was done for results in folder 07, see APPENDIX 2 for modificating and combining files at the bottom of this script** 
+**HOWEVER: The codes in this file should be made so series also are selected using 'Basis'** 
 
 
 ## Install leftcensored   
