@@ -1,5 +1,6 @@
 
 
+
 #o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
 #
 # get_splines_results
@@ -155,7 +156,8 @@ get_splines_results_seriesno <- function(seriesno,
     PARAM = data_series_sel$PARAM, 
     STATION_CODE = data_series_sel$STATION_CODE, 
     TISSUE_NAME = data_series_sel$TISSUE_NAME,
-    LATIN_NAME = data_series_sel$LATIN_NAME
+    LATIN_NAME = data_series_sel$LATIN_NAME,
+    Basis = data_series_sel$Basis
   )
   if (!is.null(save_path))
     saveRDS(result_metadata, save_path)
@@ -325,11 +327,13 @@ get_splines_results_seriesno_s <- safely(get_splines_results_seriesno)
 extract_raw_data <- function(seriesno,
                              data = dat_all_prep3, 
                              data_series = dat_series_trend){
+  i <- which(data_series$series_no == seriesno)
   subset(data, 
-         PARAM %in% data_series$PARAM[seriesno] & 
-           STATION_CODE %in% data_series$STATION_CODE[seriesno] & 
-           TISSUE_NAME %in% data_series$TISSUE_NAME[seriesno] &
-           LATIN_NAME %in% data_series$LATIN_NAME[seriesno])
+         PARAM %in% data_series$PARAM[i] & 
+           STATION_CODE %in% data_series$STATION_CODE[i] & 
+           TISSUE_NAME %in% data_series$TISSUE_NAME[i] &
+           LATIN_NAME %in% data_series$LATIN_NAME[i] &
+           Basis %in% data_series$Basis[i])
   
 }
 
@@ -344,6 +348,7 @@ extract_modelfit_data <- function(seriesno, folder, data_series, selection = "k_
       STATION_CODE = resultlist[["STATION_CODE"]],
       TISSUE_NAME = resultlist[["TISSUE_NAME"]],
       LATIN_NAME = resultlist[["LATIN_NAME"]],
+      Basis = resultlist[["Basis"]],
       resultlist$plot_data[[as.character(k_sel)]]
     )
   } else {
@@ -351,7 +356,8 @@ extract_modelfit_data <- function(seriesno, folder, data_series, selection = "k_
       PARAM = resultlist[["PARAM"]],
       STATION_CODE = resultlist[["STATION_CODE"]],
       TISSUE_NAME = resultlist[["TISSUE_NAME"]],
-      LATIN_NAME = resultlist[["LATIN_NAME"]]
+      LATIN_NAME = resultlist[["LATIN_NAME"]],
+      Basis = resultlist[["Basis"]]
     )
   }
   result
@@ -383,6 +389,7 @@ extract_difference_data <- function(seriesno, folder, selection = "k_sel"){
       STATION_CODE = resultlist[["STATION_CODE"]],
       TISSUE_NAME = resultlist[["TISSUE_NAME"]],
       LATIN_NAME = resultlist[["LATIN_NAME"]],
+      Basis = resultlist[["Basis"]],
       resultlist$diff_data[[as.character(k_sel)]]
     )
   } else {
@@ -390,7 +397,8 @@ extract_difference_data <- function(seriesno, folder, selection = "k_sel"){
       PARAM = resultlist[["PARAM"]],
       STATION_CODE = resultlist[["STATION_CODE"]],
       TISSUE_NAME = resultlist[["TISSUE_NAME"]],
-      LATIN_NAME = resultlist[["LATIN_NAME"]]
+      LATIN_NAME = resultlist[["LATIN_NAME"]],
+      Basis = resultlist[["Basis"]]
     )
   }
   
@@ -438,7 +446,7 @@ tsplot_seriesno <- function(seriesno,
     mutate(overLOQ = n_overLOQ > (0.5*n))
   
   # titlestring <- paste0(resultlist$PARAM, " (", resultlist$Basis, ") at ", resultlist$STATION_CODE, " (", resultlist$TISSUE_NAME, " from ", resultlist$LATIN_NAME, ")")
-  titlestring <- paste0(resultlist$PARAM, " at ", resultlist$STATION_CODE, " (", resultlist$TISSUE_NAME, " from ", resultlist$LATIN_NAME, ")")
+  titlestring <- paste0(resultlist$PARAM, " at ", resultlist$STATION_CODE, " (", resultlist$Basis, ", ", resultlist$TISSUE_NAME, " from ", resultlist$LATIN_NAME, ")")
   
   gg <- ggplot(df_median, aes(x, y))
   
@@ -467,7 +475,8 @@ tsplot_seriesno <- function(seriesno,
       filter(PARAM %in% resultlist$PARAM,
              STATION_CODE %in% resultlist$STATION_CODE,
              TISSUE_NAME %in% resultlist$TISSUE_NAME,
-             LATIN_NAME %in% resultlist$LATIN_NAME) %>%
+             LATIN_NAME %in% resultlist$LATIN_NAME,
+             Basis %in% resultlist$Basis) %>%
       as.data.frame()
     trendstring <- paste0(
       "Long-term: ", subset(df_trend_sel, Trend_type == "long")$Trend_string, "\n",
