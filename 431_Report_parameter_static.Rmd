@@ -4,6 +4,7 @@ author: "DHJ"
 date: "18.08.2022"
 params:
   param: "HG"
+  ratioplot: "EQS with proref"
 output: 
   html_document:
   keep_md: false
@@ -11,7 +12,7 @@ toc: true
 toc_float: true
 ---
 
-# `r params$param` (`r params$tissue` in `r params$species`, `r params$basis`)
+# `r params$param`  
    
 ```{r 01_settings, include=FALSE}
 
@@ -168,7 +169,19 @@ if (FALSE){
 
 ```
 
-```{r 05_trends_data1}
+```{r 05_trends_settings}
+
+shape_order <- c("Increasing", "Decreasing", "No change")
+colour_order <- shape_order
+  
+trend_shapes <- c(24, 25, 21) %>% setNames(shape_order)
+trend_colours <- c("red3", "green4", "grey20") %>% setNames(colour_order)
+trend_fill <- c("red2", "green2", "grey20") %>% setNames(colour_order)
+
+
+```
+
+```{r 05_trends_data}
 
 dat_trends_plot_list <- purrr::map(
   dat_medians_list, 
@@ -181,13 +194,15 @@ dat_trends_plot_list <- purrr::map(
 
 ```
 
-```{r 05_trend_create_plots}
+```{r 05_trends_create_plots}
 
 gg_trends_list <- list()
 
-
 for (speciesgroup in 1:2){
   
+  # y range equals the point estimates 
+  y_ran <- range(dat_trends_plot_list[[speciesgroup]]$Perc_annual, na.rm = TRUE)
+
   gg_trends_list[[speciesgroup]] <- c("long", "short") %>%
     map(
       ~ggplot(dat_trends_plot_list[[speciesgroup]] %>% filter(Trend_type %in% .x),
@@ -248,73 +263,207 @@ for (speciesgroup in 1:2){
   
 }
 
-if (FALSE){
-  ggcomb_list[[1]]
-}
+ggcomb_list[[1]]
+ggcomb_list[[2]]
 
 ```
 
 ```{r 05_trend_plot_legend}
 
-ggdraw(ggcomb_legend)
+# ggdraw(ggcomb_legend)
 
 ```
 
 
 ```{r 06_ratio_data_1}  
 
+#
+# Cod + eider duck
+#
+
 # debugonce(get_data_raw)  
-dat_raw <- get_data_raw("HG", "Gadus morhua", "Muskel", "WWa", 2021)  
+dat_raw1 <- get_data_raw(params$param, "Gadus morhua", "Muskel", "WWa", 2021)  
+dat_raw2 <- get_data_raw(params$param, "Somateria mollissima", "Blod", "WW", 2021)
+dat_raw3 <- get_data_raw(params$param, "Somateria mollissima", "Egg", "WW", 2021)  
 
-dat_last_year_1 <- get_data_medians("HG", "Gadus morhua", "Muskel", "WWa", 2021) %>%
-  filter(MYEAR %in% current_year)
+dat_raw_codeider <- bind_rows(dat_raw1, dat_raw2, dat_raw3)
 
-dat_to_add <- dat_raw %>%
+dat_to_add <- dat_raw_codeider %>%
   filter(MYEAR %in% current_year & !is.na(Value)) %>%
   group_by(PARAM, LATIN_NAME, TISSUE_NAME, STATION_CODE, Basis) %>%
   summarise(
-    Value_min = quantile(Value, probs = 0.25),
-    Value_max = quantile(Value, probs = 0.75), .groups = "drop")
+    Value_lo = quantile(Value, probs = 0.25),                            # note: 1st and 3rd quartiles for cod + eider
+    Value_hi = quantile(Value, probs = 0.75), .groups = "drop")
 
-dat_last_year_2 <- dat_last_year_1 %>%
-  left_join(dat_to_add, by = c("PARAM", "LATIN_NAME", "TISSUE_NAME", "STATION_CODE", "Basis"))
+dat_last_codeider <- dat_medians_list[[1]] %>%                           # 1 for cod + eider
+  filter(MYEAR %in% current_year) %>%
+  left_join(dat_to_add, by = c("PARAM", "LATIN_NAME", "TISSUE_NAME", "STATION_CODE", "Basis")) %>%
+  mutate(Station = forcats::fct_rev(Station))
 
-levels(dat_last_year_2$Station)
+# Check that station codes are the same
+st1 <- unique(dat_to_add$STATION_CODE) %>% sort()
+st2 <- unique(dat_medians_list[[1]]$STATION_CODE) %>% sort()
+if (!identical(st1,st2)){
+  warning("Station codes are not identical")
+}
 
 
 ```
-```{r}
+
+
+
+```{r 06_ratio_data_2}  
 
 #
-# Median data  
+# Blue mussel
 #
-dat_medians_lastyear <- dat_last_year_2 %>% 
-  ungroup() %>%
-  mutate(
-    Proref_ratio_min = Value_min/Proref,
-    Proref_ratio_max = Value_max/Proref,
-    EQS_ratio_min = Value_min/EQS,
-    EQS_ratio_max = Value_max/EQS,
-    Proref_tooltip = paste0(
-      "Conc.: ", Value, " (Min-max: ", Value_min, "-", Value_max, ")\n",
-      "Ratio: ", Proref_ratio, " (Min-max: ", Proref_ratio_min, "-", Proref_ratio_max, ")\n"),
-    EQS_tooltip = paste0(
-      "Conc.: ", Value, " (Min-max: ", Value_min, "-", Value_max, ")"),
-    Station = factor(Station, levels = rev(levels(dat_last_year_2$Station)))
-  ) 
+
+# debugonce(get_data_raw)  
+dat_raw_mussel <- get_data_raw(params$param, "Mytilus edulis", "Whole soft body", "WW", 2021)  
+
+dat_to_add <- dat_raw_mussel %>%
+  filter(MYEAR %in% current_year & !is.na(Value)) %>%
+  group_by(PARAM, LATIN_NAME, TISSUE_NAME, STATION_CODE, Basis) %>%
+  summarise(
+    Value_lo = min(Value),                             # note: min and max for blue mussel
+    Value_hi = max(Value), .groups = "drop") %>%
+  mutate(STATION_CODE = ifelse(STATION_CODE == "36A1", "36A", STATION_CODE))
+
+dat_last_mussel <- dat_medians_list[[2]] %>%                           # 2 for blue mussel
+  filter(MYEAR %in% current_year) %>%
+  left_join(dat_to_add, by = c("PARAM", "LATIN_NAME", "TISSUE_NAME", "STATION_CODE", "Basis")) %>%
+  mutate(Station = forcats::fct_rev(Station))
+
+st1 <- unique(dat_to_add$STATION_CODE) %>% sort()
+st2 <- unique(dat_medians_list[[2]]$STATION_CODE) %>% sort()
+if (!identical(st1,st2)){
+  warning("Station codes are not identical")
+}
+
+if (FALSE){
+  # Check station names in the two
+  setdiff(st1,st2)
+  setdiff(st2,st1)
+  # dat_medians_list[[2]] %>% filter(STATION_CODE == "28A2") %>% View()
+}
+
+```
+
+
+```{r 06_ratio_data_3}
+
+dat_last_list <- list(
+  dat_last_codeider,
+  dat_last_mussel)
+
+for (speciesgroup in 1:2){
+  
+  dat_last_list[[speciesgroup]] <- dat_last_list[[speciesgroup]] %>% 
+    ungroup() %>%
+    mutate(
+      Proref_ratio_lo = Value_lo/Proref,
+      Proref_ratio_hi = Value_hi/Proref,
+      EQS_ratio_lo = Value_lo/EQS,
+      EQS_ratio_hi = Value_hi/EQS,
+      Proref_line = Proref/EQS,         # for adding extra line for proref
+      Proref_tooltip = paste0(
+        "Conc.: ", Value, " (Min-max: ", Value_lo, "-", Value_hi, ")\n",
+        "Ratio: ", Proref_ratio, " (Min-max: ", Proref_ratio_lo, "-", Proref_ratio_hi, ")\n"),
+      EQS_tooltip = paste0(
+        "Conc.: ", Value, " (Min-max: ", Value_lo, "-", Value_hi, ")")
+    ) %>%
+    left_join(
+      dat_trends_plot_list[[speciesgroup]] %>% 
+        filter(Trend_type %in% "short") %>%
+        select(PARAM, LATIN_NAME, TISSUE_NAME, STATION_CODE, Basis, Trend_color),
+      by = c("PARAM", "LATIN_NAME", "TISSUE_NAME", "STATION_CODE", "Basis")
+    )
+  
+  sel <- is.na(dat_last_list[[speciesgroup]]$Trend_color)
+  dat_last_list[[speciesgroup]]$Trend_color[sel] <- "No change"
+  
+}
+
+map_int(dat_last_list, nrow)
+
+```
+
+## Last year's concentrations        
+
+```{r 07_eqsratio_plot, fig.width=8, fig.height=5.5}
+
+plot_eqsratio_list <- list()
+
+for (speciesgroup in 1:2){
+  
+  gg <- ggplot(dat_last_list[[speciesgroup]], 
+               aes(Station, EQS_ratio)) +
+    geom_linerange(aes(ymin = EQS_ratio_lo, ymax = EQS_ratio_hi, colour = Trend_color), size = 1) +
+    geom_point(aes(fill = Trend_color, shape = Trend_color), colour = "black", size = 3) +
+    scale_colour_manual(values = trend_colours, drop = FALSE) +
+    scale_fill_manual(values = trend_colours, drop = FALSE) +
+    scale_shape_manual(values = trend_shapes, drop = FALSE) +
+    geom_hline(yintercept = 1, color = "red2", linetype = "dashed") +
+    labs(title = paste0("EQS ratio, ", speciesgroup_txt[[speciesgroup]]), 
+         y = "EQS ratio") +
+    theme_bw() +
+    theme(legend.title = element_blank()) +
+    ggeasy::easy_rotate_x_labels(angle = -45) 
+  
+  if (params$ratioplot == "EQS with proref"){
+    
+    # Add proref line on EQS plot
+    gg <- gg +
+      geom_hline(yintercept = dat_last_list[[speciesgroup]]$Proref_line[1], color = "blue2", linetype = "dashed")
+
+  }
+
+  plot_eqsratio_list[[speciesgroup]] <- gg
+  
+}
+
+if (params$ratioplot %in% c("EQS with proref", "EQS")){
+  
+  print(plot_eqsratio_list[[1]])
+  print(plot_eqsratio_list[[2]])
+
+  }
 
 
 ```
 
-```{r}
 
-ggplot(dat_medians_lastyear, aes(Station, EQS_ratio)) +
-  geom_point() +
-  geom_linerange(aes(ymin = EQS_ratio_min, ymax = EQS_ratio_max)) +
-  theme_bw() +
-  theme(legend.title = element_blank()) +
-  ggeasy::easy_rotate_x_labels(angle = -45) 
+
+```{r 08_prorefratio_plot, fig.width=8, fig.height=5.5}
+
+plot_prorefratio_list <- list()
+
+for (speciesgroup in 1:2){
+  
+  gg <- ggplot(dat_last_list[[speciesgroup]], 
+               aes(Station, Proref_ratio)) +
+    geom_linerange(aes(ymin = Proref_ratio_lo, ymax = Proref_ratio_hi, colour = Trend_color), size = 1) +
+    geom_point(aes(fill = Trend_color, shape = Trend_color), colour = "black", size = 3) +
+    scale_colour_manual(values = trend_colours, drop = FALSE) +
+    scale_fill_manual(values = trend_colours, drop = FALSE) +
+    scale_shape_manual(values = trend_shapes, drop = FALSE) +
+    geom_hline(yintercept = 1, color = "red2", linetype = "dashed") +
+    labs(title = paste0("Proref ratio, ", speciesgroup_txt[[speciesgroup]]), 
+         y = "Proref ratio") +
+    theme_bw() +
+    theme(legend.title = element_blank()) +
+    ggeasy::easy_rotate_x_labels(angle = -45) 
+  
+  plot_prorefratio_list[[speciesgroup]] <- gg
+  
+}
+
+if (params$ratioplot %in% c("Proref")){
+  
+  print(plot_prorefratio_list[[1]])
+  print(plot_prorefratio_list[[2]])
+
+  }
 
 
 ```
-
