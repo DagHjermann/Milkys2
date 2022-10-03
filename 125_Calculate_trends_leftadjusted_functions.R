@@ -380,13 +380,12 @@ extract_difference_data <- function(seriesno, folder, selection = "k_sel"){
   
   fn <- sprintf("trend_%04.0f.rda", seriesno)
   resultlist <- readRDS(paste0(folder, "/", fn))
-  fn <- sprintf("trend_%04.0f.rda", seriesno)
-  resultlist <- readRDS(paste0(folder, "/", fn))
   if (!is.null(resultlist$plot_data)){
     k_sel <- resultlist[[selection]]
-    # If the "flat" trend (Y = constant) is best, we still wantthe confidence interval of the "linear" one:
-    if (k_sel == 1)
-      k_sel <- 2
+    k_values <- resultlist[["k_values"]]
+    # If the "flat" trend (Y = constant) is best, we still want the confidence interval of the trend:
+    if (k_sel == 1 & length(k_values) >= 2)
+      k_sel <- k_values[2]  # Choose the first with trend, may be 2 (linear) but may also be 3 (non-linear) 
     result <- data.frame(
       PARAM = resultlist[["PARAM"]],
       STATION_CODE = resultlist[["STATION_CODE"]],

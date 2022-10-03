@@ -398,16 +398,16 @@ if (FALSE){
 ### a. All with trend: get difference data       
 ```{r}
 
-pno_change <- dat_success %>%
+pno_change1 <- dat_success %>%
   filter(ok) %>%
-  # No change and no difference data for those with no trend (selected k = 1):
+  # Those with a trend model selected as the best:
   filter(k_sel >= 2) %>%
   pull(seriesno)
 
 # test
 # extract_difference_data(49, folder_results)
 
-df_with_trend_all <- map_dfr(pno_change, extract_difference_data, folder = folder_results)
+df_with_trend_all <- map_dfr(pno_change1, extract_difference_data, folder = folder_results)
 
 ```
 
@@ -457,11 +457,34 @@ df_trend_worked <- bind_rows(
 
 ```
 
-### c. The ones with k = 1 (flat)  
+### c1. k = 1 (flat): get difference data       
 ```{r}
 
+pno_change2 <- dat_success %>%
+  filter(ok) %>%
+  # Pick those with no change. in the sense k = 1:
+  filter(k_sel == 1) %>%
+  pull(seriesno)
+
+# test
+# head(pno_change2)
+# debugonce(extract_difference_data)
+# extract_difference_data(7, folder_results)
+
+df_flat_differences <- map_dfr(pno_change2, extract_difference_data, folder = folder_results)
+
+```
+
+
+### c2. k = 1 (flat): make   
+```{r}
+
+#
+# Short
+#
+
 df_trend_flat_short <- dat_success %>%
-  select(PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME, Basis, 
+  select(seriesno, PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME, Basis, 
               ok, k_max, k_sel, N_years, N_years_10yr, Years_over_LOQ) %>%
   filter(ok, 
          k_sel == 1) %>%
@@ -474,7 +497,11 @@ df_trend_flat_short <- dat_success %>%
   left_join(
     dat_series %>%
        select(PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME, Basis, First_year, Last_year, Trend_model),
-     by = indexvars) 
+     by = indexvars)
+
+#
+# Long
+#
 
 df_trend_flat_long <- df_trend_flat_short %>%
   mutate(
@@ -482,6 +509,31 @@ df_trend_flat_long <- df_trend_flat_short %>%
       First_year < (last_year-9) ~ Trend_string,
       First_year >= (last_year-9) ~ paste("No data before", last_year-9)),
     Trend_type = "long")
+
+#
+# Add differences
+#
+
+df_flat_differences_short <- df_flat_differences %>%
+  group_by(PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME, Basis) %>%
+  mutate(
+    Year_pick = max((last_year-9), min(x)),
+    Length_adequate = TRUE) %>%
+  filter(x == Year_pick)
+
+df_flat_differences_long <- df_flat_differences %>%
+  group_by(PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME, Basis) %>%
+  mutate(Year_pick = min(x),
+         Length_adequate = Year_pick < (last_year-9)) %>%
+  filter(x == Year_pick) 
+
+df_trend_flat_short <- df_trend_flat_short %>%
+  left_join(
+    df_flat_differences_short, by = indexvars)
+
+df_trend_flat_long <- df_trend_flat_long %>%
+  left_join(
+    df_flat_differences_long, by = indexvars)
 
 ```
 
