@@ -210,7 +210,7 @@ gg_tile <- ggplot(dat_medians, aes(MYEAR, Station)) +
 # check <- readRDS("Data/126_df_trend_2021.rds")
 # table(check$Trend_string)
 
-dat_trends <- readRDS("Data/126_df_trend_2021.rds") %>%
+dat_trends <- readRDS("Data/125_results_2021_07_output/126_df_trend_2021.rds") %>%
   filter(PARAM %in% params$param)
 
 check1 <- xtabs(~Trend_type, dat_trends)                 # should be equally many long and short 
@@ -275,20 +275,45 @@ dat_trends_plot <- dat_trends %>%
     # Shape and colour: Drop "Too few over-LOQ years" and "Too few years:
     Trend_shape = case_when(
       Trend_string %in% c("Increasing" , "Decreasing", "No change") ~ Trend_string, 
+      Trend_string %in% "No trend" ~ "No change", 
       TRUE ~ as.character(NA)),
     Trend_shape = factor(Trend_shape, levels = shape_order),
     Trend_color = Trend_shape,
     # Text: Keep only "Too few over-LOQ years", "Too few years" and "No data before 2012":
     Trend_text = case_when(
-      Trend_string %in% c("Increasing" , "Decreasing", "No change") ~ as.character(NA), 
+      Trend_string %in% c("Increasing" , "Decreasing", "No change", "No trend") ~ as.character(NA), 
+      Trend_string %in% "Estimation failed" ~ "No trend",
       TRUE ~ Trend_string),
     Trend_shape = factor(Trend_shape, levels = shape_order)
   )
+
 
 if (FALSE){
   
   # For checking
   
+  cat("Original data: \n")
+  check <- dat_trends %>%
+    filter(LATIN_NAME %in% species,
+         TISSUE_NAME %in% tissue)
+  xtabs(~Trend_type + Trend_string, check)
+  
+  cat("New data (should be identical): \n")
+  xtabs(~Trend_type + Trend_string, dat_trends_plot)
+  cat("\n")
+  
+  cat("New data, text to plot: \n")
+  xtabs(~Trend_type + addNA(Trend_text), dat_trends_plot)
+  cat("\n")
+  
+  cat("New data, point shape: \n")
+  xtabs(~Trend_type + addNA(Trend_shape), dat_trends_plot)
+  cat("\n")
+  
+  xtabs(~Trend_text + Trend_string, dat_trends_plot)
+  xtabs(~Trend_shape + Trend_string, dat_trends_plot)
+
+
   table(dat_trends_plot$Trend_type)   # Should be equal
   xtabs(~addNA(Trend_shape) + Trend_type, dat_trends_plot)   # Should be no NAs
   table(addNA(dat_trends_plot$Trend_string), dat_trends_plot$Trend_type)
