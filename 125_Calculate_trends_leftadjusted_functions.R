@@ -384,6 +384,9 @@ extract_difference_data <- function(seriesno, folder, selection = "k_sel"){
   resultlist <- readRDS(paste0(folder, "/", fn))
   if (!is.null(resultlist$plot_data)){
     k_sel <- resultlist[[selection]]
+    # If the "flat" trend (Y = constant) is best, we still wantthe confidence interval of the "linear" one:
+    if (k_sel == 1)
+      k_sel <- 2
     result <- data.frame(
       PARAM = resultlist[["PARAM"]],
       STATION_CODE = resultlist[["STATION_CODE"]],
