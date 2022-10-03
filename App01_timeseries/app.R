@@ -20,7 +20,6 @@ library(svglite)
 source("../125_Calculate_trends_leftadjusted_functions.R")
 source("../402_Plot_time_series_functions.R")
 
-
 # Lookup file for station names  
 lookup_stations <- read.csv("../Input_data/Lookup_tables/Lookup_stationorder.csv") %>%
   mutate(Station = paste(STATION_CODE, Station_name)) %>%
@@ -77,7 +76,7 @@ dat_all_prep3 <- dat_all_prep3 %>%
 dat_all_prep3 <- bind_rows(
   dat_all_prep3 %>%
     filter(PARAM != "CB118") %>%
-    left_join(lookup_eqs %>% filter(PARAM != "CB118") %>% select(-LATIN_NAME), by = c("PARAM", "Basis")),
+    left_join(lookup_eqs %>% filter(PARAM != "CB118") %>% select(-LATIN_NAME, -Basis), by = c("PARAM")),
   dat_all_prep3 %>%
     filter(PARAM == "CB118") %>%
     left_join(lookup_eqs %>% filter(PARAM == "CB118"), by = c("PARAM", "Basis", "LATIN_NAME"))
