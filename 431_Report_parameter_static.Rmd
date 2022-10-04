@@ -113,6 +113,17 @@ dat_medians_list[[1]] <- bind_rows(
 dat_medians_list[[1]]$Station <- factor(dat_medians_list[[1]]$Station, 
                                         levels = c(levels(dat_temporary[[1]]$Station), eider_blood, eider_egg))
 
+# For Hg: add an asterisk after station names for stations that are NOT length-adjusted (for Hg only)
+# - these data are also used for 'ratio plots' (last year's concentrations)  
+if (params$param %in% "HG"){
+  # View(dat_medians_list[[1]])
+  tab <- xtabs(~Basis + Station, dat_medians_list[[1]])
+  not_length_adjusted <- colnames(tab)[tab[2,] == 0]
+  sel <- levels(dat_medians_list[[1]]$Station) %in% not_length_adjusted
+  levels(dat_medians_list[[1]]$Station)[sel] <- paste(levels(dat_medians_list[[1]]$Station)[sel], "*")
+}
+
+
 # levels(dat_medians_list[[1]]$Station)
 
 # List element 2 = blue mussel
