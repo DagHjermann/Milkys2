@@ -371,6 +371,7 @@ dat_last_list <- list(
   dat_last_codeider,
   dat_last_mussel)
 
+
 for (speciesgroup in 1:2){
   
   dat_last_list[[speciesgroup]] <- dat_last_list[[speciesgroup]] %>% 
@@ -419,16 +420,21 @@ if (params$eqsplot == TRUE){
       scale_fill_manual(values = trend_colours, drop = FALSE) +
       scale_shape_manual(values = trend_shapes, drop = FALSE) +
       geom_hline(yintercept = 1, color = "red2", linetype = "dashed") +
+      annotate("text", x = -1.7, y = 1, label = "EQS", color = "red2", hjust = 0, vjust = -0.3) +
+      coord_cartesian(xlim = c(-1.5, length(dat_last_list[[speciesgroup]]$Station))) +
       labs(title = paste0("EQS ratio, ", speciesgroup_txt[[speciesgroup]]), 
            y = "Concentration/EQS") +
       theme_bw() +
       theme(legend.title = element_blank()) +
       ggeasy::easy_rotate_x_labels(angle = -45) 
     
-      # Add proref line on EQS plot
-      gg <- gg +
-        geom_hline(yintercept = dat_last_list[[speciesgroup]]$Proref_line[1], color = "blue2", linetype = "dashed")
-      
+    # Add proref line on EQS plot
+    proref <- dat_last_list[[speciesgroup]]$Proref_line
+    proref <- proref[!is.na(proref)][1]   # the first non-negative value
+    gg <- gg +
+      geom_hline(yintercept = proref, color = "blue2", linetype = "dashed") +
+      annotate("text", x = -1.7, y = proref, label = "PROREF", color = "blue2", hjust = 0, vjust = -0.3)
+    
     filename <- glue::glue("Figures/431/{params$param}_eqsratio_ord_{speciesgroup}.png")
     ggsave(filename, gg, 
            width = 9, height = 6, dpi = 200)
@@ -462,7 +468,9 @@ for (speciesgroup in 1:2){
     scale_colour_manual(values = trend_colours, drop = FALSE) +
     scale_fill_manual(values = trend_colours, drop = FALSE) +
     scale_shape_manual(values = trend_shapes, drop = FALSE) +
-    geom_hline(yintercept = 1, color = "red2", linetype = "dashed") +
+    geom_hline(yintercept = 1, color = "blue2", linetype = "dashed") +
+    annotate("text", x = -1.7, y = 1, label = "PROREF", color = "blue2", hjust = 0, vjust = -0.3) +
+    coord_cartesian(xlim = c(-1.5, length(dat_last_list[[speciesgroup]]$Station))) +
     labs(title = paste0("Proref ratio, ", speciesgroup_txt[[speciesgroup]]), 
          y = "Concentration/PROREF") +
     theme_bw() +
