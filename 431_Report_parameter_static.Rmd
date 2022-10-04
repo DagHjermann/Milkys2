@@ -1,10 +1,10 @@
 ---
-title: "Report for parameter (430)"
+title: "Report for parameter (431)"
 author: "DHJ"
-date: "18.08.2022"
+date: "04.10.2022"
 params:
   param: "HG"
-  ratioplot: "EQS with proref"
+  eqsplot: "TRUE"
 output: 
   html_document:
   keep_md: false
@@ -125,7 +125,7 @@ dat_medians_list[[2]] <- dat_temporary[[4]]
 ```{r 04_medians_plot, fig.width=10, fig.height=8, warning=FALSE}
 
 proref_cols <- c(RColorBrewer::brewer.pal(6, "Blues")[5:2],
-                 RColorBrewer::brewer.pal(6, "YlOrRd")[1:5])
+                 RColorBrewer::brewer.pal(6, "YlOrRd")[1:6])
   
 col_func <- function(x){cols[x]}
 
@@ -149,7 +149,7 @@ for (speciesgroup in 1:2){
               color = "red", size = 1, height = 0.9, width = 0.9, alpha = 0) +
     geom_text(aes(label = round(Value, 3)), nudge_y = -0.1, size = 3) +
     geom_text(aes(label = LOQ_label), size = 3, nudge_y = 0.3) +
-    scale_fill_manual("Proref ratio", values = proref_cols) +
+    scale_fill_manual("Proref ratio", values = proref_cols, na.value = "grey85") +
     scale_color_manual(values = c("red", "white")) +
     scale_alpha_manual(values = c(1, 0)) +
     scale_x_continuous(breaks = seq(startyr, 2020, 2), 
@@ -255,8 +255,8 @@ for (speciesgroup in 1:2){
   
   ggcomb_legend <- cowplot::get_legend(gg_tile_list[[speciesgroup]])
   
-  # filename <- glue::glue("Figures/431/{params$param}_{tissue}_combo.png")
-  # ggsave(filename, ggcomb, width = 14, height = 8, dpi = 200)
+  filename <- glue::glue("Figures/431/{params$param}_timeseries_{speciesgroup}.png")
+  ggsave(filename, ggcomb_list[[speciesgroup]], width = 14, height = 8, dpi = 200)
   # 
   # filename <- glue::glue("Figures/431/{params$param}_{tissue}_combo_legend.png")
   # ggsave(filename, ggdraw(ggcomb_legend), width = 2, height = 4, dpi = 200)
@@ -266,6 +266,7 @@ for (speciesgroup in 1:2){
 ggcomb_list[[1]]
 ggcomb_list[[2]]
 
+
 ```
 
 ```{r 05_trend_plot_legend}
@@ -274,6 +275,7 @@ ggcomb_list[[2]]
 
 ```
 
+## Last year's concentrations (EQS + Proref ratio)       
 
 ```{r 06_ratio_data_1}  
 
@@ -293,12 +295,15 @@ dat_to_add <- dat_raw_codeider %>%
   group_by(PARAM, LATIN_NAME, TISSUE_NAME, STATION_CODE, Basis) %>%
   summarise(
     Value_lo = quantile(Value, probs = 0.25),                            # note: 1st and 3rd quartiles for cod + eider
-    Value_hi = quantile(Value, probs = 0.75), .groups = "drop")
+    Value_lo = quantile(Value, probs = 0.25),                            # note: 1st and 3rd quartiles for cod + eider
+    Value_hi = quantile(Value, probs = 0.75), .groups = "drop") 
 
 dat_last_codeider <- dat_medians_list[[1]] %>%                           # 1 for cod + eider
   filter(MYEAR %in% current_year) %>%
-  left_join(dat_to_add, by = c("PARAM", "LATIN_NAME", "TISSUE_NAME", "STATION_CODE", "Basis")) %>%
-  mutate(Station = forcats::fct_rev(Station))
+  left_join(dat_to_add, by = c("PARAM", "LATIN_NAME", "TISSUE_NAME", "STATION_CODE", "Basis"))
+
+# For sorting N to S, add
+# mutate(Station = forcats::fct_rev(Station))
 
 # Check that station codes are the same
 st1 <- unique(dat_to_add$STATION_CODE) %>% sort()
@@ -331,8 +336,7 @@ dat_to_add <- dat_raw_mussel %>%
 
 dat_last_mussel <- dat_medians_list[[2]] %>%                           # 2 for blue mussel
   filter(MYEAR %in% current_year) %>%
-  left_join(dat_to_add, by = c("PARAM", "LATIN_NAME", "TISSUE_NAME", "STATION_CODE", "Basis")) %>%
-  mutate(Station = forcats::fct_rev(Station))
+  left_join(dat_to_add, by = c("PARAM", "LATIN_NAME", "TISSUE_NAME", "STATION_CODE", "Basis"))
 
 st1 <- unique(dat_to_add$STATION_CODE) %>% sort()
 st2 <- unique(dat_medians_list[[2]]$STATION_CODE) %>% sort()
@@ -388,46 +392,46 @@ map_int(dat_last_list, nrow)
 
 ```
 
-## Last year's concentrations        
-
 ```{r 07_eqsratio_plot, fig.width=8, fig.height=5.5}
 
-plot_eqsratio_list <- list()
-
-for (speciesgroup in 1:2){
+if (params$eqsplot == TRUE){
   
-  gg <- ggplot(dat_last_list[[speciesgroup]], 
-               aes(Station, EQS_ratio)) +
-    geom_linerange(aes(ymin = EQS_ratio_lo, ymax = EQS_ratio_hi, colour = Trend_color), size = 1) +
-    geom_point(aes(fill = Trend_color, shape = Trend_color), colour = "black", size = 3) +
-    scale_colour_manual(values = trend_colours, drop = FALSE) +
-    scale_fill_manual(values = trend_colours, drop = FALSE) +
-    scale_shape_manual(values = trend_shapes, drop = FALSE) +
-    geom_hline(yintercept = 1, color = "red2", linetype = "dashed") +
-    labs(title = paste0("EQS ratio, ", speciesgroup_txt[[speciesgroup]]), 
-         y = "EQS ratio") +
-    theme_bw() +
-    theme(legend.title = element_blank()) +
-    ggeasy::easy_rotate_x_labels(angle = -45) 
+  plot_eqsratio_list <- list()
   
-  if (params$ratioplot == "EQS with proref"){
+  for (speciesgroup in 1:2){
     
-    # Add proref line on EQS plot
-    gg <- gg +
-      geom_hline(yintercept = dat_last_list[[speciesgroup]]$Proref_line[1], color = "blue2", linetype = "dashed")
-
+    gg <- ggplot(dat_last_list[[speciesgroup]], 
+                 aes(Station, EQS_ratio)) +
+      geom_linerange(aes(ymin = EQS_ratio_lo, ymax = EQS_ratio_hi, colour = Trend_color), size = 1) +
+      geom_point(aes(fill = Trend_color, shape = Trend_color), colour = "black", size = 3) +
+      scale_colour_manual(values = trend_colours, drop = FALSE) +
+      scale_fill_manual(values = trend_colours, drop = FALSE) +
+      scale_shape_manual(values = trend_shapes, drop = FALSE) +
+      geom_hline(yintercept = 1, color = "red2", linetype = "dashed") +
+      labs(title = paste0("EQS ratio, ", speciesgroup_txt[[speciesgroup]]), 
+           y = "Concentration/EQS") +
+      theme_bw() +
+      theme(legend.title = element_blank()) +
+      ggeasy::easy_rotate_x_labels(angle = -45) 
+    
+      # Add proref line on EQS plot
+      gg <- gg +
+        geom_hline(yintercept = dat_last_list[[speciesgroup]]$Proref_line[1], color = "blue2", linetype = "dashed")
+      
+    filename <- glue::glue("Figures/431/{params$param}_eqsratio_ord_{speciesgroup}.png")
+    ggsave(filename, gg, 
+           width = 9, height = 6, dpi = 200)
+    
+    filename <- glue::glue("Figures/431/{params$param}_eqsratio_log_{speciesgroup}.png")
+    ggsave(filename, gg + scale_y_log10(), 
+           width = 9, height = 6, dpi = 200)
+    
+    plot_eqsratio_list[[speciesgroup]] <- gg
+    
   }
-
-  plot_eqsratio_list[[speciesgroup]] <- gg
+  
   
 }
-
-if (params$ratioplot %in% c("EQS with proref", "EQS")){
-  
-  print(plot_eqsratio_list[[1]])
-  print(plot_eqsratio_list[[2]])
-
-  }
 
 
 ```
@@ -449,21 +453,23 @@ for (speciesgroup in 1:2){
     scale_shape_manual(values = trend_shapes, drop = FALSE) +
     geom_hline(yintercept = 1, color = "red2", linetype = "dashed") +
     labs(title = paste0("Proref ratio, ", speciesgroup_txt[[speciesgroup]]), 
-         y = "Proref ratio") +
+         y = "Concentration/PROREF") +
     theme_bw() +
     theme(legend.title = element_blank()) +
     ggeasy::easy_rotate_x_labels(angle = -45) 
   
   plot_prorefratio_list[[speciesgroup]] <- gg
   
-}
-
-if (params$ratioplot %in% c("Proref")){
+  filename <- glue::glue("Figures/431/{params$param}_prorefratio_ord_{speciesgroup}.png")
+  ggsave(filename, gg, 
+         width = 9, height = 6, dpi = 200)
   
-  print(plot_prorefratio_list[[1]])
-  print(plot_prorefratio_list[[2]])
+  filename <- glue::glue("Figures/431/{params$param}_prorefratio_log_{speciesgroup}.png")
+  ggsave(filename, gg + scale_y_log10(), 
+         width = 9, height = 6, dpi = 200)
+  
 
-  }
+}
 
 
 ```
