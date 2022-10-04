@@ -136,7 +136,7 @@ dat_medians_list[[2]] <- dat_temporary[[4]]
 ```{r 04_medians_plot, fig.width=10, fig.height=8, warning=FALSE}
 
 proref_cols <- c(RColorBrewer::brewer.pal(6, "Blues")[5:2],
-                 RColorBrewer::brewer.pal(6, "YlOrRd")[1:6])
+                 RColorBrewer::brewer.pal(6, "YlOrRd")[1:5])
   
 col_func <- function(x){cols[x]}
 

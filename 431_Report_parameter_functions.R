@@ -158,7 +158,7 @@ get_data_medians <- function(param, species, tissue, basis, include_year,
   proref_max <- max(dat_medians_04$Proref_ratio, na.rm = TRUE)
   dat_medians_04 <- dat_medians_04 %>%
     mutate(
-      Proref_ratio_cut = cut(Proref_ratio, breaks = c(0,0.5,0.75,0.9,1,2,3,5,10,20,100))
+      Proref_ratio_cut = cut(Proref_ratio, breaks = c(0,0.5,0.75,0.9,1,2,5,10,20,100))
     )
   
   dat_medians_05 <- dat_medians_04 %>%
@@ -332,7 +332,7 @@ get_data_trends <- function(data_medians,
       Basis %in% unique(data_medians$Basis)
       )
   
-  check1 <- xtabs(~Trend_type, dat_trends)                 # should be equally many long and short 
+  check1 <- xtabs(~Trend_type, dat_trends_all)                 # should be equally many long and short 
   if (check1[1] != check1[2]){
     stop("There should be equally many rows for 'long' and 'short'")
   }
@@ -371,8 +371,8 @@ get_data_trends <- function(data_medians,
   
 if (FALSE){
 
-  debugonce(get_data_trends)
-  get_data_trends(dat_medians_list[[1]], current_year)
+  # debugonce(get_data_trends)
+  get_data_trends(dat_medians_list[[1]], include_year = current_year)
   
 
 }
