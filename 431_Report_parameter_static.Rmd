@@ -224,7 +224,7 @@ for (speciesgroup in 1:2){
         scale_fill_manual(values = trend_colours, drop = FALSE) +
         scale_shape_manual(values = trend_shapes, drop = FALSE) +
         geom_hline(yintercept = 0, color = "grey30") +
-        geom_label(aes(y = 0, label = Trend_text), fill = "white", color = "blue3", 
+        geom_label(aes(y = mean(y_ran), label = Trend_text), fill = "white", color = "blue3", 
                    label.size = 0, size = 3) +
         coord_flip(ylim = y_ran) +
         labs(title = glue("Trend ({.x}-term)"), y = "") +
