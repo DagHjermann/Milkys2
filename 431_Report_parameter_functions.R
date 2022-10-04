@@ -342,11 +342,20 @@ get_data_trends <- function(data_medians,
   # xtabs(~TISSUE_NAME + Trend_string, dat_trends)
   # xtabs(~STATION_CODE + TISSUE_NAME, dat_trends %>% filter(TISSUE_NAME %in% "Whole soft body"))
   
-  dat_trends_01 <- data_medians %>%
+  data_medians_series <- data_medians %>%
     filter(MYEAR %in% include_year) %>%
-    distinct(PARAM, STATION_CODE, LATIN_NAME, TISSUE_NAME, Basis, Station) %>%
+    distinct(PARAM, STATION_CODE, LATIN_NAME, TISSUE_NAME, Basis, Station)
+  
+  # This is done to ensure that stations lacking in 'dat_trends_all' are included as two rows
+  #   although without trend info
+  data_medians_series <- bind_rows(
+    data_medians_series %>% mutate(Trend_type = "long"),
+    data_medians_series %>% mutate(Trend_type = "short")
+  )
+  
+  dat_trends_01 <- data_medians_series %>%
     left_join(dat_trends_all,
-              by = c("PARAM", "STATION_CODE", "LATIN_NAME", "TISSUE_NAME", "Basis"))
+              by = c("PARAM", "STATION_CODE", "LATIN_NAME", "TISSUE_NAME", "Basis", "Trend_type"))
   
   dat_trends_02 <-  dat_trends_01 %>%
     mutate(
@@ -361,6 +370,7 @@ get_data_trends <- function(data_medians,
       Trend_text = case_when(
         Trend_string %in% c("Increasing" , "Decreasing", "No change", "No trend") ~ as.character(NA), 
         Trend_string %in% "Estimation failed" ~ "No trend",
+        is.na(Trend_string) ~ "Too few over-LOQ years",
         TRUE ~ Trend_string),
       Trend_shape = factor(Trend_shape, levels = shape_order)
     )
