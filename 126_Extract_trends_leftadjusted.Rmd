@@ -260,7 +260,9 @@ if (FALSE){
 }
 
 ```
+
 ### d2. Statistics on selected k (model selection)
+
 ```{r}
 
 xtabs(~k_sel + k_sel_dic, dat_success); cat("\n")
@@ -314,7 +316,9 @@ tsplot_seriesno(58, folder_results)
 ```{r, fig.width=13, fig.height=10}
 
 param <- "MCCP eksl. LOQ"
+
 param <- "CB118"
+param <- "AG"
 basis <- "WW"
 
 param <- "HG"
@@ -392,8 +396,6 @@ if (FALSE){
 
 
 ## 5. For all: Extract trends (long- and short-term)   
-
-- Almost all code is extremely similar to code for one parameter, just removed the 'filter(PARAM == param) ' two places  
 
 ### a. All with trend: get difference data       
 ```{r}
@@ -538,6 +540,7 @@ df_trend_flat_long <- df_trend_flat_long %>%
 ```
 
 ### d. The ones that failed  
+
 ```{r}
 
 df_trend_failed_short <- dat_success %>%
@@ -565,6 +568,7 @@ df_trend_failed_long <- df_trend_failed_short %>%
 ```
 
 ### e. The ones with "no model" 
+
 ```{r}
 
 df_trend_toofew_short <- dat_series %>%
@@ -680,11 +684,11 @@ Symbols:
 
 df_trend <- df_trend %>%
   mutate(
-    Perc_change = round((1-exp(y_mean))/exp(y_mean)*100, 1),
+    Perc_change = round((exp(-y_mean)-1)*100, 1),
     D_year = last_year - First_year,
-    Perc_annual = round((1-exp(y_mean/D_year))/exp(y_mean)*100, 1),
-    Perc_annual_lo = round((1-exp(y_q2.5/D_year))/exp(y_mean)*100, 1),
-    Perc_annual_hi = round((1-exp(y_q97.5/D_year))/exp(y_mean)*100, 1),
+    Perc_annual = round((exp(-y_mean/D_year)-1)*100, 1),
+    Perc_annual_lo = round((exp(-y_q2.5/D_year)-1)*100, 1),
+    Perc_annual_hi = round((exp(-y_q97.5/D_year)-1)*100, 1),
     Trend_symbol = case_when(
       is.na(Trend_string) ~ "x",
       Trend_string %in% "Increasing" ~ "é",
