@@ -403,8 +403,11 @@ dat_last_list <- list(
   dat_last_mussel)
 
 dat_raw_list <- list(
-  dat_raw_codeider %>% filter(MYEAR %in% current_year & !is.na(Value)),
-  dat_raw_mussel %>% filter(MYEAR %in% current_year & !is.na(Value))
+  dat_raw_codeider %>% 
+    filter(MYEAR %in% current_year & !is.na(Value)),
+  dat_raw_mussel %>% 
+    filter(MYEAR %in% current_year & !is.na(Value)) %>% 
+    mutate(STATION_CODE = ifelse(STATION_CODE == "36A1", "36A", STATION_CODE))
 )
 
 
