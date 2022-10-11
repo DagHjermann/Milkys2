@@ -3,7 +3,7 @@ title: "Report for parameter (431)"
 author: "DHJ"
 date: "04.10.2022"
 params:
-  param: "AG"
+  param: "DDEPP"
   eqsplot: "FALSE"
 output: 
   html_document:
@@ -86,6 +86,12 @@ dat_temporary <- list(
 
 # levels(dat_temporary[[1]]$Station)
 # levels(dat_temporary[[2]]$Station) 
+
+#
+# Stations - for corrrect ordering
+#
+lookup_stations <- read.csv("Input_data/Lookup_tables/Lookup_stationorder.csv") # %>%
+
 
 ```
 
@@ -463,9 +469,24 @@ if (params$eqsplot == TRUE){
   
   for (speciesgroup in speciesgroups){
     
-    gg <- ggplot(dat_last_list[[speciesgroup]], 
+    data_proref_medians <- dat_last_list[[speciesgroup]]
+    data_proref_samples <- dat_raw_list[[speciesgroup]]
+    
+    # Order stations correctly
+    data_proref_medians <- data_proref_medians %>%
+      ungroup() %>%
+      left_join(lookup_stations %>% select(STATION_CODE, Order), by = "STATION_CODE") %>%
+      arrange(Order) %>%
+      mutate(Station = forcats::fct_inorder(Station))
+    data_proref_samples <- data_proref_samples %>%
+      ungroup() %>%
+      left_join(lookup_stations %>% select(STATION_CODE, Order), by = "STATION_CODE") %>% # View()
+      arrange(Order) %>%
+      mutate(Station = forcats::fct_inorder(Station))
+    
+    gg <- ggplot(data_proref_medians, 
                  aes(Station, EQS_ratio)) +
-      geom_point(data = dat_raw_list[[speciesgroup]], color = "grey50", shape = 1, size = 2) +
+      geom_point(data = data_proref_samples, color = "grey50", shape = 1, size = 2) +
       geom_linerange(aes(ymin = EQS_ratio_lo, ymax = EQS_ratio_hi, colour = Trend_color), size = 1) +
       geom_point(aes(fill = Trend_color, shape = Trend_color), colour = "black", size = 3) +
       scale_colour_manual(values = trend_colours, drop = FALSE) +
@@ -473,7 +494,7 @@ if (params$eqsplot == TRUE){
       scale_shape_manual(values = trend_shapes, drop = FALSE) +
       geom_hline(yintercept = 1, color = "red2", linetype = "dashed") +
       annotate("text", x = -1.7, y = 1, label = "EQS", color = "red2", hjust = 0, vjust = -0.3) +
-      coord_cartesian(xlim = c(-1.5, length(dat_last_list[[speciesgroup]]$Station))) +
+      coord_cartesian(xlim = c(-1.5, length(data_proref_medians$Station))) +
       labs(title = paste0("EQS ratio, ", speciesgroup_txt[[speciesgroup]]), 
            y = "Concentration/EQS") +
       theme_bw() +
@@ -481,7 +502,7 @@ if (params$eqsplot == TRUE){
       ggeasy::easy_rotate_x_labels(angle = -45) 
     
     # Add proref line on EQS plot
-    proref <- dat_last_list[[speciesgroup]]$Proref_line
+    proref <- data_proref_medians$Proref_line
     proref <- proref[!is.na(proref)][1]   # the first non-negative value
     gg <- gg +
       geom_hline(yintercept = proref, color = "blue2", linetype = "dashed") +
@@ -516,15 +537,33 @@ for (speciesgroup in speciesgroups){
   data_proref_medians <- dat_last_list[[speciesgroup]]
   data_proref_samples <- dat_raw_list[[speciesgroup]]
   
+  #  mutate(
+  #    STATION_CODE = ifelse(STATION_CODE == "36A", "36A1", STATION_CODE)
+  #  )
+
   if (speciesgroup == 1){
+    # No Proref for the bird stations, so we delete them
     data_proref_medians <- data_proref_medians %>%
       filter(!Station %in% c("19N Kongsfjorden (eider duck blood)", "19N Kongsfjorden (eider duck egg)")) %>%
       mutate(Station = forcats::fct_drop(Station))
     data_proref_samples <- data_proref_samples %>%
       filter(!Station %in% c("19N Kongsfjorden (eider duck blood)", "19N Kongsfjorden (eider duck egg)")) %>%
-      mutate(Station = forcats::fct_drop(Station))
+      mutate(Station = factor(Station, levels = levels(data_proref_medians$Station)))
   }
   
+  # Order stations correctly
+  data_proref_medians <- data_proref_medians %>%
+    ungroup() %>%
+    left_join(lookup_stations %>% select(STATION_CODE, Order), by = "STATION_CODE") %>%
+    arrange(Order) %>%
+    mutate(Station = forcats::fct_inorder(Station))
+  data_proref_samples <- data_proref_samples %>%
+    # mutate( STATION_CODE = ifelse(STATION_CODE == "36A1", "36A", STATION_CODE)) %>%
+    ungroup() %>%
+    left_join(lookup_stations %>% select(STATION_CODE, Order), by = "STATION_CODE") %>% # View()
+    arrange(Order) %>%
+    mutate(Station = forcats::fct_inorder(Station))
+
   gg <- ggplot(data_proref_medians, 
                aes(Station, Proref_ratio)) +
     geom_point(data = data_proref_samples, color = "grey50", shape = 1, size = 2) +
@@ -536,7 +575,7 @@ for (speciesgroup in speciesgroups){
     geom_hline(yintercept = 1, color = "blue2", linetype = "dashed") +
     annotate("text", x = -1.7, y = 1, label = "PROREF", color = "blue2", hjust = 0, vjust = -0.3) +
     coord_cartesian(xlim = c(-1.5, length(data_proref_medians$Station))) +
-    labs(title = paste0("Proref ratio, ", speciesgroup_txt[[speciesgroup]]), 
+    labs(title = paste0("Proref ratio, ", speciesgroup_txt_proref[[speciesgroup]]), 
          y = "Concentration/PROREF") +
     theme_bw() +
     theme(legend.title = element_blank()) +
