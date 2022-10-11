@@ -13,7 +13,8 @@ get_data_medians <- function(param, species, tissue, basis, include_year,
                              filename_lookup_substancegroups = "Input_data/Lookup_tables/Lookup table - substance groups.csv",
                              filename_lookup_stations= "Input_data/Lookup_tables/Lookup_stationorder.csv",
                              filename_lookup_eqs = "Input_data/Lookup_tables/Lookup_EQS_limits.csv",
-                             filename_lookup_proref = "Input_data/Lookup_tables/Lookup_proref.csv"){
+                             filename_lookup_proref = "Input_data/Lookup_tables/Lookup_proref.csv",
+                             check_loq = FALSE){
   
   indexvars <- c("PARAM", "STATION_CODE", "TISSUE_NAME", "LATIN_NAME", "Basis")
   
@@ -64,7 +65,7 @@ get_data_medians <- function(param, species, tissue, basis, include_year,
 
   
     
-    # Raw data
+  # Raw data
   # dat_all <- readRDS(filename_109) %>%
   #   dplyr::filter(PARAM %in% param,
   #                 LATIN_NAME = species, 
@@ -139,10 +140,45 @@ get_data_medians <- function(param, species, tissue, basis, include_year,
   if (nrow(dat_medians_03) != nrow(dat_medians_04))
     warning("Number of rows changed when adding station (get_data_medians)")
   
+  if (check_loq & nrow(dat_medians_04) > 0){
+    
+    # Add LOQ values to data
+    dat_loq <- get_loq(param)
+    
+    if (sum(is.na(dat_loq$med_LOQ)) == 0){
+      
+      dat_medians_04 <- dat_medians_04 %>%
+        left_join(dat_loq %>% select(PARAM, MYEAR, med_LOQ), by = c("PARAM", "MYEAR")) %>%
+        mutate(
+          Proref_ratio = ifelse(Proref > med_LOQ, 
+                                as.numeric(Value/Proref), 
+                                as.numeric(NA)), 
+          EQS_ratio = ifelse(EQS > med_LOQ, 
+                             as.numeric(Value/EQS), 
+                             as.numeric(NA))
+        )
+      
+    }
+    
+    dat_medians_04 <- dat_medians_04 %>%
+      mutate(
+        Proref_ratio = as.numeric(Value/Proref), 
+        EQS_ratio = as.numeric(Value/EQS))
+    
+  } else {
+    
+    dat_medians_04 <- dat_medians_04 %>%
+      mutate(
+        Proref_ratio = as.numeric(Value/Proref), 
+        EQS_ratio = as.numeric(Value/EQS))
+    
+  }
+  
+  dat_medians_04$Proref_ratio <- as.numeric(dat_medians_04$Proref_ratio)
+  dat_medians_04$EQS_ratio <- as.numeric(dat_medians_04$EQS_ratio)
+  
   dat_medians_04 <- dat_medians_04 %>%
     mutate(
-      Proref_ratio = Value/Proref,
-      EQS_ratio = Value/EQS,
       Above_EQS = case_when(
         Value > EQS ~ "Over",
         Value <= EQS ~ "Under",
@@ -152,7 +188,8 @@ get_data_medians <- function(param, species, tissue, basis, include_year,
         Prop_underLOQ < 0.5 ~ as.character(NA),
         Prop_underLOQ >= 0.5 ~ "<"),
       LOQ_label = ifelse(Prop_underLOQ >= 0.5, "<", "")
-    )
+    ) %>%
+    ungroup() 
   
   # Add 'Proref_ratio_cut'  
   proref_max <- max(dat_medians_04$Proref_ratio, na.rm = TRUE)
@@ -186,6 +223,74 @@ if (FALSE){
   
 }
 
+
+#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
+#
+# get_data_loq
+#
+#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
+
+get_loq <- function(param, basis = "WW"){
+  
+  dat_raw <- readRDS("Data/109_adjusted_data_2022-09-01.rds")  
+  
+  if (basis != "WW"){
+    stop("Not yet implemented for basis other than WW")
+  }
+  
+  dat_raw_sel <- dat_raw %>%
+    filter(PARAM %in% param & c(TISSUE_NAME %in% c("Whole soft body", "Lever"))) %>%
+    group_by(PARAM, MYEAR)
+    
+  result1 <- dat_raw_sel %>%
+    summarise(
+      Prop_underLOQ = mean(!is.na(FLAG1)),
+      .groups = "drop"
+    )
+  
+  result2 <- dat_raw_sel %>%
+    filter(!is.na(FLAG1)) %>%
+    summarise(
+      min_LOQ = min(VALUE_WW, na.rm = TRUE),
+      med_LOQ = median(VALUE_WW, na.rm = TRUE),
+      max_LOQ = max(VALUE_WW, na.rm = TRUE),
+      .groups = "drop"
+    )
+  
+  result <- result1 %>%
+    left_join(result2, by = c("MYEAR", "PARAM"))
+  
+  # Get rid of NA values (column 'med_LOQ' only)
+  
+  loq <- result[["med_LOQ"]]
+  n <- length(loq)
+  
+  if (sum(!is.na(loq)) > 0){
+    
+    # If the first value is NA, use the first non-NA value
+    if (is.na(loq[1]))
+      loq[1] <- head(loq[!is.na(loq)],1)
+    # If the last value is NA, use the last non-NA value
+    if (is.na(loq[n]))
+      loq[n] <- tail(loq[!is.na(loq)],1)
+    
+    loq <- zoo::na.approx(loq)
+    
+    result[["med_LOQ"]] <- loq
+    
+  }
+  
+  result
+  
+}
+
+if (FALSE){
+  
+  debugonce(get_loq)
+  get_loq("AG")
+  get_loq("CB_S7_exloq")
+   
+}
 
 
 #o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
@@ -332,6 +437,8 @@ get_data_trends <- function(data_medians,
       Basis %in% unique(data_medians$Basis)
       )
   
+  if (nrow(dat_trends_all) > 0){
+  
   check1 <- xtabs(~Trend_type, dat_trends_all)                 # should be equally many long and short 
   if (check1[1] != check1[2]){
     stop("There should be equally many rows for 'long' and 'short'")
@@ -375,7 +482,15 @@ get_data_trends <- function(data_medians,
       Trend_shape = factor(Trend_shape, levels = shape_order)
     )
   
-  dat_trends_02
+  result <- dat_trends_02
+  
+  } else {
+    
+    result <- NULL
+    
+  }
+  
+  result
   
 }
   
@@ -387,3 +502,41 @@ if (FALSE){
 
 }
 
+#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
+#
+# APPENDIX: LOQ ----
+#
+#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
+
+if (FALSE){
+  
+  dat_raw <- readRDS("Data/109_adjusted_data_2022-09-01.rds")  
+  
+  # LOQ median values for all parameters
+  dat_raw %>%
+    filter(PARAM %in% c("BDE47", "AG", "ANT", "BAA", "BAP", "BDE100", "BDE209", 
+                        "CB118", "CB138", "CB153", "CD", "CO", "DDEPP", "FLU", "HBCDA", 
+                        "HCB", "HG", "NAP", "NI", "PB", "PFOA", "PFOS", "PFOSA", "BDE99", "ZN") & 
+             TISSUE_NAME %in% c("Whole soft body", "Lever")) %>%
+    group_by(PARAM, MYEAR) %>%
+    summarise(
+      medLOQ = median(VALUE_WW[!is.na(FLAG1)], na.rm = TRUE),
+    ) %>% 
+    tidyr::pivot_wider(names_from = PARAM, values_from = medLOQ) %>%
+    arrange(MYEAR) %>%
+    tail(15)
+  
+  # LOQ values for one parameter
+  dat_raw %>%
+    filter(PARAM %in% "CO" & c(TISSUE_NAME %in% c("Whole soft body", "Lever") & MYEAR >= 2008)) %>%
+    group_by(PARAM, MYEAR) %>%
+    summarise(
+      Prop_underLOQ = mean(!is.na(FLAG1)),
+      min_value = min(VALUE_WW[is.na(FLAG1)], na.rm = TRUE),
+      min_LOQ = min(VALUE_WW[!is.na(FLAG1)], na.rm = TRUE),
+      med_LOQ = median(VALUE_WW[!is.na(FLAG1)], na.rm = TRUE),
+      max_LOQ = max(VALUE_WW[!is.na(FLAG1)], na.rm = TRUE)
+    ) %>% tail(20)
+  
+  
+}
