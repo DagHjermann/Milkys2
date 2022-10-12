@@ -469,7 +469,7 @@ get_data_trends <- function(data_medians,
       # Text: Keep only "Too few over-LOQ years", "Too few years" and "No data before 2012":
       Trend_text = case_when(
         Trend_string %in% c("Increasing" , "Decreasing", "No change", "No trend") ~ as.character(NA), 
-        Trend_string %in% "Estimation failed" ~ "No trend",
+        Trend_string %in% "Estimation failed" ~ "No model",
         is.na(Trend_string) ~ "Too few over-LOQ years",
         TRUE ~ Trend_string),
       Trend_shape = factor(Trend_shape, levels = shape_order)
