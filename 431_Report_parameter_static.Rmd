@@ -3,8 +3,8 @@ title: "Report for parameter (431)"
 author: "DHJ"
 date: "04.10.2022"
 params:
-  param: "HG"
-  eqsplot: "TRUE"
+  param: "NAP"
+  eqsplot: "FALSE"
 output: 
   html_document:
   keep_md: false
@@ -63,8 +63,7 @@ dat_temporary <- list(
                    species = "Gadus morhua",
                    tissue = ifelse(params$param %in% "HG", "Muskel", "Lever"),
                    basis = ifelse(params$param %in% "HG", "WWa", "WW"), 
-                   include_year = current_year, 
-                   check_loq = TRUE),
+                   include_year = current_year),
   get_data_medians(param = params$param, 
                    species = "Somateria mollissima",
                    tissue = "Blod",
@@ -79,8 +78,7 @@ dat_temporary <- list(
                    species = "Mytilus edulis",
                    tissue = "Whole soft body",
                    basis = "WW", 
-                   include_year = current_year, 
-                   check_loq = TRUE)
+                   include_year = current_year)
 )
 
 
@@ -202,7 +200,6 @@ colour_order <- shape_order
 trend_shapes <- c(24, 25, 21) %>% setNames(shape_order)
 trend_colours <- c("red3", "green4", "grey20") %>% setNames(colour_order)
 trend_fill <- c("red2", "green2", "grey20") %>% setNames(colour_order)
-
 
 ```
 

@@ -13,8 +13,7 @@ get_data_medians <- function(param, species, tissue, basis, include_year,
                              filename_lookup_substancegroups = "Input_data/Lookup_tables/Lookup table - substance groups.csv",
                              filename_lookup_stations= "Input_data/Lookup_tables/Lookup_stationorder.csv",
                              filename_lookup_eqs = "Input_data/Lookup_tables/Lookup_EQS_limits.csv",
-                             filename_lookup_proref = "Input_data/Lookup_tables/Lookup_proref.csv",
-                             check_loq = FALSE){
+                             filename_lookup_proref = "Input_data/Lookup_tables/Lookup_proref.csv"){
   
   indexvars <- c("PARAM", "STATION_CODE", "TISSUE_NAME", "LATIN_NAME", "Basis")
   
@@ -140,41 +139,27 @@ get_data_medians <- function(param, species, tissue, basis, include_year,
   if (nrow(dat_medians_03) != nrow(dat_medians_04))
     warning("Number of rows changed when adding station (get_data_medians)")
   
-  # Add LOQ values to data
-  dat_loq <- get_loq(param)
+  # Set Proref_ratio and EQS_ratio
+  # - but not if there is a under-LOQ value  and it is above the threshold 
+  dat_medians_04 <- dat_medians_04 %>%
+    mutate(
+      Proref_ratio = ifelse(Proref < Value & Over_LOQ/N_median < 0.5, 
+                            as.numeric(NA),
+                            as.numeric(Value/Proref)), 
+      EQS_ratio = ifelse(EQS < Value & Over_LOQ/N_median < 0.5, 
+                         as.numeric(NA),
+                         as.numeric(Value/EQS))
+    )
   
-  if (check_loq & 
-      nrow(dat_medians_04) > 0 &
-      sum(is.na(dat_loq$med_LOQ)) == 0){
-    
-      dat_medians_04 <- dat_medians_04 %>%
-        left_join(dat_loq %>% select(PARAM, MYEAR, med_LOQ), by = c("PARAM", "MYEAR")) %>%
-        mutate(
-          Proref_ratio = ifelse(Proref < med_LOQ & Over_LOQ/N_median < 0.5, 
-                                as.numeric(NA),
-                                as.numeric(Value/Proref)), 
-          EQS_ratio = ifelse(EQS < med_LOQ & Over_LOQ/N_median < 0.5, 
-                             as.numeric(NA),
-                             as.numeric(Value/EQS))
-        )
-      
-  } else {
-    
-    dat_medians_04 <- dat_medians_04 %>%
-      mutate(
-        Proref_ratio = as.numeric(Value/Proref), 
-        EQS_ratio = as.numeric(Value/EQS))
-    
-  }
-  
+  # Make sure these are properly numeric    
   dat_medians_04$Proref_ratio <- as.numeric(dat_medians_04$Proref_ratio)
   dat_medians_04$EQS_ratio <- as.numeric(dat_medians_04$EQS_ratio)
   
   dat_medians_04 <- dat_medians_04 %>%
     mutate(
       Above_EQS = case_when(
-        Value > EQS ~ "Over",
-        Value <= EQS ~ "Under",
+        EQS_ratio > 1 ~ "Over",
+        EQS_ratio <= 1 ~ "Under",
         TRUE ~ as.character(NA)),
       Prop_underLOQ = 1 - Over_LOQ/N_median,
       FLAG1 = case_when(
