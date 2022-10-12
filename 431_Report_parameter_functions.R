@@ -526,6 +526,33 @@ if (FALSE){
     arrange(MYEAR) %>%
     tail(15)
   
+  # LOQ median values for PCB7
+  dat_raw %>%
+    filter(PARAM %in% c("CB28", "CB52", "CB101", "CB118", "CB138", "CB153", "CB180")  & 
+             TISSUE_NAME %in% c("Whole soft body", "Lever")) %>%
+    group_by(PARAM, MYEAR) %>%
+    summarise(
+      medLOQ = median(VALUE_WW[!is.na(FLAG1)], na.rm = TRUE),
+    ) %>% 
+    tidyr::pivot_wider(names_from = PARAM, values_from = medLOQ) %>%
+    arrange(MYEAR) %>%
+    tail(15)
+  
+  # Proportion of values below LOQ, PCB7 
+  dat_raw %>%
+    filter(PARAM %in% c("CB28", "CB52", "CB101", "CB118", "CB138", "CB153", "CB180")  & 
+             TISSUE_NAME %in% c("Whole soft body", "Lever")) %>%
+    mutate(LATIN_NAME = substr(LATIN_NAME, 1, 3)) %>%
+    group_by(PARAM, MYEAR, LATIN_NAME) %>%
+    summarise(
+      UnderLOQ = mean(!is.na(FLAG1))
+    ) %>% 
+    tidyr::pivot_wider(names_from = c(PARAM, LATIN_NAME), values_from = UnderLOQ) %>%
+    arrange(MYEAR) %>%
+    tail(15)
+  
+  
+
   # LOQ values for one parameter
   dat_raw %>%
     filter(PARAM %in% "CO" & c(TISSUE_NAME %in% c("Whole soft body", "Lever") & MYEAR >= 2008)) %>%
