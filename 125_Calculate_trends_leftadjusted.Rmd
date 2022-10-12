@@ -358,10 +358,10 @@ min_warningless <- function(x)
  }
  
 dat_series <- dat_series_1 %>%
-  filter(Last_year_overall >= last_year & N_years_10yr > 0) %>%
+  filter(Last_year_overall >= last_year) %>%
   mutate(
     Trend_model = case_when(
-      Years_over_LOQ %in% 1 ~ "No model",
+      Years_over_LOQ %in% 0:1 ~ "No model",
       Years_over_LOQ %in% 2 & N_years %in% 2 ~ "No model",
       Years_over_LOQ %in% 2:4 & N_years >= 3 ~ "Mean",
       Years_over_LOQ %in% 5:6 ~ "Linear",
