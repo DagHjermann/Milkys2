@@ -3,8 +3,8 @@ title: "Report for parameter (431)"
 author: "DHJ"
 date: "04.10.2022"
 params:
-  param: "DDEPP"
-  eqsplot: "FALSE"
+  param: "HG"
+  eqsplot: "TRUE"
 output: 
   html_document:
   keep_md: false
@@ -166,12 +166,13 @@ speciesgroup_txt_proref <- c("cod", "blue mussel")
 for (speciesgroup in 1:2){
   
   dat_medians <- dat_medians_list[[speciesgroup]]
+    
 
   gg_tile_list[[speciesgroup]] <- ggplot(dat_medians, aes(MYEAR, Station)) +
     geom_tile(aes(fill = Proref_ratio_cut)) + 
     geom_tile(data = subset(dat_medians, Above_EQS %in% "Over"),
               color = "red", size = 1, height = 0.9, width = 0.9, alpha = 0) +
-    geom_text(aes(label = round(Value, 3)), nudge_y = -0.1, size = 3) +
+    geom_text(aes(label = signif(Value, 3)), nudge_y = -0.1, size = 3) +
     geom_text(aes(label = LOQ_label), size = 3, nudge_y = 0.3) +
     scale_fill_manual("Proref ratio", values = proref_cols, na.value = "grey85") +
     scale_color_manual(values = c("red", "white")) +
