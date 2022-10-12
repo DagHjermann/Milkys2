@@ -643,6 +643,7 @@ df_trend_failed_long <- df_trend_failed_short %>%
 
 df_trend_toofew_short <- dat_series %>%
   filter(Trend_model %in% "No model") %>%
+  mutate(First_year = First_year_overall) %>%         # 'First_year' is lacking for many of these (no data >LOQ) . so we use overall first year instead  
     mutate(
     Trend_string = case_when(
       N_years < 5 ~ "Too few years",
@@ -651,6 +652,7 @@ df_trend_toofew_short <- dat_series %>%
   )
 
 df_trend_toofew_long <- df_trend_toofew_short %>%
+  mutate(First_year = First_year_overall) %>%         # 'First_year' is lacking for many of these (no data >LOQ) . so we use overall first year instead  
   mutate(
     Trend_string = case_when(
       First_year < (last_year-9) ~ Trend_string,
