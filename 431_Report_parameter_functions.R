@@ -140,31 +140,24 @@ get_data_medians <- function(param, species, tissue, basis, include_year,
   if (nrow(dat_medians_03) != nrow(dat_medians_04))
     warning("Number of rows changed when adding station (get_data_medians)")
   
-  if (check_loq & nrow(dat_medians_04) > 0){
+  # Add LOQ values to data
+  dat_loq <- get_loq(param)
+  
+  if (check_loq & 
+      nrow(dat_medians_04) > 0 &
+      sum(is.na(dat_loq$med_LOQ)) == 0){
     
-    # Add LOQ values to data
-    dat_loq <- get_loq(param)
-    
-    if (sum(is.na(dat_loq$med_LOQ)) == 0){
-      
       dat_medians_04 <- dat_medians_04 %>%
         left_join(dat_loq %>% select(PARAM, MYEAR, med_LOQ), by = c("PARAM", "MYEAR")) %>%
         mutate(
-          Proref_ratio = ifelse(Proref > med_LOQ, 
-                                as.numeric(Value/Proref), 
-                                as.numeric(NA)), 
-          EQS_ratio = ifelse(EQS > med_LOQ, 
-                             as.numeric(Value/EQS), 
-                             as.numeric(NA))
+          Proref_ratio = ifelse(Proref < med_LOQ & Over_LOQ/N_median < 0.5, 
+                                as.numeric(NA),
+                                as.numeric(Value/Proref)), 
+          EQS_ratio = ifelse(EQS < med_LOQ & Over_LOQ/N_median < 0.5, 
+                             as.numeric(NA),
+                             as.numeric(Value/EQS))
         )
       
-    }
-    
-    dat_medians_04 <- dat_medians_04 %>%
-      mutate(
-        Proref_ratio = as.numeric(Value/Proref), 
-        EQS_ratio = as.numeric(Value/EQS))
-    
   } else {
     
     dat_medians_04 <- dat_medians_04 %>%
@@ -520,12 +513,28 @@ if (FALSE){
              TISSUE_NAME %in% c("Whole soft body", "Lever")) %>%
     group_by(PARAM, MYEAR) %>%
     summarise(
-      medLOQ = median(VALUE_WW[!is.na(FLAG1)], na.rm = TRUE),
+      medLOQ = median(VALUE_WW[!is.na(FLAG1)], na.rm = TRUE)
     ) %>% 
     tidyr::pivot_wider(names_from = PARAM, values_from = medLOQ) %>%
     arrange(MYEAR) %>%
     tail(15)
   
+  # Proportion of values below parameters
+  check <- dat_raw %>%
+    filter(PARAM %in% c("BDE47", "AG", "ANT", "BAA", "BAP", "BDE100", "BDE209", 
+                        "CB118", "CB138", "CB153", "CD", "CO", "DDEPP", "FLU", "HBCDA", 
+                        "HCB", "HG", "NAP", "NI", "PB", "PFOA", "PFOS", "PFOSA", "BDE99", "ZN") & 
+             TISSUE_NAME %in% c("Whole soft body", "Lever")) %>%
+    mutate(LATIN_NAME = substr(LATIN_NAME, 1, 3)) %>%
+    group_by(PARAM, MYEAR, LATIN_NAME) %>%
+    summarise(
+      UnderLOQ = mean(!is.na(FLAG1))
+    ) %>% 
+    tidyr::pivot_wider(names_from = c(PARAM, LATIN_NAME), values_from = UnderLOQ) %>%
+    arrange(MYEAR)
+  tail(check, 15)
+  # View(check)
+
   # LOQ median values for PCB7
   dat_raw %>%
     filter(PARAM %in% c("CB28", "CB52", "CB101", "CB118", "CB138", "CB153", "CB180")  & 
