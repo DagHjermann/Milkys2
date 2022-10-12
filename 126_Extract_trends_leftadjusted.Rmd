@@ -139,7 +139,7 @@ TISSUE_NAME <- map_chr(result_list, "TISSUE_NAME")
 LATIN_NAME <- map_chr(result_list, "LATIN_NAME")
 Basis <- map_chr(result_list, "Basis")
 k_sel <- NA
-k_sel[ok] <- map_int(result_list[ok], "k_sel")
+k_sel[ok] <- map_dbl(result_list[ok], "k_sel")
 k_sel_dic <- NA
 k_sel_dic[ok] <- map_int(result_list[ok], "k_sel_dic")
 k_sel_forward <- NA
@@ -304,7 +304,77 @@ if (FALSE){
 # debugonce(tsplot_seriesno)
 tsplot_seriesno(58, folder_results)
 
+# Exactly the same
+tsplot_param("SCCP", "13B", folder = folder_results)
+
+tsplot_param("CB138", "11X", folder = folder_results)
+
+# debugonce(tsplot_param)
+tsplot_param("AG", "71A", folder = folder_results)
+
+
 ```
+
+## 4a. Replace some dubious 'k_sel' values   
+
+- Ag in blue mussel: increased LOQ as well as some duboius over-LOQ values. Set all to k_sel = 1 ("flat trend")  
+- Just over-writing the result files  
+- IMPORTANT: section 3 above must be re-run afterwards! (To re-create dat_success, and perhaps other objects)  
+
+```{r}
+
+if (FALSE){
+  # Copy all result files to "Data/125_results_2021_07_ORIG"  
+  folder_results_orig <- paste0(folder_results, "_ORIG")
+  dir.create(folder_results_orig)
+  fns <- dir(folder_results)
+  file.copy(paste0(folder_results, "/", fns), 
+            paste0(folder_results_orig, "/", fns))
+}
+
+if (FALSE){
+  
+  # For test
+  
+  i <- get_seriesno("AG", "71A")
+  fn <- sprintf("trend_%04.0f.rda", i)
+  resultlist <- readRDS(paste0(folder_results, "/", fn))
+  str(resultlist, 1)
+  # Existing k_sel value:
+  resultlist$k_sel
+  # Set new k_sel and write to file 
+  resultlist$k_sel <- 1
+  saveRDS(resultlist, paste0(folder_results, "/", fn))
+  
+  tsplot_param("AG", "71A", folder = folder_results)
+
+}
+
+if (FALSE) {
+  
+  #
+  # Silver
+  #
+  
+  sts <- c("98A2", "64A", "71A", "36A", "I301", "30A", "31A")
+  
+  for (st in sts){
+    i <- get_seriesno("AG", st)
+    fn <- sprintf("trend_%04.0f.rda", i)
+    resultlist <- readRDS(paste0(folder_results, "/", fn))
+    # str(resultlist, 1)
+    
+    # Existing k_sel value:
+    resultlist$k_sel
+    # Set new k_sel and write to file 
+    resultlist$k_sel <- 1
+    saveRDS(resultlist, paste0(folder_results, "/", fn))
+  }
+  
+}
+
+```
+
 
 
 
