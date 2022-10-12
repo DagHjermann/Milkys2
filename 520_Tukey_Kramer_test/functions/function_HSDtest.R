@@ -1,6 +1,6 @@
 #
 # HSD.test shamelessly copied from package agricolae
-#   (to avoid package isntallation)
+#   (to avoid package installation)
 #
 HSD.test <- function (y, trt, DFerror, MSerror, alpha = 0.05, group = TRUE, 
           main = NULL, unbalanced = FALSE, console = FALSE) {

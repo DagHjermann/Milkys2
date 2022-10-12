@@ -16,17 +16,17 @@ current_year <- 2021
 
 # Data and station metadata
 dat <- readRDS("../Data/109_adjusted_data_2022-09-23.rds")
-dat_stations <- read.csv("../Input_data/Lookup_tables/Lookup_stationorder.csv")
+dat_stations <- read.csv("../Input_data/Lookup_tables/Lookup_stationorder.csv") %>%
+  mutate(Station = paste(STATION_CODE, substr(Station_name, 1, 15)))
 
 c <- 0.1
 
 dat2 <- dat %>%
     filter((VALUE_WW + c) > 0) %>%
-    left_join(dat_stations %>% select(STATION_CODE, Order, Station_name, Region), by = "STATION_CODE") %>%
+    left_join(dat_stations %>% select(STATION_CODE, Order, Station), by = "STATION_CODE") %>%
     mutate(
         Matrix = paste0(LATIN_NAME, ", ", TISSUE_NAME),
         log_Conc = log10(VALUE_WW + c),
-        Station = paste(STATION_CODE, substr(STATION_NAME, 1, 15)),
         LOQ = ifelse(is.na(FLAG1), "Over LOQ", "Under LOQ")
     ) %>%
     filter(!is.na(log_Conc))
@@ -104,7 +104,10 @@ server <- function(input, output) {
             filter(
                 PARAM %in% input$param & 
                     Matrix %in% input$matrix & 
-                    MYEAR %in% input$year) 
+                    MYEAR %in% input$year) %>%
+        arrange(Order) %>%
+        mutate(Station = forcats::fct_inorder(Station))
+        
     }) 
     
     multcomp <- reactive({
@@ -126,9 +129,13 @@ server <- function(input, output) {
             Station = rownames(multcomp_val$groups),
             Station_group = multcomp_val$groups$groups) %>%
             left_join(df_summ(), by = "Station") %>%
-            rename(
+          rename(
                 Mean = log_Conc,
-                Median = Q50)
+                Median = Q50) %>%
+          left_join(dat_stations %>% select(Order, Station), by = "Station") %>%
+          arrange(Order) %>%
+          mutate(Station = forcats::fct_inorder(Station))
+          
     })
     
     # For plotting mean and median
