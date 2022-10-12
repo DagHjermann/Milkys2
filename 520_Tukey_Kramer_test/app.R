@@ -15,14 +15,14 @@ library(dplyr)
 current_year <- 2021
 
 # Data and station metadata
-dat <- readRDS("../Data/109_adjusted_data_2021-09-15.rds")
-dat_stations <- readxl::read_excel("../Input_data/Kartbase_edit.xlsx")
+dat <- readRDS("../Data/109_adjusted_data_2022-09-23.rds")
+dat_stations <- read.csv("../Input_data/Lookup_tables/Lookup_stationorder.csv")
 
 c <- 0.1
 
 dat2 <- dat %>%
     filter((VALUE_WW + c) > 0) %>%
-    left_join(dat_stations, by = "STATION_CODE") %>%
+    left_join(dat_stations %>% select(STATION_CODE, Order, Station_name, Region), by = "STATION_CODE") %>%
     mutate(
         Matrix = paste0(LATIN_NAME, ", ", TISSUE_NAME),
         log_Conc = log10(VALUE_WW + c),
@@ -55,16 +55,21 @@ group_seq <- c("Metals and metalloids", "Chlorobiphenyls",
                ""
 )
 
-param_meta <- read.csv2("../Input_data/Lookup for big excel - param.csv") %>%
-    select(Parameter.Code, Substance.Group) %>%
-    mutate(Substance.Group = factor(Substance.Group, levels = group_seq))
+param_meta <- read.csv("../Input_data/Lookup_tables/Lookup table - substance groups.csv") %>%
+  select(PARAM, Substance.Group) %>%
+  mutate(Substance.Group = factor(Substance.Group, levels = group_seq))
+
+# test
+# groups <- unique(param_meta$Substance.Group)
+# setdiff(groups, group_seq)
+# setdiff(group_seq, groups)
 
 parameters <- dat2 %>%
-    filter(MYEAR == current_year) %>%
-    distinct(PARAM) %>%
-    left_join(param_meta, by = c("PARAM" = "Parameter.Code")) %>%
-    arrange(Substance.Group, PARAM) %>%
-    pull(PARAM)
+  filter(MYEAR == current_year) %>%
+  distinct(PARAM) %>%
+  left_join(param_meta, by = "PARAM") %>%
+  arrange(Substance.Group, PARAM) %>%
+  pull(PARAM)
 
 
 # Define UI for application that draws a histogram
