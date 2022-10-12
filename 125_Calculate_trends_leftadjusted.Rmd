@@ -398,7 +398,7 @@ table(dat_series$Trend_model)
 ```{r}
 
 dat_series %>%
-  filter(PARAM %in% c("HG", "CD", "CB118", "BAP")) %>%
+  filter(PARAM %in% c("HG", "CD", "CB118", "BAP", "PFOS", "PFOA")) %>%
   count(PARAM, Trend_model) %>%
   pivot_wider(PARAM, names_from = Trend_model, values_from = n, values_fill = 0,
               names_sort= TRUE)
@@ -456,6 +456,57 @@ if (FALSE){
   # dat_series_trend <- readRDS(paste0(folder_input, "/125_dat_series_trend_lacking.rds"))
 
 }
+
+```
+
+
+### x. add "new" "No model" series to 'dat_series' of results folder 7  
+```{r}
+
+if (FALSE){
+
+  # ONE TIME ONLY:
+  # add "new" "No model" series to 'dat_series' of results folder 7
+  folder_input_5 <- "Data/125_results_2021_05_input"
+  folder_input_7 <- "Data/125_results_2021_07_input"
+  
+  dat_series_5 <- readRDS(paste0(folder_input_5, "/125_dat_series.rds")) %>%
+    mutate(Basis = "WW")
+  dat_series_7 <- readRDS(paste0(folder_input_7, "/125_dat_series.rds"))
+
+  # Backup of old version:  
+  # file.copy(
+  #   paste0(folder_input_7, "/125_dat_series.rds"),
+  #   paste0(folder_input_7, "/125_dat_series_OLD.rds")
+  # )
+  
+  dat_series_to_add <- dat_series_5 %>%
+    anti_join(dat_series_7, by = c("PARAM", "STATION_CODE", "TISSUE_NAME", "LATIN_NAME", "Basis"))
+  nrow(dat_series_to_add)
+
+  # get and add Substance.Group
+  lookup_substgroup <- dat_series_7 %>% distinct(PARAM, Substance.Group)
+  dat_series_to_add <- dat_series_to_add %>%
+    left_join(lookup_substgroup)
+    # get and add Substance.Group
+
+  nrow(dat_series_5)
+  nrow(dat_series_to_add)
+  nrow(dat_series_7)                           # 2393
+  nrow(dat_series_to_add) + nrow(dat_series_7) # 3022 - larger than 'dat_series_5', as 'dat_series_7' also contains WWa for HG
+  
+  dat_series_7_new <- bind_rows(dat_series_7, dat_series_to_add)
+  
+  nrow(dat_series_7)
+  nrow(dat_series_7_new)
+
+  # Overwrite old file:  
+  # ONE TIME ONLY!
+  # saveRDS(dat_series_7_new, 
+  #         paste0(folder_input_7, "/125_dat_series.rds"))
+
+}
+
 
 ```
 
