@@ -3,7 +3,7 @@ title: "Report for parameter (431)"
 author: "DHJ"
 date: "04.10.2022"
 params:
-  param: "NAP"
+  param: "CB153"
   eqsplot: "FALSE"
 output: 
   html_document:
@@ -222,8 +222,7 @@ dat_trends_plot_list <- purrr::map(
 
 ```{r 05_trends_create_plots}
 
-gg_trends_list <- list()
-
+# Which species groups do we have? 
 if (is.null(dat_trends_plot_list[[1]])){
   speciesgroups <- 2 
 } else if (is.null(dat_trends_plot_list[[2]])){
@@ -232,36 +231,68 @@ if (is.null(dat_trends_plot_list[[1]])){
   speciesgroups <- 1:2
 }
 
-for (speciesgroup in speciesgroups){
-  
-  # y range equals the point estimates 
-  y_ran <- range(dat_trends_plot_list[[speciesgroup]]$Perc_annual, na.rm = TRUE)
+#
+# Two things happens here: 
+# 1) Store y range in a list (used to set limits), and 
+# 2) add label coordinate (label_coor) to the data 
+# - needed because the label coordinate is inside aes()  
+# - when we didn't do this, the label of plot no. 1 was ok after making plot.no. 1, but
+#   moved as we made plots no. 2,3,4.... :-o
+#
 
-  gg_trends_list[[speciesgroup]] <- c("long", "short") %>%
-    map(
-      ~ggplot(dat_trends_plot_list[[speciesgroup]] %>% filter(Trend_type %in% .x),
-              aes(x = Station, y = Perc_annual)) +
-        geom_linerange(aes(ymin = Perc_annual_lo, ymax = Perc_annual_hi, colour = Trend_color), size = 1) +
-        geom_point(aes(fill = Trend_color, shape = Trend_color), colour = "black", size = 3) +
-        scale_colour_manual(values = trend_colours, drop = FALSE) +
-        scale_fill_manual(values = trend_colours, drop = FALSE) +
-        scale_shape_manual(values = trend_shapes, drop = FALSE) +
-        geom_hline(yintercept = 0, color = "grey30") +
-        geom_label(aes(y = mean(y_ran), label = Trend_text), fill = "white", color = "blue3", 
-                   label.size = 0, size = 3) +
-        coord_flip(ylim = y_ran) +
-        labs(title = glue("Trend ({.x}-term)"), y = "") +
-        theme_bw() 
-    )
+y_ran <- list(list(), list())
+
+for (speciesgroup in speciesgroups){
+
+  dat_trends_plot_list[[speciesgroup]]$label_coor <- NA
+
+  for (type in c("long", "short")){
+    
+    # y range equals the point estimates 
+    y_ran[[speciesgroup]][[type]] <- dat_trends_plot_list[[speciesgroup]] %>% 
+      filter(Trend_type %in% type) %>% 
+      pull(Perc_annual) %>%
+      range(na.rm = TRUE)
+    y_ran[[speciesgroup]][[type]] <- range(y_ran[[speciesgroup]][[type]], 0)
+    
+  sel <- dat_trends_plot_list[[speciesgroup]]$Trend_type %in% type
+  dat_trends_plot_list[[speciesgroup]]$label_coor[sel] <- mean(y_ran[[speciesgroup]][[type]])
+
+  }
+}
+
+
+gg_trends_list <- list(list(), list())
+
+for (speciesgroup in speciesgroups){
+
+  for (type in c("long", "short")){
+    
+    gg_trends_list[[speciesgroup]][[type]] <- ggplot(dat_trends_plot_list[[speciesgroup]] %>% filter(Trend_type %in% type), 
+                                                     aes(x = Station, y = Perc_annual)) +
+      geom_linerange(aes(ymin = Perc_annual_lo, ymax = Perc_annual_hi, colour = Trend_color), size = 1) +
+      geom_point(aes(fill = Trend_color, shape = Trend_color), colour = "black", size = 3) +
+      scale_colour_manual(values = trend_colours, drop = FALSE) +
+      scale_fill_manual(values = trend_colours, drop = FALSE) +
+      scale_shape_manual(values = trend_shapes, drop = FALSE) +
+      geom_hline(yintercept = 0, color = "grey30") +
+      geom_label(aes(y = label_coor, 
+                     label = Trend_text), fill = "white", color = "blue3", 
+                 label.size = 0, size = 3, hjust = 0.5) +
+      coord_flip(ylim = y_ran[[speciesgroup]][[type]]) +
+      labs(title = glue("Trend ({type}-term)"), y = "") +
+      theme_bw() 
+    
+  }
   
 }
 
 
 if (FALSE){
-  gg_trends_list[[1]][[1]]
-  gg_trends_list[[1]][[2]]
-  gg_trends_list[[2]][[1]]
-  gg_trends_list[[2]][[2]]
+  gg_trends_list[[1]][["long"]]
+  gg_trends_list[[1]][["short"]]
+  gg_trends_list[[2]][["long"]]
+  gg_trends_list[[2]][["short"]]
 }
 
 
