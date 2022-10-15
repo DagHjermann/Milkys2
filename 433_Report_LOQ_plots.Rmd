@@ -1,0 +1,187 @@
+---
+title: "433_Report_LOQ_plots"
+author: "DHJ"
+date: "2022-10-15"
+output: 
+  html_document:
+  keep_md: false
+toc: true
+toc_float: true
+---
+
+# `r params$param`  
+   
+```{r 01_settings, include=FALSE}
+
+current_year <- 2021
+knitr::opts_chunk$set(echo = FALSE, results = 'hold')
+
+```
+
+```{r 02_packages, include=FALSE}
+
+library(dplyr)
+# library(tidyr)
+library(ggplot2)
+library(lubridate)
+library(flextable)
+# library(glue)
+library(readxl)
+library(purrr)
+library(glue)
+# library(leftcensored)   # DHJ's package (https://github.com/DagHjermann/leftcensored)
+library(scico)            # colour palettes incl. "Vik" (https://github.com/thomasp85/scico)
+
+library(ggiraph)
+library(cowplot)
+
+# library(safejoin) # https://github.com/moodymudskipper/safejoin
+
+```
+
+## Data    
+
+```{r 03_medians_data1}
+
+
+dat_raw <- readRDS("Data/109_adjusted_data_2022-09-01.rds")                              
+dat_medians <- readRDS("Data/110_mediandata_updated_2022-09-01.rds")
+
+# Stations - for corrrect ordering
+lookup_stations <- read.csv("Input_data/Lookup_tables/Lookup_stationorder.csv") # %>%
+
+
+```
+
+## Median LOQ by year
+```{r}
+
+params <- c("AG", "AS", "CD", "CO", "CR", "CU", "HG", "NI", "PB", "ZN", 
+  "BDE47", "BDE99", "BDE100", "BDE153", "HBCDA", "HCB", "CB118", "CB138",  "CB153", 
+  "PFOA", "PFOS", "PFOSA", "BAA", "BAP", "FLU", "PYR", "D5")
+
+# LOQ median values for all parameters
+dat_loq <-  dat_raw %>%
+  filter(PARAM %in% params) %>%
+  mutate(PARAM = factor(PARAM, levels = params)) %>%
+  group_by(PARAM, MYEAR) %>%
+  summarise(
+    medLOQ = median(VALUE_WW[!is.na(FLAG1)], na.rm = TRUE) %>% round(4),
+    .groups = "drop"
+  ) 
+
+dat_loq2a <- dat_loq %>% 
+  arrange(PARAM, MYEAR) %>%
+  filter(MYEAR >= 2001 & MYEAR <= 2011) %>%
+  tidyr::pivot_wider(names_from = MYEAR, values_from = medLOQ, names_sort = TRUE)
+
+dat_loq2b <- dat_loq %>% 
+  arrange(PARAM, MYEAR) %>%
+  filter(MYEAR >= 2012) %>%
+  tidyr::pivot_wider(names_from = MYEAR, values_from = medLOQ, names_sort = TRUE)
+
+write.csv(dat_loq2a, "Data/433_LOQ_medians1.csv", row.names = FALSE, na = "")
+write.csv(dat_loq2b, "Data/433_LOQ_medians2.csv", row.names = FALSE, na = "")
+
+dat_loq2a
+dat_loq2b
+
+```
+
+### Plot LOQ values  
+```{r}
+
+ggplot(dat_loq %>% filter(MYEAR >= 2012), aes(MYEAR, PARAM, fill = medLOQ)) +
+  geom_tile() +
+  scale_fill_fermenter(type = "seq")
+
+```
+
+## Detection frequency
+
+
+### Detection frequency 1 (by param * station, one parameter in all years)  
+
+* Vik color scale used  
+* This plot shows the median value for each station/year, it could instead show limit of quantification (median value of less-thans)  
+
+```{r, fig.width=13, fig.height=7}
+
+dat_detectplot1 <- dat_medians %>% 
+  left_join(lookup_stations %>% select(Order, STATION_CODE, Station_name)) %>%
+  arrange(Order, PARAM) %>%
+  filter(Basis %in% "WW" & MYEAR %in% current_year & PARAM %in% params) %>%
+  mutate(
+    Parameter = factor(PARAM, levels = params),
+    Parameter = forcats::fct_rev(Parameter),
+    tissue_bird = ifelse(STATION_CODE == "19N", TISSUE_NAME, ""),
+    Station = forcats::fct_inorder(paste(STATION_CODE, Station_name, tissue_bird)),
+    Detected = round(100*(Over_LOQ/N_median), 0)
+    )
+
+# dat_detectplot1 %>% filter(is.na(Station)) %>% View()
+
+ggplot(dat_detectplot1, aes(Station, Parameter, fill = Detected)) +
+  geom_tile() +
+  geom_text(data = subset(dat_detectplot1, Detected > 35 & Detected < 65), 
+            aes(label = Detected), size = 3) +
+  geom_text(data = subset(dat_detectplot1, Detected <= 35 | Detected >= 65), 
+            aes(label = Detected), size = 3, 
+            color = "white") +
+  # scale_fill_viridis_b(breaks = seq(0,1,0.1)) +
+  scale_fill_scico(palette = "vik", direction = -1,  midpoint = 50, limits = c(0,100)) +
+  ggeasy::easy_rotate_labels("x", angle = -45) +
+  theme(axis.title.x = element_blank())
+
+```
+### Other way  
+```{r, fig.width=13, fig.height=11}
+
+dat_detectplot1b <- dat_detectplot1 %>%
+  mutate(Station = forcats::fct_rev(Station),
+         Parameter = forcats::fct_rev(Parameter)
+  )
+
+ggplot(dat_detectplot1b, aes(Parameter, Station, fill = Detected)) +
+  geom_tile() +
+  geom_text(data = subset(dat_detectplot1, Detected > 35 & Detected < 65), 
+            aes(label = Detected), size = 3) +
+  geom_text(data = subset(dat_detectplot1, Detected <= 35 | Detected >= 65), 
+            aes(label = Detected), size = 3, 
+            color = "white") +
+  # scale_fill_viridis_b(breaks = seq(0,1,0.1)) +
+  scale_fill_scico(palette = "vik", direction = -1,  midpoint = 50, limits = c(0,100)) +
+  ggeasy::easy_rotate_labels("x", angle = -45) +
+  theme(axis.title = element_blank())
+
+
+```
+
+
+### Detection frequency 2 (by year * station, one parameter in all years)  
+
+* Vik color scale used  
+* This plot shows the median value for each station/year, it could instead show limit of quantification (median value of less-thans)  
+
+```{r, fig.width=11, fig.height=7}
+
+dat_detectplot1 <- dat_medians %>% 
+  filter(MYEAR >= 2012) %>%
+  mutate(Detected = 100*(1-Over_LOQ/N_median) %>% round(0)) %>%
+  group_by(PARAM, MYEAR) %>%
+  summarise(Detected = median(Detected))
+
+ggplot(dat_detectplot1, aes(MYEAR, PARAM, fill = Detected)) +
+  geom_tile() +
+  geom_text(data = subset(dat_detectplot1, Detected > 35 & Detected < 65), 
+            aes(label = round(VALUE_WW_med, 3)), size = 3) +
+  geom_text(data = subset(dat_detectplot1, Detected <= 35 | Detected >= 65), 
+            aes(label = round(VALUE_WW_med, 3)), size = 3, 
+            color = "white") +
+  # scale_fill_viridis_b(breaks = seq(0,1,0.1)) +
+  scale_fill_scico(palette = "vik", direction = -1,  midpoint = 50, limits = c(0,100)) +
+  labs(
+    title = unique(dat_sel_medium$PARAM)
+  )
+
+```
