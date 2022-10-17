@@ -4,9 +4,9 @@ author: "DHJ"
 date: "2022-10-15"
 output: 
   html_document:
-  keep_md: true
-toc: true
-toc_float: true
+    keep_md: true
+    toc: true
+    toc_float: true
 ---
 
 ## Startup  
@@ -41,7 +41,6 @@ library(cowplot)
 ## Data    
 
 ```{r 03_medians_data1}
-
 
 dat_raw <- readRDS("Data/109_adjusted_data_2022-09-01.rds")                              
 dat_medians <- readRDS("Data/110_mediandata_updated_2022-09-01.rds")
