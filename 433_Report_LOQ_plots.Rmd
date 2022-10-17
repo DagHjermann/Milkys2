@@ -4,13 +4,12 @@ author: "DHJ"
 date: "2022-10-15"
 output: 
   html_document:
-  keep_md: false
+  keep_md: true
 toc: true
 toc_float: true
 ---
 
-# `r params$param`  
-   
+## Startup  
 ```{r 01_settings, include=FALSE}
 
 current_year <- 2021
@@ -53,6 +52,7 @@ lookup_stations <- read.csv("Input_data/Lookup_tables/Lookup_stationorder.csv") 
 
 ```
 
+
 ## Median LOQ by year
 ```{r}
 
@@ -69,6 +69,11 @@ dat_loq <-  dat_raw %>%
     medLOQ = median(VALUE_WW[!is.na(FLAG1)], na.rm = TRUE) %>% round(4),
     .groups = "drop"
   ) 
+
+```
+
+### Tables  
+```{r}
 
 dat_loq2a <- dat_loq %>% 
   arrange(PARAM, MYEAR) %>%
@@ -88,14 +93,67 @@ dat_loq2b
 
 ```
 
-### Plot LOQ values  
-```{r}
 
-ggplot(dat_loq %>% filter(MYEAR >= 2012), aes(MYEAR, PARAM, fill = medLOQ)) +
+### Plot  
+```{r, fig.width=12, fig.height=8}
+
+dat_loq_ref <- dat_loq %>%
+  filter(MYEAR %in% 2013:2015) %>%
+  group_by(PARAM) %>%
+  summarise(medLOQ_ref = median(medLOQ, na.rm = TRUE))  
+
+dat_loq2 <- dat_loq %>% 
+  filter(MYEAR >= 2002) %>%
+  left_join(dat_loq_ref, by = "PARAM") %>%
+  mutate(
+    loq_rel = log10(medLOQ/medLOQ_ref),
+    PARAM = forcats::fct_rev(PARAM)) %>%
+  group_by(PARAM) %>%
+  mutate(
+    min_medLOQ = min(medLOQ, na.rm = TRUE)
+  ) %>%
+  ungroup() %>%
+  mutate(
+    medLOQ_label = case_when(
+      is.na(medLOQ) ~ "-",
+      min_medLOQ < 0.001 ~ sprintf("%.4f", medLOQ),
+      min_medLOQ < 0.01 ~ sprintf("%.3f", medLOQ),
+      min_medLOQ < 0.1 ~ sprintf("%.2f", medLOQ),
+      TRUE ~ sprintf("%.1f", medLOQ)
+    )
+  )
+
+# range(subset(dat_loq2, MYEAR >= 2012)$loq_rel, na.rm = TRUE)
+#  range(subset(dat_loq2, MYEAR >= 2002)$loq_rel, na.rm = TRUE)
+
+sel <- is.na(dat_loq2$loq_rel)
+dat_loq2$loq_rel[sel] <- 0
+
+white <- c(-0.3,0.3)
+
+gg <- ggplot(dat_loq2, aes(MYEAR, PARAM, fill = loq_rel)) +
   geom_tile() +
-  scale_fill_fermenter(type = "seq")
+  scale_fill_scico("Relative LOQ", palette = "vik", direction = 1,  midpoint = 0) +
+  geom_text(data = subset(dat_loq2, is.na(loq_rel)), 
+            aes(label = medLOQ_label), color = "black") +
+  geom_text(data = subset(dat_loq2, loq_rel >= white[1] & loq_rel <= white[2]), 
+            aes(label = medLOQ_label), color = "black") +
+  geom_text(data = subset(dat_loq2, loq_rel < white[1] | loq_rel > white[2]), 
+            aes(label = medLOQ_label), color = "white") +
+  scale_x_continuous(breaks = seq(2002,2020,2)) +
+  theme(axis.title = element_blank())
+  
+gg1 <- gg + coord_cartesian(xlim = c(2002,2012))
+gg2 <- gg + coord_cartesian(xlim = c(2012,2021))
+
+ggsave("Figures/433_LOQ-median1.png", gg1, width = 10, height = 6.5, dpi = 200)
+ggsave("Figures/433_LOQ-median2.png", gg2, width = 10, height = 6.5, dpi = 200)
+
+gg1
+gg2
 
 ```
+
 
 ## Detection frequency
 
