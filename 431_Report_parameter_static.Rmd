@@ -3,8 +3,8 @@ title: "Report for parameter (431)"
 author: "DHJ"
 date: "04.10.2022"
 params:
-  param: "CB153"
-  eqsplot: "FALSE"
+  param: "BDE47"
+  eqsplot: "TRUE"
 output: 
   html_document:
   keep_md: false
@@ -345,22 +345,27 @@ for (speciesgroup in speciesgroups){
 ```{r 06_ratio_data_1}  
 
 #
-# Cod + eider duck
+# Cod + eider duck raw data
 #
+
+# Note: the 'current_year' in get_data_raw means "only series that includes current_year",
+#   previous years are also included
 
 # debugonce(get_data_raw)  
 if (params$param == "HG"){
-  dat_raw1 <- get_data_raw(params$param, "Gadus morhua", "Muskel", "WWa", 2021)  
+  dat_raw1 <- get_data_raw(params$param, "Gadus morhua", "Muskel", "WWa", include_year=current_year)  
 } else {
-  dat_raw1 <- get_data_raw(params$param, "Gadus morhua", "Lever", "WW", 2021)  
+  dat_raw1 <- get_data_raw(params$param, "Gadus morhua", "Lever", "WW", include_year=current_year)  
 }
 
-# Skip
-dat_raw2 <- get_data_raw(params$param, "Somateria mollissima", "Blod", "WW", 2021)
-dat_raw3 <- get_data_raw(params$param, "Somateria mollissima", "Egg", "WW", 2021)  
+dat_raw2 <- get_data_raw(params$param, "Somateria mollissima", "Blod", "WW", include_year=current_year)
+dat_raw3 <- get_data_raw(params$param, "Somateria mollissima", "Egg", "WW", include_year=current_year)  
 
 dat_raw_codeider <- bind_rows(dat_raw1, dat_raw2, dat_raw3)
 
+#
+# Cod + eider duck median data
+#
 dat_to_add <- dat_raw_codeider %>%
   filter(MYEAR %in% current_year & !is.na(Value)) %>%
   group_by(PARAM, LATIN_NAME, TISSUE_NAME, STATION_CODE, Basis) %>%
@@ -391,12 +396,15 @@ if (!identical(st1,st2)){
 ```{r 06_ratio_data_2}  
 
 #
-# Blue mussel
+# Blue mussel raw data
 #
 
 # debugonce(get_data_raw)  
-dat_raw_mussel <- get_data_raw(params$param, "Mytilus edulis", "Whole soft body", "WW", 2021)  
+dat_raw_mussel <- get_data_raw(params$param, "Mytilus edulis", "Whole soft body", "WW", current_year)  
 
+#
+# Blue mussel median data
+#
 dat_to_add <- dat_raw_mussel %>%
   filter(MYEAR %in% current_year & !is.na(Value)) %>%
   group_by(PARAM, LATIN_NAME, TISSUE_NAME, STATION_CODE, Basis) %>%
@@ -518,7 +526,8 @@ if (params$eqsplot == TRUE){
     
     gg <- ggplot(data_proref_medians, 
                  aes(Station, EQS_ratio)) +
-      geom_point(data = data_proref_samples, color = "grey50", shape = 1, size = 2) +
+      geom_point(data = subset(data_proref_samples, is.na(FLAG1)), color = "grey50", shape = 1, size = 2) +
+      geom_point(data = subset(data_proref_samples, !is.na(FLAG1)), color = "grey50", shape = 6, size = 2) +
       geom_linerange(aes(ymin = EQS_ratio_lo, ymax = EQS_ratio_hi, colour = Trend_color), size = 1) +
       geom_point(aes(fill = Trend_color, shape = Trend_color), colour = "black", size = 3) +
       scale_colour_manual(values = trend_colours, drop = FALSE) +
@@ -598,7 +607,8 @@ for (speciesgroup in speciesgroups){
 
   gg <- ggplot(data_proref_medians, 
                aes(Station, Proref_ratio)) +
-    geom_point(data = data_proref_samples, color = "grey50", shape = 1, size = 2) +
+    geom_point(data = subset(data_proref_samples, is.na(FLAG1)), color = "grey50", shape = 1, size = 2) +
+    geom_point(data = subset(data_proref_samples, !is.na(FLAG1)), color = "grey50", shape = 6, size = 2) +
     geom_linerange(aes(ymin = Proref_ratio_lo, ymax = Proref_ratio_hi, colour = Trend_color), size = 1) +
     geom_point(aes(fill = Trend_color, shape = Trend_color), colour = "black", size = 3) +
     scale_colour_manual(values = trend_colours, drop = FALSE) +
