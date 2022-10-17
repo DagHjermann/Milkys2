@@ -5,6 +5,7 @@
 # Extract and plot data from results (on files) and data (in memory)
 #
 # This function is built on 'tsplot_param' from script 125..functions, but has been adapted
+# It just finds the value of 'seriesno', then lets 'plot_timeseries_seriesno' do the actual plotting
 #
 plot_timeseries <- function(param, stationcode,
                             tissue = NULL,
@@ -131,9 +132,10 @@ plot_timeseries_seriesno <- function(seriesno,
     y_limits[1] <- min(rn[1], df_points$EQS[1])
   }
   
-  
+  # Start plot (no layer actually being plotted yet)
   gg <- ggplot(df_median, aes(x, y))
   
+  # If there are results from trend analysis, add the ttend (ribbon + line) 
   if (!is.null(resultlist$plot_data)){
     k_sel <- resultlist$k_sel
     if (y_scale %in% c("ordinary", "log scale")){
@@ -148,12 +150,14 @@ plot_timeseries_seriesno <- function(seriesno,
       geom_line(data = resultlist$plot_data[[k_sel]])
   }
   
+  # If allsamples = TRUE, add points for the individual samples to the plot 
   if (allsamples){
     gg <- gg +
       geom_point(data = df_points %>% filter(!is.na(y))) +
       geom_point(data = df_points %>% filter(!is.na(threshold)), aes(y = threshold), shape = 6)
   }
   
+  # Add medians (points) and the quantiles (vertical lines) 
   gg <- gg +
     geom_point(data = df_median %>% filter(overLOQ), shape = 21, fill = "red2", size = rel(3)) +
     geom_point(data = df_median %>% filter(!overLOQ), shape = 25, fill = "red2", size = rel(3)) +
@@ -161,6 +165,7 @@ plot_timeseries_seriesno <- function(seriesno,
     labs(title = titlestring, subtitle = subtitlestring) +
     theme_bw()
   
+  # Make "trend text" to add in the top right corner  
   if (!is.null(data_trend)){
     df_trend_sel <- data_trend %>% 
       filter(PARAM %in% resultlist$PARAM,
@@ -175,10 +180,14 @@ plot_timeseries_seriesno <- function(seriesno,
       "Short-term: ", trendstring[2])
     #    "Long-term: ", subset(df_trend_sel, Trend_type == "long")$Trend_string, "\n",
     #   "Short-term: ", subset(df_trend_sel, Trend_type == "short")$Trend_string)
+    
+    # Optionally: Put the whole plot on log scale   
     if (y_scale == "log scale"){
       gg <- gg +
         scale_y_log10()
     }
+    
+    # Optionally: Add a line for EQS     
     if (include_eqs){
       gg <- gg +
         geom_hline(yintercept = df_points$EQS[1], color = "red2", linetype = "dashed", size = rel(1.5)) +
@@ -186,6 +195,8 @@ plot_timeseries_seriesno <- function(seriesno,
                  hjust = 0.5, vjust = -1, 
                  size = 5, color = "red2")
     }
+    
+    # Optionally: Add one or several lines (e.g. 1x, 2x, 5x...) for Proref      
     if (include_proref){
       proref_vals <- df_points$Proref[1]*proref_x
       if (identical(proref_x,1)){
@@ -200,16 +211,19 @@ plot_timeseries_seriesno <- function(seriesno,
                  hjust = 0.25, vjust = -1, 
                  size = 4, color = "blue2")
     }
+    
+    # Add "trend text" (made above) in the top right corner  
     trendstring_x <- x_limits[2] + 0.02*diff(x_limits)
     gg <- gg +
       coord_cartesian(
         xlim = x_limits, ylim = y_limits) +
       labs(
-        y = paste0("Concentration, ", unit_print), 
+        y = unit_print,  #y = paste0("Concentration, ", unit_print),
         x = "") +
       annotate("text", x = trendstring_x, y = Inf, label = trendstring_comb, hjust = 1, vjust = 1.2, size = trendtext_size, colour = "blue3")
   }
   
+  # Return the ggplot object
   gg
   
 }
@@ -248,29 +262,29 @@ get_unit_text <- function(unit, basis, param){
   if (param %in% "VDSI"){                                  # special treatment of VDSI
     unit_print <- "VDSI"                                    #endret fra "VDS average"
   } else if (basis %in% "WW" & unit %in% "MG_P_KG"){       # if it is something else than VDSI, we check basis and unit
-    unit_print <- "mg/kg (w.w.)"
+    unit_print <- "Concentration, mg/kg (w.w.)"
   } else if (basis %in% "WW" & unit %in% "UG_P_KG"){
-    unit_print <- expression(mu*g/kg~(w.w.))
+    unit_print <- expression(Concentration*","*~mu*g/kg~(w.w.))
   } else if (basis %in% "DW" & unit %in% "MG_P_KG"){
-    unit_print <- "mg/kg (d.w.)"
+    unit_print <- "Concentration, mg/kg (d.w.)"
   } else if (basis %in% "DW" & unit %in% "UG_P_KG"){
-    unit_print <- expression(mu*g/kg~(d.w.))
+    unit_print <- expression(Concentration,~mu*g/kg~(d.w.))
   } else if (basis %in% "FB" & unit %in% "MG_P_KG"){
-    unit_print <- "mg/kg (lipid basis)"
+    unit_print <- "Concentration, mg/kg (lipid basis)"
   } else if (basis %in% "FB" & unit %in% "UG_P_KG"){
-    unit_print <- expression(mu*g/kg~(lipid~basis))
+    unit_print <- expression(Concentration*","*~mu*g/kg~(lipid~basis))
   } else if (basis %in% "WWa" & unit %in% "MG_P_KG"){
-    unit_print <- "mg/kg (w.w.) for 50 cm cod"
+    unit_print <- "Concentration, mg/kg (w.w.) for 50 cm cod"
   } else if (basis %in% "WWa" & unit %in% "UG_P_KG"){
-    unit_print <- expression(mu*g/kg~(w.w.)~plain("for 50 cm cod"))
+    unit_print <- expression(Concentration*","*~mu*g/kg~(w.w.)~plain("for 50 cm cod"))
   } else if (basis %in% "DWa" & unit %in% "MG_P_KG"){
-    unit_print <- "mg/kg (d.w.) for 50 cm cod"
+    unit_print <- "Concentration, mg/kg (d.w.) for 50 cm cod"
   } else if (basis %in% "DWa" & unit %in% "UG_P_KG"){
-    unit_print <- expression(mu*g/kg~(d.w.)~plain("for 50 cm cod"))
+    unit_print <- expression(Concentration*","*~mu*g/kg~(d.w.)~plain("for 50 cm cod"))
   } else if (basis %in% "FBa" & unit %in% "MG_P_KG"){
-    unit_print <- "mg/kg (lipid basis) for 50 cm cod"
+    unit_print <- "Concentration, mg/kg (lipid basis) for 50 cm cod"
   } else if (basis %in% "FBa" & unit %in% "UG_P_KG"){
-    unit_print <- expression(mu*g/kg~(lipid~basis)~plain("for 50 cm cod"))
+    unit_print <- expression(Concentration*","*~mu*g/kg~(lipid~basis)~plain("for 50 cm cod"))
   } else {
     unit_print <- unit
   }
