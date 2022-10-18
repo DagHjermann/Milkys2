@@ -204,8 +204,8 @@ extract_last_match <- function(string, pattern){
 # Prepare sample data    
 #
 df_fishsamples <- df_samples %>%
-  select(AQUAMONITOR_CODE, BIOTA_SAMPLENO, TISSUE, X_BULK_BIO, DESCRIPTION) %>%
-  distinct(AQUAMONITOR_CODE, TISSUE, BIOTA_SAMPLENO, X_BULK_BIO, DESCRIPTION) %>%
+  select(AQUAMONITOR_CODE, TEXT_ID, BIOTA_SAMPLENO, TISSUE, X_BULK_BIO, DESCRIPTION) %>%
+  distinct(AQUAMONITOR_CODE, TEXT_ID, TISSUE, BIOTA_SAMPLENO, X_BULK_BIO, DESCRIPTION) %>%
   mutate(
     TISSUE_NAME = substr(TISSUE, start = 4, stop = 100),
     # Extract SPECIMEN_NO by getting the last number of DESCRIPTION (using regex):
@@ -224,57 +224,191 @@ if (nrow(check) > 0){
 
 if (FALSE){
   View((df_fishsamples %>% filter(TISSUE_NAME == "Muskel"))[sel,])
+  
+  # Check two cod stations
+  xtabs(~AQUAMONITOR_CODE + TISSUE, df_samples %>% filter(substr(AQUAMONITOR_CODE,1,1) %in% c("4")))
+  xtabs(~AQUAMONITOR_CODE + TISSUE_NAME, df_fishsamples %>% filter(substr(AQUAMONITOR_CODE,1,1) %in% c("4")))
 }
 ```
 
-### c2. Sample data, special case: galle (bile) at 30B   
+### c2. Example of number/tissue confusion   
 ```{r}
 
-# Special case: galle (bile) at 30B
-sel_1 <- grepl("30B", df_samples$DESCRIPTION)
-message(sum(sel_1), " samples marked 30B")
-
-sel <- is.na(df_samples$AQUAMONITOR_CODE) & sel_1
-message(sum(sel), " samples from 30B that lack AQUAMONITOR_CODE")
-
-# Check: 
-#  View(df_samples[sel,])
-
-# Add galle (bile) at 30B, if needed
-if (sum(sel) > 0) {
+if (FALSE){
   
-  df_fishsamples_extra <- df_samples[sel,] %>%
-    mutate(AQUAMONITOR_CODE = "30B",
-           BIOTA_SAMPLENO = as.numeric(X_BULK_BIO),
-           X_BULK_BIO = NA,
-           TISSUE_NAME = TISSUE) %>%
-    select(AQUAMONITOR_CODE, TISSUE_NAME, BIOTA_SAMPLENO, X_BULK_BIO)
-  
-  df_fishsamples <- bind_rows(
-    df_fishsamples %>% filter(!is.na(AQUAMONITOR_CODE)), 
-    df_fishsamples_extra
-    )
+  df_fishsamples %>% 
+    filter(AQUAMONITOR_CODE %in% "43B2") %>%
+    xtabs(~BIOTA_SAMPLENO + TISSUE_NAME, .)
+
 }
 
-# Check lines with AQUAMONITOR_CODE = NA, if any
+# Example - number 1 is 2 different liver, 4 different muscle    
+cat('AQUAMONITOR_CODE %in% "43B2" & BIOTA_SAMPLENO == 1: \n')
+df_fishsamples %>% 
+  filter(AQUAMONITOR_CODE %in% "43B2" & BIOTA_SAMPLENO == 1) %>%
+  xtabs(~DESCRIPTION, .)
+cat('\n\n')
+
+# plus that number 101 is 2 more livers    
+cat('AQUAMONITOR_CODE %in% "43B2" & BIOTA_SAMPLENO == 101: \n')
+df_fishsamples %>% 
+  filter(AQUAMONITOR_CODE %in% "43B2" & BIOTA_SAMPLENO == 101) %>%
+  xtabs(~DESCRIPTION, .)
+
+
+```
+
+### c3. Also use labware import file   
+- In order to remove solixans and other confusing stuff from 'df_fishsamples'   
+- Creates 'df_fishsamples1'  
+```{r}
+
+
+files <- dir("Input_data", "Labware_import_") %>% rev()
+
+sel <- selected_year %in% as.numeric(substr(files, 16, 19))
+
+if (sum(sel)==0){
+  stop("No files from year ", selected_year, "found! Get it from script 801 on your pc.")
+}
+
+filename <- files[1] 
+df_import <- readRDS(paste0("Input_data/", filename))
+# xtabs(~TISSUE, df_samples)
+
+
 if (FALSE){
-
-    sel <- is.na(df_samples$AQUAMONITOR_CODE); sum(sel)
-  View(df_samples[sel,])
   
-  sel <- is.na(df_fishsamples$AQUAMONITOR_CODE); sum(sel)
-  View(df_fishsamples[sel,])
+  check <- df_import %>% 
+    filter(AQUAMONITOR_CODE %in% "43B2") %>%
+    mutate(
+      Type = case_when(
+        grepl("SIA", DESCRIPTION) & grepl("muskel", DESCRIPTION) ~ "Muskel SIA",
+        !grepl("SIA", DESCRIPTION) & grepl("muskel", DESCRIPTION) ~ "Muskel",
+        !grepl("SIA", DESCRIPTION) & grepl("lever", DESCRIPTION) ~ "Lever",
+        TRUE ~ "Annet"))
+  
+  xtabs(~Type, check)
+  
+  # 15 of each
+  check %>%
+    distinct(Type, DESCRIPTION) %>%
+    xtabs(~Type, .)
 
+  # As above but 30 liver:   
+  check %>%
+    distinct(Type, TEXT_ID) %>%
+    xtabs(~Type, .)
+
+  check %>%
+    filter(Type == "Lever") %>%
+    xtabs(~TEXT_ID, .)
+  
+}
+
+# df_import_cod_1: keep only fish (cod)
+df_import_cod_1 <- df_import %>%
+  left_join(df_samples %>% select(TEXT_ID, TISSUE)) %>% # xtabs(~TISSUE, .)
+  filter(TISSUE %in% c("LI-Lever", "MU-Muskel"))
+
+xtabs(~T_ANALYSIS_METHOD, df_import_cod_1)  
+# xtabs(~PARAM + T_ANALYSIS_METHOD, df_import_cod_1)  
+
+# df_import_cod_2: drop NILU (i.e. D4,D5,D6 = siloxans)
+# - for now, we also drop IFE (isotopes) - but they should be included later!
+df_import_cod_2 <- df_import_cod_1 %>%
+  filter(!T_ANALYSIS_METHOD %in% c("EKSTERN_NILU", "EKSTERN_IFE"))
+
+df_fishsamples1 <- df_fishsamples %>%
+  filter(TEXT_ID %in% unique(df_import_cod_2$TEXT_ID))
+
+```
+
+### c4. New check 
+- Check that 'df_fishsamples1' is less confusing than 'df_fishsamples'  
+```{r}
+
+# Example - number 1 is just 1 liver and 1 muscle    
+cat('AQUAMONITOR_CODE %in% "43B2" & BIOTA_SAMPLENO == 1: \n')
+df_fishsamples1 %>% 
+  filter(AQUAMONITOR_CODE %in% "43B2" & BIOTA_SAMPLENO == 1) %>%
+  xtabs(~DESCRIPTION, .)
+cat('\n\n')
+
+# plus that number 101 has now been deleted    
+cat('AQUAMONITOR_CODE %in% "43B2" & BIOTA_SAMPLENO == 101: \n')
+df_fishsamples1 %>% 
+  filter(AQUAMONITOR_CODE %in% "43B2" & BIOTA_SAMPLENO == 101) %>%
+  xtabs(~DESCRIPTION, .)
+
+```
+
+
+### c5. Sample data, special case: galle (bile) at 30B   
+- DROPPED FOR NOW
+
+```{r}
+
+# DROPPED FOR NOW  
+
+if (FALSE){
+  
+  # Special case: galle (bile) at 30B
+  sel_1 <- grepl("30B", df_samples$DESCRIPTION)
+  message(sum(sel_1), " samples marked 30B")
+  
+  sel <- is.na(df_samples$AQUAMONITOR_CODE) & sel_1
+  message(sum(sel), " samples from 30B that lack AQUAMONITOR_CODE")
+  
+  # Check: 
+  #  View(df_samples[sel,])
+  
+  # Add galle (bile) at 30B, if needed
+  if (sum(sel) > 0) {
+    
+    df_fishsamples_extra <- df_samples[sel,] %>%
+      mutate(AQUAMONITOR_CODE = "30B",
+             BIOTA_SAMPLENO = as.numeric(X_BULK_BIO),
+             X_BULK_BIO = NA,
+             TISSUE_NAME = TISSUE) %>%
+      select(AQUAMONITOR_CODE, TISSUE_NAME, BIOTA_SAMPLENO, X_BULK_BIO)
+    
+    df_fishsamples <- bind_rows(
+      df_fishsamples %>% filter(!is.na(AQUAMONITOR_CODE)), 
+      df_fishsamples_extra
+    )
   }
+  
+  # Check lines with AQUAMONITOR_CODE = NA, if any
+  if (FALSE){
+    
+    sel <- is.na(df_samples$AQUAMONITOR_CODE); sum(sel)
+    View(df_samples[sel,])
+    
+    sel <- is.na(df_fishsamples$AQUAMONITOR_CODE); sum(sel)
+    View(df_fishsamples[sel,])
+    
+  }
+  
+}
+
 
 ```
 
 ## 3a. Prepare 'df_lnmea'  
 Data with mean length per sample  
 
-### Add rows for biol. effects in cod
+### Add rows for biol. effects in cod  
+
+- DROPPED FOR NOW
+
 ```{r}
 
+
+# DROPPED FOR NOW  
+
+if (FALSE){
+  
 # Only a check of tissue
 # test <- data_ind2 %>%
 #   filter(MYEAR == selected_year & PARAM %in% c("PA1OH", "PYR1OH", "BAP3OH", "ALAD", "EROD")) %>%
@@ -301,6 +435,8 @@ if (nrow(df_fishsamples_bioleff) > 0 & check == 0){
   cat("Rows for biol. effects in cod added\n")
 }
 
+}
+
 ```
 
 ### df_fishsamples2 - split X_BULK_BIO
@@ -308,7 +444,7 @@ Split up X_BULK_BIO (the fish each samples consists of) so each fish gets a sepa
 * E.g., a pooled liver sample from 3 fish becomes 3 rows
 ```{r}
 
-df_fishsamples_temp <- tidyr::separate_rows(df_fishsamples, X_BULK_BIO)
+df_fishsamples_temp <- tidyr::separate_rows(df_fishsamples1, X_BULK_BIO)
 
 #
 # Check that all 'X_BULK_BIO' are numeric
@@ -338,16 +474,16 @@ df_fishsamples2 <- df_fishsamples_temp %>%
   mutate(X_BULK_BIO = as.numeric(X_BULK_BIO))
 
 cat("\n")
-message("Number of rows in 'df_fishsamples': ", nrow(df_fishsamples))   # 1710
+message("Number of rows in 'df_fishsamples1': ", nrow(df_fishsamples1))   # 1710
 message("Number of rows in 'df_fishsamples2': ", nrow(df_fishsamples2))   # 1710
 
 if (FALSE){
  
   # Show example of a pooled fish sample 
-  sel <- grepl(",", df_fishsamples$X_BULK_BIO, fixed = TRUE)
-  df_example <- df_fishsamples[which(sel)[1],]
+  sel <- grepl(",", df_fishsamples1$X_BULK_BIO, fixed = TRUE)
+  df_example <- df_fishsamples1[which(sel)[1],]
   
-  df_fishsamples %>%
+  df_fishsamples1 %>%
     filter(AQUAMONITOR_CODE == df_example$AQUAMONITOR_CODE & 
              TISSUE_NAME == df_example$TISSUE_NAME & BIOTA_SAMPLENO == df_example$BIOTA_SAMPLENO)
   df_fishsamples2 %>%
@@ -387,7 +523,8 @@ df_fishsamples3 <- df_fishsamples3 %>%
 
 ```
 
-### LNMEA (mean length per sample)
+### LNMEA (mean length per sample)  
+
 ```{r}
 
 df_lnmea <- df_fishsamples3 %>%
@@ -706,7 +843,7 @@ if (nrow(check2) > 0)
 ### Select data  
 ```{r}
 
-station <- "43B2"
+station <- "45B2"
 par <- "HG"
 
 cat("Chosen", par, "at", station, "\n\n")
@@ -1124,10 +1261,22 @@ if (FALSE){
 ```
 
 ### c. R data file    
+
 ```{r}
 
 filename <- paste0("Data/109_adjusted_data_", file_date, ".rds")
 
+# Backup
+if (file.exists(filename)){
+  timetxt <- substr(Sys.time(), 1, 16)
+  timetxt <- sub(" ", "-", timetxt, fixed = TRUE)
+  timetxt <- sub(":", "h", timetxt, fixed = TRUE)
+  timetxt
+  backup_name <- paste0("Data/109_backup_", file_date, "_", timetxt, ".rds")
+  file.copy(filename, backup_name)
+}
+
+# Save
 saveRDS(data_all2, filename)
 
 cat("Data saved as: \n")
