@@ -351,9 +351,9 @@ get_data_tables <- function(paramgroup,
                             param = NULL,
                             filename_109 = "Data/109_adjusted_data_2022-09-01.rds",
                             filename_110 = "Data/110_mediandata_updated_2022-09-01.rds",
-                            filename_lookup_substancegroups = "Input_data/Lookup table - substance groups.xlsx",
+                            filename_lookup_substancegroups = "Input_data/Lookup_tables/Lookup table - substance groups.csv",
                             filename_lookup_stations= "Input_data/Lookup_tables/Lookup_stationorder.csv",
-                            filename_lookup_eqs = "Input_data/Lookup_table/Lookup_EQS_limits.csv",
+                            filename_lookup_eqs = "Input_data/Lookup_tables/Lookup_EQS_limits.csv",
                             filename_lookup_proref = "Input_data/Lookup_tables/Lookup_proref.csv"){
   
   
@@ -365,7 +365,7 @@ get_data_tables <- function(paramgroup,
   }
     
   # Parameter groups
-  lookup_paramgroup <- read_excel(filename_lookup_substancegroups) %>%
+  lookup_paramgroup <- read.csv(filename_lookup_substancegroups) %>%
     dplyr::filter(PARAM %in% param_values)
 
   # Raw data
@@ -407,6 +407,7 @@ get_data_tables <- function(paramgroup,
   
 }
 
+
 # Test
 if (FALSE){
   X <- get_data_tables("metals")
@@ -421,8 +422,6 @@ get_data <- function(paramgroup, param = NULL, speciesgroup, min_obs = 100){
   } else {
     X <- get_data_tables(param = param)
   }
-  
-  
   
   X$lookup_stations <- X$lookup_stations %>%
     arrange(Station_order) %>%
