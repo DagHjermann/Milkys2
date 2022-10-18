@@ -1,0 +1,133 @@
+---
+title: "113_Quality_checking"
+author: "DHJ"
+date: "2022-10-17"
+output: html_document
+---
+
+
+## Startup  
+```{r 01_settings, include=FALSE}
+
+current_year <- 2021
+knitr::opts_chunk$set(echo = FALSE, results = 'hold')
+
+```
+
+```{r 02_packages, include=FALSE}
+
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(lubridate)
+library(flextable)
+# library(glue)
+library(readxl)
+library(purrr)
+# library(glue)
+# library(leftcensored)   # DHJ's package (https://github.com/DagHjermann/leftcensored)
+library(scico)            # colour palettes incl. "Vik" (https://github.com/thomasp85/scico)
+
+library(ggiraph)
+library(cowplot)
+
+# library(safejoin) # https://github.com/moodymudskipper/safejoin
+
+```
+
+## Data    
+
+```{r 03_data}
+
+dat_raw <- readRDS("Data/109_adjusted_data_2022-09-01.rds")                              
+dat_medians <- readRDS("Data/110_mediandata_updated_2022-09-01.rds")
+
+# Stations - for corrrect ordering
+lookup_stations <- read.csv("Input_data/Lookup_tables/Lookup_stationorder.csv") # %>%
+
+
+```
+
+## Biggest jumps/drops in medians since last year  
+```{r}
+
+# Biggest jump, current year not under LOQ this year 
+
+dat_medians_overloq <- dat_medians %>%
+  filter(MYEAR == current_year & Basis == "WW") %>%
+  mutate(Median_over_LOQ = Over_LOQ >= 0.5*N_median)
+
+dat_medians1 <- dat_medians %>%
+  filter(MYEAR >= (current_year-1) & Basis == "WW") %>%
+  mutate(
+    Year = case_when(
+      MYEAR == (current_year-1) ~ "Last_year",
+      MYEAR == (current_year) ~ "This_year")
+    ) 
+
+dat_medians2 <- dat_medians1 %>%
+  left_join(dat_medians_overloq %>% select(PARAM, STATION_CODE, LATIN_NAME, TISSUE_NAME, Median_over_LOQ))
+
+if (nrow(dat_medians2) > nrow(dat_medians1))
+  stop("Check left join, number of rows increased")
+
+df_change_overloq <- dat_medians2 %>%
+  filter(Median_over_LOQ) %>%
+  select(PARAM, STATION_CODE, LATIN_NAME, TISSUE_NAME, Year, Value) %>%
+  pivot_wider(names_from = Year, values_from = Value) %>%
+  mutate(Change_perc = (This_year/Last_year)*100)
+
+df_change_overloq %>% 
+  filter(!grepl("_exloq", PARAM)) %>%
+  arrange(desc(Change_perc)) %>% head(20)
+
+df_change_overloq %>% 
+  filter(!grepl("_exloq", PARAM)) %>%
+  arrange(Change_perc) %>% head(20)
+
+```
+
+
+## Length adjustment, Hg  
+
+### Which stations have length-adjusted WW  
+```{r}
+
+xtabs(~STATION_CODE + is.na(VALUE_WWa), 
+      dat_raw %>% filter(MYEAR == 2021 & PARAM %in% "HG" & LATIN_NAME == "Gadus morhua"))
+```
+
+
+
+### Plot Hg in cod, length-adjusted vs non-length-adjusted  
+```{r}
+
+dat_raw %>% filter(MYEAR == 2021 & 
+                     PARAM %in% "HG" & 
+                     LATIN_NAME == "Gadus morhua" & 
+                     !is.na(VALUE_WWa)) %>%
+  ggplot(aes(VALUE_WW, VALUE_WWa)) + 
+  geom_point() + 
+  geom_abline(intercept = 0, slope = 1) +
+  facet_wrap(vars(STATION_CODE)) + 
+  ggtitle("Hg in cod, WWa vs WW")
+
+```
+### Plot Hg in cod, effect of adjustmed vs length   
+```{r}
+
+dat_plot <- dat_raw %>% filter(MYEAR == 2021 & 
+                     PARAM %in% "HG" & 
+                     LATIN_NAME == "Gadus morhua" & 
+                     !is.na(VALUE_WWa))
+
+ggplot(dat_plot, aes(LNMEA, VALUE_WWa/VALUE_WW)) + 
+  # Extra layer to show all points, as "background":
+  annotate("point", x = dat_plot$LNMEA, y = dat_plot$VALUE_WWa/dat_plot$VALUE_WW, color = "grey80") + 
+  geom_point(color = "red3") + 
+  geom_hline(yintercept = 1) +
+  facet_wrap(vars(STATION_CODE)) + 
+  ggtitle("Hg in cod, WWa vs WW")
+
+```
+
