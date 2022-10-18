@@ -8,7 +8,9 @@ output:
 
 ## Notes  
 
-* Before this script is run, you need to download the sample data (from LIMS) on your PC using script 801 from project 'Milkys2_pc"    
+* Before this script is run, you need to download the labware sample and import data (from Labware/LIMS) 
+on your PC using script 801 from project 'Milkys2_pc"    
+* **NOTE: The script does currently NOT add length to isotope results - this shuld be fixed** 
 
 ## Overview  
 
