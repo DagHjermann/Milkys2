@@ -120,6 +120,8 @@ plot_timeseries_seriesno <- function(seriesno,
         y = exp(y),
         ymin = exp(ymin),
         ymax = exp(ymax))
+    df_points <- df_points %>% 
+      mutate(y = exp(y))
   }
     
   # Set x limits
