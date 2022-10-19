@@ -16,13 +16,25 @@ This procedure uses data from script 109
 
 ```{r}
 
-devtools::install_github("DagHjermann/leftcensored", upgrade = "never", force = TRUE)
+remove.packages("leftcensored")
+devtools::install_github("DagHjermann/leftcensored", upgrade = "never", force = TRUE, )
 
 # Check model syntax
 cat(leftcensored:::get_jags_model_code())
 
 # LINE 10 SHOULD have 'min(max(...', as this:
 # prob[j] <- min(max(pnorm(cut[j], mu[n+j], tau), 0.01),0.99)
+
+source("https://raw.githubusercontent.com/DagHjermann/leftcensored/main/R/jags_model_code.R")  
+# Check model syntax
+cat(leftcensored:::get_jags_model_code())
+cat(get_jags_model_code())
+
+# dir("../../../../../opt/R")
+# dir("../../../../../opt/R/leftcensored")
+# dir("../../../../../opt/R/leftcensored/R/leftcensored")
+# file.remove
+
 
 ```
 
@@ -44,7 +56,7 @@ series_lastyear <- 2018   # The series must last at least until this year
 # folder_6: time trends of length-adjusted series, only HG so far  
 
 folder_results <- "Data/125_results_2021_05"          # Basis WW, all
-# folder_results <- "Data/125_results_2021_06"        # Basis WWa (length-adjusted), HG only
+folder_results <- "Data/125_results_2021_06"        # Basis WWa (length-adjusted), HG only
 # folder_results <- "Data/125_results_2021_07"        # combining folder 05 and 06, see APPENDIX 2 below
 
 folder_input <- paste0(folder_results, "_input")
@@ -68,9 +80,9 @@ if (!dir.exists(folder_input)){
 
 # For runs up until folder_5:
 
-value_column <- "VALUE_WW"
+# value_column <- "VALUE_WW"
 # For folder_6:
-# value_column <- "VALUE_WWa"
+value_column <- "VALUE_WWa"
 
 message("Selected value column: ", value_column)
 
@@ -519,8 +531,8 @@ if (FALSE){
 
 # param <- "AG"
 # station_code <- "30A"
-# param <- "HG"
-# station_code <- "30B"
+param <- "HG"
+station_code <- "30B"
 
 param <- "PB"
 station_code <- "02B"
@@ -995,7 +1007,11 @@ for (i in 1:length(fns_orig)){
 
 
 # Checks
-result_list_new <-lapply(dir(folder_results, full.names = TRUE), readRDS)
+fns_07 <- dir(folder_results, full.names = TRUE)
+fns_07_no <- substr(fns_07, nchar(folder_results_orig) + 8, nchar(folder_results_orig) + 11) %>% as.numeric()
+fns_07[fns_07_no >= 3000]
+
+result_list_new <-lapply(fns_07[fns_07_no >= 3000], readRDS)
 
 str(result_list_new[[1]], 1)
 str(result_list_new[[5]], 1)
@@ -1064,7 +1080,7 @@ for (i in 1:length(fns_orig)){
 
 
 #
-# 9. Combine 'series_trend' files  
+# 9. Combine 'series_trend' files for 'input'   
 #
 
 # Read
@@ -1083,6 +1099,29 @@ dat_series_trend <- bind_rows(
 
 # Save
 saveRDS(dat_series_trend, "Data/125_results_2021_07_input/125_dat_series_trend.rds")  # WW + WWa
+
+# Check that series number and STATION_CODE in series file is the same as in results files
+# Check - series file
+check_seriesfile <- readRDS("Data/125_results_2021_07_input/125_dat_series_trend.rds") %>%
+  filter(series_no >= 3000) %>%
+  rename(series_no_seriesfile = series_no) %>%
+  select(series_no_seriesfile, STATION_CODE)
+# Check - results file
+fns_07 <- dir(folder_results, full.names = TRUE)
+fns_07_no <- substr(fns_07, nchar(folder_results_orig) + 8, nchar(folder_results_orig) + 11) %>% as.numeric()
+fns_07_sel <- fns_07[fns_07_no >= 3000]
+result_list_new <- lapply(fns_07_sel, readRDS)
+result_seriesno <- map_dbl(result_list_new, "seriesno")
+result_station <- map_chr(result_list_new, "STATION_CODE")
+check_resultfiles <- data.frame(fns_07_sel, result_seriesno, result_station) 
+check <- bind_cols(check_seriesfile, check_resultfiles) 
+# Visual check
+check %>% View("Check series vs results")
+# Formal check
+if(sum(check[,1] != check[,4]) > 0)
+  stop("Series numbers not equal")
+if(sum(check[,2] != check[,5]) > 0)
+  stop("Station codes not equal")
 
 #
 # 10. Combine 'series' files  
