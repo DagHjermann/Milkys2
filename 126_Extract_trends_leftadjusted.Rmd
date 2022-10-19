@@ -490,7 +490,7 @@ df_trend_short <- df_with_trend_all %>%
   group_by(PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME, Basis) %>%
   mutate(
     Year_pick = max((last_year-9), min(x)),
-    Length_adequate = TRUE) %>%
+    Length_adequate = as.logical(NA)) %>%
   filter(x == Year_pick)
 
 df_trend_long <- df_with_trend_all %>%
@@ -510,18 +510,19 @@ df_trend_worked <- bind_rows(
   df_trend_long %>% ungroup() %>% mutate(Trend_type = "long"),
   df_trend_short %>% ungroup() %>% mutate(Trend_type = "short")
 ) %>%
-  mutate(
-    Trend_string = case_when(
-      p < 0.05 & y_mean > 0 ~ "Decreasing",
-      p < 0.05 & y_mean < 0 ~ "Increasing",
-      !Length_adequate ~ paste("No data before", last_year-9),
-      TRUE ~ "No change")
-  ) %>%
   left_join(
     dat_success %>%
        select(PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME, Basis, 
               ok, k_max, k_sel, N_years, N_years_10yr, Years_over_LOQ),
     by = indexvars) %>%
+  mutate(
+    Trend_string = case_when(
+      !Length_adequate & Trend_type %in% "long" ~ paste("No data before", last_year-9),
+      N_years_10yr < 5 & Trend_type %in% "short" ~ paste("Not enough data after", last_year-9),
+      p < 0.05 & y_mean > 0 ~ "Decreasing",
+      p < 0.05 & y_mean < 0 ~ "Increasing",
+      TRUE ~ "No change")
+  ) %>%
   left_join(
     dat_series %>%
        select(PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME, Basis, First_year, Trend_model),
@@ -768,6 +769,7 @@ df_trend <- df_trend %>%
       Trend_string %in% "No change" ~ "¢",
       Trend_string %in% "No trend" ~ "¢",
       Trend_string %in% "Too few years" ~ "§",
+      grepl("Not enough data after", Trend_string)  ~ "§",
       Trend_string %in% "Too few over-LOQ years" ~ "«")
     )
 
@@ -839,7 +841,7 @@ tsplot_param("BDE49", "30A", folder = folder_results)
 # No apparent reason for failure?
 tsplot_param("D5", "19B", folder = folder_results)
 tsplot_param("D5", "19N", tissue = "Egg", folder = folder_results)
-tsplot_param("CB101", "30B", folder = folder_results)             # Now works
+tsplot_param("CB101", "30B", folder = folder_results)             # works now
 # extract_raw_data(get_seriesno("CB101", "30B")) %>% View()
 
 ```
