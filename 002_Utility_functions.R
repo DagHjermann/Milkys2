@@ -209,6 +209,127 @@ check_variable_is_numeric <- function(data, variable, na_allowed = TRUE){
 }
 
 
+#
+# Check if we use the latest file 
+# - where the file name conforms to a pattern  
+# - note: assumes that files are sorted by time when using sort(). 
+#   I.e., that date or time is in the form YYYY-MM-DD or some other sortable form (e.g.YYYY-MM-DD HH-MM)
+#   and that everyting after the dat/time (usually, just the extension) is always the same  
+#
+
+check_latest <- function(filename, folder, pattern, 
+                         namelength = 0,                              # filter by namelength (can also be number > 0) 
+                         reaction = "error", 
+                         ok_message = FALSE){
+  
+  if (!grepl(pattern, filename)){
+    message <- paste0("Given file (", sQuote(filename), ") doesn't correspond to pattern given (", sQuote(pattern), ")")
+    stop(message)
+  }
+  
+  filenames_found <- dir(folder, pattern = pattern)
+  
+  if (length(filenames_found) == 0){
+    message <- paste0("no files with given 'pattern' (", sQuote(pattern), ") found in 'folder' (", sQuote(folder), ")")
+    stop(message)
+  }
+  
+  if (!is.null(namelength) & namelength >= 0){
+    # namelength= 0 means that we take namelength from 'filename'  
+    if (namelength == 0)
+      namelength <- nchar(filename)
+    filenames_found <- filenames_found[nchar(filenames_found) == namelength]
+  }
+  
+  filename_latest <- sort(filenames_found) %>% tail(1)
+  
+  if (filename_latest != filename){
+    if (!filename %in% filenames_found){
+      stop("Given file (", sQuote(filename), ") not found in ", sQuote(folder), "\n",
+           "The latest file with the given pattern is ", sQuote(filename_latest))
+    }
+    message <- paste0(
+      "The latest file seems not to be used. The latest file in ", sQuote(folder), " with pattern ", sQuote(pattern),
+      " is ", sQuote(filename_latest))
+    if (reaction == "warning"){
+      warning(message)
+    } else if (reaction == "message"){
+      message(message)
+    } else {
+      stop(message)
+    }
+    
+  } else if (ok_message) {
+    message <- paste0(
+      "The latest file is used (folder ", sQuote(folder), ", pattern ", sQuote(pattern), ")")
+    message(message)
+  }
+  
+  invisible(NULL)
+  
+}
+
+#
+# test
+if (FALSE){
+  
+  debugonce(check_latest)
+  
+  # Latest file given  
+  fn <- "109_adjusted_data_2022-09-23.rds"
+  check_latest(fn, "Data", "109_adjusted_data_")
+  check_latest(fn, "Data", "109_adjusted_data_", ok_message = TRUE)
+  
+  # Latest file not given  
+  fn <- "109_adjusted_data_2022-09-01.rds"
+  check_latest(fn, "Data", "109_adjusted_data_")
+  check_latest(fn, "Data", "109_adjusted_data_", reaction = "warning")
+  check_latest(fn, "Data", "109_adjusted_data_", reaction = "message")
+
+  # Wrong pattern given  
+  fn <- "110_mediandata_updated_2022-09-23.rds"
+  check_latest(fn, "Data", "109_adjusted_data_")
+  
+  # File doesn't exist   
+  fn <- "109_adjusted_data_2022-09-41.rds"
+  check_latest(fn, "Data", "109_adjusted_data_")
+  
+  # With function  
+  test_get_medians <- function(folder, file){
+    check_latest(file, folder, "110_mediandata_updated_")
+    readRDS(paste0(folder, "/", file))
+  }
+  test <- test_get_medians("Data", "110_mediandata_updated_2022-09-23.rds")
+  test <- test_get_medians("Data", "110_mediandata_updated_2022-09-01.rds")
+  test <- test_get_medians("Data", "110_mediandata_updated_2022-09-24.rds")
+  
+}
+
+
+#
+# update part of a data frame using func()
+#
+
+# Example:
+if (FALSE){
+  
+update_part(
+  df_in = dat_concentrations, 
+  df_out = dat_trends, 
+  var_list = list(
+    LATIN_NAME = "Gadus morhua",
+    PARAM = c("CD", "PB", "HG"),
+    Basis = "WWa"
+  ), 
+  func = calculate_trends,
+  add = TRUE      # If TRUE, rows not existing in df_out will be added
+)                 # If FALSE, there will be a warning if there are rows not existing in df_out  
+}
+
+update_part <- function(df_in, df_out, var_list, func, add = TRUE){
+  # NOT WRITTEN YET
+}
+
 
 
 #o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
