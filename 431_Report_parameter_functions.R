@@ -9,13 +9,19 @@
 
 
 get_data_medians <- function(param, species, tissue, basis, include_year,
-                             filename_110 = "Data/110_mediandata_updated_2022-09-01.rds",
+                             folder_110 = "Data",
+                             filename_110 = "110_mediandata_updated_2022-09-23.rds",
                              filename_lookup_substancegroups = "Input_data/Lookup_tables/Lookup table - substance groups.csv",
                              filename_lookup_stations= "Input_data/Lookup_tables/Lookup_stationorder.csv",
                              filename_lookup_eqs = "Input_data/Lookup_tables/Lookup_EQS_limits.csv",
-                             filename_lookup_proref = "Input_data/Lookup_tables/Lookup_proref.csv"){
+                             filename_lookup_proref = "Input_data/Lookup_tables/Lookup_proref.csv",
+                             if_not_latest = "error"){
   
   indexvars <- c("PARAM", "STATION_CODE", "TISSUE_NAME", "LATIN_NAME", "Basis")
+  
+  check_latest(filename_110, folder_110, "110_mediandata_updated_", reaction = if_not_latest)
+  
+  filename_110_full <- paste0(folder_110, "/", filename_110)
   
   # due to code for 'lookup_eqs'
   if (length(species) > 1)
@@ -72,14 +78,14 @@ get_data_medians <- function(param, species, tissue, basis, include_year,
   
   # Medians
   if (basis != "WWa"){
-  dat_medians_01 <- readRDS(filename_110) %>%
+  dat_medians_01 <- readRDS(filename_110_full) %>%
     dplyr::filter(PARAM %in% param,
                   LATIN_NAME %in% species, 
                   TISSUE_NAME %in% tissue,
                   Basis %in% basis)
   } else {
     # if Basis = WWa, we use WWa when available, otherwise we use WW
-    dat_medians_wide <- readRDS(filename_110) %>%
+    dat_medians_wide <- readRDS(filename_110_full) %>%
       dplyr::filter(
         PARAM %in% param,
         LATIN_NAME %in% species, 
