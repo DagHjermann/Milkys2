@@ -3,8 +3,8 @@ title: "Report for parameter (431)"
 author: "DHJ"
 date: "04.10.2022"
 params:
-  param: "BDE47"
-  eqsplot: "TRUE"
+  param: "PYR"
+  eqsplot: "FALSE"
 output: 
   html_document:
   keep_md: false
@@ -45,6 +45,7 @@ library(cowplot)
 source("420_Report_paramgroup_functions.R", encoding = "UTF-8")
 source("125_Calculate_trends_leftadjusted_functions.R")
 source("431_Report_parameter_functions.R")
+source("002_Utility_functions.R")
 
 ```
 
@@ -526,6 +527,8 @@ if (params$eqsplot == TRUE){
     
     gg <- ggplot(data_proref_medians, 
                  aes(Station, EQS_ratio)) +
+      # The next line (median points) needs to be here (even if it is repeated after the sample points) to keep x order correct
+      geom_point(aes(fill = Trend_color, shape = Trend_color), colour = "black", size = 3) +
       geom_point(data = subset(data_proref_samples, is.na(FLAG1)), color = "grey50", shape = 1, size = 2) +
       geom_point(data = subset(data_proref_samples, !is.na(FLAG1)), color = "grey50", shape = 6, size = 2) +
       geom_linerange(aes(ymin = EQS_ratio_lo, ymax = EQS_ratio_hi, colour = Trend_color), size = 1) +
@@ -604,11 +607,17 @@ for (speciesgroup in speciesgroups){
     left_join(lookup_stations %>% select(STATION_CODE, Order), by = "STATION_CODE") %>% # View()
     arrange(Order) %>%
     mutate(Station = forcats::fct_inorder(Station))
-
+  data_proref_samples_overLOQ <- data_proref_samples %>%
+    filter(is.na(FLAG1))
+  data_proref_samples_underLOQ <- data_proref_samples %>%
+    filter(FLAG1 %in% "<")
+  
   gg <- ggplot(data_proref_medians, 
                aes(Station, Proref_ratio)) +
-    geom_point(data = subset(data_proref_samples, is.na(FLAG1)), color = "grey50", shape = 1, size = 2) +
-    geom_point(data = subset(data_proref_samples, !is.na(FLAG1)), color = "grey50", shape = 6, size = 2) +
+    # The next line (median points) needs to be here (even if it is repeated after the sample points) to keep x order correct
+    geom_point(aes(fill = Trend_color, shape = Trend_color), colour = "black", size = 3) +
+    geom_point(data = data_proref_samples_overLOQ , color = "grey50", shape = 1, size = 2) +
+    geom_point(data = data_proref_samples_underLOQ , color = "grey50", shape = 6, size = 2) +
     geom_linerange(aes(ymin = Proref_ratio_lo, ymax = Proref_ratio_hi, colour = Trend_color), size = 1) +
     geom_point(aes(fill = Trend_color, shape = Trend_color), colour = "black", size = 3) +
     scale_colour_manual(values = trend_colours, drop = FALSE) +
