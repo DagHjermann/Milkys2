@@ -174,6 +174,44 @@ if (FALSE){
   round_p(0.000121232, stars = TRUE)
 }
 
+#
+# Round to number of significant values, modified
+# - as the base function signif(), but
+#     - never returns scientific rotation     
+#     - drops zero for numbers under 1, e.g. signif2(0.1234, 2)  
+#     - never rounds numbers to more than integer, compare signif(123) and signif2(123)   
+#     - sets maximum number of digits
+# - note the function has been vectorized
+#
+#
+signif2 <- function(x, digits, dropzero = TRUE, maxdigits = 8){
+  digits2 <- pmax(digits-ceiling(log10(x)), 0)
+  digits2 <- pmin(digits2, maxdigits)
+  # round(x, digits2)
+  result <- sprintf("%.*f", digits2, x)
+  if (dropzero){
+    result <- ifelse(x < 1, substr(result, 2, nchar(result)), result)
+  } 
+  result
+}
+
+if (FALSE){
+  signif2(0.1234, 2)
+  signif2(0.1234, 2, dropzero = FALSE)
+  signif2(0.01234, 2)
+  signif2(0.001234, 2)
+  signif2(0.0001234, 2)
+  signif2(0.0001234, 2, maxdigits = 4)
+  signif2(0.000001234, 2)    # no scientific notation  
+  signif(0.000001234, 2)     # scientific notation, unless you have changed 'scipen' in options()
+  signif2(c(1.234,0.1234,0.01234,0.001234,0.0001234), 2, maxdigits = 4)  # check that it has been vectorized
+  signif2(1.234, 2)
+  debugonce(signif2)
+  signif2(12.34, 2)
+  signif2(123.4, 2)
+  signif(123.4, 2)   # signif, for comparison
+  signif2(c(12.34, 123.4, 1234), 2)  # check that it has been vectorized
+}
 
 #
 # Function for checking that all values of a variable are numeric
