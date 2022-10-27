@@ -120,6 +120,7 @@ ui <- fluidPage(
                              selected = "ordinary"),
           shiny::checkboxInput("eqs", "Include EQS line", value = TRUE),
           shiny::textInput("proref", "Proref lines, separated by comma (e.g. 1,2,5)", value = "1"),
+          shiny::checkboxInput("allsamples", "Show single measurements", value = FALSE),
           shiny::sliderInput("ymax_perc", "Max y (%)", value = 100, min = 2, max = 200, step = 2),
           shiny::sliderInput("xmin_rel", "Change x min.", value = 0, min = -10, max = 40, step = 0.5),
           shiny::sliderInput("xmax_rel", "Change x max.", value = 0, min = -40, max = 10, step = 0.5)
@@ -129,7 +130,6 @@ ui <- fluidPage(
         # Show the plot, with save button underneath  
         mainPanel(
            plotOutput("timeseriesplot", width = "500px", height = "500px"),
-           
            shiny::actionButton("save", "Save plot"),
            br(), br(),
            shiny::textInput("filename_add", "Text to add to filename (e.g., '_ver02')", value = "")
@@ -147,6 +147,14 @@ server <- function(input, output) {
   
   tsplot_r <- reactive({
     stationcode <- subset(lookup_stations, Station %in% input$station)$STATION_CODE
+    latinname <- dat_all_prep3 %>% 
+      filter(STATION_CODE == stationcode) %>% 
+      pull(LATIN_NAME) %>% unique() %>% head(1)
+    if (latinname %in% "Mytilus edulis"){
+      quantiles <- c(0,1)
+    } else {
+      quantiles <- c(0.25, 0.75)
+    }
     if (input$tissue == "(automatic)"){
       tsplot <- plot_timeseries(param = input$param, stationcode = stationcode, basis = input$basis, 
                                 y_scale = input$y_scale,
@@ -157,7 +165,9 @@ server <- function(input, output) {
                                 proref = input$proref,
                                 folder = folder_results, 
                                 data = dat_all_prep3, 
-                                data_series = dat_series_trend, data_trend = df_trend)
+                                data_series = dat_series_trend, data_trend = df_trend, 
+                                quantiles = quantiles,
+                                allsamples = input$allsamples)
     } else {
       tsplot <- plot_timeseries(param = input$param, stationcode = stationcode, basis = input$basis, 
                                 y_scale = input$y_scale,
@@ -168,7 +178,9 @@ server <- function(input, output) {
                                 proref = input$proref,
                                 folder = folder_results, 
                                 data = dat_all_prep3, 
-                                data_series = dat_series_trend, data_trend = df_trend)
+                                data_series = dat_series_trend, data_trend = df_trend, 
+                                quantiles = quantiles,
+                                allsamples = input$allsamples)
       
     }
     tsplot

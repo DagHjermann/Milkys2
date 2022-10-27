@@ -19,6 +19,7 @@ plot_timeseries <- function(param, stationcode,
                             data = dat_all_prep3, 
                             data_series = dat_series_trend,
                             data_trend = NULL,
+                            quantiles = c(0.25, 0.75),
                             allsamples = FALSE){
   
   # browser()
@@ -48,6 +49,7 @@ plot_timeseries <- function(param, stationcode,
                                  data = data, 
                                  data_series = data_series,
                                  data_trend = data_trend,
+                                 quantiles = quantiles,
                                  allsamples = allsamples)
   
   gg
@@ -76,6 +78,7 @@ plot_timeseries_seriesno <- function(seriesno,
                                      data = dat_all_prep3, 
                                      data_series = dat_series_trend,
                                      data_trend = NULL,
+                                     quantiles = c(0.25, 0.75),
                                      allsamples = FALSE,
                                      trendtext_size = 4){
   
@@ -105,8 +108,8 @@ plot_timeseries_seriesno <- function(seriesno,
       y = median(y_comb, na.rm = TRUE), 
       n = n(), 
       n_overLOQ = sum(is.na(threshold)),
-      ymin = quantile(y_comb, probs = 0.25),
-      ymax = quantile(y_comb, probs = 0.75),
+      ymin = quantile(y_comb, probs = quantiles[1]),
+      ymax = quantile(y_comb, probs = quantiles[2]),
       .groups = "drop") %>%
     mutate(overLOQ = n_overLOQ > (0.5*n))
   
@@ -158,13 +161,20 @@ plot_timeseries_seriesno <- function(seriesno,
       geom_point(data = df_points %>% filter(!is.na(y))) +
       geom_point(data = df_points %>% filter(!is.na(threshold)), aes(y = threshold), shape = 6)
   }
-  
+  # Add medians (points) and the quantiles (vertical lines) 
+  if (quantiles[1] == 0 & quantiles[2] == 1){
+    range_txt <- "The range of the vertical bars is the min/max of all samples"
+  } else {
+    range_txt <- paste0("The range of the vertical bars is the ", 
+                        quantiles[1]*100, "% - ", quantiles[2]*100, "%",
+                        " percentiles of the samples")
+  }
   # Add medians (points) and the quantiles (vertical lines) 
   gg <- gg +
     geom_point(data = df_median %>% filter(overLOQ), shape = 21, fill = "red2", size = rel(3)) +
     geom_point(data = df_median %>% filter(!overLOQ), shape = 25, fill = "red2", size = rel(3)) +
     geom_linerange(data = df_median, aes(ymin = ymin, ymax = ymax), color = "red2") +
-    labs(title = titlestring, subtitle = subtitlestring) +
+    labs(title = titlestring, subtitle = subtitlestring, caption = range_txt) +
     theme_bw()
   
   # Make "trend text" to add in the top right corner  
