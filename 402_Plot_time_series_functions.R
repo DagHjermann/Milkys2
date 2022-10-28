@@ -1,5 +1,7 @@
 
-
+#
+# This script is also used by App01
+#
 
 #
 # Extract and plot data from results (on files) and data (in memory)
@@ -58,11 +60,25 @@ plot_timeseries <- function(param, stationcode,
 
 if (FALSE){
   
+  # Before testing, run/source this script to load all data
+  source("App01_timeseries/app01_test.R")
+  
+  # In app:
+  folder_results <- "../Data/125_results_2021_07"
+  # For testing:
+  folder_results <- "Data/125_results_2021_07"
+  
   debugonce(plot_timeseries)
   debugonce(plot_timeseries_seriesno)
-  plot_timeseries("CB153", "11X", folder = folder_results)
-  plot_timeseries("CB153", "19N", folder = folder_results)
+  plot_timeseries("CB153", "11X", folder = folder_results, proref = "1")
+  plot_timeseries("CB153", "19N", tissue = "Blod", folder = folder_results, proref = "1")
   
+  plot_timeseries("CB138", "10A2", folder = folder_results, proref = "", 
+                  quantiles = c(0,1))
+  debugonce(plot_timeseries_seriesno)
+  plot_timeseries("CB138", "10A2", folder = folder_results, proref = "", 
+                  quantiles = c(0,1), allsamples = TRUE, y_scale = "ordinary")
+
 }
 
 
@@ -159,9 +175,9 @@ plot_timeseries_seriesno <- function(seriesno,
   
   # Checks whether old version of k_sel might have differed from the new version - see "old version" 14 lines up  
   # If k_sel was higher than thelength of k_values, then it gave an error before, so no need to warn
-  if (!check_bug & resultlist$k_sel <= length(resultlist$k_values)){
-    warning("Previous version of this plot (before 28.10.2022) probably showed the wrong model")
-  }
+  # if (!check_bug & resultlist$k_sel <= length(resultlist$k_values)){
+  #   warning("Previous version of this plot (before 28.10.2022) probably showed the wrong model")
+  # }
 
   # If allsamples = TRUE, add points for the individual samples to the plot 
   if (allsamples){
