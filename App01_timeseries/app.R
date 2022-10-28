@@ -120,6 +120,7 @@ ui <- fluidPage(
                              selected = "ordinary"),
           shiny::checkboxInput("eqs", "Include EQS line", value = TRUE),
           shiny::textInput("proref", "Proref lines, separated by comma (e.g. 1,2,5)", value = "1"),
+          shiny::checkboxInput("medians", "Show medians", value = TRUE),
           shiny::checkboxInput("allsamples", "Show single measurements", value = FALSE),
           shiny::sliderInput("ymax_perc", "Max y (%)", value = 100, min = 2, max = 200, step = 2),
           shiny::sliderInput("xmin_rel", "Change x min.", value = 0, min = -10, max = 40, step = 0.5),
@@ -167,6 +168,7 @@ server <- function(input, output) {
                                 data = dat_all_prep3, 
                                 data_series = dat_series_trend, data_trend = df_trend, 
                                 quantiles = quantiles,
+                                medians = input$medians,
                                 allsamples = input$allsamples)
     } else {
       tsplot <- plot_timeseries(param = input$param, stationcode = stationcode, basis = input$basis, 
@@ -180,6 +182,7 @@ server <- function(input, output) {
                                 data = dat_all_prep3, 
                                 data_series = dat_series_trend, data_trend = df_trend, 
                                 quantiles = quantiles,
+                                medians = input$medians,
                                 allsamples = input$allsamples)
       
     }

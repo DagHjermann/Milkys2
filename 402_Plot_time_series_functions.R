@@ -22,6 +22,7 @@ plot_timeseries <- function(param, stationcode,
                             data_series = dat_series_trend,
                             data_trend = NULL,
                             quantiles = c(0.25, 0.75),
+                            medians = TRUE,
                             allsamples = FALSE){
   
   # browser()
@@ -52,6 +53,7 @@ plot_timeseries <- function(param, stationcode,
                                  data_series = data_series,
                                  data_trend = data_trend,
                                  quantiles = quantiles,
+                                 medians = medians,
                                  allsamples = allsamples)
   
   gg
@@ -78,7 +80,9 @@ if (FALSE){
   debugonce(plot_timeseries_seriesno)
   plot_timeseries("CB138", "10A2", folder = folder_results, proref = "", 
                   quantiles = c(0,1), allsamples = TRUE, y_scale = "ordinary")
-
+  plot_timeseries("CB138", "10A2", folder = folder_results, proref = "", 
+                  quantiles = c(0,1), allsamples = TRUE, y_scale = "ordinary", medians = FALSE)
+  
 }
 
 
@@ -95,6 +99,7 @@ plot_timeseries_seriesno <- function(seriesno,
                                      data_series = dat_series_trend,
                                      data_trend = NULL,
                                      quantiles = c(0.25, 0.75),
+                                     medians = TRUE,
                                      allsamples = FALSE,
                                      trendtext_size = 4){
   
@@ -195,10 +200,13 @@ plot_timeseries_seriesno <- function(seriesno,
                         " percentiles of the samples")
   }
   # Add medians (points) and the quantiles (vertical lines) 
+  if (medians){
   gg <- gg +
     geom_point(data = df_median %>% filter(overLOQ), shape = 21, fill = "red2", size = rel(3)) +
     geom_point(data = df_median %>% filter(!overLOQ), shape = 25, fill = "red2", size = rel(3)) +
-    geom_linerange(data = df_median, aes(ymin = ymin, ymax = ymax), color = "red2") +
+    geom_linerange(data = df_median, aes(ymin = ymin, ymax = ymax), color = "red2")
+  }
+  gg <- gg +
     labs(title = titlestring, subtitle = subtitlestring, caption = range_txt) +
     theme_bw()
   
