@@ -3,7 +3,7 @@ title: "Report for parameter (431)"
 author: "DHJ"
 date: "04.10.2022"
 params:
-  param: "HG"
+  param: "ANT"
   basis_fish: "WW"
   eqsplot: "TRUE"
 output: 
@@ -149,7 +149,7 @@ dat_medians_list[[2]] <- dat_temporary[[4]]
 
 proref_cols <- c(RColorBrewer::brewer.pal(6, "Blues")[5:2],
                  RColorBrewer::brewer.pal(6, "YlOrRd")[1:5])
-  
+
 col_func <- function(x){cols[x]}
 
 startyr <- 2012
@@ -165,39 +165,47 @@ speciesgroup_txt_proref <- c("cod", "blue mussel")
 
 for (speciesgroup in 1:2){
   
-  dat_medians <- dat_medians_list[[speciesgroup]] %>%
-    mutate(
-      Value_txt = case_when(
-        is.na(FLAG1) ~ signif2(Value, 2, maxdigits = 5),
-        !is.na(FLAG1) ~ paste0("<", signif2(Value, 2, maxdigits = 4))
+  if (nrow(dat_medians_list[[speciesgroup]]) > 0){
+    
+    dat_medians <- dat_medians_list[[speciesgroup]] %>%
+      mutate(
+        Value_txt = case_when(
+          is.na(FLAG1) ~ signif2(Value, 2, maxdigits = 5),
+          !is.na(FLAG1) ~ paste0("<", signif2(Value, 2, maxdigits = 4))
+        )
       )
-    )
-
-  # Set plot title (mercury in cod+birds is treated as a special case)
-  if (params$param %in% "HG" & speciesgroup == 1 & params$basis_fish == "WW"){
-    plot_title <- paste0(dat_medians$Parameter.Name[1], " (not length-adjusted) in ", speciesgroup_txt[[speciesgroup]])
-  } else if (params$param %in% "HG" & speciesgroup == 1 & params$basis_fish == "WWa"){
-    plot_title <- paste0(dat_medians$Parameter.Name[1], " (length-adjusted) in ", speciesgroup_txt[[speciesgroup]])
+    
+    # Set plot title (mercury in cod+birds is treated as a special case)
+    if (params$param %in% "HG" & speciesgroup == 1 & params$basis_fish == "WW"){
+      plot_title <- paste0(dat_medians$Parameter.Name[1], " (not length-adjusted) in ", speciesgroup_txt[[speciesgroup]])
+    } else if (params$param %in% "HG" & speciesgroup == 1 & params$basis_fish == "WWa"){
+      plot_title <- paste0(dat_medians$Parameter.Name[1], " (length-adjusted) in ", speciesgroup_txt[[speciesgroup]])
+    } else {
+      plot_title <- paste0(dat_medians$Parameter.Name[1], " in ", speciesgroup_txt[[speciesgroup]])
+    }
+    
+    gg_tile_list[[speciesgroup]] <- ggplot(dat_medians, aes(MYEAR, Station)) +
+      geom_tile(aes(fill = Proref_ratio_cut)) + 
+      geom_tile(data = subset(dat_medians, Above_EQS %in% "Over"),
+                color = "red", size = 1, height = 0.9, width = 0.9, alpha = 0) +
+      geom_text(aes(label = Value_txt), nudge_y = 0, size = 3) +
+      # geom_text(aes(label = LOQ_label), size = 3, nudge_y = 0.3) +
+      scale_fill_manual("Proref ratio", values = proref_cols, na.value = "grey85") +
+      scale_color_manual(values = c("red", "white")) +
+      scale_alpha_manual(values = c(1, 0)) +
+      scale_x_continuous(breaks = seq(startyr, 2020, 2), 
+                         limits = c(startyr-0.5, current_year+0.5)) +
+      theme_bw() +
+      guides(colour = "none") +
+      labs(
+        title = plot_title,
+        x = "Year", y = "")
+    
   } else {
-    plot_title <- paste0(dat_medians$Parameter.Name[1], " in ", speciesgroup_txt[[speciesgroup]])
+    
+    gg_tile_list[[speciesgroup]] <- NULL
+    
   }
-  
-  gg_tile_list[[speciesgroup]] <- ggplot(dat_medians, aes(MYEAR, Station)) +
-    geom_tile(aes(fill = Proref_ratio_cut)) + 
-    geom_tile(data = subset(dat_medians, Above_EQS %in% "Over"),
-              color = "red", size = 1, height = 0.9, width = 0.9, alpha = 0) +
-    geom_text(aes(label = Value_txt), nudge_y = 0, size = 3) +
-    # geom_text(aes(label = LOQ_label), size = 3, nudge_y = 0.3) +
-    scale_fill_manual("Proref ratio", values = proref_cols, na.value = "grey85") +
-    scale_color_manual(values = c("red", "white")) +
-    scale_alpha_manual(values = c(1, 0)) +
-    scale_x_continuous(breaks = seq(startyr, 2020, 2), 
-                       limits = c(startyr-0.5, current_year+0.5)) +
-    theme_bw() +
-    guides(colour = "none") +
-    labs(
-      title = plot_title,
-      x = "Year", y = "")
   
 }
 
