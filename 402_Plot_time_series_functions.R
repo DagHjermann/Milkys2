@@ -142,7 +142,9 @@ plot_timeseries_seriesno <- function(seriesno,
   
   # If there are results from trend analysis, add the ttend (ribbon + line) 
   if (!is.null(resultlist$plot_data)){
-    k_sel <- resultlist$k_sel
+    check_bug <- which(resultlist$k_values == resultlist$k_sel) == resultlist$k_sel
+    # k_sel <- resultlist$k_sel               # old version - gives error, or (worse) picks the wrong model
+    k_sel <- as.character(resultlist$k_sel)   # corrected version
     if (y_scale %in% c("ordinary", "log scale")){
       resultlist$plot_data[[k_sel]] <- resultlist$plot_data[[k_sel]] %>% 
         mutate(
@@ -155,6 +157,12 @@ plot_timeseries_seriesno <- function(seriesno,
       geom_line(data = resultlist$plot_data[[k_sel]])
   }
   
+  # Checks whether old version of k_sel might have differed from the new version - see "old version" 14 lines up  
+  # If k_sel was higher than thelength of k_values, then it gave an error before, so no need to warn
+  if (!check_bug & resultlist$k_sel <= length(resultlist$k_values)){
+    warning("Previous version of this plot (before 28.10.2022) probably showed the wrong model")
+  }
+
   # If allsamples = TRUE, add points for the individual samples to the plot 
   if (allsamples){
     gg <- gg +
