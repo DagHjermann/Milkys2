@@ -3,7 +3,8 @@ title: "Report for parameter (431)"
 author: "DHJ"
 date: "04.10.2022"
 params:
-  param: "CD"
+  param: "HG"
+  basis_fish: "WW"
   eqsplot: "TRUE"
 output: 
   html_document:
@@ -63,7 +64,7 @@ dat_temporary <- list(
   get_data_medians(param = params$param, 
                    species = "Gadus morhua",
                    tissue = ifelse(params$param %in% "HG", "Muskel", "Lever"),
-                   basis = ifelse(params$param %in% "HG", "WWa", "WW"), 
+                   basis = params$basis_fish, 
                    include_year = current_year),
   get_data_medians(param = params$param, 
                    species = "Somateria mollissima",
@@ -126,7 +127,7 @@ dat_medians_list[[1]]$Station <- factor(dat_medians_list[[1]]$Station,
 
 # For Hg: add an asterisk after station names for stations that are NOT length-adjusted (for Hg only)
 # - these data are also used for 'ratio plots' (last year's concentrations)  
-if (params$param %in% "HG"){
+if (params$param %in% "HG" & params$basis_fish %in% "WWa"){
   # View(dat_medians_list[[1]])
   tab <- xtabs(~Basis + Station, dat_medians_list[[1]])
   not_length_adjusted <- colnames(tab)[tab[2,] == 0]
@@ -172,6 +173,15 @@ for (speciesgroup in 1:2){
       )
     )
 
+  # Set plot title (mercury in cod+birds is treated as a special case)
+  if (params$param %in% "HG" & speciesgroup == 1 & params$basis_fish == "WW"){
+    plot_title <- paste0(dat_medians$Parameter.Name[1], " (not length-adjusted) in ", speciesgroup_txt[[speciesgroup]])
+  } else if (params$param %in% "HG" & speciesgroup == 1 & params$basis_fish == "WWa"){
+    plot_title <- paste0(dat_medians$Parameter.Name[1], " (length-adjusted) in ", speciesgroup_txt[[speciesgroup]])
+  } else {
+    plot_title <- paste0(dat_medians$Parameter.Name[1], " in ", speciesgroup_txt[[speciesgroup]])
+  }
+  
   gg_tile_list[[speciesgroup]] <- ggplot(dat_medians, aes(MYEAR, Station)) +
     geom_tile(aes(fill = Proref_ratio_cut)) + 
     geom_tile(data = subset(dat_medians, Above_EQS %in% "Over"),
@@ -186,7 +196,7 @@ for (speciesgroup in 1:2){
     theme_bw() +
     guides(colour = "none") +
     labs(
-      title = paste0(dat_medians$Parameter.Name[1], " in ", speciesgroup_txt[[speciesgroup]]),
+      title = plot_title,
       x = "Year", y = "")
   
 }
@@ -326,9 +336,17 @@ for (speciesgroup in speciesgroups){
   
   ggcomb_legend <- cowplot::get_legend(gg_tile_list[[speciesgroup]])
   
-  filename <- glue::glue("Figures/431/{params$param}_combo_{speciesgroup}.png")
+  # Set name of figure file (mercury in cod+birds is treated as a special case)
+  if (params$param %in% "HG" & speciesgroup == 1){
+    filename <- glue::glue("Figures/431/{params$param}-{params$basis_fish}_combo_{speciesgroup}.png")
+  } else {
+    filename <- glue::glue("Figures/431/{params$param}_combo_{speciesgroup}.png")
+  }
+  
+  # Save
   ggsave(filename, ggcomb_list[[speciesgroup]], width = 14, height = 8, dpi = 200)
-  # 
+    
+  # MAke and save legend
   filename <- glue::glue("Figures/431/_combo_legend.png")
   ggsave(filename, ggdraw(ggcomb_legend), width = 2, height = 4, dpi = 200)
   
@@ -530,6 +548,15 @@ if (params$eqsplot == TRUE){
       arrange(Order) %>%
       mutate(Station = forcats::fct_inorder(Station))
     
+    # Set plot title (mercury in cod+birds is treated as a special case)
+    if (params$param %in% "HG" & speciesgroup == 1 & params$basis_fish == "WW"){
+      plot_title <- paste0("EQS ratio, ", params$param, " (not length-adjusted) in ", speciesgroup_txt_proref[[speciesgroup]])
+    } else if (params$param %in% "HG" & speciesgroup == 1 & params$basis_fish == "WWa"){
+      plot_title <- paste0("EQS ratio, ", params$param, " (length-adjusted) in ", speciesgroup_txt_proref[[speciesgroup]])
+    } else {
+      plot_title <- paste0("EQS ratio, ", params$param, " in ", speciesgroup_txt_proref[[speciesgroup]])
+    }
+    
     gg <- ggplot(data_proref_medians, 
                  aes(Station, EQS_ratio)) +
       # The next line (median points) needs to be here (even if it is repeated after the sample points) to keep x order correct
@@ -544,7 +571,7 @@ if (params$eqsplot == TRUE){
       geom_hline(yintercept = 1, color = "red2", linetype = "dashed") +
       annotate("text", x = -1.7, y = 1, label = "EQS", color = "red2", hjust = 0, vjust = -0.3) +
       coord_cartesian(xlim = c(-1.5, length(data_proref_medians$Station))) +
-      labs(title = paste0("EQS ratio, ", speciesgroup_txt[[speciesgroup]]), 
+      labs(title = plot_title, 
            y = "Concentration/EQS") +
       theme_bw() +
       theme(legend.title = element_blank()) +
@@ -557,11 +584,19 @@ if (params$eqsplot == TRUE){
       geom_hline(yintercept = proref, color = "blue2", linetype = "dashed") +
       annotate("text", x = -1.7, y = proref, label = "PROREF", color = "blue2", hjust = 0, vjust = -0.3)
     
-    filename <- glue::glue("Figures/431/{params$param}_eqsratio_ord_{speciesgroup}.png")
+    # Set name of figure file (mercury in cod+birds is treated as a special case)
+    if (params$param %in% "HG" & speciesgroup == 1){
+      filename <- glue::glue("Figures/431/{params$param}-{params$basis_fish}_eqsratio_ord_{speciesgroup}.png")
+    } else {
+      filename <- glue::glue("Figures/431/{params$param}_eqsratio_ord_{speciesgroup}.png")
+    }
+    
+    # Save
     ggsave(filename, gg, 
            width = 9, height = 6, dpi = 200)
     
-    filename <- glue::glue("Figures/431/{params$param}_eqsratio_log_{speciesgroup}.png")
+    # Save again, but this time on log scale  
+    filename <- sub("eqsratio_ord", "eqsratio_log", filename, fixed = TRUE)
     ggsave(filename, gg + scale_y_log10(), 
            width = 9, height = 6, dpi = 200)
     
@@ -616,6 +651,15 @@ for (speciesgroup in speciesgroups){
     filter(is.na(FLAG1))
   data_proref_samples_underLOQ <- data_proref_samples %>%
     filter(FLAG1 %in% "<")
+
+  # Set plot title (mercury in cod+birds is treated as a special case)
+  if (params$param %in% "HG" & speciesgroup == 1 & params$basis_fish == "WW"){
+    plot_title <- paste0("Proref ratio, ", params$param, " (not length-adjusted) in ", speciesgroup_txt_proref[[speciesgroup]])
+  } else if (params$param %in% "HG" & speciesgroup == 1 & params$basis_fish == "WWa"){
+    plot_title <- paste0("Proref ratio, ", params$param, " (length-adjusted) in ", speciesgroup_txt_proref[[speciesgroup]])
+  } else {
+    plot_title <- paste0("Proref ratio, ", params$param, " in ", speciesgroup_txt_proref[[speciesgroup]])
+  }
   
   gg <- ggplot(data_proref_medians, 
                aes(Station, Proref_ratio)) +
@@ -631,7 +675,7 @@ for (speciesgroup in speciesgroups){
     geom_hline(yintercept = 1, color = "blue2", linetype = "dashed") +
     annotate("text", x = -1.7, y = 1, label = "PROREF", color = "blue2", hjust = 0, vjust = -0.3) +
     coord_cartesian(xlim = c(-1.5, length(data_proref_medians$Station))) +
-    labs(title = paste0("Proref ratio, ", speciesgroup_txt_proref[[speciesgroup]]), 
+    labs(title = plot_title,  
          y = "Concentration/PROREF") +
     theme_bw() +
     theme(legend.title = element_blank()) +
@@ -639,11 +683,19 @@ for (speciesgroup in speciesgroups){
   
   plot_prorefratio_list[[speciesgroup]] <- gg
   
-  filename <- glue::glue("Figures/431/{params$param}_prorefratio_ord_{speciesgroup}.png")
+  # Set name of figure file (mercury in cod+birds is treated as a special case)
+  if (params$param %in% "HG" & speciesgroup == 1){
+    filename <- glue::glue("Figures/431/{params$param}-{params$basis_fish}_prorefratio_ord_{speciesgroup}.png")
+  } else {
+    filename <- glue::glue("Figures/431/{params$param}_prorefratio_ord_{speciesgroup}.png")
+  }
+
+  # Save  
   ggsave(filename, gg, 
          width = 9, height = 6, dpi = 200)
   
-  filename <- glue::glue("Figures/431/{params$param}_prorefratio_log_{speciesgroup}.png")
+  # Save again, but this time on log scale  
+  filename <- sub("prorefratio_ord", "prorefratio_log", filename, fixed = TRUE)
   ggsave(filename, gg + scale_y_log10(), 
          width = 9, height = 6, dpi = 200)
   
