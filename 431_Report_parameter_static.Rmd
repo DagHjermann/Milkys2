@@ -3,7 +3,7 @@ title: "Report for parameter (431)"
 author: "DHJ"
 date: "04.10.2022"
 params:
-  param: "ANT"
+  param: "HG"
   basis_fish: "WW"
   eqsplot: "TRUE"
 output: 
@@ -12,6 +12,23 @@ output:
 toc: true
 toc_float: true
 ---
+
+```{r}
+
+# Special case: Combo plot for HG cod/duck with WW tiles + WWa trends
+
+# 1. Run HG with WW for everything down to and including '04_medians_plot', then:
+#   gg_Hg1 <- gg_tile_list[[1]] + labs(title = "Hg in cod and eider duck (trends are length-adjusted)")
+# 2. Run HG with WWa for everything before '06_combine_plots', then:
+#    gg_tile_list[[1]] <- gg_Hg1
+#    speciesgroup <- 1
+#    ggcomb_list <- list()
+# - Then run inside of loop in '06_combine_plots', but stop before "ggsave", then:
+#    filename <- "Figures/431/HG-WW-WWa_combo_1.png"
+# - Then run ggsave part in the same chunk
+
+```
+
 
 # `r params$param`  
    
@@ -354,7 +371,7 @@ for (speciesgroup in speciesgroups){
   # Save
   ggsave(filename, ggcomb_list[[speciesgroup]], width = 14, height = 8, dpi = 200)
     
-  # MAke and save legend
+  # Make and save legend
   filename <- glue::glue("Figures/431/_combo_legend.png")
   ggsave(filename, ggdraw(ggcomb_legend), width = 2, height = 4, dpi = 200)
   
