@@ -3,9 +3,10 @@ title: "Report for parameter (431)"
 author: "DHJ"
 date: "04.10.2022"
 params:
-  param: "HG"
+  param: "MCCP eksl. LOQ"
   basis_fish: "WW"
   eqsplot: "TRUE"
+  ratioplot_trend: "FALSE"
 output: 
   html_document:
   keep_md: false
@@ -15,7 +16,7 @@ toc_float: true
 
 ```{r}
 
-# Special case: Combo plot for HG cod/duck with WW tiles + WWa trends
+# Special case 1: Combo plot for HG cod/duck with WW tiles + WWa trends
 
 # 1. Run HG with WW for everything down to and including '04_medians_plot', then:
 #   gg_Hg1 <- gg_tile_list[[1]] + labs(title = "Hg in cod and eider duck (trends are length-adjusted)")
@@ -26,6 +27,15 @@ toc_float: true
 # - Then run inside of loop in '06_combine_plots', but stop before "ggsave", then:
 #    filename <- "Figures/431/HG-WW-WWa_combo_1.png"
 # - Then run ggsave part in the same chunk
+
+# Special case 2: 'SCCP eksl. LOQ' + 'MCCP eksl. LOQ' 
+# - Combo plot for both: Run from top until '04_medians_plot' - then run the part inside 'FALSE' at the end of that chunk
+#     Results in combo plot without trend part  
+#     (do NOT run '06_combine_plots', whcich will overwrite your plots)
+# - Ratio plots: 
+#     no Proref ratios for any of them
+#     EQS plot for 'MCCP eksl. LOQ' - set 'ratioplot_trend' above = 'FALSE' - then run      
+
 
 ```
 
@@ -188,7 +198,8 @@ for (speciesgroup in 1:2){
       mutate(
         Value_txt = case_when(
           is.na(FLAG1) ~ signif2(Value, 2, maxdigits = 5),
-          !is.na(FLAG1) ~ paste0("<", signif2(Value, 2, maxdigits = 4))
+          !is.na(FLAG1) & Value > 0 ~ paste0("<", signif2(Value, 2, maxdigits = 4)),
+          !is.na(FLAG1) & Value == 0 ~ "0"                                # for 'SCCP eksl. LOQ' + 'MCCP eksl. LOQ'
         )
       )
     
@@ -229,7 +240,17 @@ for (speciesgroup in 1:2){
 if (FALSE){
   gg_tile_list[[1]]
   gg_tile_list[[2]]
+  
+  # Special case: SCCP and MCCP (eksl. LOQ)
+  width_tileplot_only <- 2.7 / (2.7 + 0.75 + 1.25)
+  for (speciesgroup in 1:2){
+    filename <- glue::glue("Figures/431/{params$param}_combo_{speciesgroup}.png")
+    ggsave(filename, gg_tile_list[[speciesgroup]], width = 14*width_tileplot_only, height = 8, dpi = 200)
+  }
+  
 }
+
+
 
 ```
 
@@ -582,25 +603,48 @@ if (params$eqsplot == TRUE){
       plot_title <- paste0("EQS ratio, ", params$param, " in ", speciesgroup_txt_proref[[speciesgroup]])
     }
     
-    gg <- ggplot(data_proref_medians, 
-                 aes(Station, EQS_ratio)) +
-      # The next line (median points) needs to be here (even if it is repeated after the sample points) to keep x order correct
-      geom_point(aes(fill = Trend_color, shape = Trend_color), colour = "black", size = 3) +
-      geom_point(data = subset(data_proref_samples, is.na(FLAG1)), color = "grey50", shape = 1, size = 2) +
-      geom_point(data = subset(data_proref_samples, !is.na(FLAG1)), color = "grey50", shape = 6, size = 2) +
-      geom_linerange(aes(ymin = EQS_ratio_lo, ymax = EQS_ratio_hi, colour = Trend_color), size = 1) +
-      geom_point(aes(fill = Trend_color, shape = Trend_color), colour = "black", size = 3) +
-      scale_colour_manual(values = trend_colours, drop = FALSE) +
-      scale_fill_manual(values = trend_colours, drop = FALSE) +
-      scale_shape_manual(values = trend_shapes, drop = FALSE) +
-      geom_hline(yintercept = 1, color = "red2", linetype = "dashed") +
-      annotate("text", x = -1.7, y = 1, label = "EQS", color = "red2", hjust = 0, vjust = -0.3) +
-      coord_cartesian(xlim = c(-1.5, length(data_proref_medians$Station))) +
-      labs(title = plot_title, 
-           y = "Concentration/EQS") +
-      theme_bw() +
-      theme(legend.title = element_blank()) +
-      ggeasy::easy_rotate_x_labels(angle = -45) 
+    if (params$ratioplot_trend == "TRUE"){
+      
+      gg <- ggplot(data_proref_medians, 
+                   aes(Station, EQS_ratio)) +
+        # The next line (median points) needs to be here (even if it is repeated after the sample points) to keep x order correct
+        geom_point(aes(fill = Trend_color, shape = Trend_color), colour = "black", size = 3) +
+        geom_point(data = subset(data_proref_samples, is.na(FLAG1)), color = "grey50", shape = 1, size = 2) +
+        geom_point(data = subset(data_proref_samples, !is.na(FLAG1)), color = "grey50", shape = 6, size = 2) +
+        geom_linerange(aes(ymin = EQS_ratio_lo, ymax = EQS_ratio_hi, colour = Trend_color), size = 1) +
+        geom_point(aes(fill = Trend_color, shape = Trend_color), colour = "black", size = 3) +
+        scale_colour_manual(values = trend_colours, drop = FALSE) +
+        scale_fill_manual(values = trend_colours, drop = FALSE) +
+        scale_shape_manual(values = trend_shapes, drop = FALSE) +
+        geom_hline(yintercept = 1, color = "red2", linetype = "dashed") +
+        annotate("text", x = -1.7, y = 1, label = "EQS", color = "red2", hjust = 0, vjust = -0.3) +
+        coord_cartesian(xlim = c(-1.5, length(data_proref_medians$Station))) +
+        labs(title = plot_title, 
+             y = "Concentration/EQS") +
+        theme_bw() +
+        theme(legend.title = element_blank()) +
+        ggeasy::easy_rotate_x_labels(angle = -45) 
+      
+    } else {
+      
+      gg <- ggplot(data_proref_medians, 
+                   aes(Station, EQS_ratio)) +
+        # The next line (median points) needs to be here (even if it is repeated after the sample points) to keep x order correct
+        geom_point(colour = "black", size = 3) +
+        geom_point(data = subset(data_proref_samples, is.na(FLAG1)), color = "grey50", shape = 1, size = 2) +
+        geom_point(data = subset(data_proref_samples, !is.na(FLAG1)), color = "grey50", shape = 6, size = 2) +
+        geom_linerange(aes(ymin = EQS_ratio_lo, ymax = EQS_ratio_hi), size = 1) +
+        geom_point(colour = "black", size = 3) +
+        geom_hline(yintercept = 1, color = "red2", linetype = "dashed") +
+        annotate("text", x = -1.7, y = 1, label = "EQS", color = "red2", hjust = 0, vjust = -0.3) +
+        coord_cartesian(xlim = c(-1.5, length(data_proref_medians$Station))) +
+        labs(title = plot_title, 
+             y = "Concentration/EQS") +
+        theme_bw() +
+        theme(legend.title = element_blank()) +
+        ggeasy::easy_rotate_x_labels(angle = -45) 
+      
+    }
     
     # Add proref line on EQS plot
     proref <- data_proref_medians$Proref_line
