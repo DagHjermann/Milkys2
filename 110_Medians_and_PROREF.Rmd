@@ -395,7 +395,7 @@ if (FALSE){
 
 ```
 
-### Add data  
+### Add PAH met.data  
 ```{r}
 
 data_med_1_added_pahmetab <- bind_rows(
@@ -405,6 +405,57 @@ data_med_1_added_pahmetab <- bind_rows(
 
 ```
 
+
+## 3C. Fix "SCCP eksl. LOQ" and "MCCP eksl. LOQ"  
+
+* For these, FLAG1 is not used in the raw data, and VALUE_WW can be 0   
+* Example: 30B in 2021 has values 7.0, 8.1, 8.5, + 12 cases where value = 0   
+* For cases where >= 50% of the data are 0, we decide to use lowest data >0 and set Over_LOQ based on number of values >0     
+    - if no data is over zero, we use value = 0 
+
+```{r}
+
+params <- c("SCCP eksl. LOQ", "MCCP eksl. LOQ")
+
+data_med_ccp <- list()
+
+for (param in params){
+
+  # param <- "SCCP eksl. LOQ"
+  
+  df1 <- data_all %>%
+    filter(PARAM %in% param) 
+  xtabs(~STATION_CODE + MYEAR, df1)
+  df2 <- df1 %>%
+    group_by(MYEAR, STATION_CODE, LATIN_NAME, TISSUE_NAME, PARAM, UNIT) %>% 
+    summarise(
+      N = n(),
+      Over_LOQ = sum(VALUE_WW > 0),
+      Median = median(VALUE_WW),
+      Min_over_zero = min(VALUE_WW[VALUE_WW > 0]),
+      DRYWT = median(DRYWT),
+      FAT_PERC = median(FAT_PERC),
+      .groups = "drop"
+    ) %>%
+    mutate(
+      VALUE_WW = case_when(
+        Over_LOQ >= N/2 ~ Median,
+        Over_LOQ < N/2 & Over_LOQ > 0 ~ Min_over_zero,
+        Over_LOQ == 0 ~ 0)
+    )
+  
+  data_med_ccp[[param]] <- df2 %>%
+    select(-Median, -Min_over_zero)
+  
+}
+
+data_med_1_fixed_ccp <- data_med_1_added_pahmetab %>%
+  filter(!PARAM %in% params) %>%
+  bind_rows(data_med_ccp[["SCCP eksl. LOQ"]]) %>%
+  bind_rows(data_med_ccp[["MCCP eksl. LOQ"]])
+
+
+```
 
 
 ## 4. Add Proref  
