@@ -264,22 +264,29 @@ if (nrow(data_med_1a) == nrow(data_med_1b)){
 ### Downloading data  
 ```{r}
 
-# PYR1OH data for all years
-df1 <- get_ices_biotadata(param = "PYR1OH", country = 58)
-df2 <- get_ices_biotadata(param = "BAP3OH", country = 58)
-df3 <- get_ices_biotadata(param = "PA1OH", country = 58)
+# The ICES database sometimes hangs, therefore we can also get data from the previous dataset  
+# - see end of next chunk  
+get_data_from_ICES <- FALSE 
 
-nrow(df1); nrow(df2); nrow(df3);
-
-cat("Check PYR1OH data: \n\n")
-xtabs(~STATN + MYEAR, df1)
-
-if (FALSE){
-  df1 %>% 
-    count(STATN, MYEAR) %>%
-    arrange(STATN, MYEAR)
+if (get_data_from_ICES){
+  
+  # PYR1OH data for all years
+  df1 <- get_ices_biotadata(param = "PYR1OH", country = 58)
+  df2 <- get_ices_biotadata(param = "BAP3OH", country = 58)
+  df3 <- get_ices_biotadata(param = "PA1OH", country = 58)
+  
+  nrow(df1); nrow(df2); nrow(df3);
+  
+  cat("Check PYR1OH data: \n\n")
+  xtabs(~STATN + MYEAR, df1)
+  
+  if (FALSE){
+    df1 %>% 
+      count(STATN, MYEAR) %>%
+      arrange(STATN, MYEAR)
+  }
+  
 }
-
 
 ```
 
@@ -287,34 +294,50 @@ if (FALSE){
 
 ```{r}
 
-extract_first_word <- function(string, pattern_word_break = "[[[:blank:]]"){
-  m <- regexpr(pattern_word_break, string)
-  substr(string, 1, m-1)
-}
-# Test (vectorised)
-# extract_first_word(c("36B Færder area - torsk lever 7 og 11", "36B2 Færder area - torsk muskel 5")) 
-
-data_medians_ices_1 <- bind_rows(df1, df2, df3) %>%
-  mutate(STATION_CODE = extract_first_word(STATN),
-         TISSUE_NAME = "Galle",
-         UNIT = case_when(
-           MUNIT %in% 'ug/kg' ~ "UG_P_KG",
-           MUNIT %in% 'ng/g' ~ "UG_P_KG",
-           TRUE ~ as.character(NA))
-  ) %>%
-  rename(LATIN_NAME = Species,
-         FLAG1 = QFLAG) %>%
-  # Calculate median perstation/year/parameter
-  group_by(MYEAR, STATION_CODE, LATIN_NAME, TISSUE_NAME, PARAM, UNIT) %>%
-  summarise(N = n(),
-            VALUE_WW = median(Value),
-            Over_LOQ = sum(is.na(FLAG1)),
-            .groups = "drop"
-            )
-
-if (sum(is.na(data_medians_ices_1$UNIT))>0){
-  stop("There are unidentified units!")
-  table(bind_rows(df1, df2, df3)$MUNIT)
+if (get_data_from_ICES){
+  
+  extract_first_word <- function(string, pattern_word_break = "[[[:blank:]]"){
+    m <- regexpr(pattern_word_break, string)
+    substr(string, 1, m-1)
+  }
+  # Test (vectorised)
+  # extract_first_word(c("36B Færder area - torsk lever 7 og 11", "36B2 Færder area - torsk muskel 5")) 
+  
+  data_medians_ices_1 <- bind_rows(df1, df2, df3) %>%
+    mutate(STATION_CODE = extract_first_word(STATN),
+           TISSUE_NAME = "Galle",
+           UNIT = case_when(
+             MUNIT %in% 'ug/kg' ~ "UG_P_KG",
+             MUNIT %in% 'ng/g' ~ "UG_P_KG",
+             TRUE ~ as.character(NA))
+    ) %>%
+    rename(LATIN_NAME = Species,
+           FLAG1 = QFLAG) %>%
+    # Calculate median perstation/year/parameter
+    group_by(MYEAR, STATION_CODE, LATIN_NAME, TISSUE_NAME, PARAM, UNIT) %>%
+    summarise(N = n(),
+              VALUE_WW = median(Value),
+              Over_LOQ = sum(is.na(FLAG1)),
+              .groups = "drop"
+    )
+  
+  if (sum(is.na(data_medians_ices_1$UNIT))>0){
+    stop("There are unidentified units!")
+    table(bind_rows(df1, df2, df3)$MUNIT)
+  }
+  
+} else {
+  
+  # Just use the previous data  
+  
+  data_med_prev <- readRDS("Data/110_mediandata_updated_2022-09-01.rds") %>%
+    filter(PARAM %in% c("PYR1OH", "BAP3OH", "PA1OH") & Basis %in% "WW")
+  
+  data_medians_ices_1 <- data_med_prev %>%
+    select(MYEAR, STATION_CODE, LATIN_NAME, TISSUE_NAME, PARAM, UNIT,
+           DRYWT, FAT_PERC, 
+           VALUE_WW = Value, N = N_median, Over_LOQ)
+  
 }
 
 ```
@@ -340,6 +363,7 @@ if (FALSE){
     xtabs(~STATION_CODE + MYEAR, .)
 
 }
+
 
 # Add 'data_already_there' variable  
 # If data_already_there = 1, the data have already been added 
@@ -413,7 +437,7 @@ write.csv(proref_updated03 %>% rename(Proref = Q95), "Input_data/Lookup_tables/L
 ### Add PROREF data to medians   
 ```{r}
 
-data_med_2 <- data_med_1_added_pahmetab %>%
+data_med_2 <- data_med_1_fixed_ccp %>%
   pivot_longer(
     cols = c(VALUE_WW, VALUE_DW, VALUE_FB, VALUE_WWa, VALUE_DWa, VALUE_FBa), 
     names_to = "Basis", 
@@ -476,6 +500,15 @@ saveRDS(data_med_3, filename)
 
 cat("Data of medians saved as: \n")
 cat(" ", filename, "\n")
+
+```
+
+### Read back  
+```{r}
+
+if (FALSE){
+  data_med_3 <- readRDS("Data/110_mediandata_updated_2022-09-23.rds")
+}
 
 ```
 
