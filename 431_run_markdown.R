@@ -6,7 +6,7 @@ library(dplyr)
 lookup_eqs <- read.csv("Input_data/Lookup_tables/Lookup_EQS_limits.csv") %>%
   filter(Basis == "WW")
 
-params_all <- c("AG", "AS", "CD", "CO", "CR", "CU", "HG-WW", "HG-WWa", "NI", "PB", "ZN", 
+params_all <- c("AG", "AS", "CD", "CO", "CR", "CU", "HG", "NI", "PB", "ZN", 
   "BDE47", "BDE99", "BDE100", "BDE153", 
   "HBCDA", "HBCDD", "CB118", 
   "CB138",  "CB153", 
@@ -16,6 +16,8 @@ params_all <- c("AG", "AS", "CD", "CO", "CR", "CU", "HG-WW", "HG-WWa", "NI", "PB
   "HCB", "QCB", "HCHG", "DDEPP", 
   "TBT", "TPhT")
 
+# Must be done manually (see notes in start of script 431):
+# 'SCCP eksl. LOQ' + 'MCCP eksl. LOQ'
 
 # stops in eqs plot:
 # "DDEPP" 
@@ -23,9 +25,13 @@ params_all <- c("AG", "AS", "CD", "CO", "CR", "CU", "HG-WW", "HG-WWa", "NI", "PB
 # D5 
 # - 06_ratio_data_2 - Error in `left_join()`: ! Can't join on `x$STATION_CODE` x `y$STATION_CODE` because of incompatible type
 
-not_working <- c("DDEPP", "D5", "HCHG", "TBT", "TPhT")
+not_working <- c("DDEPP", "D5", "HCHG", "TBT", "TPhT", "ANT")
 params_all_working <- params_all[!params_all %in% not_working]
 
+params_all_working <- "HCHG"
+
+# dput(params_all_working)
+# params_all_working <- c("NAP", "BAA", "BAP", "FLU", "PYR", "HCB", "QCB")
 
 # Ad hoq
 # params1 <- c("AS", "CR", "NI", "ZN", "BDE99", "BDE153", "PYR", "D5")
@@ -47,15 +53,12 @@ for (param in params_all_working){
   eqsplot <- as.character(param %in% lookup_eqs$PARAM)
   eqsplot
   
-  if (param == "HG-WWa"){
-    param2 <- "HG"
-    basis_fish <- "WWa"
-  } else if (param == "HG-WW"){
-    param2 <- "HG"
-    basis_fish <- "WW"
+  if (param == "HG"){
+    basis_medians <- "WW"
+    basis_trends <- "WWa"
   } else {
-    param2 <- param
-    basis_fish <- "WW"
+    basis_medians <- "WW"
+    basis_trends <- "WW"
   }
   
   # Render HTML and .md files  
@@ -63,8 +66,9 @@ for (param in params_all_working){
     input = '431_Report_parameter_static.Rmd',          
     output_file = paste0('431_reports/Report_', param),                   # change here
     params = list(
-      param = param2,                 # change here
-      basis_fish = basis_fish,
+      param = param,                 # change here
+      basis_medians = basis_medians,
+      basis_trends = basis_trends,
       eqsplot = eqsplot)
   )
   

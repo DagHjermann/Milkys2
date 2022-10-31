@@ -205,6 +205,8 @@ if (FALSE){
   check %>% distinct(PARAM, STATION_CODE, LATIN_NAME, TISSUE_NAME, Basis, Station) %>% filter(STATION_CODE == "30B") %>% View("30B")
   check %>% filter(STATION_CODE == "30B") %>% View("30B")
   
+  check <- get_data_medians("HG", "Gadus morhua", "Muskel", "WWa", 2021)
+  
 }
 
 
@@ -285,7 +287,7 @@ if (FALSE){
 
 
 get_data_raw <- function(param, species, tissue, basis, include_year,
-                         filename_109 = "Data/109_adjusted_data_2022-09-01.rds",
+                         filename_109 = "Data/109_adjusted_data_2022-09-23.rds",
                          filename_lookup_substancegroups = "Input_data/Lookup_tables/Lookup table - substance groups.csv",
                          filename_lookup_stations= "Input_data/Lookup_tables/Lookup_stationorder.csv",
                          filename_lookup_eqs = "Input_data/Lookup_tables/Lookup_EQS_limits.csv",
@@ -410,16 +412,29 @@ if (FALSE){
 
 get_data_trends <- function(data_medians,
                             filename_trends = "Data/125_results_2021_07_output/126_df_trend_2021.rds",
+                            basis,
                             include_year){
   
-  dat_trends_all <- readRDS(filename_trends) %>%
-    filter(
-      PARAM %in% unique(data_medians$PARAM),
-      LATIN_NAME %in% unique(data_medians$LATIN_NAME),
-      TISSUE_NAME %in% unique(data_medians$TISSUE_NAME),
-      STATION_CODE %in% unique(data_medians$STATION_CODE),
-      Basis %in% unique(data_medians$Basis)
+  spp <- unique(data_medians$LATIN_NAME)
+
+  dat_trends_list <- list()
+  for (species in spp){
+    
+    if (basis == "WWa" & species != "Gadus morhua"){
+      basis <- "WW"
+    }
+    
+    dat_trends_list[[species]] <- readRDS(filename_trends) %>%
+      filter(
+        PARAM %in% unique(data_medians$PARAM),
+        LATIN_NAME %in% species,
+        TISSUE_NAME %in% unique(data_medians$TISSUE_NAME),
+        STATION_CODE %in% unique(data_medians$STATION_CODE),
+        Basis %in% basis
       )
+  }
+  
+  dat_trends_all <- bind_rows(dat_trends_list)
   
   if (nrow(dat_trends_all) > 0){
   
@@ -435,7 +450,7 @@ get_data_trends <- function(data_medians,
   
   data_medians_series <- data_medians %>%
     filter(MYEAR %in% include_year) %>%
-    distinct(PARAM, STATION_CODE, LATIN_NAME, TISSUE_NAME, Basis, Station)
+    distinct(PARAM, STATION_CODE, LATIN_NAME, TISSUE_NAME, Station)
   
   # This is done to ensure that stations lacking in 'dat_trends_all' are included as two rows
   #   although without trend info
@@ -446,7 +461,7 @@ get_data_trends <- function(data_medians,
   
   dat_trends_01 <- data_medians_series %>%
     left_join(dat_trends_all,
-              by = c("PARAM", "STATION_CODE", "LATIN_NAME", "TISSUE_NAME", "Basis", "Trend_type"))
+              by = c("PARAM", "STATION_CODE", "LATIN_NAME", "TISSUE_NAME", "Trend_type"))
   
   dat_trends_02 <-  dat_trends_01 %>%
     mutate(
@@ -494,7 +509,7 @@ if (FALSE){
 
 if (FALSE){
   
-  dat_raw <- readRDS("Data/109_adjusted_data_2022-09-01.rds")  
+  dat_raw <- readRDS("Data/109_adjusted_data_2022-09-23.rds")  
   
   # LOQ median values for all parameters
   dat_raw %>%

@@ -3,10 +3,11 @@ title: "Report for parameter (431)"
 author: "DHJ"
 date: "04.10.2022"
 params:
-  param: "MCCP eksl. LOQ"
+  param: "HG"
   basis_medians: "WW"
+  basis_trends: "WWa"
   eqsplot: "TRUE"
-  ratioplot_trend: "FALSE"
+  ratioplot_trend: "TRUE"
 output: 
   html_document:
   keep_md: false
@@ -14,19 +15,20 @@ toc: true
 toc_float: true
 ---
 
+
 ```{r}
 
-# Special case 1: Combo plot for HG cod/duck with WW tiles + WWa trends
+# Normal 'params' (see heading above)
+# - WW for both 'basis_medians' and 'basis_trends' (exception for Hg, see special case 1 below)  
+# - eqsplot "TRUE" or "FALSE" depending on whether EQS exists or not (see 431_run_markdown)   
+# - ratioplot_trend "TRUE" normally (exception for SCCP and MCCP, see special case 1 below)
 
-# 1. Run HG with WW for everything down to and including '04_medians_plot', then:
-#   gg_Hg1 <- gg_tile_list[[1]] + labs(title = "Hg in cod and eider duck (trends are length-adjusted)")
-# 2. Run HG with WWa for everything before '06_combine_plots', then:
-#    gg_tile_list[[1]] <- gg_Hg1
-#    speciesgroup <- 1
-#    ggcomb_list <- list()
-# - Then run inside of loop in '06_combine_plots', but stop before "ggsave", then:
-#    filename <- "Figures/431/HG-WW-WWa_combo_1.png"
-# - Then run ggsave part in the same chunk
+# Special case 1: Hg plots  
+# - Needs
+#   1) Combo plot for HG cod/duck with WW tiles + WWa trends
+#   2) EQS/Proref plot for HG cod/duck with WW for y-axis (medians plus points) + WWa for trends (color + shape of median)
+# - Set 'basis_medians' = 'WW'
+# - Set 'basis_trends' = 'WWa'
 
 # Special case 2: 'SCCP eksl. LOQ' + 'MCCP eksl. LOQ' 
 # - Combo plot for both: Run from top until '04_medians_plot' - then run the part inside 'FALSE' at the end of that chunk
@@ -269,11 +271,11 @@ trend_fill <- c("red2", "green2", "grey20") %>% setNames(colour_order)
 
 dat_trends_plot_list <- purrr::map(
   dat_medians_list, 
-  get_data_trends, include_year = current_year
+  get_data_trends, basis = params$basis_trends, include_year = current_year
 )
 
 # debugonce(get_data_trends)
-# chck <- get_data_trends(dat_medians_list[[1]],  include_year = current_year)
+# chck <- get_data_trends(dat_medians_list[[1]],  basis = "WWa", include_year = current_year)
 # chck <- get_data_trends(dat_medians_list[[2]],  include_year = current_year)
 
 # table(addNA(dat_trends_plot_list[[1]]$Station))
@@ -383,8 +385,8 @@ for (speciesgroup in speciesgroups){
   ggcomb_legend <- cowplot::get_legend(gg_tile_list[[speciesgroup]])
   
   # Set name of figure file (mercury in cod+birds is treated as a special case)
-  if (params$param %in% "HG" & speciesgroup == 1){
-    filename <- glue::glue("Figures/431/{params$param}-{params$basis_medians}_combo_{speciesgroup}.png")
+  if (params$basis_medians != params$basis_trends & speciesgroup == 1){
+    filename <- glue::glue("Figures/431/{params$param}-{params$basis_medians}-{params$basis_trends}_combo_{speciesgroup}.png")
   } else {
     filename <- glue::glue("Figures/431/{params$param}_combo_{speciesgroup}.png")
   }
@@ -421,13 +423,7 @@ for (speciesgroup in speciesgroups){
 # Note: the 'current_year' in get_data_raw means "only series that includes current_year",
 #   previous years are also included
 
-# debugonce(get_data_raw)  
-if (params$param == "HG"){
-  dat_raw1 <- get_data_raw(params$param, "Gadus morhua", "Muskel", "WWa", include_year=current_year)  
-} else {
-  dat_raw1 <- get_data_raw(params$param, "Gadus morhua", "Lever", "WW", include_year=current_year)  
-}
-
+dat_raw1 <- get_data_raw(params$param, "Gadus morhua", "Muskel", params$basis_medians, include_year=current_year)  
 dat_raw2 <- get_data_raw(params$param, "Somateria mollissima", "Blod", "WW", include_year=current_year)
 dat_raw3 <- get_data_raw(params$param, "Somateria mollissima", "Egg", "WW", include_year=current_year)  
 
@@ -539,7 +535,7 @@ for (speciesgroup in speciesgroups){
       dat_trends_plot_list[[speciesgroup]] %>% 
         filter(Trend_type %in% "short") %>%
         select(PARAM, LATIN_NAME, TISSUE_NAME, STATION_CODE, Basis, Trend_color),
-      by = c("PARAM", "LATIN_NAME", "TISSUE_NAME", "STATION_CODE", "Basis")
+      by = c("PARAM", "LATIN_NAME", "TISSUE_NAME", "STATION_CODE")
     )
   
   sel <- is.na(dat_last_list[[speciesgroup]]$Trend_color)
@@ -654,8 +650,8 @@ if (params$eqsplot == TRUE){
       annotate("text", x = -1.7, y = proref, label = "PROREF", color = "blue2", hjust = 0, vjust = -0.3)
     
     # Set name of figure file (mercury in cod+birds is treated as a special case)
-    if (params$param %in% "HG" & speciesgroup == 1){
-      filename <- glue::glue("Figures/431/{params$param}-{params$basis_medians}_eqsratio_ord_{speciesgroup}.png")
+    if (params$basis_medians != params$basis_trends & speciesgroup == 1){
+      filename <- glue::glue("Figures/431/{params$param}-{params$basis_medians}-{params$basis_trend}_eqsratio_ord_{speciesgroup}.png")
     } else {
       filename <- glue::glue("Figures/431/{params$param}_eqsratio_ord_{speciesgroup}.png")
     }
@@ -753,8 +749,8 @@ for (speciesgroup in speciesgroups){
   plot_prorefratio_list[[speciesgroup]] <- gg
   
   # Set name of figure file (mercury in cod+birds is treated as a special case)
-  if (params$param %in% "HG" & speciesgroup == 1){
-    filename <- glue::glue("Figures/431/{params$param}-{params$basis_medians}_prorefratio_ord_{speciesgroup}.png")
+  if (params$basis_medians != params$basis_trends & speciesgroup == 1){
+    filename <- glue::glue("Figures/431/{params$param}-{params$basis_medians}-{params$basis_trend}_prorefratio_ord_{speciesgroup}.png")
   } else {
     filename <- glue::glue("Figures/431/{params$param}_prorefratio_ord_{speciesgroup}.png")
   }
