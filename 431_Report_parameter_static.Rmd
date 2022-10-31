@@ -4,7 +4,7 @@ author: "DHJ"
 date: "04.10.2022"
 params:
   param: "MCCP eksl. LOQ"
-  basis_fish: "WW"
+  basis_medians: "WW"
   eqsplot: "TRUE"
   ratioplot_trend: "FALSE"
 output: 
@@ -91,7 +91,7 @@ dat_temporary <- list(
   get_data_medians(param = params$param, 
                    species = "Gadus morhua",
                    tissue = ifelse(params$param %in% "HG", "Muskel", "Lever"),
-                   basis = params$basis_fish, 
+                   basis = params$basis_medians, 
                    include_year = current_year),
   get_data_medians(param = params$param, 
                    species = "Somateria mollissima",
@@ -154,7 +154,7 @@ dat_medians_list[[1]]$Station <- factor(dat_medians_list[[1]]$Station,
 
 # For Hg: add an asterisk after station names for stations that are NOT length-adjusted (for Hg only)
 # - these data are also used for 'ratio plots' (last year's concentrations)  
-if (params$param %in% "HG" & params$basis_fish %in% "WWa"){
+if (params$param %in% "HG" & params$basis_medians %in% "WWa"){
   # View(dat_medians_list[[1]])
   tab <- xtabs(~Basis + Station, dat_medians_list[[1]])
   not_length_adjusted <- colnames(tab)[tab[2,] == 0]
@@ -204,9 +204,9 @@ for (speciesgroup in 1:2){
       )
     
     # Set plot title (mercury in cod+birds is treated as a special case)
-    if (params$param %in% "HG" & speciesgroup == 1 & params$basis_fish == "WW"){
+    if (params$param %in% "HG" & speciesgroup == 1 & params$basis_medians == "WW"){
       plot_title <- paste0(dat_medians$Parameter.Name[1], " (not length-adjusted) in ", speciesgroup_txt[[speciesgroup]])
-    } else if (params$param %in% "HG" & speciesgroup == 1 & params$basis_fish == "WWa"){
+    } else if (params$param %in% "HG" & speciesgroup == 1 & params$basis_medians == "WWa"){
       plot_title <- paste0(dat_medians$Parameter.Name[1], " (length-adjusted) in ", speciesgroup_txt[[speciesgroup]])
     } else {
       plot_title <- paste0(dat_medians$Parameter.Name[1], " in ", speciesgroup_txt[[speciesgroup]])
@@ -384,7 +384,7 @@ for (speciesgroup in speciesgroups){
   
   # Set name of figure file (mercury in cod+birds is treated as a special case)
   if (params$param %in% "HG" & speciesgroup == 1){
-    filename <- glue::glue("Figures/431/{params$param}-{params$basis_fish}_combo_{speciesgroup}.png")
+    filename <- glue::glue("Figures/431/{params$param}-{params$basis_medians}_combo_{speciesgroup}.png")
   } else {
     filename <- glue::glue("Figures/431/{params$param}_combo_{speciesgroup}.png")
   }
@@ -595,9 +595,9 @@ if (params$eqsplot == TRUE){
       mutate(Station = forcats::fct_inorder(Station))
     
     # Set plot title (mercury in cod+birds is treated as a special case)
-    if (params$param %in% "HG" & speciesgroup == 1 & params$basis_fish == "WW"){
+    if (params$param %in% "HG" & speciesgroup == 1 & params$basis_medians == "WW"){
       plot_title <- paste0("EQS ratio, ", params$param, " (not length-adjusted) in ", speciesgroup_txt_proref[[speciesgroup]])
-    } else if (params$param %in% "HG" & speciesgroup == 1 & params$basis_fish == "WWa"){
+    } else if (params$param %in% "HG" & speciesgroup == 1 & params$basis_medians == "WWa"){
       plot_title <- paste0("EQS ratio, ", params$param, " (length-adjusted) in ", speciesgroup_txt_proref[[speciesgroup]])
     } else {
       plot_title <- paste0("EQS ratio, ", params$param, " in ", speciesgroup_txt_proref[[speciesgroup]])
@@ -655,7 +655,7 @@ if (params$eqsplot == TRUE){
     
     # Set name of figure file (mercury in cod+birds is treated as a special case)
     if (params$param %in% "HG" & speciesgroup == 1){
-      filename <- glue::glue("Figures/431/{params$param}-{params$basis_fish}_eqsratio_ord_{speciesgroup}.png")
+      filename <- glue::glue("Figures/431/{params$param}-{params$basis_medians}_eqsratio_ord_{speciesgroup}.png")
     } else {
       filename <- glue::glue("Figures/431/{params$param}_eqsratio_ord_{speciesgroup}.png")
     }
@@ -722,9 +722,9 @@ for (speciesgroup in speciesgroups){
     filter(FLAG1 %in% "<")
 
   # Set plot title (mercury in cod+birds is treated as a special case)
-  if (params$param %in% "HG" & speciesgroup == 1 & params$basis_fish == "WW"){
+  if (params$param %in% "HG" & speciesgroup == 1 & params$basis_medians == "WW"){
     plot_title <- paste0("Proref ratio, ", params$param, " (not length-adjusted) in ", speciesgroup_txt_proref[[speciesgroup]])
-  } else if (params$param %in% "HG" & speciesgroup == 1 & params$basis_fish == "WWa"){
+  } else if (params$param %in% "HG" & speciesgroup == 1 & params$basis_medians == "WWa"){
     plot_title <- paste0("Proref ratio, ", params$param, " (length-adjusted) in ", speciesgroup_txt_proref[[speciesgroup]])
   } else {
     plot_title <- paste0("Proref ratio, ", params$param, " in ", speciesgroup_txt_proref[[speciesgroup]])
@@ -754,7 +754,7 @@ for (speciesgroup in speciesgroups){
   
   # Set name of figure file (mercury in cod+birds is treated as a special case)
   if (params$param %in% "HG" & speciesgroup == 1){
-    filename <- glue::glue("Figures/431/{params$param}-{params$basis_fish}_prorefratio_ord_{speciesgroup}.png")
+    filename <- glue::glue("Figures/431/{params$param}-{params$basis_medians}_prorefratio_ord_{speciesgroup}.png")
   } else {
     filename <- glue::glue("Figures/431/{params$param}_prorefratio_ord_{speciesgroup}.png")
   }
