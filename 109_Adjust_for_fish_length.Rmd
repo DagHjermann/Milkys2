@@ -1262,7 +1262,24 @@ if (FALSE){
 }
 ```
 
-### c. R data file    
+### c. Check MYEAR  
+
+* Some 2021-data (28A2) are collected in January 2022  
+
+```{r}
+
+sel <- !is.na(data_all2$SAMPLE_DATE) &
+  data_all2$SAMPLE_DATE >= ymd_hms("2022-01-01 00:00:00") &
+  data_all2$SAMPLE_DATE < ymd_hms("2022-03-01 00:00:00")
+
+xtabs(~SAMPLE_DATE + STATION_CODE, data_all2[sel,])
+
+data_all2$MYEAR[sel]
+
+```
+
+
+### d. R data file    
 
 ```{r}
 
@@ -1292,7 +1309,7 @@ if (FALSE){
 
 ```
 
-### d. csv file
+### e. csv file
 ```{r}
 
 fn <- paste0("Data/109_adjusted_data_", file_date, ".csv")
@@ -1300,10 +1317,10 @@ readr::write_excel_csv(data_all2, fn, na = "")
 
 ```
 
-### c. Save last years as Excel file  
+### f. Save last years as Excel file  
 Needed by Norman and Anders   
 
-#### c1. Pick years  
+#### f1. Pick years  
 ```{r}
 from_year <- max(data_all2$MYEAR) - 4
 to_year <- max(data_all2$MYEAR)
@@ -1316,7 +1333,7 @@ cat("'data_export':", nrow(data_export), "rows")
 ```
 
 
-#### c2. Add trophic level data  
+#### f2. Add trophic level data  
 ```{r}
 data_trophiclevel <- readRDS("Input_data/104_dat3.rds") 
 
@@ -1337,7 +1354,7 @@ xtabs(~is.na(TL) + TISSUE_NAME, data_export %>% filter(MYEAR >= from_year))
 
 ```
 
-#### c3. Change tissue names  
+#### f3. Change tissue names  
 ```{r}
 
 if (FALSE){
@@ -1390,7 +1407,7 @@ table(data_export$TISSUE_NAME)
 
 ```
 
-#### c4. Pick data and save  
+#### f4. Pick data and save  
 ```{r}
 
 # 2015-selected_year   
