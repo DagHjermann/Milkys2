@@ -21,7 +21,7 @@ library(readxl)
 library(tidyr)
 
 #
-# Dropping dtplyr (it only ses 20 seconds or so in this script)
+# Dropping dtplyr (it only saves 20 seconds or so in this script)
 #
 # install.packages("dtplyr")
 # library(data.table)
@@ -211,8 +211,8 @@ Sys.time() - t0  # 19 secs (took 0.19 sec with data.table)
 ```
 
 
-### Calculate N, Det_limit and Over_LOQ
-```{r}
+### Calculate N, Det_limit, Over_LOQ, min/max and quantiles  
+```{r, warning=FALSE, message=FALSE}
 
 t0 <- Sys.time()
 
@@ -222,14 +222,17 @@ data_med_1b <- data_all %>%
     N = n(), 
     Det_limit = median(VALUE_WW[!is.na(FLAG1)]), 
     Over_LOQ = sum(is.na(FLAG1)),
+    Value_min = min(VALUE_WW, na.rm = TRUE),
+    Value_p25 = quantile(VALUE_WW, probs = 0.25, na.rm = TRUE),
+    Value_p75 = quantile(VALUE_WW, probs = 0.75, na.rm = TRUE),
+    Value_max = max(VALUE_WW, na.rm = TRUE),
     .groups = "drop") %>%
   as_tibble()
 
-Sys.time() - t0  # 4 secs
+Sys.time() - t0  # 36 secs
 
 
 ```
-
 
 ### Combine data_med_1 and data_med_2    
 Add N, Det_limit and Over_LOQ to the data set with medians  
@@ -244,7 +247,7 @@ if (nrow(data_med_1a) == nrow(data_med_1b)){
   # Join data by adding the N, Det_limit, Over_LOQ columns 
   data_med_1 <- bind_cols(
     data_med_1a,
-    data_med_1b %>% select(N, Det_limit, Over_LOQ)
+    data_med_1b %>% select(N, Det_limit, Over_LOQ, Value_min, Value_p25, Value_p75, Value_max)
   )
 } else {
   cat("data_med_1a and data_med_1b have different number of rows! Must be fixed, or use left_join(). \n")
@@ -413,7 +416,7 @@ data_med_1_added_pahmetab <- bind_rows(
 * For cases where >= 50% of the data are 0, we decide to use lowest data >0 and set Over_LOQ based on number of values >0     
     - if no data is over zero, we use value = 0 
 
-```{r}
+```{r, warning=FALSE, message=FALSE}
 
 params <- c("SCCP eksl. LOQ", "MCCP eksl. LOQ")
 
@@ -432,6 +435,10 @@ for (param in params){
       N = n(),
       Over_LOQ = sum(VALUE_WW > 0),
       Median = median(VALUE_WW),
+      Value_min = min(VALUE_WW, na.rm = TRUE),
+      Value_p25 = quantile(VALUE_WW, probs = 0.25, na.rm = TRUE),
+      Value_p75 = quantile(VALUE_WW, probs = 0.75, na.rm = TRUE),
+      Value_max = max(VALUE_WW, na.rm = TRUE),
       Min_over_zero = min(VALUE_WW[VALUE_WW > 0]),
       DRYWT = median(DRYWT),
       FAT_PERC = median(FAT_PERC),
@@ -441,7 +448,8 @@ for (param in params){
       VALUE_WW = case_when(
         Over_LOQ >= N/2 ~ Median,
         Over_LOQ < N/2 & Over_LOQ > 0 ~ Min_over_zero,
-        Over_LOQ == 0 ~ 0)
+        Over_LOQ == 0 ~ 0),
+      Det_limit = Min_over_zero
     )
   
   data_med_ccp[[param]] <- df2 %>%
@@ -538,6 +546,13 @@ Should be NA for all Q95 values
 data_med_3 %>%
   filter(STATION_CODE == "19N") %>%
   xtabs(~is.na(Q95), .)
+
+```
+### Remove names  
+```{r}
+
+names(data_med_3$Value_p25) <- NULL
+names(data_med_3$Value_p75) <- NULL
 
 ```
 

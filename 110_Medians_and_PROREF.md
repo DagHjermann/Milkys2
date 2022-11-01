@@ -21,7 +21,7 @@ library(readxl)
 library(tidyr)
 
 #
-# Dropping dtplyr (it only saves 20 seconds or so in this script)
+# Dropping dtplyr (it only ses 20 seconds or so in this script)
 #
 # install.packages("dtplyr")
 # library(data.table)
@@ -30,6 +30,7 @@ library(tidyr)
 library(dplyr, warn.conflicts = FALSE)
 library(purrr)
 
+source("002_Utility_functions.R")
 source("110_Medians_and_PROREF_functions.R")
 ```
 
@@ -42,31 +43,31 @@ Read and reformat the most recent data (by default)
 
 ```r
 
-files <- dir("Data", pattern = "109_adjusted_data") %>% rev()
+# If we have NOT length-adjusted the last year's data:
+# filepattern <- "101_data_updated_"         # entire file name except date and extension
 
-cat("Reading the last file downloaded:")
-## Reading the last file downloaded:
-cat("\n", files[1])
+# Normally, if we have length-adjusted the last year's data:
+filepattern <- "109_adjusted_data_"       # entire file name except date and extension
+
+filenumber <- 1                           # filenumber = 1 means "read the newest file"
+
+files <- dir("Data", pattern = filepattern) %>% rev()
+
+data_list <- read_rds_file("Data",
+                     files, 
+                     filenumber = filenumber,   # "1" gets the newest file   
+                     get_date = TRUE, time_since_modified = TRUE)
+## File '109_adjusted_data_2022-09-23.rds' (file number 1) has been read 
+##   This is the newest file. If you want to read an older file, put a different 'filenumber' 
 ## 
-##  109_adjusted_data_2020-08-05.rds
-cat("\n")
-cat("If you want to read a different file, replace 'files[1]' with the file you want")
-## If you want to read a different file, replace 'files[1]' with the file you want
-cat("\n\n")
+## Time since this file was modified: 
+## Time difference of 13.8049 days
 
-filename <- files[1]
-cat("Time since this file was modified: \n")
-## Time since this file was modified:
-Sys.time() - file.info(paste0("Data/", filename))$mtime
-## Time difference of 25.02326 days
+data_all <- data_list$data
 
-data_all <- readRDS(paste0("Data/", filename))
-
-# We save the date part of the text (e.g., '2020-04-23')
-# This will be used in part 10, when we save the resulting file
-pos1 <- regexpr("20", filename)[1]   # search for the first place "20" occurs inside filename
-pos2 <- pos1 + 9
-file_date <- substr(filename, pos1, pos2)    # pick out the part of the text from character no. 17 to no. 26
+# The file_date text will be used in part 10, when we save the resulting file
+cat("File date text:", data_list$file_date, "\n")
+## File date text: 2022-09-23
 ```
 
 
@@ -84,16 +85,16 @@ data_all <- homogenize_series(data_all)
 
 ```
 ## Fixing station 227G1 and 227G2 (shall count as 227G) 
-## - changed STATION_CODE for 1361 rows of data 
+## - changed STATION_CODE for 1397 rows of data 
 ## 
 ## Fixing station 36A and 36A1 (36A1 shall count as 36A) 
-## - changed STATION_CODE for 1367 rows of data 
+## - changed STATION_CODE for 2069 rows of data 
 ## 
 ## Fix VDSI and Intersex at station 71G (both shall count as PARAM = 'VDSI/Intersex') 
-## - changed PARAM for 12 rows of data
+## - changed PARAM for 14 rows of data
 ```
 
-### Check: C/N lacking for 2019  
+### Check: Is C/N lacking any years?    
 
 ```r
 if (FALSE) { 
@@ -112,8 +113,8 @@ data_all %>%
 
 ```
 ##                MYEAR
-## is.na(VALUE_WW) 2015 2016 2017 2018 2019
-##           FALSE  309  298  359  341  305
+## is.na(VALUE_WW) 2015 2016 2017 2018 2019 2020 2021
+##           FALSE  309  298  359  341  305  340  328
 ```
 
 ```r
@@ -124,8 +125,8 @@ data_all %>%
 
 ```
 ##                MYEAR
-## is.na(VALUE_WW) 2012 2013 2014 2015 2016 2017 2018 2019
-##           FALSE  238  249  272  309  298  359  341  305
+## is.na(VALUE_WW) 2012 2013 2014 2015 2016 2017 2018 2019 2020 2021
+##           FALSE  238  249  272  309  298  359  341  305  340  328
 ```
 
 ```r
@@ -142,7 +143,7 @@ if (FALSE){
 We do not update Proref values, as we don't want to have a "moving target". However, a selection of wet-weight Proref values were re-estimated for the Proref paper, so we need to use these. Thus we use a combination of   
 - proref_old, which are the Proref values used in the report for the 2017 data - is used for all parameter/basis combinattions that are not in proref_paper  
 - proref_paper, which are the Proref values used in the Proref paper (a selection of parameters, and wet weigth only)  
-These are combined to proref_updated02, which added to the data in part 4  
+These are combined to proref_updated02, which added to the data in part 4    
 
 ```r
 # Old ones 
@@ -166,6 +167,50 @@ proref_updated02 <- proref_updated01 %>%
       select(PARAM, LATIN_NAME, TISSUE_NAME, Basis, Stations, N_stations, N, Median, Q95)
   )
 ```
+  
+For Norman:  
+1.	Hvilke stasjoner inngikk A (trengs ikke for B): 
+    - 'Stations'   
+2.	Antall stasjoner for A og B  
+    - A: 'N_stations', B: mangler     
+3.	Antall verdier for A og B   
+    - A: 'N', B: Mangler   
+4.	Antall verdier over LOQ for A og B    
+    - Mangler  
+5.	PROREF verdien (gjelder bare A selvfølgelig)    
+    - 
+
+```r
+proref_old %>% names()
+```
+
+```
+##  [1] "PARAM"       "LATIN_NAME"  "TISSUE_NAME" "Basis"       "Variable"   
+##  [6] "UNIT"        "Years_start" "Years_end"   "Stations"    "N_stations" 
+## [11] "N"           "Median"      "Q90"         "Q95"         "Max"        
+## [16] "CI90"        "CI95"
+```
+
+
+
+### Fix (remove) some values with one station and PROREF = 0  
+CB81, CB126 and CB169 in blue mussel   
+
+```r
+sel <- with(proref_updated02, Q95 %in% 0 & N_stations %in% 1)
+# proref_updated02[sel,]
+proref_updated02$Q95[sel] <- NA
+proref_updated02$Stations[sel] <- NA
+proref_updated02$N_stations[sel] <- NA
+proref_updated02$N[sel] <- NA
+
+cat(sum(sel), "values set to NA \n")
+```
+
+```
+## 3 values set to NA
+```
+
 
 ### Check Proref  
 
@@ -205,11 +250,11 @@ Sys.time() - t0  # 19 secs (took 0.19 sec with data.table)
 ```
 
 ```
-## Time difference of 17.52247 secs
+## Time difference of 21.38031 secs
 ```
 
 
-### Calculate N, Det_limit and Over_LOQ
+### Calculate N, Det_limit, Over_LOQ, min/max and quantiles  
 
 ```r
 t0 <- Sys.time()
@@ -220,16 +265,19 @@ data_med_1b <- data_all %>%
     N = n(), 
     Det_limit = median(VALUE_WW[!is.na(FLAG1)]), 
     Over_LOQ = sum(is.na(FLAG1)),
+    Value_min = min(VALUE_WW, na.rm = TRUE),
+    Value_p25 = quantile(VALUE_WW, probs = 0.25, na.rm = TRUE),
+    Value_p75 = quantile(VALUE_WW, probs = 0.75, na.rm = TRUE),
+    Value_max = max(VALUE_WW, na.rm = TRUE),
     .groups = "drop") %>%
   as_tibble()
 
-Sys.time() - t0  # 4 secs
+Sys.time() - t0  # 36 secs
 ```
 
 ```
-## Time difference of 3.333287 secs
+## Time difference of 34.51405 secs
 ```
-
 
 ### Combine data_med_1 and data_med_2    
 Add N, Det_limit and Over_LOQ to the data set with medians  
@@ -244,12 +292,255 @@ if (nrow(data_med_1a) == nrow(data_med_1b)){
   # Join data by adding the N, Det_limit, Over_LOQ columns 
   data_med_1 <- bind_cols(
     data_med_1a,
-    data_med_1b %>% select(N, Det_limit, Over_LOQ)
+    data_med_1b %>% select(N, Det_limit, Over_LOQ, Value_min, Value_p25, Value_p75, Value_max)
   )
 } else {
   cat("data_med_1a and data_med_1b have different number of rows! Must be fixed, or use left_join(). \n")
 }
 ```
+
+
+## 3B. Add extra PAH metabolite data downloaded from ICES  
+
+* Parameters: PYR1OH, BAP3OH, PA1OH, i.e. the unadjusted/unnormalised values 
+    - the 'O' versions, i.e. the adjusted ones, are already there 
+* Existing in the data, but some years (e.g. 2001-2004) lacking  
+* Downloading these data from ICES    
+* NOTE: These data should be added to the Nivabasen! But that is for later  
+
+### Downloading data  
+
+```r
+# The ICES database sometimes hangs, therefore we can also get data from the previous dataset  
+# - see end of next chunk  
+get_data_from_ICES <- FALSE 
+
+if (get_data_from_ICES){
+  
+  # PYR1OH data for all years
+  df1 <- get_ices_biotadata(param = "PYR1OH", country = 58)
+  df2 <- get_ices_biotadata(param = "BAP3OH", country = 58)
+  df3 <- get_ices_biotadata(param = "PA1OH", country = 58)
+  
+  nrow(df1); nrow(df2); nrow(df3);
+  
+  cat("Check PYR1OH data: \n\n")
+  xtabs(~STATN + MYEAR, df1)
+  
+  if (FALSE){
+    df1 %>% 
+      count(STATN, MYEAR) %>%
+      arrange(STATN, MYEAR)
+  }
+  
+}
+```
+
+### Calculate median data set      
+
+
+```r
+if (get_data_from_ICES){
+  
+  extract_first_word <- function(string, pattern_word_break = "[[[:blank:]]"){
+    m <- regexpr(pattern_word_break, string)
+    substr(string, 1, m-1)
+  }
+  # Test (vectorised)
+  # extract_first_word(c("36B Færder area - torsk lever 7 og 11", "36B2 Færder area - torsk muskel 5")) 
+  
+  data_medians_ices_1 <- bind_rows(df1, df2, df3) %>%
+    mutate(STATION_CODE = extract_first_word(STATN),
+           TISSUE_NAME = "Galle",
+           UNIT = case_when(
+             MUNIT %in% 'ug/kg' ~ "UG_P_KG",
+             MUNIT %in% 'ng/g' ~ "UG_P_KG",
+             TRUE ~ as.character(NA))
+    ) %>%
+    rename(LATIN_NAME = Species,
+           FLAG1 = QFLAG) %>%
+    # Calculate median perstation/year/parameter
+    group_by(MYEAR, STATION_CODE, LATIN_NAME, TISSUE_NAME, PARAM, UNIT) %>%
+    summarise(N = n(),
+              VALUE_WW = median(Value),
+              Over_LOQ = sum(is.na(FLAG1)),
+              .groups = "drop"
+    )
+  
+  if (sum(is.na(data_medians_ices_1$UNIT))>0){
+    stop("There are unidentified units!")
+    table(bind_rows(df1, df2, df3)$MUNIT)
+  }
+  
+} else {
+  
+  # Just use the previous data  
+  
+  data_med_prev <- readRDS("Data/110_mediandata_updated_2022-09-01.rds") %>%
+    filter(PARAM %in% c("PYR1OH", "BAP3OH", "PA1OH") & Basis %in% "WW")
+  
+  data_medians_ices_1 <- data_med_prev %>%
+    select(MYEAR, STATION_CODE, LATIN_NAME, TISSUE_NAME, PARAM, UNIT,
+           DRYWT, FAT_PERC, 
+           VALUE_WW = Value, N = N_median, Over_LOQ)
+  
+}
+```
+
+### Combine with the rest   
+
+```r
+if (FALSE){
+  
+  # check variables
+  n1 <- data_med_1 %>% names()
+  n2 <- data_medians_ices_1 %>% names()
+  setdiff(n1, n2)   # names in 1 that are not in 2
+  setdiff(n2, n1)   # names in 2 that are not in 1
+  
+  # check years  
+  data_med_1 %>% 
+    filter(PARAM == "PYR1OH") %>%
+    xtabs(~STATION_CODE + MYEAR, .)
+  data_medians_ices_1 %>% 
+    filter(PARAM == "PYR1OH") %>%
+    xtabs(~STATION_CODE + MYEAR, .)
+
+}
+
+
+# Add 'data_already_there' variable  
+# If data_already_there = 1, the data have already been added 
+data_medians_ices_2 <- data_medians_ices_1 %>% 
+    left_join(
+       data_med_1 %>% 
+        filter(PARAM %in% c("PYR1OH", "BAP3OH", "PA1OH")) %>%
+        select(PARAM, MYEAR, STATION_CODE) %>%
+        mutate(data_already_there = 1)
+    )
+```
+
+```
+## Joining, by = c("MYEAR", "STATION_CODE", "PARAM")
+```
+
+```r
+sum(!is.na(data_medians_ices_2$data_already_there))
+```
+
+```
+## [1] 115
+```
+
+```r
+mean(!is.na(data_medians_ices_2$data_already_there))
+```
+
+```
+## [1] 0.4509804
+```
+
+```r
+# Data to add
+data_medians_ices_3 <- data_medians_ices_2 %>%
+  filter(is.na(data_already_there))
+
+data_medians_ices_3 %>% 
+  filter(PARAM == "PYR1OH") %>% # View()
+  xtabs(~STATION_CODE + MYEAR, .)
+```
+
+```
+##             MYEAR
+## STATION_CODE 1998 1999 2000 2001 2002 2003 2004 2008 2009 2014
+##         10B     0    0    1    1    0    0    0    0    0    0
+##         10F     0    0    1    1    0    0    0    0    0    0
+##         15B     1    1    0    1    1    1    1    1    0    1
+##         15F     0    1    0    1    0    0    0    0    0    0
+##         21F     0    1    0    0    0    0    0    0    0    0
+##         23B     1    1    1    1    1    1    1    1    1    1
+##         30B     1    1    1    1    1    1    1    1    1    1
+##         36B     1    1    1    1    0    0    0    0    0    0
+##         36F     0    1    1    1    0    0    0    0    0    0
+##         53B     1    1    1    1    1    1    1    1    1    1
+##         67B     1    1    1    1    0    0    0    0    0    0
+##         98B2    0    0    1    1    0    0    0    0    0    0
+##         98F2    0    0    1    1    0    0    0    0    0    0
+```
+
+```r
+if (FALSE){
+  # for comparison
+  data_medians_ices_2 %>% 
+    filter(PARAM == "PYR1OH") %>%
+    xtabs(~STATION_CODE + MYEAR, .)
+}
+```
+
+### Add PAH met.data  
+
+```r
+data_med_1_added_pahmetab <- bind_rows(
+  data_med_1,
+  data_medians_ices_3
+)
+```
+
+
+## 3C. Fix "SCCP eksl. LOQ" and "MCCP eksl. LOQ"  
+
+* For these, FLAG1 is not used in the raw data, and VALUE_WW can be 0   
+* Example: 30B in 2021 has values 7.0, 8.1, 8.5, + 12 cases where value = 0   
+* For cases where >= 50% of the data are 0, we decide to use lowest data >0 and set Over_LOQ based on number of values >0     
+    - if no data is over zero, we use value = 0 
+
+
+```r
+params <- c("SCCP eksl. LOQ", "MCCP eksl. LOQ")
+
+data_med_ccp <- list()
+
+for (param in params){
+
+  # param <- "SCCP eksl. LOQ"
+  
+  df1 <- data_all %>%
+    filter(PARAM %in% param) 
+  xtabs(~STATION_CODE + MYEAR, df1)
+  df2 <- df1 %>%
+    group_by(MYEAR, STATION_CODE, LATIN_NAME, TISSUE_NAME, PARAM, UNIT) %>% 
+    summarise(
+      N = n(),
+      Over_LOQ = sum(VALUE_WW > 0),
+      Median = median(VALUE_WW),
+      Value_min = min(VALUE_WW, na.rm = TRUE),
+      Value_p25 = quantile(VALUE_WW, probs = 0.25, na.rm = TRUE),
+      Value_p75 = quantile(VALUE_WW, probs = 0.75, na.rm = TRUE),
+      Value_max = max(VALUE_WW, na.rm = TRUE),
+      Min_over_zero = min(VALUE_WW[VALUE_WW > 0]),
+      DRYWT = median(DRYWT),
+      FAT_PERC = median(FAT_PERC),
+      .groups = "drop"
+    ) %>%
+    mutate(
+      VALUE_WW = case_when(
+        Over_LOQ >= N/2 ~ Median,
+        Over_LOQ < N/2 & Over_LOQ > 0 ~ Min_over_zero,
+        Over_LOQ == 0 ~ 0),
+      Det_limit = Min_over_zero
+    )
+  
+  data_med_ccp[[param]] <- df2 %>%
+    select(-Median, -Min_over_zero)
+  
+}
+
+data_med_1_fixed_ccp <- data_med_1_added_pahmetab %>%
+  filter(!PARAM %in% params) %>%
+  bind_rows(data_med_ccp[["SCCP eksl. LOQ"]]) %>%
+  bind_rows(data_med_ccp[["MCCP eksl. LOQ"]])
+```
+
 
 ## 4. Add Proref  
 
@@ -275,24 +566,33 @@ proref_updated03 <- bind_rows(
 )
 ```
 
-### Add PROREF data to medians ----
+### Save    
 
 ```r
-data_med_2 <- data_med_1 %>%
+write.csv(proref_updated03 %>% rename(Proref = Q95), "Input_data/Lookup_tables/Lookup_proref.csv")
+```
+
+
+### Add PROREF data to medians   
+
+```r
+data_med_2 <- data_med_1_fixed_ccp %>%
   pivot_longer(
     cols = c(VALUE_WW, VALUE_DW, VALUE_FB, VALUE_WWa, VALUE_DWa, VALUE_FBa), 
     names_to = "Basis", 
     values_to = "Value") %>%
-  mutate(Basis = stringr::str_sub(Basis, start = 7))
+  mutate(Basis = substr(Basis, start = 7, stop = 100))
 
 data_med_3 <- data_med_2 %>%
-  left_join(proref_updated03 %>% select(-N), by = c("LATIN_NAME", "TISSUE_NAME", "PARAM", "Basis"))
+  rename(N_median = N) %>%
+  left_join(proref_updated03 %>% rename(Proref_N = N), 
+            by = c("LATIN_NAME", "TISSUE_NAME", "PARAM", "Basis"))
 
 nrow(data_med_2)  # 525960
 ```
 
 ```
-## [1] 525966
+## [1] 613884
 ```
 
 ```r
@@ -300,8 +600,21 @@ nrow(data_med_3)  # 525960
 ```
 
 ```
-## [1] 525966
+## [1] 613884
 ```
+
+### Remove SCCP/MCCP prorefs (for now)   
+
+But there are none  
+
+
+```r
+sel <- with(data_med_3, grepl("CCP eksl. LOQ", PARAM))
+
+# View(data_med_3[sel,])
+# table(data_med_3[sel,]$Q95)
+```
+
 
 ### Checks 
 
@@ -317,7 +630,7 @@ data_med_3 %>%
 ```
 ## is.na(Q95)
 ## TRUE 
-## 3672
+## 6612
 ```
 
 #### Check C/N   
@@ -332,14 +645,20 @@ data_med_3 %>%
 ```
 ## is.na(Q95)
 ## TRUE 
-## 3672
+## 6612
+```
+### Remove names  
+
+```r
+names(data_med_3$Value_p25) <- NULL
+names(data_med_3$Value_p75) <- NULL
 ```
 
 
 ## 5. Save  
 
 ```r
-filename <- paste0("Data/110_mediandata_updated_", file_date, ".rds")
+filename <- paste0("Data/110_mediandata_updated_", data_list$file_date, ".rds")
 
 saveRDS(data_med_3, filename)
 
@@ -355,7 +674,15 @@ cat(" ", filename, "\n")
 ```
 
 ```
-##   Data/110_mediandata_updated_2020-08-05.rds
+##   Data/110_mediandata_updated_2022-09-23.rds
+```
+
+### Read back  
+
+```r
+if (FALSE){
+  data_med_3 <- readRDS("Data/110_mediandata_updated_2022-09-23.rds")
+}
 ```
 
 
