@@ -1,0 +1,76 @@
+---
+title: "Fact sheet - metals"
+author: "DHJ"
+date: "2022-11-01"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+
+---
+
+
+```{r, include=FALSE}
+
+lookup_eqs <- subset(
+  read.csv("../Input_data/Lookup_tables/Lookup_EQS_limits.csv"),
+  Basis == "WW")
+
+if (FALSE){
+  # Code for getting parameters for 'param_values' below 
+  library(dplyr)
+  # dat_raw <- readRDS("../Data/109_adjusted_data_2022-09-23.rds")  
+  dat_med <- readRDS("../Data/110_mediandata_updated_2022-09-23.rds")  
+  dat_groups <- read.csv("../Input_data/Lookup_tables/Lookup table - substance groups.csv")
+  dat_med2 <- dplyr::left_join(dat_med, subset(dat_groups, select = c(PARAM, MGR.Group)))
+  xtabs(~MGR.Group, dat_med2 %>% filter(MYEAR == 2021))
+  tab <- xtabs(~PARAM, dat_med2 %>% filter(MYEAR == 2021 & MGR.Group == "Metals"))
+  tab
+  dput(names(tab))
+}
+
+```
+
+
+
+```{r, echo=FALSE, results='asis', warning=FALSE, message=FALSE}
+
+# References:
+# https://bookdown.org/yihui/rmarkdown-cookbook/child-document.html#child-document
+# and
+# https://stackoverflow.com/a/69392658/1734247 
+
+param_values <- c("AG", "AS", "CD", "CO", "CR", "CU", "HG", "NI", "PB", "SN", "ZN")
+
+# Note: the child document must have no chunk labels, otherwise it will stop in the start of he second round
+#   because chunk labels are 'duplicated'
+
+for (param in param_values){
+  
+  if (param == "HG"){
+    basis_medians <- "WWa"
+  } else {
+    basis_medians <- "WW"
+  }
+  
+  eqsplot <- as.character(param %in% lookup_eqs$PARAM)
+
+  params <- list(
+    param = param,
+    basis_medians = basis_medians,
+    basis_trends = "WW",
+    eqsplot = eqsplot,
+    include_trend = "TRUE"
+  )
+  
+  res <- knitr::knit_child('../434_Report_parameter_interactive_nochunklabels.Rmd', quiet = TRUE)
+  cat(res, sep = '\n')
+  
+}
+
+# Alternative:
+# ```{r call_child, child = '434_Report_parameter_interactive.Rmd'}
+# ```
+
+```
+

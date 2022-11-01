@@ -14,9 +14,15 @@ output:
     toc_float: true
 ---
 
+```{r, include=FALSE}
+
+dat_groups <- read.csv("Input_data/Lookup_tables/Lookup table - substance groups.csv")  
+header_param <- subset(dat_groups, PARAM %in% params$param, select = Parameter.Name)[1,1]
+
+```
 
 
-# `r params$param`  
+# `r header_param`  
    
 ```{r, include=FALSE}
 
@@ -59,8 +65,6 @@ library(glue)
 library(scico)            # colour palettes incl. "Vik" (https://github.com/thomasp85/scico)
 
 library(cowplot)
-
-?knit_expand
 
 # library(safejoin) # https://github.com/moodymudskipper/safejoin
 
@@ -268,7 +272,7 @@ if (FALSE){
   width_tileplot_only <- 2.7 / (2.7 + 0.75 + 1.25)
   for (speciesgroup in 1:2){
     filename <- glue::glue("Figures/431/{params$param}_combo_{speciesgroup}.png")
-    ggsave(filename, gg_tile_list[[speciesgroup]], width = 14*width_tileplot_only, height = 8, dpi = 200)
+    # ggsave(filename, gg_tile_list[[speciesgroup]], width = 14*width_tileplot_only, height = 8, dpi = 200)
   }
   
 }
@@ -454,11 +458,11 @@ for (speciesgroup in speciesgroups){
     width <- 14*2.7/(2.7 + 0.75 + 1.25)
   }
   # Save
-  ggsave(filename, ggcomb_list[[speciesgroup]], width = width, height = 8, dpi = 200)
+  # ggsave(filename, ggcomb_list[[speciesgroup]], width = width, height = 8, dpi = 200)
     
   # Make and save legend
   filename <- glue::glue("Figures/431/_combo_legend.png")
-  ggsave(filename, ggdraw(ggcomb_legend), width = 2, height = 4, dpi = 200)
+  # ggsave(filename, ggdraw(ggcomb_legend), width = 2, height = 4, dpi = 200)
   
 }
 
@@ -796,8 +800,8 @@ if (params$eqsplot == "TRUE"){
     }
     
     # Save
-    ggsave(filename, gg, 
-           width = 9, height = 6, dpi = 200)
+    # ggsave(filename, gg, 
+    #       width = 9, height = 6, dpi = 200)
     
     # Save again, but this time on log scale  
     filename <- sub("eqsratio_ord", "eqsratio_log", filename, fixed = TRUE)
@@ -813,7 +817,7 @@ if (params$eqsplot == "TRUE"){
         )
     }
     
-    ggsave(filename, gg2, width = 9, height = 6, dpi = 200)
+    # ggsave(filename, gg2, width = 9, height = 6, dpi = 200)
       
     
     plot_eqsratio_list[[speciesgroup]] <- gg
@@ -915,13 +919,13 @@ for (speciesgroup in speciesgroups){
   }
 
   # Save  
-  ggsave(filename, gg, 
-         width = 9, height = 6, dpi = 200)
+  # ggsave(filename, gg, 
+  #       width = 9, height = 6, dpi = 200)
   
   # Save again, but this time on log scale  
   filename <- sub("prorefratio_ord", "prorefratio_log", filename, fixed = TRUE)
-  ggsave(filename, gg + scale_y_log10(), 
-         width = 9, height = 6, dpi = 200)
+  # ggsave(filename, gg + scale_y_log10(), 
+  #       width = 9, height = 6, dpi = 200)
   
 
 }
