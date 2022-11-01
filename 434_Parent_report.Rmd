@@ -57,7 +57,7 @@ for (param in param_values){
     include_trend = "TRUE"
   )
   
-  out <- c(out, knitr::knit_expand('434_Report_parameter_interactive.Rmd'))
+  out <- c(out, knitr::knit_expand('434_Report_parameter_interactive_nochunklabels.Rmd'))
   # cat(res, sep = '\n')
   
 }
