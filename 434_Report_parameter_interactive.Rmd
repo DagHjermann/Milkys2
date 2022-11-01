@@ -3,7 +3,7 @@ title: "Report for parameter (431)"
 author: "DHJ"
 date: "04.10.2022"
 params:
-  param: "CD"
+  param: "HG"
   basis_medians: "WW"
   basis_trends: "WW"
   eqsplot: "TRUE"
@@ -28,7 +28,6 @@ knitr::opts_chunk$set(echo = FALSE, results = 'hold')
 
 ```{r 02_packages, include=FALSE, cache=TRUE}
 
-library(dplyr)
 # library(tidyr)
 library(ggplot2)
 library(lubridate)
@@ -43,12 +42,10 @@ library(scico)            # colour palettes incl. "Vik" (https://github.com/thom
 library(ggiraph)
 library(cowplot)
 
+library(dplyr)    # need to load dplyr AFTER ggiraph fro some reason, otherwise error "%>% is not found" 
+
 # library(safejoin) # https://github.com/moodymudskipper/safejoin
 
-# source("01_Get_chemical_data_NIVAbasen_functions.R")  # for get_standard_parametername()
-# source("824_Report_for_scientists_functions.R")
-source("420_Report_paramgroup_functions.R", encoding = "UTF-8")
-source("125_Calculate_trends_leftadjusted_functions.R")
 source("431_Report_parameter_functions.R")
 source("002_Utility_functions.R")
 
@@ -146,7 +143,8 @@ if (params$param %in% "HG" & params$basis_medians %in% "WWa"){
 
 dat_medians_list[[2]] <- dat_temporary[[4]]
 
-map(dat_medians_list, nrow)
+# Check number of rows for cod/birds and blue mussel:
+# map(dat_medians_list, nrow)
 
 ```
 
@@ -179,9 +177,23 @@ for (speciesgroup in 1:2){
           is.na(FLAG1) ~ signif2(Value, 2, maxdigits = 5),
           !is.na(FLAG1) & Value > 0 ~ paste0("<", signif2(Value, 2, maxdigits = 4)),
           !is.na(FLAG1) & Value == 0 ~ "0"                                # for 'SCCP eksl. LOQ' + 'MCCP eksl. LOQ'
+          ),
+        txt_conc = paste0("Median value: ", Value_txt, 
+                                   " (", signif(Value_min, 2), "-", signif(Value_max, 2), "; N =", N_median, ")"),
+        txt_perc = paste0("25% and 75% percentiles: ", signif(Value_p25, 2), "-", signif(Value_p75, 2)),
+        txt_loq = paste0("Measurements over LOQ: ", Over_LOQ, 
+                                   " (", signif(100*(Over_LOQ/N_median), 1), " %); median LOQ = ", Det_limit),
+        txt_eqs = paste0("The median is ", signif(EQS_ratio, 2), " times the EQS (", EQS, ")"),
+        txt_proref = paste0("The median is ", signif(Proref_ratio, 2), " times the PROREF (", Proref, ")"),
+        Tooltip_txt = txt_conc,
+        Tooltip_txt = ifelse(N_median > 5, paste(Tooltip_txt, "<br>", txt_perc), Tooltip_txt),
+        Tooltip_txt = ifelse(Over_LOQ < N_median, paste(Tooltip_txt, "<br>", txt_loq), Tooltip_txt),
+        Tooltip_txt = ifelse(!is.na(EQS), paste(Tooltip_txt, "<br>", txt_eqs), Tooltip_txt),
+        Tooltip_txt = ifelse(!is.na(Proref), paste(Tooltip_txt, "<br>", txt_proref), Tooltip_txt)
         )
-      )
+
     
+
     # Set plot title (mercury in cod+birds is treated as a special case)
     if (params$param %in% "HG" & speciesgroup == 1 & params$basis_medians == "WW"){
       plot_title <- paste0(dat_medians$Parameter.Name[1], " (not length-adjusted) in ", speciesgroup_txt[[speciesgroup]])
@@ -195,7 +207,7 @@ for (speciesgroup in 1:2){
       geom_tile(aes(fill = Proref_ratio_cut)) + 
       geom_tile(data = subset(dat_medians, Above_EQS %in% "Over"),
                 color = "red", size = 1, height = 0.9, width = 0.9, alpha = 0) +
-      geom_text(aes(label = Value_txt), nudge_y = 0, size = 3) +
+      geom_text_interactive(aes(label = Value_txt, tooltip = Tooltip_txt), nudge_y = 0, size = 3) +
       # geom_text(aes(label = LOQ_label), size = 3, nudge_y = 0.3) +
       scale_fill_manual("Proref ratio", values = proref_cols, na.value = "grey85") +
       scale_color_manual(values = c("red", "white")) +
@@ -219,6 +231,7 @@ for (speciesgroup in 1:2){
 if (FALSE){
   gg_tile_list[[1]]
   gg_tile_list[[2]]
+  girafe(ggobj = gg_tile_list[[1]], height_svg = 5.7, width_svg = 9)
   
   # Special case: SCCP and MCCP (eksl. LOQ)
   width_tileplot_only <- 2.7 / (2.7 + 0.75 + 1.25)
@@ -257,7 +270,8 @@ dat_trends_plot_list <- purrr::map(
 # levels(dat_trends_plot_list[[1]]$Station)
 # View(dat_trends_plot_list[[1]])
 
-map(dat_trends_plot_list, nrow)
+# Check number of rows for cod/birds and blue mussel:
+# map(dat_trends_plot_list, nrow)
 
 ```
 
@@ -286,6 +300,18 @@ if (params$include_trend == "TRUE"){
 y_ran <- list(list(), list())
 
 for (speciesgroup in speciesgroups){
+  
+  dat_trends_plot_list[[speciesgroup]] <- dat_trends_plot_list[[speciesgroup]] %>%
+    mutate(
+      Tooltip_txt = paste0(
+        ifelse(Trend_type == "short", "10-year trend: ", "Long-term trend: "), Trend_string),
+      Tooltip_txt = ifelse(
+        Trend_string %in% c("Decreasing", "Increasing"),
+        paste0(Tooltip_txt, "<br>Change per year: ", sprintf("%.1f", Perc_annual), 
+              "% (conf.int.: ", round(Perc_annual_hi,1), " - ", round(Perc_annual_lo,1), ")"),
+        Trend_string
+        )
+    )
 
   dat_trends_plot_list[[speciesgroup]]$label_coor <- NA
 
@@ -314,7 +340,8 @@ for (speciesgroup in speciesgroups){
     gg_trends_list[[speciesgroup]][[type]] <- ggplot(dat_trends_plot_list[[speciesgroup]] %>% filter(Trend_type %in% type), 
                                                      aes(x = Station, y = Perc_annual)) +
       geom_linerange(aes(ymin = Perc_annual_lo, ymax = Perc_annual_hi, colour = Trend_color), size = 1) +
-      geom_point(aes(fill = Trend_color, shape = Trend_color), colour = "black", size = 3) +
+      geom_point_interactive(aes(fill = Trend_color, shape = Trend_color, tooltip = Tooltip_txt), 
+                             colour = "black", size = 3) +
       scale_colour_manual(values = trend_colours, drop = FALSE) +
       scale_fill_manual(values = trend_colours, drop = FALSE) +
       scale_shape_manual(values = trend_shapes, drop = FALSE) +
@@ -335,6 +362,7 @@ for (speciesgroup in speciesgroups){
 
 if (FALSE){
   gg_trends_list[[1]][["long"]]
+  girafe(ggobj = gg_trends_list[[1]][["long"]], height_svg = 5.7, width_svg = 9)
   gg_trends_list[[1]][["short"]]
   gg_trends_list[[2]][["long"]]
   gg_trends_list[[2]][["short"]]
@@ -398,6 +426,8 @@ for (speciesgroup in speciesgroups){
 # ggcomb_list[[1]]
 # ggcomb_list[[2]]
 
+girafe( ggobj = ggcomb_list[[1]], width_svg = 12, height_svg = 6)
+girafe( ggobj = ggcomb_list[[2]], width_svg = 12, height_svg = 6)
 
 ```
 
