@@ -613,7 +613,7 @@ for (speciesgroup in speciesgroups){
     left_join(
       dat_trends_plot_list[[speciesgroup]] %>% 
         filter(Trend_type %in% "short") %>%
-        select(PARAM, LATIN_NAME, TISSUE_NAME, STATION_CODE, Basis, Trend_color),
+        select(PARAM, LATIN_NAME, TISSUE_NAME, STATION_CODE, Trend_color),
       by = c("PARAM", "LATIN_NAME", "TISSUE_NAME", "STATION_CODE")
     )
   
