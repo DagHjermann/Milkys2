@@ -173,7 +173,7 @@ if (params$param %in% "HG" & params$basis_medians %in% "WWa"){
 dat_medians_list[[2]] <- dat_temporary[[4]]
 
 # Check number of rows for cod/birds and blue mussel:
-map(dat_medians_list, nrow)
+# map(dat_medians_list, nrow)
 
 ```
 
@@ -487,7 +487,7 @@ girafe( ggobj = ggcomb_list[[2]], width_svg = 12, height_svg = 6)
 
 ## Last year's concentrations           
 
-```{r}  
+```{r, warning=FALSE, message=FALSE}  
 
 # 06_ratio_data_1
 
@@ -538,7 +538,7 @@ if (!identical(st1,st2)){
 
 
 
-```{r}  
+```{r, warning=FALSE, message=FALSE}  
 
 # 06_ratio_data_2
 
@@ -585,7 +585,7 @@ if (FALSE){
 ```
 
 
-```{r}
+```{r, warning=FALSE, message=FALSE}
 
 # 06_ratio_data_3
 
@@ -694,7 +694,7 @@ if (params$eqsplot == "TRUE"){
 ```
 
 
-```{r, fig.width=8, fig.height=5.5}
+```{r, fig.width=8, fig.height=5.5, warning=FALSE}
 
 # 07_eqsratio_plot
 
@@ -832,7 +832,7 @@ girafe(ggobj = plot_eqsratio_list[[2]], width_svg = 10, height_svg = 6)
 
 **Concentration / Proref threshold**
 
-```{r, fig.width=8, fig.height=5.5}
+```{r, fig.width=8, fig.height=5.5, warning=FALSE}
 
 # 08_prorefratio_plot
 

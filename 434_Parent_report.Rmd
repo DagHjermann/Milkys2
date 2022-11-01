@@ -9,7 +9,7 @@ output:
 ---
 
 
-```{r}
+```{r, include=FALSE}
 
 lookup_eqs <- subset(
   read.csv("Input_data/Lookup_tables/Lookup_EQS_limits.csv"),
