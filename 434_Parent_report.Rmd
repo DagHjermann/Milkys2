@@ -26,16 +26,18 @@ lookup_eqs <- subset(
 # https://stackoverflow.com/a/69392658/1734247 
 
 # Works for a single value of param (one round in the loop)  
-param_values <- c("HG")
+# param_values <- c("HG")
 
 # Fails for >= 2 parameters: 
-# param_values <- c("HG", "CD")
+param_values <- c("HG", "CD")
 
 # It works for the first value of param, but on the second round in the loop we get an error when we reach 
 # the first chunk ('01_settings'), because knitr has seen the '01_settings' label before (namely on the first round)
 
-# Need to use knit_expand, see here:
-# https://cran.r-project.org/web/packages/workflowr/vignettes/wflow-07-common-code.html#share-templates-with-knit_expand
+# Trying knit_expand, see here:
+# https://stackoverflow.com/a/21046060/1734247
+
+out <- NULL
 
 for (param in param_values){
   
@@ -55,10 +57,13 @@ for (param in param_values){
     include_trend = "TRUE"
   )
   
-  res <- knitr::knit_child('434_Report_parameter_interactive.Rmd', quiet = TRUE)
-  cat(res, sep = '\n')
+  out <- c(out, knitr::knit_expand('434_Report_parameter_interactive.Rmd'))
+  # cat(res, sep = '\n')
   
 }
+
+cat(knitr::knit(text=unlist(paste(out, collapse = '\n')), quiet=TRUE))
+
 
 # Alternative:
 # ```{r call_child, child = '434_Report_parameter_interactive.Rmd'}
