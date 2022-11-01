@@ -10,9 +10,8 @@ params:
   include_trend: "TRUE"
 output: 
   html_document:
-  keep_md: false
-toc: true
-toc_float: true
+    toc: true
+    toc_float: true
 ---
 
 
@@ -23,6 +22,22 @@ toc_float: true
 
 current_year <- 2021
 knitr::opts_chunk$set(echo = FALSE, results = 'hold')
+
+```
+
+<style type="text/css">
+div.main-container {
+  max-width: 1800px;
+  margin-left: auto;
+  margin-right: auto;
+}
+</style>
+
+
+```{r}
+
+library(ggiraph)
+# cat("stuff \n")
 
 ```
 
@@ -39,10 +54,8 @@ library(glue)
 # library(leftcensored)   # DHJ's package (https://github.com/DagHjermann/leftcensored)
 library(scico)            # colour palettes incl. "Vik" (https://github.com/thomasp85/scico)
 
-library(ggiraph)
 library(cowplot)
 
-library(dplyr)    # need to load dplyr AFTER ggiraph fro some reason, otherwise error "%>% is not found" 
 
 # library(safejoin) # https://github.com/moodymudskipper/safejoin
 
@@ -54,6 +67,8 @@ source("002_Utility_functions.R")
 ## Medians and trends    
 
 ```{r 03_medians_data1, warning=FALSE, message=FALSE}
+
+library(dplyr)    # need to load dplyr AFTER ggiraph fro some reason, otherwise error "%>% is not found" 
 
 #
 # Get data 
@@ -97,6 +112,11 @@ lookup_stations <- read.csv("Input_data/Lookup_tables/Lookup_stationorder.csv") 
 ```
 
 ```{r 03_medians_data2}
+
+library(purrr)
+library(ggplot2)
+library(glue)
+library(cowplot)
 
 #
 # Combine cod and eider duck as one group  
@@ -144,7 +164,7 @@ if (params$param %in% "HG" & params$basis_medians %in% "WWa"){
 dat_medians_list[[2]] <- dat_temporary[[4]]
 
 # Check number of rows for cod/birds and blue mussel:
-# map(dat_medians_list, nrow)
+map(dat_medians_list, nrow)
 
 ```
 
@@ -427,6 +447,11 @@ for (speciesgroup in speciesgroups){
 # ggcomb_list[[2]]
 
 girafe( ggobj = ggcomb_list[[1]], width_svg = 12, height_svg = 6)
+
+```
+
+```{r}
+
 girafe( ggobj = ggcomb_list[[2]], width_svg = 12, height_svg = 6)
 
 ```
@@ -469,7 +494,6 @@ dat_to_add <- dat_raw_codeider %>%
   filter(MYEAR %in% current_year & !is.na(Value)) %>%
   group_by(PARAM, LATIN_NAME, TISSUE_NAME, STATION_CODE, Basis) %>%
   summarise(
-    Value_lo = quantile(Value, probs = 0.25),                            # note: 1st and 3rd quartiles for cod + eider
     Value_lo = quantile(Value, probs = 0.25),                            # note: 1st and 3rd quartiles for cod + eider
     Value_hi = quantile(Value, probs = 0.75), .groups = "drop") 
 
