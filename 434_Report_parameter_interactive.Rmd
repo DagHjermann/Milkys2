@@ -644,8 +644,9 @@ for (speciesgroup in speciesgroups){
   
 }
 
-map_int(dat_last_list, nrow)
-map_int(dat_raw_list, nrow)
+# Number of rows in data
+# map_int(dat_last_list, nrow)
+# map_int(dat_raw_list, nrow)
 
 ```
 
@@ -687,20 +688,21 @@ if (params$eqsplot == TRUE){
                    aes(Station, EQS_ratio)) +
         # The next line (median points) needs to be here (even if it is repeated after the sample points) to keep x order correct
         geom_point(aes(fill = Trend_color, shape = Trend_color), colour = "black", size = 3) +
-        geom_point(data = subset(data_proref_samples, is.na(FLAG1)), color = "grey50", shape = 1, size = 2) +
-        geom_point(data = subset(data_proref_samples, !is.na(FLAG1)), color = "grey50", shape = 6, size = 2) +
+        geom_point_interactive(data = subset(data_proref_samples, is.na(FLAG1)), 
+                               aes(tooltip = EQS_tooltip), color = "grey50", shape = 1, size = 2) +
+        geom_point_interactive(data = subset(data_proref_samples, !is.na(FLAG1)), 
+                               aes(tooltip = EQS_tooltip), color = "grey50", shape = 6, size = 2) +
         geom_linerange(aes(ymin = EQS_ratio_lo, ymax = EQS_ratio_hi, colour = Trend_color), size = 1) +
         geom_point(aes(fill = Trend_color, shape = Trend_color), colour = "black", size = 3) +
-        scale_colour_manual(values = trend_colours, drop = FALSE) +
-        scale_fill_manual(values = trend_colours, drop = FALSE) +
-        scale_shape_manual(values = trend_shapes, drop = FALSE) +
+        scale_colour_manual("Time trend", values = trend_colours, drop = FALSE) +
+        scale_fill_manual("Time trend", values = trend_colours, drop = FALSE) +
+        scale_shape_manual("Time trend", values = trend_shapes, drop = FALSE) +
         geom_hline(yintercept = 1, color = "red2", linetype = "dashed") +
         annotate("text", x = -1.7, y = 1, label = "EQS", color = "red2", hjust = 0, vjust = -0.3) +
         coord_cartesian(xlim = c(-1.5, length(data_proref_medians$Station))) +
         labs(title = plot_title, 
              y = "Concentration/EQS") +
         theme_bw() +
-        theme(legend.title = element_blank()) +
         ggeasy::easy_rotate_x_labels(angle = -45)
       
     } else {
@@ -709,8 +711,10 @@ if (params$eqsplot == TRUE){
                    aes(Station, EQS_ratio)) +
         # The next line (median points) needs to be here (even if it is repeated after the sample points) to keep x order correct
         geom_point(colour = "black", size = 3) +
-        geom_point(data = subset(data_proref_samples, is.na(FLAG1)), color = "grey50", shape = 1, size = 2) +
-        geom_point(data = subset(data_proref_samples, !is.na(FLAG1)), color = "grey50", shape = 6, size = 2) +
+        geom_point_interactive(data = subset(data_proref_samples, is.na(FLAG1)), 
+                               aes(tooltip = EQS_tooltip), color = "grey50", shape = 1, size = 2) +
+        geom_point_interactive(data = subset(data_proref_samples, !is.na(FLAG1)), 
+                               aes(tooltip = EQS_tooltip), color = "grey50", shape = 6, size = 2) +
         geom_linerange(aes(ymin = EQS_ratio_lo, ymax = EQS_ratio_hi), size = 1) +
         geom_point(colour = "black", size = 3) +
         geom_hline(yintercept = 1, color = "red2", linetype = "dashed") +
@@ -773,6 +777,8 @@ if (params$eqsplot == TRUE){
   
 }
 
+girafe(ggobj = plot_eqsratio_list[[1]], width_svg = 10, height_svg = 6)
+girafe(ggobj = plot_eqsratio_list[[2]], width_svg = 10, height_svg = 6)
 
 ```
 
