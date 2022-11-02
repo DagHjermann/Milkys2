@@ -3,10 +3,10 @@ title: "Report for parameter (431)"
 author: "DHJ"
 date: "04.10.2022"
 params:
-  param: "PFOS"
+  param: "PYR"
   basis_medians: "WW"
   basis_trends: "WW"
-  eqsplot: "TRUE"
+  eqsplot: "FALSE"
   include_trend: "TRUE"
 output: 
   html_document:
@@ -17,7 +17,7 @@ output:
 ```{r, include=FALSE}
 
 #
-# NOTE: This file is run by knitting one of the .Rmd files in '434_paramgroups
+# NOTE: This file is run by knitting one of the .Rmd files in '434_paramgroups'
 #
 
 dat_groups <- read.csv("Input_data/Lookup_tables/Lookup table - substance groups.csv")  
@@ -473,13 +473,28 @@ for (speciesgroup in speciesgroups){
 # ggcomb_list[[1]]
 # ggcomb_list[[2]]
 
-girafe( ggobj = ggcomb_list[[1]], width_svg = 12, height_svg = 6)
 
 ```
 
+
 ```{r}
 
-girafe( ggobj = ggcomb_list[[2]], width_svg = 12, height_svg = 6)
+if (!is.null(ggcomb_list[[1]])){
+  
+  girafe( ggobj = ggcomb_list[[1]], width_svg = 12, height_svg = 6)
+  
+}
+
+```
+
+
+```{r}
+
+if (!is.null(ggcomb_list[[2]])){
+  
+  girafe( ggobj = ggcomb_list[[2]], width_svg = 12, height_svg = 6)
+  
+}
 
 ```
 
@@ -702,13 +717,6 @@ if (params$eqsplot == "TRUE"){
 
 ```
 
-```{r}
-
-# gg <- ggplot(data.frame(x = 1, y = 1), aes(x,y)) + geom_point_interactive(aes(tooltip = y))
-# girafe(ggobj = gg)
-
-```
-
 
 ```{r, fig.width=8, fig.height=5.5, warning=FALSE}
 
@@ -844,9 +852,11 @@ if (params$eqsplot == "TRUE"){
 ```{r}
 
 if (params$eqsplot == "TRUE"){
-  
-  girafe(ggobj = plot_eqsratio_list[[1]], width_svg = 10, height_svg = 6)
-
+  if (!is.null(plot_eqsratio_list[[1]])){
+    
+    girafe(ggobj = plot_eqsratio_list[[1]], width_svg = 10, height_svg = 6)
+    
+  }
 }
 
 ```
@@ -854,9 +864,11 @@ if (params$eqsplot == "TRUE"){
 ```{r}
 
 if (params$eqsplot == "TRUE"){
-  
-  girafe(ggobj = plot_eqsratio_list[[2]], width_svg = 10, height_svg = 6)
-  
+  if (!is.null(plot_eqsratio_list[[2]])){
+    
+    girafe(ggobj = plot_eqsratio_list[[2]], width_svg = 10, height_svg = 6)
+    
+  }
 }
 
 ```
@@ -964,13 +976,21 @@ for (speciesgroup in speciesgroups){
 
 ```{r}
 
-girafe(ggobj = plot_prorefratio_list[[1]], width_svg = 10, height_svg = 6)
+if (!is.null(plot_prorefratio_list[[1]])){
+  
+  girafe(ggobj = plot_prorefratio_list[[1]], width_svg = 10, height_svg = 6)
+  
+}
 
 ```
 
 ```{r}
 
-girafe(ggobj = plot_prorefratio_list[[2]], width_svg = 10, height_svg = 6)
+if (!is.null(plot_prorefratio_list[[2]])){
+  
+  girafe(ggobj = plot_prorefratio_list[[2]], width_svg = 10, height_svg = 6)
+  
+}
 
 ```
 
