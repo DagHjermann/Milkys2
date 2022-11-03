@@ -3,11 +3,12 @@ title: "Report for parameter (431)"
 author: "DHJ"
 date: "04.10.2022"
 params:
-  param: "PYR"
+  param: "DDEPP"
   basis_medians: "WW"
   basis_trends: "WW"
-  eqsplot: "FALSE"
+  eqsplot: "TRUE"
   include_trend: "TRUE"
+  serieslastuntil: 2020
 output: 
   html_document:
     toc: true
@@ -96,22 +97,22 @@ dat_temporary <- list(
                    species = "Gadus morhua",
                    tissue = ifelse(params$param %in% "HG", "Muskel", "Lever"),
                    basis = params$basis_medians, 
-                   include_year = current_year),
+                   include_year = params$serieslastuntil),
   get_data_medians(param = params$param, 
                    species = "Somateria mollissima",
                    tissue = "Blod",
                    basis = "WW", 
-                   include_year = current_year),
+                   include_year = params$serieslastuntil),
   get_data_medians(param = params$param, 
                    species = "Somateria mollissima",
                    tissue = "Egg",
                    basis = "WW", 
-                   include_year = current_year),
+                   include_year = params$serieslastuntil),
   get_data_medians(param = params$param, 
                    species = "Mytilus edulis",
                    tissue = "Whole soft body",
                    basis = "WW", 
-                   include_year = current_year)
+                   include_year = params$serieslastuntil)
 )
 
 
