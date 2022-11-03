@@ -110,7 +110,7 @@ get_data_medians <- function(param, species, tissue, basis, include_year,
   dat_medians_01 <- dat_medians_01 %>% 
     group_by(STATION_CODE) %>%
     mutate(Series_last_year = max(MYEAR)) %>%
-    filter(Series_last_year %in% include_year)
+    filter(Series_last_year >= include_year)
   
   dat_medians_02 <- dat_medians_01 %>%
     left_join(lookup_proref, by = c("PARAM", "TISSUE_NAME", "LATIN_NAME", "Basis")) 
@@ -206,6 +206,9 @@ if (FALSE){
   check %>% filter(STATION_CODE == "30B") %>% View("30B")
   
   check <- get_data_medians("HG", "Gadus morhua", "Muskel", "WWa", 2021)
+
+  debugonce(get_data_medians)
+  check <- get_data_medians("DDEPP", "Mytilus edulis", "Whole soft body", "WW", 2020)
   
 }
 
