@@ -383,8 +383,14 @@ for (speciesgroup in speciesgroups){
 
   for (type in c("long", "short")){
     
-    gg_trends_list[[speciesgroup]][[type]] <- ggplot(dat_trends_plot_list[[speciesgroup]] %>% filter(Trend_type %in% type), 
-                                                     aes(x = Station, y = Perc_annual)) +
+    tab <- table(dat_medians_list[[speciesgroup]]$Station)
+    station_levels <- names(tab)
+    station_levels <- station_levels[tab != 0]
+    data_for_plot <- dat_trends_plot_list[[speciesgroup]] %>% 
+      filter(Trend_type %in% type) %>%
+      mutate(Station = factor(Station, levels = station_levels))
+    gg_trends_list[[speciesgroup]][[type]] <- ggplot(
+      data_for_plot, aes(x = Station, y = Perc_annual)) +
       geom_linerange(aes(ymin = Perc_annual_lo, ymax = Perc_annual_hi, colour = Trend_color), size = 1) +
       geom_point_interactive(aes(fill = Trend_color, shape = Trend_color, tooltip = Tooltip_txt), 
                              colour = "black", size = 3) +
@@ -395,6 +401,7 @@ for (speciesgroup in speciesgroups){
       geom_label(aes(y = label_coor, 
                      label = Trend_text), fill = "white", color = "blue3", 
                  label.size = 0, size = 3, hjust = 0.5) +
+      scale_x_discrete(limits = levels(data_for_plot$Station)) +
       coord_flip(ylim = y_ran[[speciesgroup]][[type]]) +
       labs(title = glue("Trend ({type}-term)"), y = "") +
       theme_bw() 
