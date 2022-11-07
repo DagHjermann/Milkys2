@@ -3,12 +3,14 @@ title: "Report for parameter (431)"
 author: "DHJ"
 date: "04.10.2022"
 params:
-  param: "DDEPP"
+  param: "HG"
   basis_medians: "WW"
-  basis_trends: "WW"
+  basis_trends: "WWa"
   eqsplot: "TRUE"
+  prorefplot: "TRUE"
   include_trend: "TRUE"
-  serieslastuntil: 2020
+  serieslastuntil: 2021
+  called_from_mother: "FALSE"
 output: 
   html_document:
     toc: true
@@ -711,14 +713,26 @@ for (speciesgroup in speciesgroups){
 
 # 06b_eqs_heading
 
-# Inserts header only if 
+# Inserts header only if eqsplot == "TRUE"
 
 if (params$eqsplot == "TRUE"){
-  heading <- knitr::knit_child(
-    text = c( 
-      '### EQS ratio', 
-      '**Concentration / EQS threshold**'),
-    envir=environment() , quiet=TRUE)
+  
+  # If this is called from e.g. Milkys_2021_metals.Rmd, include 'envir=environment()'  
+  if (params$called_from_mother == "TRUE"){
+    heading <- knitr::knit_child(
+      text = c( 
+        '### EQS ratio', 
+        '**Concentration / EQS threshold**'),
+      envir=environment() , quiet=TRUE)
+  } else {
+    # If this is just knitted on its own  
+    heading <- knitr::knit_child(
+      text = c( 
+        '### EQS ratio', 
+        '**Concentration / EQS threshold**'),
+      quiet=TRUE)
+  }
+  
   cat(unlist(heading), sep = "\n")
   cat("    \n")
 }
@@ -730,9 +744,10 @@ if (params$eqsplot == "TRUE"){
 
 # 07_eqsratio_plot
 
+
+plot_eqsratio_list <- list(NULL, NULL)
+
 if (params$eqsplot == "TRUE"){
-  
-  plot_eqsratio_list <- list()
   
   for (speciesgroup in speciesgroups){
     
@@ -743,7 +758,7 @@ if (params$eqsplot == "TRUE"){
     data_proref_medians <- data_proref_medians %>%
       ungroup() %>%
       left_join(lookup_stations %>% select(STATION_CODE, Order), by = "STATION_CODE") %>%
-      arrange(Order) %>%
+      arrange(Order) %>% # View()
       mutate(Station = forcats::fct_inorder(Station))
     data_proref_samples <- data_proref_samples %>%
       ungroup() %>%
@@ -890,95 +905,100 @@ if (params$eqsplot == "TRUE"){
 
 # 08_prorefratio_plot
 
-plot_prorefratio_list <- list()
+plot_prorefratio_list <- list(NULL, NULL)
 
-for (speciesgroup in speciesgroups){
-
-  data_proref_medians <- dat_last_list[[speciesgroup]]
-  data_proref_samples <- dat_raw_list[[speciesgroup]]
+if (params$prorefplot == "TRUE"){
   
-  #  mutate(
-  #    STATION_CODE = ifelse(STATION_CODE == "36A", "36A1", STATION_CODE)
-  #  )
-
-  if (speciesgroup == 1){
-    # No Proref for the bird stations, so we delete them
+  for (speciesgroup in speciesgroups){
+    
+    data_proref_medians <- dat_last_list[[speciesgroup]]
+    data_proref_samples <- dat_raw_list[[speciesgroup]]
+    
+    #  mutate(
+    #    STATION_CODE = ifelse(STATION_CODE == "36A", "36A1", STATION_CODE)
+    #  )
+    
+    if (speciesgroup == 1){
+      # No Proref for the bird stations, so we delete them
+      data_proref_medians <- data_proref_medians %>%
+        filter(!Station %in% c("19N Kongsfjorden (eider duck blood)", "19N Kongsfjorden (eider duck egg)")) %>%
+        mutate(Station = forcats::fct_drop(Station))
+      data_proref_samples <- data_proref_samples %>%
+        filter(!Station %in% c("19N Kongsfjorden (eider duck blood)", "19N Kongsfjorden (eider duck egg)")) %>%
+        mutate(Station = factor(Station, levels = levels(data_proref_medians$Station)))
+    }
+    
+    # Order stations correctly
     data_proref_medians <- data_proref_medians %>%
-      filter(!Station %in% c("19N Kongsfjorden (eider duck blood)", "19N Kongsfjorden (eider duck egg)")) %>%
-      mutate(Station = forcats::fct_drop(Station))
+      ungroup() %>%
+      left_join(lookup_stations %>% select(STATION_CODE, Order), by = "STATION_CODE") %>%
+      arrange(Order) %>%
+      mutate(Station = forcats::fct_inorder(Station))
     data_proref_samples <- data_proref_samples %>%
-      filter(!Station %in% c("19N Kongsfjorden (eider duck blood)", "19N Kongsfjorden (eider duck egg)")) %>%
-      mutate(Station = factor(Station, levels = levels(data_proref_medians$Station)))
+      # mutate( STATION_CODE = ifelse(STATION_CODE == "36A1", "36A", STATION_CODE)) %>%
+      ungroup() %>%
+      left_join(lookup_stations %>% select(STATION_CODE, Order), by = "STATION_CODE") %>% # View()
+      arrange(Order) %>%
+      mutate(Station = forcats::fct_inorder(Station))
+    data_proref_samples_overLOQ <- data_proref_samples %>%
+      filter(is.na(FLAG1))
+    data_proref_samples_underLOQ <- data_proref_samples %>%
+      filter(FLAG1 %in% "<")
+    
+    # Set plot title (mercury in cod+birds is treated as a special case)
+    if (params$param %in% "HG" & speciesgroup == 1 & params$basis_medians == "WW"){
+      plot_title <- paste0("Proref ratio, ", dat_medians$Parameter.Name[1], " (not length-adjusted) in ", speciesgroup_txt_proref[[speciesgroup]])
+    } else if (params$param %in% "HG" & speciesgroup == 1 & params$basis_medians == "WWa"){
+      plot_title <- paste0("Proref ratio, ", dat_medians$Parameter.Name[1], " (length-adjusted) in ", speciesgroup_txt_proref[[speciesgroup]])
+    } else {
+      plot_title <- paste0("Proref ratio, ", dat_medians$Parameter.Name[1], " in ", speciesgroup_txt_proref[[speciesgroup]])
+    }
+    
+    gg <- ggplot(data_proref_medians, 
+                 aes(Station, Proref_ratio)) +
+      # The next line (median points) needs to be here (even if it is repeated after the sample points) to keep x order correct
+      geom_point(aes(fill = Trend_color, shape = Trend_color), colour = "black", size = 3) +
+      geom_point_interactive(data = data_proref_samples_overLOQ , 
+                             aes(tooltip = Proref_tooltip), color = "grey50", shape = 1, size = 2) +
+      geom_point_interactive(data = data_proref_samples_underLOQ , 
+                             aes(tooltip = Proref_tooltip), color = "grey50", shape = 6, size = 2) +
+      geom_linerange(aes(ymin = Proref_ratio_lo, ymax = Proref_ratio_hi, colour = Trend_color), size = 1) +
+      geom_point(aes(fill = Trend_color, shape = Trend_color), colour = "black", size = 3) +
+      scale_colour_manual(values = trend_colours, drop = FALSE) +
+      scale_fill_manual(values = trend_colours, drop = FALSE) +
+      scale_shape_manual(values = trend_shapes, drop = FALSE) +
+      geom_hline(yintercept = 1, color = "blue2", linetype = "dashed") +
+      annotate("text", x = -1.7, y = 1, label = "PROREF", color = "blue2", hjust = 0, vjust = -0.3) +
+      coord_cartesian(xlim = c(-1.5, length(data_proref_medians$Station))) +
+      labs(title = plot_title,  
+           y = "Concentration/PROREF") +
+      theme_bw() +
+      theme(legend.title = element_blank()) +
+      ggeasy::easy_rotate_x_labels(angle = -45) 
+    
+    plot_prorefratio_list[[speciesgroup]] <- gg
+    
+    # Set name of figure file (mercury in cod+birds is treated as a special case)
+    if (params$basis_medians != params$basis_trends & speciesgroup == 1){
+      filename <- glue::glue("Figures/431/{params$param}-{params$basis_medians}-{params$basis_trend}_prorefratio_ord_{speciesgroup}.png")
+    } else {
+      filename <- glue::glue("Figures/431/{params$param}_prorefratio_ord_{speciesgroup}.png")
+    }
+    
+    # Save  
+    # ggsave(filename, gg, 
+    #       width = 9, height = 6, dpi = 200)
+    
+    # Save again, but this time on log scale  
+    filename <- sub("prorefratio_ord", "prorefratio_log", filename, fixed = TRUE)
+    # ggsave(filename, gg + scale_y_log10(), 
+    #       width = 9, height = 6, dpi = 200)
+    
+    
   }
   
-  # Order stations correctly
-  data_proref_medians <- data_proref_medians %>%
-    ungroup() %>%
-    left_join(lookup_stations %>% select(STATION_CODE, Order), by = "STATION_CODE") %>%
-    arrange(Order) %>%
-    mutate(Station = forcats::fct_inorder(Station))
-  data_proref_samples <- data_proref_samples %>%
-    # mutate( STATION_CODE = ifelse(STATION_CODE == "36A1", "36A", STATION_CODE)) %>%
-    ungroup() %>%
-    left_join(lookup_stations %>% select(STATION_CODE, Order), by = "STATION_CODE") %>% # View()
-    arrange(Order) %>%
-    mutate(Station = forcats::fct_inorder(Station))
-  data_proref_samples_overLOQ <- data_proref_samples %>%
-    filter(is.na(FLAG1))
-  data_proref_samples_underLOQ <- data_proref_samples %>%
-    filter(FLAG1 %in% "<")
-
-  # Set plot title (mercury in cod+birds is treated as a special case)
-  if (params$param %in% "HG" & speciesgroup == 1 & params$basis_medians == "WW"){
-    plot_title <- paste0("Proref ratio, ", dat_medians$Parameter.Name[1], " (not length-adjusted) in ", speciesgroup_txt_proref[[speciesgroup]])
-  } else if (params$param %in% "HG" & speciesgroup == 1 & params$basis_medians == "WWa"){
-    plot_title <- paste0("Proref ratio, ", dat_medians$Parameter.Name[1], " (length-adjusted) in ", speciesgroup_txt_proref[[speciesgroup]])
-  } else {
-    plot_title <- paste0("Proref ratio, ", dat_medians$Parameter.Name[1], " in ", speciesgroup_txt_proref[[speciesgroup]])
-  }
-  
-  gg <- ggplot(data_proref_medians, 
-               aes(Station, Proref_ratio)) +
-    # The next line (median points) needs to be here (even if it is repeated after the sample points) to keep x order correct
-    geom_point(aes(fill = Trend_color, shape = Trend_color), colour = "black", size = 3) +
-    geom_point_interactive(data = data_proref_samples_overLOQ , 
-                           aes(tooltip = Proref_tooltip), color = "grey50", shape = 1, size = 2) +
-    geom_point_interactive(data = data_proref_samples_underLOQ , 
-                           aes(tooltip = Proref_tooltip), color = "grey50", shape = 6, size = 2) +
-    geom_linerange(aes(ymin = Proref_ratio_lo, ymax = Proref_ratio_hi, colour = Trend_color), size = 1) +
-    geom_point(aes(fill = Trend_color, shape = Trend_color), colour = "black", size = 3) +
-    scale_colour_manual(values = trend_colours, drop = FALSE) +
-    scale_fill_manual(values = trend_colours, drop = FALSE) +
-    scale_shape_manual(values = trend_shapes, drop = FALSE) +
-    geom_hline(yintercept = 1, color = "blue2", linetype = "dashed") +
-    annotate("text", x = -1.7, y = 1, label = "PROREF", color = "blue2", hjust = 0, vjust = -0.3) +
-    coord_cartesian(xlim = c(-1.5, length(data_proref_medians$Station))) +
-    labs(title = plot_title,  
-         y = "Concentration/PROREF") +
-    theme_bw() +
-    theme(legend.title = element_blank()) +
-    ggeasy::easy_rotate_x_labels(angle = -45) 
-  
-  plot_prorefratio_list[[speciesgroup]] <- gg
-  
-  # Set name of figure file (mercury in cod+birds is treated as a special case)
-  if (params$basis_medians != params$basis_trends & speciesgroup == 1){
-    filename <- glue::glue("Figures/431/{params$param}-{params$basis_medians}-{params$basis_trend}_prorefratio_ord_{speciesgroup}.png")
-  } else {
-    filename <- glue::glue("Figures/431/{params$param}_prorefratio_ord_{speciesgroup}.png")
-  }
-
-  # Save  
-  # ggsave(filename, gg, 
-  #       width = 9, height = 6, dpi = 200)
-  
-  # Save again, but this time on log scale  
-  filename <- sub("prorefratio_ord", "prorefratio_log", filename, fixed = TRUE)
-  # ggsave(filename, gg + scale_y_log10(), 
-  #       width = 9, height = 6, dpi = 200)
-  
-
 }
+
 
 ```
 
