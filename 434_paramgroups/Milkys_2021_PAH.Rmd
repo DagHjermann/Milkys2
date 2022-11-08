@@ -1,5 +1,5 @@
 ---
-title: "Fact sheet - metals"
+title: "Fact sheet - PAH"
 author: "DHJ"
 date: "2022-11-01"
 output: 
@@ -11,6 +11,11 @@ output:
 
 
 ```{r, include=FALSE}
+#
+# NOTE: MORE 'params' SETTINGS HAVE BEEN ADDED TO SCRIPT 434 (CALLED BELOW)
+# SINCE THIS SCRIPT WAS RUN. THIS SCRIPT PROBABLY NEEDS TO BE UPDATED TO 
+# TAKE THAT INTO ACCOUNT, IF YOU WANT TO RERERUN IT. SEE 'METALS' Rmd FOR EXAMPLE.
+#
 
 lookup_eqs <- subset(
   read.csv("../Input_data/Lookup_tables/Lookup_EQS_limits.csv"),
@@ -23,10 +28,28 @@ if (FALSE){
   dat_med <- readRDS("../Data/110_mediandata_updated_2022-09-23.rds")  
   dat_groups <- read.csv("../Input_data/Lookup_tables/Lookup table - substance groups.csv")
   dat_med2 <- dplyr::left_join(dat_med, subset(dat_groups, select = c(PARAM, MGR.Group)))
-  xtabs(~MGR.Group, dat_med2 %>% filter(MYEAR == 2021))
-  tab <- xtabs(~PARAM, dat_med2 %>% filter(MYEAR == 2021 & MGR.Group == "Metals"))
+  xtabs(~MGR.Group, dat_med2 %>% filter(MYEAR == 2021) %>% distinct(MGR.Group, PARAM))
+  
+  # Choose group(s)
+  group <- "PAH"
+  tab <- xtabs(~PARAM, dat_med2 %>% filter(MYEAR == 2021 & MGR.Group %in% group))
   tab
-  dput(names(tab))
+  param_values <- names(tab[tab > 100])
+  param_values <- names(tab)
+  # For copy-paste to code below:
+  dat_groups %>% 
+    filter(PARAM %in% param_values) %>% # View()
+    arrange(Parameter.Name) %>%            # order alphabetically by Parameter.Name, not PARAM
+    pull(PARAM) %>%
+    dput()
+
+  # check 'Parameter.Name' - must exist for all
+  check <- dat_groups %>% filter(PARAM %in% param_values) %>% pull(Parameter.Name)
+  if (sum(is.na(check)) > 0){
+    stop("Parameter.Name - must exist for all")
+  }
+  
+  # Also: For each new parameter group, remember to change 1) filename and 2) title
 }
 
 ```
@@ -40,8 +63,8 @@ if (FALSE){
 # and
 # https://stackoverflow.com/a/69392658/1734247 
 
-param_values <- c("AG", "AS", "CD", "CO", "CR", "CU", "HG", "NI", "PB", "SN", "ZN")
-# param_values <- c("HG")
+param_values <- c("ACNE", "ACNLE", "ANT", "BAA", "BAP", "BBJF", "BGHIP", "BKF", 
+"Krysen", "DBA3A", "FLE", "FLU", "ICDP", "NAP", "PA", "PYR")
 
 # Note: the child document must have no chunk labels, otherwise it will stop in the start of he second round
 #   because chunk labels are 'duplicated'
@@ -49,22 +72,19 @@ param_values <- c("AG", "AS", "CD", "CO", "CR", "CU", "HG", "NI", "PB", "SN", "Z
 for (param in param_values){
   
   if (param == "HG"){
-    basis_trends <- "WWa"
+    basis_medians <- "WWa"
   } else {
-    basis_trends <- "WW"
+    basis_medians <- "WW"
   }
   
   eqsplot <- as.character(param %in% lookup_eqs$PARAM)
 
   params <- list(
     param = param,
-    basis_medians = "WW",
-    basis_trends = basis_trends,
+    basis_medians = basis_medians,
+    basis_trends = "WW",
     eqsplot = eqsplot,
-    prorefplot = "TRUE",
-    include_trend = "TRUE",
-    serieslastuntil = 2021,
-    called_from_mother = "TRUE"
+    include_trend = "TRUE"
   )
   
   res <- knitr::knit_child('../434_Report_parameter_interactive_nochunklabels.Rmd', quiet = TRUE)

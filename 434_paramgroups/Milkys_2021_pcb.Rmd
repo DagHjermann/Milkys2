@@ -12,6 +12,12 @@ output:
 
 ```{r, include=FALSE}
 
+#
+# NOTE: MORE 'params' SETTINGS HAVE BEEN ADDED TO SCRIPT 434 (CALLED BELOW)
+# SINCE THIS SCRIPT WAS RUN. THIS SCRIPT PROBABLY NEEDS TO BE UPDATED TO 
+# TAKE THAT INTO ACCOUNT, IF YOU WANT TO RERERUN IT. SEE 'METALS' Rmd FOR EXAMPLE.
+#
+
 lookup_eqs <- subset(
   read.csv("../Input_data/Lookup_tables/Lookup_EQS_limits.csv"),
   Basis == "WW")

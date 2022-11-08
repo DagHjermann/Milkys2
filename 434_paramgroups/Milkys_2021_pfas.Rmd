@@ -11,6 +11,11 @@ output:
 
 
 ```{r, include=FALSE}
+#
+# NOTE: MORE 'params' SETTINGS HAVE BEEN ADDED TO SCRIPT 434 (CALLED BELOW)
+# SINCE THIS SCRIPT WAS RUN. THIS SCRIPT PROBABLY NEEDS TO BE UPDATED TO 
+# TAKE THAT INTO ACCOUNT, IF YOU WANT TO RERERUN IT. SEE 'METALS' Rmd FOR EXAMPLE.
+#
 
 lookup_eqs <- subset(
   read.csv("../Input_data/Lookup_tables/Lookup_EQS_limits.csv"),
@@ -23,7 +28,7 @@ if (FALSE){
   dat_med <- readRDS("../Data/110_mediandata_updated_2022-09-23.rds")  
   dat_groups <- read.csv("../Input_data/Lookup_tables/Lookup table - substance groups.csv")
   dat_med2 <- dplyr::left_join(dat_med, subset(dat_groups, select = c(PARAM, MGR.Group)))
-  xtabs(~MGR.Group, dat_med2 %>% filter(MYEAR == 2021))
+  xtabs(~MGR.Group, dat_med2 %>% filter(MYEAR == 2021) %>% distinct(MGR.Group, PARAM))
   
   # Choose group(s)
   group <- "PFAS"
