@@ -3,11 +3,11 @@ title: "Report for parameter (431)"
 author: "DHJ"
 date: "04.10.2022"
 params:
-  param: "HG"
+  param: "D4"
   basis_medians: "WW"
-  basis_trends: "WWa"
-  eqsplot: "TRUE"
-  prorefplot: "TRUE"
+  basis_trends: "WW"
+  eqsplot: "FALSE"
+  prorefplot: "FALSE"
   include_trend: "TRUE"
   serieslastuntil: 2021
   called_from_mother: "FALSE"
@@ -430,7 +430,7 @@ if (FALSE){
 
 # 06_combine_plots
 
-ggcomb_list <- list()
+ggcomb_list <- list(NULL, NULL)
 
 for (speciesgroup in speciesgroups){
   
@@ -713,7 +713,7 @@ for (speciesgroup in speciesgroups){
 
 # 06b_eqs_heading
 
-# Inserts header only if eqsplot == "TRUE"
+# Inserts "EQS" header in document, but only if eqsplot == "TRUE"
 
 if (params$eqsplot == "TRUE"){
   
