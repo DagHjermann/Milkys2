@@ -3,14 +3,15 @@ title: "Report for parameter (431)"
 author: "DHJ"
 date: "04.10.2022"
 params:
-  param: "D4"
+  param: "BAA"
   basis_medians: "WW"
   basis_trends: "WW"
-  eqsplot: "FALSE"
-  prorefplot: "FALSE"
+  eqsplot: "log"
+  prorefplot: "TRUE"
   include_trend: "TRUE"
   serieslastuntil: 2021
   called_from_mother: "FALSE"
+  species3: "Mytilus edulis"
 output: 
   html_document:
     toc: true
@@ -22,6 +23,11 @@ output:
 #
 # NOTE: This file is run by knitting one of the .Rmd files in '434_paramgroups'
 #
+
+# Parameters:
+# 'eqsplot' 
+#  = "ordinary" or "TRUE" for ordinary y scale (TRUE is included for backwards compability)
+#  = "log" for log y scale (with y labels showing true values)
 
 dat_groups <- read.csv("Input_data/Lookup_tables/Lookup table - substance groups.csv")  
 header_param <- subset(dat_groups, PARAM %in% params$param, select = Parameter.Name)[1,1]
@@ -92,6 +98,7 @@ library(dplyr)    # need to load dplyr AFTER ggiraph fro some reason, otherwise 
 # Get data 
 #
 
+species3 <- strsplit(params$species3, split = ",")[[1]]
 
 # debugonce(get_data_medians)
 dat_temporary <- list(
@@ -111,7 +118,7 @@ dat_temporary <- list(
                    basis = "WW", 
                    include_year = params$serieslastuntil),
   get_data_medians(param = params$param, 
-                   species = "Mytilus edulis",
+                   species = species3,
                    tissue = "Whole soft body",
                    basis = "WW", 
                    include_year = params$serieslastuntil)
@@ -199,7 +206,6 @@ proref_cols <- c(RColorBrewer::brewer.pal(6, "Blues")[5:2],
 col_func <- function(x){cols[x]}
 
 startyr <- 2012
-
 # Trick to avoid red frames also in legend:
 # - put 'fill = Proref_ratio_cut' in aes of the first geom_tile (not in the aes of ggplot)
 # - set 'alpha = 0' so there is no fill in the EQS tiles 
@@ -518,7 +524,42 @@ if (!is.null(ggcomb_list[[2]])){
 
 
 
+
+```{r, results='asis'}
+
+#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
+#
 ## Last year's concentrations           
+#
+#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
+
+
+# 07b_lastyear_heading
+
+# Inserts "Concentrations in the last year" header in document, but only if eqsplot or prorefplot == "TRUE"
+
+if (params$eqsplot %in% c("log", "ordinary", "TRUE") | params$prorefplot == "TRUE"){
+  
+  # If this is called from e.g. Milkys_2021_metals.Rmd, include 'envir=environment()'  
+  if (params$called_from_mother == "TRUE"){
+    heading <- knitr::knit_child(
+      text = c( 
+        '## Concentrations in the last year'),
+      envir=environment() , quiet=TRUE)
+  } else {
+    # If this is just knitted on its own  
+    heading <- knitr::knit_child(
+      text = c( 
+        '## Concentrations in the last year'),
+      quiet=TRUE)
+  }
+  
+  cat(unlist(heading), sep = "\n")
+  cat("    \n")
+}
+
+```
+
 
 ```{r, warning=FALSE, message=FALSE}  
 
@@ -711,11 +752,19 @@ for (speciesgroup in speciesgroups){
 
 ```{r, results='asis'}
 
+
+#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
+#
+### EQS           
+#
+#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
+
+
 # 06b_eqs_heading
 
-# Inserts "EQS" header in document, but only if eqsplot == "TRUE"
+# Inserts "EQS" header in document, but only if eqsplot is "log" or "ordinary" (y-scale)
 
-if (params$eqsplot == "TRUE"){
+if (params$eqsplot %in% c("log", "ordinary", "TRUE")){
   
   # If this is called from e.g. Milkys_2021_metals.Rmd, include 'envir=environment()'  
   if (params$called_from_mother == "TRUE"){
@@ -740,6 +789,7 @@ if (params$eqsplot == "TRUE"){
 ```
 
 
+
 ```{r, fig.width=8, fig.height=5.5, warning=FALSE}
 
 # 07_eqsratio_plot
@@ -747,7 +797,7 @@ if (params$eqsplot == "TRUE"){
 
 plot_eqsratio_list <- list(NULL, NULL)
 
-if (params$eqsplot == "TRUE"){
+if (params$eqsplot %in% c("log", "ordinary", "TRUE")){
   
   for (speciesgroup in speciesgroups){
     
@@ -863,7 +913,11 @@ if (params$eqsplot == "TRUE"){
     # ggsave(filename, gg2, width = 9, height = 6, dpi = 200)
       
     
-    plot_eqsratio_list[[speciesgroup]] <- gg
+    if (params$eqsplot %in% c("ordinary", "TRUE")){
+      plot_eqsratio_list[[speciesgroup]] <- gg
+    } else if (params$eqsplot %in% "log"){
+      plot_eqsratio_list[[speciesgroup]] <- gg2
+    }
     
   }
   
@@ -874,7 +928,7 @@ if (params$eqsplot == "TRUE"){
 
 ```{r}
 
-if (params$eqsplot == "TRUE"){
+if (params$eqsplot %in% c("log", "ordinary", "TRUE")){
   if (!is.null(plot_eqsratio_list[[1]])){
     
     girafe(ggobj = plot_eqsratio_list[[1]], width_svg = 10, height_svg = 6)
@@ -886,7 +940,7 @@ if (params$eqsplot == "TRUE"){
 
 ```{r}
 
-if (params$eqsplot == "TRUE"){
+if (params$eqsplot %in% c("log", "ordinary", "TRUE")){
   if (!is.null(plot_eqsratio_list[[2]])){
     
     girafe(ggobj = plot_eqsratio_list[[2]], width_svg = 10, height_svg = 6)
@@ -897,9 +951,44 @@ if (params$eqsplot == "TRUE"){
 ```
 
 
-### Proref ratio  
 
-**Concentration / Proref threshold**
+```{r, results='asis'}
+
+#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
+#
+### PROREF           
+#
+#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
+
+# 07b_proref_heading
+
+# Inserts "Proref" header in document, but only if prorefplot == "TRUE"
+
+if (params$prorefplot == "TRUE"){
+  
+  # If this is called from e.g. Milkys_2021_metals.Rmd, include 'envir=environment()'  
+  if (params$called_from_mother == "TRUE"){
+    heading <- knitr::knit_child(
+      text = c( 
+        '### PROREF ratio', 
+        '**Concentration / PROREF threshold**'),
+      envir=environment() , quiet=TRUE)
+  } else {
+    # If this is just knitted on its own  
+    heading <- knitr::knit_child(
+      text = c( 
+        '### PROREF ratio', 
+        '**Concentration / PROREF threshold**'),
+      quiet=TRUE)
+  }
+  
+  cat(unlist(heading), sep = "\n")
+  cat("    \n")
+}
+
+```
+
+
 
 ```{r, fig.width=8, fig.height=5.5, warning=FALSE}
 

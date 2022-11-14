@@ -1,0 +1,50 @@
+---
+title: "Milkys fact sheet test"
+author: "DHJ"
+date: "2022-11-14"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+---
+
+
+```{r, echo=FALSE, results='asis', warning=FALSE, message=FALSE}
+
+# both "FALSE" and "TRUE" seems to work for 'called_from_mother' 
+
+params <- list(
+  param = "BAA",
+  basis_medians = "WW",
+  basis_trends = "WW",
+  eqsplot = "log",
+  prorefplot = "TRUE",
+  include_trend = "TRUE",
+  serieslastuntil = 2021,
+  called_from_mother = "TRUE",
+  species3 = "Mytilus edulis"
+)
+  
+
+res <- knitr::knit_child('../434_Report_parameter_interactive_nochunklabels.Rmd', quiet = TRUE)
+cat(res, sep = '\n')
+
+# Alternative:
+# ```{r call_child, child = '434_Report_parameter_interactive.Rmd'}
+# ```
+
+```
+
+<style type="text/css">
+div.main-container {
+  max-width: 1800px;
+  margin-left: auto;
+  margin-right: auto;
+}
+</style>
+
+
+
+
+
+
