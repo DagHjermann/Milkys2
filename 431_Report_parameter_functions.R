@@ -176,7 +176,7 @@ get_data_medians <- function(param, species, tissue, basis, include_year,
     ungroup() 
   
   # Add 'Proref_ratio_cut'  
-  proref_max <- max(dat_medians_04$Proref_ratio, na.rm = TRUE)
+  # proref_max <- max(dat_medians_04$Proref_ratio, na.rm = TRUE)
   dat_medians_04 <- dat_medians_04 %>%
     mutate(
       Proref_ratio_cut = cut(Proref_ratio, breaks = c(0,0.5,0.75,0.9,1,2,5,10,20,100))
@@ -504,6 +504,80 @@ if (FALSE){
 
 }
 
+
+
+get_data_trends2 <- function(data_medians,
+                             filename_trends = "Data/125_results_2021_07_output/126_df_trend_2021.rds",
+                             basis,
+                             include_year){
+  
+  spp <- unique(data_medians$LATIN_NAME)
+  
+  dat_trends_list <- list()
+  for (species in spp){
+    
+    if (basis == "WWa" & species != "Gadus morhua"){
+      basis <- "WW"
+    }
+    
+    dat_trends_list[[species]] <- readRDS(filename_trends) %>%
+      filter(
+        PARAM %in% unique(data_medians$PARAM),
+        LATIN_NAME %in% species,
+        TISSUE_NAME %in% unique(data_medians$TISSUE_NAME),
+        STATION_CODE %in% unique(data_medians$STATION_CODE),
+        Basis %in% basis
+      )
+  }
+  
+  dat_trends_all <- bind_rows(dat_trends_list)
+  dat_trends_all
+}
+
+# get_data_trends2(dat_medians_list[[1]], basis = "WW", include_year = 2021) 
+
+
+get_caption_text <- function(reference_values, type1, type2, basis1, basis2, unit){
+  value1_txt <- paste(unique(reference_values$Ref_value1), collapse = ", ")
+  caption_text1 <- glue("All data are given in {unit} w.w.")
+  if (length(unique(reference_values$Ref_value1)) > 1){
+    caption_text2 <- with(reference_values, glue("{type1}: {Ref_value1} {unit} {basis1} ({LATIN_NAME})"))
+  } else {
+    caption_text2 <- glue("{type1}: {unique(reference_values$Ref_value1)} {unit} {basis1} (all species)")
+  }
+  caption_text <- paste(caption_text1, "<br>", paste(caption_text2, collapse = "<br> "))  
+  if (!is.null(reference_values$Ref_value2)){
+    if (length(unique(reference_values$Ref_value2)) > 1){
+      caption_text3 <- with(reference_values, glue("{type2}: {Ref_value2} {unit} {basis2} ({LATIN_NAME})"))
+    } else {
+      caption_text3 <- glue("{type2}: {unique(reference_values$Ref_value2)} {unit} {basis2} (all species)")
+    }
+    caption_text <- paste(caption_text, "<br>", paste(caption_text3, collapse = "<br> "))  
+  }
+
+  caption_text
+  
+}
+
+if (FALSE){
+  
+  # test
+  lookup_ref_value <- tribble(
+    ~LATIN_NAME, ~Ref_value1, ~Ref_value2, ~Perc_dry_weight,  
+    "Nucella lapillus", 5, 12, 32.8,
+    "Littorina littorea", 5, 12, 21.9, 
+  )
+  get_caption_text(lookup_ref_value, "BAC", "EAC", "dw", "dw", "µg/kg")
+  
+  lookup_ref_value <- tribble(
+    ~LATIN_NAME, ~Ref_value1, ~Ref_value2, ~Perc_dry_weight,  
+    "Nucella lapillus", 5, 12, 32.8,
+    "Littorina littorea", 8, 20, 21.9, 
+  )
+  debugonce(get_caption_text)
+  get_caption_text(lookup_ref_value, "BAC", "EAC", "dw", "dw", "µg/kg")
+}
+
 #o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
 #
 # APPENDIX: LOQ ----
@@ -513,6 +587,13 @@ if (FALSE){
 if (FALSE){
   
   dat_raw <- readRDS("Data/109_adjusted_data_2022-09-23.rds")  
+  
+  dat_medians <- readRDS("Data/110_mediandata_updated_2022-09-23.rds")
+  
+  dat_trends <- readRDS("Data/125_results_2021_07_output/126_df_trend_2021.rds")  
+  dat_trends %>%
+    dplyr::filter(PARAM %in% "TBT" & Basis == "WW") %>% View("tbt")
+   
   
   # LOQ median values for all parameters
   dat_raw %>%

@@ -16,6 +16,9 @@ output:
 current_year <- 2021
 knitr::opts_chunk$set(echo = FALSE, results = 'hold', warning = FALSE)
 
+width_svg <- 12
+height_svg <- 4.5
+
 ```
 
 <style type="text/css">
@@ -27,6 +30,13 @@ div.main-container {
 </style>
 
 ```{r, include = FALSE}
+
+#
+# Improved version of fact sheet "combo" plots  
+# - possible to make adjustments after getting the data for all parameters:
+#     - may manipulate station order and station name (e.g. add asterisk) - will apply to all parameters
+# - possible to make adjustments after getting the parameter-specific data
+#
 
 # selstations <- list (...one or several data sets, e.g, 1. cod + eider duck and 2. blue mussel, or 1. all snails)
 # dat_medians_selstations <- map(selstations, get_medians_stations) 
@@ -62,6 +72,10 @@ knitr::opts_chunk$set(echo = FALSE, results = 'hold', warning = FALSE)
 # dat_raw <- readRDS("../Data/109_adjusted_data_2022-09-23.rds")  
 dat_medians <- readRDS("../Data/110_mediandata_updated_2022-09-23.rds")
 lookup_stations <- read.csv("../Input_data/Lookup_tables/Lookup_stationorder.csv")  
+
+# Add asterisk to station name of 71G
+sel <- lookup_stations$STATION_CODE == "71G"
+lookup_stations$Station_name[sel] <- paste(lookup_stations$Station_name[sel], "*")
 
 # Fix species of 71G
 
@@ -166,15 +180,19 @@ if (units[1] == "UG_P_KG"){
   unit <- "" 
 }
 
-
-
-# Ref. 
 # Ref. species-specific dry weight: https://dome.ices.dk/ohat/trDocuments/2021/help_ac_basis_conversion.html
 
-caption_text <- get_caption_text(lookup_ref_value, ref_type1, ref_type2, ref_basis1, ref_basis2, unit) 
+# HARD-CODED for tin compunds 
+caption_text <- paste(
+  "All data are measured in dog whelk (<i>Nucella lapillus</i>) with the exception of 71G (Fugløyskjær, Langesundsfjord),",
+  "where the data was measured in dog whelk until 2009 and in common periwinkle (<i>Littorina littorea</i>) from 2015 onwards.")
 
-#  "Reference value for colors: {ref_type1} = {ref_value1_txt} d.w. (OSPAR species-specific conversion factors used). All 
-# data are dog whelk except 71G from 2015 onwards, which are common periwinkle.")
+caption_text2 <- get_caption_text(lookup_ref_value, ref_type1, ref_type2, ref_basis1, ref_basis2, unit) 
+
+# HARD-CODED for VDSI 
+caption_text <- paste0(caption_text, "<br>", caption_text2)
+
+
 
 #
 # Add Station_name and 'Ref_value1' (and if existing 'Ref_value2')  
@@ -339,7 +357,6 @@ y_ran <- list(list(), list())
         )
     )
 
-
   dat_trends_plot_list[[speciesgroup]]$label_coor <- NA
 
   for (type in c("long", "short")){
@@ -390,6 +407,7 @@ gg_trends_list <- list(list(), list())
       labs(title = glue("Trend ({type}-term)"), y = "Change (%)") +
       theme_bw() 
     
+
   }
   
 # }
@@ -426,7 +444,7 @@ ggcomb_list <- list()
 
 ```{r}
 
-girafe( ggobj = ggcomb_list[[1]], width_svg = 12, height_svg = 6)
+girafe( ggobj = ggcomb_list[[1]], width_svg = width_svg, height_svg = height_svg)
 
 ```
 
@@ -438,8 +456,8 @@ girafe( ggobj = ggcomb_list[[1]], width_svg = 12, height_svg = 6)
 
 ```{r, include = FALSE}
 
-params <- "VDSI"
-plot_title <- "VDSI (Vas Deference Sequenc Index)" # ; mean imposex stage measured on a 0-6 scale
+params <- c("VDSI", "VDSI/Intersex")
+plot_title <- "Imposex / intersex  *)" # ; mean imposex stage measured on a plot_title <- "VDSI (Vas Deference Sequence Index) in dog whelk / intersex in common periwinkle *)" # ; mean imposex stage measured on a 0-6 scale
 
 data_plot <- dat_medians %>% 
   filter(MYEAR > 2000 & PARAM %in% params & STATION_CODE %in% stations & Basis == "WW") %>%
@@ -480,7 +498,15 @@ unit = "index"
 # Ref. 
 # Ref. species-specific dry weight: https://dome.ices.dk/ohat/trDocuments/2021/help_ac_basis_conversion.html
 
-caption_text <- get_caption_text(lookup_ref_value, ref_type1, ref_type2, ref_basis1, ref_basis2, unit) 
+
+# HARD-CODED for VDSI 
+caption_text <- paste(
+  "*) All data show imposex in dog whelk (<i>Nucella lapillus</i>) with the exception of 71G (Fugløyskjær, Langesundsfjord),",
+  "which shows imposex in dog whelk until 2009, and intersex in common periwinkle <i>Littorina littorea</i> from 2015 onwards.")
+caption_text2 <- get_caption_text(lookup_ref_value, ref_type1, ref_type2, ref_basis1, ref_basis2, unit) 
+
+# HARD-CODED for VDSI 
+caption_text <- paste0(caption_text, "<br>", caption_text2)
 
 #
 # Add Station_name and 'Ref_value' or 'Ref_value_dw'
@@ -488,6 +514,8 @@ caption_text <- get_caption_text(lookup_ref_value, ref_type1, ref_type2, ref_bas
 data_plot <- data_plot %>% 
   left_join(lookup_stations %>% select(STATION_CODE, Station_name, Order)) %>%
   left_join(lookup_ref_value, by = "LATIN_NAME")
+
+# table(addNA(data_plot$Station_name))
 
 #
 # Set Refratio
@@ -678,7 +706,7 @@ gg_trends_list <- list(list(), list())
     station_levels <- station_levels[tab != 0]
     data_for_plot <- dat_trends_plot_list[[speciesgroup]] %>% 
       filter(Trend_type %in% type) %>%
-      mutate(Station = factor(Station, levels = station_levels))
+      mutate(Station = factor(Station, levels = rev(station_levels)))
     gg_trends_list[[speciesgroup]][[type]] <- ggplot(
       data_for_plot, aes(x = Station, y = Perc_annual)) +
       geom_linerange(aes(ymin = Perc_annual_lo, ymax = Perc_annual_hi, colour = Trend_color), size = 1) +
@@ -695,6 +723,12 @@ gg_trends_list <- list(list(), list())
       coord_flip(ylim = y_ran[[speciesgroup]][[type]]) +
       labs(title = glue("Trend ({type}-term)"), y = "Change (%)") +
       theme_bw() 
+    
+    if (trends_add_station){
+      gg_trends_list[[speciesgroup]][[type]] <- gg_trends_list[[speciesgroup]][[type]] +
+        geom_label(aes(y = label_coor, label = Station))
+    }
+    
     
   }
   
@@ -731,7 +765,7 @@ ggcomb_list <- list()
 
 ```{r}
 
-girafe( ggobj = ggcomb_list[[1]], width_svg = 12, height_svg = 6)
+girafe( ggobj = ggcomb_list[[1]], width_svg = width_svg, height_svg = height_svg)
 
 ```
 
@@ -787,10 +821,16 @@ if (units[1] == "UG_P_KG"){
 # Ref. 
 # Ref. species-specific dry weight: https://dome.ices.dk/ohat/trDocuments/2021/help_ac_basis_conversion.html
 
-caption_text <- get_caption_text(lookup_ref_value, ref_type1, ref_type2, ref_basis1, ref_basis2, unit) 
+# HARD-CODED for tin compunds 
+caption_text <- paste(
+  "All data are measured in dog whelk (<i>Nucella lapillus</i>) with the exception of 71G (Fugløyskjær, Langesundsfjord),",
+  "where the data was measured in dog whelk until 2009 and in common periwinkle (<i>Littorina littorea</i>) from 2015 onwards.")
 
-# caption_text <- glue(
-#   "Reference value: BAC = {lookup_ref_value$BAC_dw[1]} d.w. (OSPAR species-specific conversion factors used). All data are dog whelk except 71G from 2015 onwards, which are common periwinkle.")
+caption_text2 <- get_caption_text(lookup_ref_value, ref_type1, ref_type2, ref_basis1, ref_basis2, unit) 
+
+# HARD-CODED for VDSI 
+caption_text <- paste0(caption_text, "<br>", caption_text2)
+
 
 #
 # Add Station_name and 'Ref_value' or 'Ref_value_dw'
@@ -1041,7 +1081,7 @@ ggcomb_list <- list()
 
 ```{r}
 
-girafe( ggobj = ggcomb_list[[1]], width_svg = 12, height_svg = 6)
+girafe( ggobj = ggcomb_list[[1]], width_svg = width_svg, height_svg = height_svg)
 
 ```
 
@@ -1096,15 +1136,15 @@ if (units[1] == "UG_P_KG"){
 
 # Ref. species-specific dry weight: https://dome.ices.dk/ohat/trDocuments/2021/help_ac_basis_conversion.html
 
-caption_text <- get_caption_text(lookup_ref_value, ref_type1, ref_type2, ref_basis1, ref_basis2, unit) 
+# HARD-CODED for tin compunds 
+caption_text <- paste(
+  "All data are measured in dog whelk (<i>Nucella lapillus</i>) with the exception of 71G (Fugløyskjær, Langesundsfjord),",
+  "where the data was measured in dog whelk until 2009 and in common periwinkle (<i>Littorina littorea</i>) from 2015 onwards.")
 
-ref_value1_txt <- paste(unique(lookup_ref_value$Ref_value1), collapse = ", ")
-caption_text1 <- glue("All data are given in {unit} w.w.")
-if (length(unique(lookup_ref_value$Ref_value1)) > 1){
-  caption_text2 <- with(lookup_ref_value, glue("{ref_type1}: {Ref_value1} {unit} {ref_basis1} ({LATIN_NAME})"))
-} else {
- caption_text2 <- glue("{ref_type1}: {unique(lookup_ref_value$Ref_value1)} {unit} {ref_basis1} (all species)")
-}
+caption_text2 <- get_caption_text(lookup_ref_value, ref_type1, ref_type2, ref_basis1, ref_basis2, unit) 
+
+# HARD-CODED for VDSI 
+caption_text <- paste0(caption_text, "<br>", caption_text2)
 
 #  "Reference value for colors: {ref_type1} = {ref_value1_txt} d.w. (OSPAR species-specific conversion factors used). All 
 # data are dog whelk except 71G from 2015 onwards, which are common periwinkle.")
@@ -1359,7 +1399,7 @@ ggcomb_list <- list()
 
 ```{r}
 
-girafe( ggobj = ggcomb_list[[1]], width_svg = 12, height_svg = 6)
+girafe( ggobj = ggcomb_list[[1]], width_svg = width_svg, height_svg = height_svg)
 
 ```
 
