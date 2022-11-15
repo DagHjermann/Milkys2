@@ -19,6 +19,10 @@ knitr::opts_chunk$set(echo = FALSE, results = 'hold', warning = FALSE)
 width_svg <- 12
 height_svg <- 4.5
 
+# Set to TRUE for testing whether trends are in correct order  
+# - that will add the station names on top of the trend bars/labels
+trends_add_station <- FALSE
+
 ```
 
 <style type="text/css">
@@ -389,7 +393,7 @@ gg_trends_list <- list(list(), list())
     station_levels <- station_levels[tab != 0]
     data_for_plot <- dat_trends_plot_list[[speciesgroup]] %>% 
       filter(Trend_type %in% type) %>%
-      mutate(Station = factor(Station, levels = station_levels))
+      mutate(Station = factor(Station, levels = rev(station_levels)))
     gg_trends_list[[speciesgroup]][[type]] <- ggplot(
       data_for_plot, aes(x = Station, y = Perc_annual)) +
       geom_linerange(aes(ymin = Perc_annual_lo, ymax = Perc_annual_hi, colour = Trend_color), size = 1) +
@@ -407,7 +411,12 @@ gg_trends_list <- list(list(), list())
       labs(title = glue("Trend ({type}-term)"), y = "Change (%)") +
       theme_bw() 
     
-
+    if (trends_add_station){
+      # For testing only (to check that trends are in correct order)
+      gg_trends_list[[speciesgroup]][[type]] <- gg_trends_list[[speciesgroup]][[type]] +
+        geom_label(aes(y = label_coor, label = Station))
+    }
+    
   }
   
 # }
@@ -725,6 +734,7 @@ gg_trends_list <- list(list(), list())
       theme_bw() 
     
     if (trends_add_station){
+      # For testing only (to check that trends are in correct order)
       gg_trends_list[[speciesgroup]][[type]] <- gg_trends_list[[speciesgroup]][[type]] +
         geom_label(aes(y = label_coor, label = Station))
     }
@@ -1028,7 +1038,7 @@ gg_trends_list <- list(list(), list())
     station_levels <- station_levels[tab != 0]
     data_for_plot <- dat_trends_plot_list[[speciesgroup]] %>% 
       filter(Trend_type %in% type) %>%
-      mutate(Station = factor(Station, levels = station_levels))
+      mutate(Station = factor(Station, levels = rev(station_levels)))
     gg_trends_list[[speciesgroup]][[type]] <- ggplot(
       data_for_plot, aes(x = Station, y = Perc_annual)) +
       geom_linerange(aes(ymin = Perc_annual_lo, ymax = Perc_annual_hi, colour = Trend_color), size = 1) +
@@ -1045,6 +1055,13 @@ gg_trends_list <- list(list(), list())
       coord_flip(ylim = y_ran[[speciesgroup]][[type]]) +
       labs(title = glue("Trend ({type}-term)"), y = "Change (%)") +
       theme_bw() 
+    
+    if (trends_add_station){
+      # For testing only (to check that trends are in correct order)
+      gg_trends_list[[speciesgroup]][[type]] <- gg_trends_list[[speciesgroup]][[type]] +
+        geom_label(aes(y = label_coor, label = Station))
+    }
+    
     
   }
   
@@ -1345,7 +1362,7 @@ gg_trends_list <- list(list(), list())
     station_levels <- station_levels[tab != 0]
     data_for_plot <- dat_trends_plot_list[[speciesgroup]] %>% 
       filter(Trend_type %in% type) %>%
-      mutate(Station = factor(Station, levels = station_levels))
+      mutate(Station = factor(Station, levels = rev(station_levels)))
     gg_trends_list[[speciesgroup]][[type]] <- ggplot(
       data_for_plot, aes(x = Station, y = Perc_annual)) +
       geom_linerange(aes(ymin = Perc_annual_lo, ymax = Perc_annual_hi, colour = Trend_color), size = 1) +
@@ -1363,6 +1380,12 @@ gg_trends_list <- list(list(), list())
       labs(title = glue("Trend ({type}-term)"), y = "Change (%)") +
       theme_bw() 
     
+    if (trends_add_station){
+      # For testing only (to check that trends are in correct order)
+      gg_trends_list[[speciesgroup]][[type]] <- gg_trends_list[[speciesgroup]][[type]] +
+        geom_label(aes(y = label_coor, label = Station))
+    }
+
   }
   
 # }
