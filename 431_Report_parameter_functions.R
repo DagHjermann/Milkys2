@@ -31,8 +31,12 @@ get_data_medians <- function(param, species, tissue, basis, include_year,
   
   # Parameter groups
   lookup_paramgroup <- read.csv(filename_lookup_substancegroups) %>%
+    mutate(
+      Parameter.Name = case_when(
+        MGR.Group %in% "PAH" ~ paste0(Parameter.Name, " (", Component.Name, ")"),
+        TRUE ~ Parameter.Name)) %>%
     select(PARAM, Parameter.Name)
-  
+
   # Stations
   lookup_stations <- read.csv(filename_lookup_stations) 
   
@@ -79,6 +83,11 @@ get_data_medians <- function(param, species, tissue, basis, include_year,
   # Medians
   if (basis != "WWa"){
   dat_medians_01 <- readRDS(filename_110_full) %>%
+    # Change Krysen (used last years) to CHL
+    mutate(PARAM = case_when(
+      PARAM %in% "Krysen" ~ "CHR",
+      TRUE ~ PARAM)
+    ) %>%
     dplyr::filter(PARAM %in% param,
                   LATIN_NAME %in% species, 
                   TISSUE_NAME %in% tissue,
@@ -345,6 +354,11 @@ get_data_raw <- function(param, species, tissue, basis, include_year,
   
   # Medians
   dat_01 <- readRDS(filename_109) %>%
+    # Change Krysen (used last years) to CHL
+    mutate(PARAM = case_when(
+      PARAM %in% "Krysen" ~ "CHR",
+      TRUE ~ PARAM)
+    ) %>%
     dplyr::filter(PARAM %in% param,
                   LATIN_NAME %in% species, 
                   TISSUE_NAME %in% tissue) %>%
