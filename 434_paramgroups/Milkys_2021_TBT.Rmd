@@ -20,7 +20,7 @@ width_svg <- 12
 height_svg <- 4.5
 
 # Set to TRUE for testing whether trends are in correct order  
-# - that will add the station names on top of the trend bars/labels
+# - setting to TRUE will add the station names on top of the trend bars/labels
 trends_add_station <- FALSE
 
 ```
@@ -239,7 +239,7 @@ if (!is.null(ref_type2)){
 data_plot <- data_plot %>% 
   left_join(lookup_stations %>% select(STATION_CODE, Station_name, Order)) %>%
   left_join(lookup_ref_value, by = "LATIN_NAME") %>%
-  arrange(Order) %>%
+  arrange(desc(Order)) %>%
   mutate(
     Station = paste(STATION_CODE, Station_name),
     Station = fct_inorder(Station),
@@ -304,7 +304,6 @@ current_year <- 2021
 
 gg_tile <- data_plot %>%
   filter(MYEAR >= startyr) %>%
-  mutate(Station = fct_rev(Station)) %>%
   ggplot(aes(MYEAR, Station)) +
       geom_tile(aes(fill = Refratio_cut)) + 
       geom_text_interactive(aes(label = Value_txt, tooltip = Tooltip_txt), nudge_y = 0, size = 3) +
@@ -393,7 +392,7 @@ gg_trends_list <- list(list(), list())
     station_levels <- station_levels[tab != 0]
     data_for_plot <- dat_trends_plot_list[[speciesgroup]] %>% 
       filter(Trend_type %in% type) %>%
-      mutate(Station = factor(Station, levels = rev(station_levels)))
+      mutate(Station = factor(Station, levels = station_levels))
     gg_trends_list[[speciesgroup]][[type]] <- ggplot(
       data_for_plot, aes(x = Station, y = Perc_annual)) +
       geom_linerange(aes(ymin = Perc_annual_lo, ymax = Perc_annual_hi, colour = Trend_color), size = 1) +
@@ -560,7 +559,7 @@ if (!is.null(ref_type2)){
 data_plot <- data_plot %>% 
   left_join(lookup_stations %>% select(STATION_CODE, Station_name, Order)) %>%
   left_join(lookup_ref_value, by = "LATIN_NAME") %>%
-  arrange(Order) %>%
+  arrange(desc(Order)) %>%
   mutate(
     Station = paste(STATION_CODE, Station_name),
     Station = fct_inorder(Station),
@@ -625,7 +624,6 @@ current_year <- 2021
 
 gg_tile <- data_plot %>%
   filter(MYEAR >= startyr) %>%
-  mutate(Station = fct_rev(Station)) %>%
   ggplot(aes(MYEAR, Station)) +
       geom_tile(aes(fill = Refratio_cut)) + 
       geom_text_interactive(aes(label = Value_txt, tooltip = Tooltip_txt), nudge_y = 0, size = 3) +
@@ -715,7 +713,7 @@ gg_trends_list <- list(list(), list())
     station_levels <- station_levels[tab != 0]
     data_for_plot <- dat_trends_plot_list[[speciesgroup]] %>% 
       filter(Trend_type %in% type) %>%
-      mutate(Station = factor(Station, levels = rev(station_levels)))
+      mutate(Station = factor(Station, levels = station_levels))
     gg_trends_list[[speciesgroup]][[type]] <- ggplot(
       data_for_plot, aes(x = Station, y = Perc_annual)) +
       geom_linerange(aes(ymin = Perc_annual_lo, ymax = Perc_annual_hi, colour = Trend_color), size = 1) +
@@ -883,7 +881,7 @@ if (!is.null(ref_type2)){
 data_plot <- data_plot %>% 
   left_join(lookup_stations %>% select(STATION_CODE, Station_name, Order)) %>%
   left_join(lookup_ref_value, by = "LATIN_NAME") %>%
-  arrange(Order) %>%
+  arrange(desc(Order)) %>%
   mutate(
     Station = paste(STATION_CODE, Station_name),
     Station = fct_inorder(Station),
@@ -948,7 +946,6 @@ current_year <- 2021
 
 gg_tile <- data_plot %>%
   filter(MYEAR >= startyr) %>%
-  mutate(Station = fct_rev(Station)) %>%
   ggplot(aes(MYEAR, Station)) +
       geom_tile(aes(fill = Refratio_cut)) + 
       geom_text_interactive(aes(label = Value_txt, tooltip = Tooltip_txt), nudge_y = 0, size = 3) +
@@ -1038,7 +1035,7 @@ gg_trends_list <- list(list(), list())
     station_levels <- station_levels[tab != 0]
     data_for_plot <- dat_trends_plot_list[[speciesgroup]] %>% 
       filter(Trend_type %in% type) %>%
-      mutate(Station = factor(Station, levels = rev(station_levels)))
+      mutate(Station = factor(Station, levels = station_levels))
     gg_trends_list[[speciesgroup]][[type]] <- ggplot(
       data_for_plot, aes(x = Station, y = Perc_annual)) +
       geom_linerange(aes(ymin = Perc_annual_lo, ymax = Perc_annual_hi, colour = Trend_color), size = 1) +
@@ -1207,7 +1204,7 @@ if (!is.null(ref_type2)){
 data_plot <- data_plot %>% 
   left_join(lookup_stations %>% select(STATION_CODE, Station_name, Order)) %>%
   left_join(lookup_ref_value, by = "LATIN_NAME") %>%
-  arrange(Order) %>%
+  arrange(desc(Order)) %>%
   mutate(
     Station = paste(STATION_CODE, Station_name),
     Station = fct_inorder(Station),
@@ -1272,7 +1269,6 @@ current_year <- 2021
 
 gg_tile <- data_plot %>%
   filter(MYEAR >= startyr) %>%
-  mutate(Station = fct_rev(Station)) %>%
   ggplot(aes(MYEAR, Station)) +
       geom_tile(aes(fill = Refratio_cut)) + 
       geom_text_interactive(aes(label = Value_txt, tooltip = Tooltip_txt), nudge_y = 0, size = 3) +
@@ -1362,7 +1358,7 @@ gg_trends_list <- list(list(), list())
     station_levels <- station_levels[tab != 0]
     data_for_plot <- dat_trends_plot_list[[speciesgroup]] %>% 
       filter(Trend_type %in% type) %>%
-      mutate(Station = factor(Station, levels = rev(station_levels)))
+      mutate(Station = factor(Station, levels = station_levels))
     gg_trends_list[[speciesgroup]][[type]] <- ggplot(
       data_for_plot, aes(x = Station, y = Perc_annual)) +
       geom_linerange(aes(ymin = Perc_annual_lo, ymax = Perc_annual_hi, colour = Trend_color), size = 1) +
