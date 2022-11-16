@@ -1,5 +1,5 @@
 ---
-title: "Fact sheet - TBT and imposex in snails"
+title: "Fact sheet - Chlorinated paraffins (SCCP and MCCP)"
 author: "DHJ"
 date: "2022-11-01"
 output: 
@@ -77,26 +77,20 @@ knitr::opts_chunk$set(echo = FALSE, results = 'hold', warning = FALSE)
 dat_medians <- readRDS("../Data/110_mediandata_updated_2022-09-23.rds")
 lookup_stations <- read.csv("../Input_data/Lookup_tables/Lookup_stationorder.csv")  
 
-# Add asterisk to station name of 71G
-sel <- lookup_stations$STATION_CODE == "71G"
-lookup_stations$Station_name[sel] <- paste(lookup_stations$Station_name[sel], "*")
+sel <- with(dat_medians, PARAM %in% "SCCP" & MYEAR <= 2014)
+dat_medians$PARAM[sel] <- "SCCP eksl. LOQ"
 
-# Fix species of 71G
+sel <- with(dat_medians, PARAM %in% "MCCP" & MYEAR <= 2014)
+dat_medians$PARAM[sel] <- "MCCP eksl. LOQ"
 
-sel <- dat_medians$STATION_CODE %in% "71G" & dat_medians$MYEAR <= 2009
-dat_medians$LATIN_NAME[sel] <- "Nucella lapillus"  
-
-sel <- dat_medians$STATION_CODE %in% "71G" & dat_medians$MYEAR >= 2015
-dat_medians$LATIN_NAME[sel] <- "Littorina littorea"  
 
 #
 # Get stations used in 2021  
 #
 
 tab <- dat_medians %>%
-  filter(LATIN_NAME %in% c("Nucella lapillus", "N. lapillus / L. littorea", "Littorina littorea")) %>%
   filter(MYEAR == 2021) %>%
-  filter(PARAM %in% "TBT") %>%
+  filter(PARAM %in% "SCCP") %>%
   xtabs(~STATION_CODE + (Over_LOQ > 0.5*N_median), .)
 # tab
 stations <- rownames(tab)
@@ -105,9 +99,19 @@ if (FALSE){
   
   # Parameters
   dat_medians %>%
-    filter(LATIN_NAME %in% c("Nucella lapillus", "N. lapillus / L. littorea", "Littorina littorea")) %>%
+    filter(grepl("SCCP", PARAM)) %>%
     filter(MYEAR == 2021) %>%
     xtabs(~PARAM + (Over_LOQ > 0.5*N_median), .)
+  
+  dat_medians %>%
+    filter(grepl("SCCP", PARAM)) %>%
+    filter(MYEAR >= 2000) %>%
+    xtabs(~MYEAR + PARAM , .)
+
+  dat_medians %>%
+    filter(grepl("MCCP", PARAM)) %>%
+    filter(MYEAR >= 2000) %>%
+    xtabs(~MYEAR + PARAM , .)
   
   # Detection of 'param' over stations/years
   param <- "TBT"
@@ -142,27 +146,28 @@ if (FALSE){
 ```
 
 
-## TBT (tributyltinn)  
+## SCCP (short-chained chlorinated paraffins)   
 
 ```{r, include = FALSE}
 
-params <- "TBT"
-plot_title <- "TBT (tributyltinn, kation weight)"
+params <- "SCCP eksl. LOQ"
+plot_title <- "SCCP excl. LOQ"
 
 data_plot <- dat_medians %>% 
   filter(MYEAR > 2000 & PARAM %in% params & STATION_CODE %in% stations & Basis == "WW") %>%
   filter(!is.na(Value))
-
+ 
 lookup_ref_value <- tribble(
-  ~LATIN_NAME, ~BAC, ~EAC, ~Perc_dry_weight,  
-  "Nucella lapillus", 5, 12, 32.8,
-  "Littorina littorea", 5, 12, 21.9, 
+  ~LATIN_NAME, ~EQS,   
+  "Gadus morhua", 6000, 
+  "Somateria mollissima", 6000, 
+  "Mytilus edulis", 6000
 )
 
-ref_type1 <- "BAC"
-ref_type2 <- "EAC"
-ref_basis1 <- "dw"
-ref_basis2 <- "dw"
+ref_type1 <- "EQS"
+ref_type2 <- NULL
+ref_basis1 <- "ww"
+ref_basis2 <- NULL
 
 #
 # Set reference values
@@ -186,16 +191,8 @@ if (units[1] == "UG_P_KG"){
 
 # Ref. species-specific dry weight: https://dome.ices.dk/ohat/trDocuments/2021/help_ac_basis_conversion.html
 
-# HARD-CODED for tin compunds 
-caption_text <- paste(
-  "All data are measured in dog whelk (<i>Nucella lapillus</i>) with the exception of 71G (Fugløyskjær, Langesundsfjord),",
-  "where the data was measured in dog whelk until 2009 and in common periwinkle (<i>Littorina littorea</i>) from 2015 onwards.")
-
-caption_text2 <- get_caption_text(lookup_ref_value, ref_type1, ref_type2, ref_basis1, ref_basis2, unit) 
-
-# HARD-CODED for VDSI 
-caption_text <- paste0(caption_text, "<br>", caption_text2)
-
+# caption_text <- get_caption_text(lookup_ref_value, ref_type1, ref_type2, ref_basis1, ref_basis2, unit) 
+caption_text <- "All measurements are in µg/kg w.w." 
 
 
 #
@@ -241,8 +238,6 @@ data_plot <- data_plot %>%
   left_join(lookup_ref_value, by = "LATIN_NAME") %>%
   arrange(desc(Order)) %>%
   mutate(
-    Station = paste(STATION_CODE, Station_name),
-    Station = fct_inorder(Station),
     FLAG1 = ifelse(Over_LOQ < 0.5*N_median, "<", as.character(NA)),
     Refratio_cut = cut(Refratio1, breaks = c(0,0.5,0.75,0.9,1,2,5,10,20,100)),
     Value_txt = case_when(
@@ -286,7 +281,19 @@ if (!is.null(ref_type2)){
 
 
 
+
 ```{r, warning=FALSE}
+
+startyr <- 2012
+current_year <- 2021
+
+data_plot_sel <- data_plot %>%
+  filter(LATIN_NAME %in% c("Gadus morhua", "Somateria mollissoma")) %>%
+  filter(MYEAR >= startyr) %>%
+  mutate(
+    Station = paste(STATION_CODE, Station_name),
+    Station = fct_inorder(Station)
+  )
 
 refratio_cols <- c(RColorBrewer::brewer.pal(6, "Blues")[5:2],
                  RColorBrewer::brewer.pal(6, "YlOrRd")[1:5])
@@ -299,12 +306,8 @@ if (check1 != check2){
 
 names(refratio_cols) <- levels(data_plot$Refratio_cut)
 
-startyr <- 2005
-current_year <- 2021
 
-gg_tile <- data_plot %>%
-  filter(MYEAR >= startyr) %>%
-  ggplot(aes(MYEAR, Station)) +
+gg_tile <- ggplot(data_plot, aes(MYEAR, Station)) +
       geom_tile(aes(fill = Refratio_cut)) + 
       geom_text_interactive(aes(label = Value_txt, tooltip = Tooltip_txt), nudge_y = 0, size = 3) +
       # geom_text(aes(label = LOQ_label), size = 3, nudge_y = 0.3) +
