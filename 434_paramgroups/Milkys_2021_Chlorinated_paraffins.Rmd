@@ -1,0 +1,460 @@
+---
+title: "Fact sheet - TBT and imposex in snails"
+author: "DHJ"
+date: "2022-11-01"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+
+---
+
+```{r, include=FALSE}
+
+# 01_settings
+
+current_year <- 2021
+knitr::opts_chunk$set(echo = FALSE, results = 'hold', warning = FALSE)
+
+width_svg <- 12
+height_svg <- 4.5
+
+# Set to TRUE for testing whether trends are in correct order  
+# - setting to TRUE will add the station names on top of the trend bars/labels
+trends_add_station <- FALSE
+
+```
+
+<style type="text/css">
+div.main-container {
+  max-width: 1800px;
+  margin-left: auto;
+  margin-right: auto;
+}
+</style>
+
+```{r, include = FALSE}
+
+#
+# Improved version of fact sheet "combo" plots  
+# - possible to make adjustments after getting the data for all parameters:
+#     - may manipulate station order and station name (e.g. add asterisk) - will apply to all parameters
+# - possible to make adjustments after getting the parameter-specific data
+#
+
+# selstations <- list (...one or several data sets, e.g, 1. cod + eider duck and 2. blue mussel, or 1. all snails)
+# dat_medians_selstations <- map(selstations, get_medians_stations) 
+# 
+# for each parameter:
+#   
+# lookup_ref_value - can be EQS, PROREF, BAC or whatever (one table for all species)
+# ref_list <- list(ref_type1,2 and ref_basis1,2)  - global variable
+# dat_medians_param <-  map(param, get_medians_param, data = dat_medians_selstations, param, ref_list, ) 
+# - adds reference values
+# - adds Ref_value -> Ratio, Tooltip etc
+
+
+```
+
+```{r, include = FALSE}
+
+library(dplyr)
+library(ggplot2)
+library(ggiraph)
+library(forcats)
+library(glue)
+
+source("../002_Utility_functions.R")
+source("../431_Report_parameter_functions.R")
+
+knitr::opts_chunk$set(echo = FALSE, results = 'hold', warning = FALSE)
+
+#
+# Data 
+#
+
+# dat_raw <- readRDS("../Data/109_adjusted_data_2022-09-23.rds")  
+dat_medians <- readRDS("../Data/110_mediandata_updated_2022-09-23.rds")
+lookup_stations <- read.csv("../Input_data/Lookup_tables/Lookup_stationorder.csv")  
+
+# Add asterisk to station name of 71G
+sel <- lookup_stations$STATION_CODE == "71G"
+lookup_stations$Station_name[sel] <- paste(lookup_stations$Station_name[sel], "*")
+
+# Fix species of 71G
+
+sel <- dat_medians$STATION_CODE %in% "71G" & dat_medians$MYEAR <= 2009
+dat_medians$LATIN_NAME[sel] <- "Nucella lapillus"  
+
+sel <- dat_medians$STATION_CODE %in% "71G" & dat_medians$MYEAR >= 2015
+dat_medians$LATIN_NAME[sel] <- "Littorina littorea"  
+
+#
+# Get stations used in 2021  
+#
+
+tab <- dat_medians %>%
+  filter(LATIN_NAME %in% c("Nucella lapillus", "N. lapillus / L. littorea", "Littorina littorea")) %>%
+  filter(MYEAR == 2021) %>%
+  filter(PARAM %in% "TBT") %>%
+  xtabs(~STATION_CODE + (Over_LOQ > 0.5*N_median), .)
+# tab
+stations <- rownames(tab)
+
+if (FALSE){
+  
+  # Parameters
+  dat_medians %>%
+    filter(LATIN_NAME %in% c("Nucella lapillus", "N. lapillus / L. littorea", "Littorina littorea")) %>%
+    filter(MYEAR == 2021) %>%
+    xtabs(~PARAM + (Over_LOQ > 0.5*N_median), .)
+  
+  # Detection of 'param' over stations/years
+  param <- "TBT"
+  param <- "VDSI"
+  param <- "DBT"
+  dat_medians %>%
+    filter(Basis == "WW" & STATION_CODE %in% stations) %>%
+    mutate(
+      FLAG1 = ifelse(Over_LOQ > 0.5*N_median, as.character(NA), "<"),
+      Detected =  Over_LOQ/N_median) %>% 
+    filter(PARAM == param) %>%
+    ggplot(aes(MYEAR, STATION_CODE)) +
+    geom_tile(aes(fill = Detected))
+  
+  # Detection for all parameters/stations for a given year  
+  year <- 2007
+  year <- 2013
+  year <- 2021
+  dat_medians %>%
+    filter(Basis == "WW" & STATION_CODE %in% stations) %>%
+    mutate(
+      FLAG1 = ifelse(Over_LOQ > 0.5*N_median, as.character(NA), "<"),
+      Detected =  Over_LOQ/N_median) %>% 
+    filter(MYEAR == year) %>%
+    ggplot(aes(STATION_CODE, PARAM)) +
+    geom_tile(aes(fill = Detected))
+  
+  # TBT, VDSI, MBT, DBT
+  
+}
+
+```
+
+
+## TBT (tributyltinn)  
+
+```{r, include = FALSE}
+
+params <- "TBT"
+plot_title <- "TBT (tributyltinn, kation weight)"
+
+data_plot <- dat_medians %>% 
+  filter(MYEAR > 2000 & PARAM %in% params & STATION_CODE %in% stations & Basis == "WW") %>%
+  filter(!is.na(Value))
+
+lookup_ref_value <- tribble(
+  ~LATIN_NAME, ~BAC, ~EAC, ~Perc_dry_weight,  
+  "Nucella lapillus", 5, 12, 32.8,
+  "Littorina littorea", 5, 12, 21.9, 
+)
+
+ref_type1 <- "BAC"
+ref_type2 <- "EAC"
+ref_basis1 <- "dw"
+ref_basis2 <- "dw"
+
+#
+# Set reference values
+#
+lookup_ref_value$Ref_value1 <- lookup_ref_value[[ref_type1]]
+if (!is.null(ref_type2))
+  lookup_ref_value$Ref_value2 <- lookup_ref_value[[ref_type2]]
+
+units <- unique(data_plot$UNIT)
+if (length(units) > 1){
+  stop("More than one unit in the data!")
+}
+
+if (units[1] == "UG_P_KG"){
+  unit <- "µg/kg"
+} else if (units[1] == "MG_P_KG"){
+  unit <- "mg/kg"
+} else {
+  unit <- "" 
+}
+
+# Ref. species-specific dry weight: https://dome.ices.dk/ohat/trDocuments/2021/help_ac_basis_conversion.html
+
+# HARD-CODED for tin compunds 
+caption_text <- paste(
+  "All data are measured in dog whelk (<i>Nucella lapillus</i>) with the exception of 71G (Fugløyskjær, Langesundsfjord),",
+  "where the data was measured in dog whelk until 2009 and in common periwinkle (<i>Littorina littorea</i>) from 2015 onwards.")
+
+caption_text2 <- get_caption_text(lookup_ref_value, ref_type1, ref_type2, ref_basis1, ref_basis2, unit) 
+
+# HARD-CODED for VDSI 
+caption_text <- paste0(caption_text, "<br>", caption_text2)
+
+
+
+#
+# Add Station_name and 'Ref_value1' (and if existing 'Ref_value2')  
+#
+data_plot <- data_plot %>% 
+  left_join(lookup_stations %>% select(STATION_CODE, Station_name, Order)) %>%
+  left_join(lookup_ref_value, by = "LATIN_NAME")
+
+#
+# Set Refratio
+#
+if (ref_basis1 == "dw"){
+  data_plot <- data_plot %>% 
+    mutate(
+      Value_dw = Value*Perc_dry_weight/100,
+      Refratio1 = Value_dw/Ref_value1)
+} else if (ref_basis1 == "ww"){
+  data_plot <- data_plot %>% 
+    mutate(
+      Refratio1 = Value/Ref_value1)
+}
+
+#
+# Set Refratio2
+# (only if ref_type2 is not set to NULL)
+#
+if (!is.null(ref_type2)){
+  if(ref_basis2 == "dw"){
+    data_plot <- data_plot %>% 
+      mutate(
+        Value_dw = Value*Perc_dry_weight/100,
+        Refratio2 = Value_dw/Ref_value2)
+  } else if (ref_basis2 == "ww"){
+    data_plot <- data_plot %>% 
+      mutate(
+        Refratio2 = Value/Ref_value2)
+  }
+}
+
+data_plot <- data_plot %>% 
+  left_join(lookup_stations %>% select(STATION_CODE, Station_name, Order)) %>%
+  left_join(lookup_ref_value, by = "LATIN_NAME") %>%
+  arrange(desc(Order)) %>%
+  mutate(
+    Station = paste(STATION_CODE, Station_name),
+    Station = fct_inorder(Station),
+    FLAG1 = ifelse(Over_LOQ < 0.5*N_median, "<", as.character(NA)),
+    Refratio_cut = cut(Refratio1, breaks = c(0,0.5,0.75,0.9,1,2,5,10,20,100)),
+    Value_txt = case_when(
+      is.na(FLAG1) ~ signif2(Value, 2, maxdigits = 5),
+      !is.na(FLAG1) & Value > 0 ~ paste0("<", signif2(Value, 2, maxdigits = 4)),
+      !is.na(FLAG1) & Value == 0 ~ "0"),                              # for 'SCCP eksl. LOQ' + 'MCCP eksl. LOQ'
+    txt_conc = glue("Median value: {Value_txt} {unit} ({signif(Value_min, 2)} - {signif(Value_max, 2)}; N = {N_median})"),
+    txt_perc = glue("25% and 75% percentiles: {signif(Value_p25, 2)}-{signif(Value_p75, 2)}"),
+    txt_loq = case_when(
+      Over_LOQ < N_median ~ glue(
+        "Measurements over LOQ: {Over_LOQ} ({signif(100*(Over_LOQ/N_median))}%); median_LOQ = {Det_limit}"),
+      Over_LOQ == N_median ~ "All measurements are over LOQ"),
+    txt_ref1 = glue("The median is {signif(Refratio1, 2)} times the {ref_type1}"),
+    Tooltip_txt = txt_conc,
+    Tooltip_txt = ifelse(N_median > 5, paste(Tooltip_txt, "<br>", txt_perc), Tooltip_txt),
+    Tooltip_txt = paste(Tooltip_txt, "<br>", txt_loq),
+    Tooltip_txt = paste(Tooltip_txt, "<br>", txt_ref1)
+  )
+
+
+if (!is.null(ref_type2)){
+  data_plot <- data_plot %>% 
+    mutate(
+      txt_ref2 = glue("The median is {signif(Refratio2, 2)} times the {ref_type2}"),
+      Tooltip_txt = case_when(
+        !is.null(ref_type2) ~ paste(Tooltip_txt, "<br>", txt_ref2),
+        is.null(ref_type2) ~ Tooltip_txt)
+    )
+}
+
+
+#    txt_loq = glue("Measurements over LOQ: {Over_LOQ} ({signif(100*(Over_LOQ/N_median))}%)"))
+
+  #   txt_ref = glue("The median is {signif(Refratio, 2)} times the reference value ({ref_type1})"),
+  #   Tooltip_txt = txt_conc,
+  #   Tooltip_txt = ifelse(N_median > 5, paste(Tooltip_txt, "<br>", txt_perc), Tooltip_txt),
+  #   Tooltip_txt = ifelse(Over_LOQ < N_median, paste(Tooltip_txt, "<br>", txt_loq), Tooltip_txt)
+  # )
+
+```
+
+
+
+```{r, warning=FALSE}
+
+refratio_cols <- c(RColorBrewer::brewer.pal(6, "Blues")[5:2],
+                 RColorBrewer::brewer.pal(6, "YlOrRd")[1:5])
+
+check1 <- length(levels(data_plot$Refratio_cut))
+check2 <- length(refratio_cols)
+if (check1 != check2){
+  stop("Number of ratio categories = ", check1, ", number of colors = ", check2, ". They should be the same length.")
+}
+
+names(refratio_cols) <- levels(data_plot$Refratio_cut)
+
+startyr <- 2005
+current_year <- 2021
+
+gg_tile <- data_plot %>%
+  filter(MYEAR >= startyr) %>%
+  ggplot(aes(MYEAR, Station)) +
+      geom_tile(aes(fill = Refratio_cut)) + 
+      geom_text_interactive(aes(label = Value_txt, tooltip = Tooltip_txt), nudge_y = 0, size = 3) +
+      # geom_text(aes(label = LOQ_label), size = 3, nudge_y = 0.3) +
+      scale_fill_manual(paste0("Ratio\nconc./", ref_type1), values = refratio_cols) +
+      scale_x_continuous(breaks = seq(startyr, 2020, 2), 
+                         limits = c(startyr-0.5, current_year+0.5)) +
+      theme_bw() +
+      guides(colour = "none") +
+      labs(
+        title = plot_title,
+        x = "Year", y = "")    # could also add: caption = caption_text)
+
+ # girafe(ggobj = gg_tile, height_svg = 4.7, width_svg = 10)
+
+```
+
+```{r, include=FALSE}
+
+#
+# Make trend plot data
+#
+
+speciesgroup <- 1
+dat_medians_list <- list()
+dat_medians_list[[speciesgroup]] <- data_plot
+
+# 05_trends_settings
+
+shape_order <- c("Increasing", "Decreasing", "No change")
+colour_order <- shape_order
+  
+trend_shapes <- c(24, 25, 21) %>% setNames(shape_order)
+trend_colours <- c("red3", "green4", "grey20") %>% setNames(colour_order)
+trend_fill <- c("red2", "green2", "grey20") %>% setNames(colour_order)
+
+dat_trends_plot_list <- list()
+dat_trends_plot_list[[speciesgroup]] <- get_data_trends(data_plot, basis = "WW", include_year = 2021, 
+                                    filename_trends = "../Data/125_results_2021_07_output/126_df_trend_2021.rds") 
+
+# dat_trends_plot_list[[speciesgroup]]
+
+y_ran <- list(list(), list())
+
+  dat_trends_plot_list[[speciesgroup]] <- dat_trends_plot_list[[speciesgroup]] %>%
+    mutate(
+      Tooltip_txt = paste0(
+        ifelse(Trend_type == "short", "10-year trend: ", "Long-term trend: "), Trend_string),
+      Tooltip_txt = ifelse(
+        Trend_string %in% c("Decreasing", "Increasing"),
+        paste0(Tooltip_txt, "<br>Change per year: ", sprintf("%.1f", Perc_annual), 
+              "% (conf.int.: ", round(Perc_annual_hi,1), " - ", round(Perc_annual_lo,1), ")"),
+        Trend_string
+        )
+    )
+
+  dat_trends_plot_list[[speciesgroup]]$label_coor <- NA
+
+  for (type in c("long", "short")){
+    
+    # y range equals the point estimates 
+    y_ran[[speciesgroup]][[type]] <- dat_trends_plot_list[[speciesgroup]] %>% 
+      filter(Trend_type %in% type) %>% 
+      pull(Perc_annual) %>%
+      range(na.rm = TRUE)
+    y_ran[[speciesgroup]][[type]] <- range(y_ran[[speciesgroup]][[type]], 0)
+    
+  sel <- dat_trends_plot_list[[speciesgroup]]$Trend_type %in% type
+  dat_trends_plot_list[[speciesgroup]]$label_coor[sel] <- mean(y_ran[[speciesgroup]][[type]])
+
+  }
+  
+
+#
+# Make trend plots
+#
+  
+gg_trends_list <- list(list(), list())
+
+# for (speciesgroup in speciesgroups){
+
+  for (type in c("long", "short")){
+    
+    tab <- table(dat_medians_list[[speciesgroup]]$Station)
+    station_levels <- names(tab)
+    station_levels <- station_levels[tab != 0]
+    data_for_plot <- dat_trends_plot_list[[speciesgroup]] %>% 
+      filter(Trend_type %in% type) %>%
+      mutate(Station = factor(Station, levels = station_levels))
+    gg_trends_list[[speciesgroup]][[type]] <- ggplot(
+      data_for_plot, aes(x = Station, y = Perc_annual)) +
+      geom_linerange(aes(ymin = Perc_annual_lo, ymax = Perc_annual_hi, colour = Trend_color), size = 1) +
+      geom_point_interactive(aes(fill = Trend_color, shape = Trend_color, tooltip = Tooltip_txt), 
+                             colour = "black", size = 3) +
+      scale_colour_manual(values = trend_colours, drop = FALSE) +
+      scale_fill_manual(values = trend_colours, drop = FALSE) +
+      scale_shape_manual(values = trend_shapes, drop = FALSE) +
+      geom_hline(yintercept = 0, color = "grey30") +
+      geom_label(aes(y = label_coor, 
+                     label = Trend_text), fill = "white", color = "blue3", 
+                 label.size = 0, size = 3, hjust = 0.5) +
+      scale_x_discrete(limits = levels(data_for_plot$Station)) +
+      coord_flip(ylim = y_ran[[speciesgroup]][[type]]) +
+      labs(title = glue("Trend ({type}-term)"), y = "Change (%)") +
+      theme_bw() 
+    
+    if (trends_add_station){
+      # For testing only (to check that trends are in correct order)
+      gg_trends_list[[speciesgroup]][[type]] <- gg_trends_list[[speciesgroup]][[type]] +
+        geom_label(aes(y = label_coor, label = Station))
+    }
+    
+  }
+  
+# }
+
+  
+```
+
+
+```{r}
+
+#
+# Combine tile plot and trend plots
+#
+
+gg_tile_list <- list(gg_tile)
+ggcomb_list <- list()
+
+  ggcomb_list[[speciesgroup]] <- cowplot::plot_grid(
+    gg_tile_list[[speciesgroup]] + theme(legend.position = "none"), 
+    gg_trends_list[[speciesgroup]][[1]] + 
+      theme(axis.title.y = element_blank(),
+            axis.text.y = element_blank(),
+            legend.position = "none"), 
+    gg_trends_list[[speciesgroup]][[2]] + 
+      theme(axis.title.y = element_blank(),
+            axis.text.y = element_blank()), 
+    nrow = 1, ncol = 3,
+    rel_heights = 3,
+    rel_widths = c(2.7, 0.75, 1.25)
+  )
+
+
+```
+
+```{r}
+
+girafe( ggobj = ggcomb_list[[1]], width_svg = width_svg, height_svg = height_svg)
+
+```
+
+`r caption_text`
+
