@@ -55,41 +55,58 @@ if (FALSE){
 ```
 
 
+```{r, echo=FALSE, results='asis', warning=FALSE, message=FALSE}
+
+# both "FALSE" and "TRUE" seems to work for 'called_from_mother' 
+
+params <- list(
+  param = "BAA",
+  basis_medians = "WW",
+  basis_trends = "WW",
+  eqsplot = "ordinary",
+  prorefplot = "TRUE",
+  include_trend = "TRUE",
+  serieslastuntil = 2021,
+  called_from_mother = "TRUE",
+  species3 = "Mytilus edulis"
+)
+
+
+```
+
+<style type="text/css">
+div.main-container {
+  max-width: 1800px;
+  margin-left: auto;
+  margin-right: auto;
+}
+</style>
+
 
 ```{r, echo=FALSE, results='asis', warning=FALSE, message=FALSE}
 
-# References:
-# https://bookdown.org/yihui/rmarkdown-cookbook/child-document.html#child-document
-# and
-# https://stackoverflow.com/a/69392658/1734247 
-
 param_values <- c("ACNE", "ACNLE", "ANT", "BAA", "BAP", "BBJF", "BGHIP", "BKF", 
-"Krysen", "DBA3A", "FLE", "FLU", "ICDP", "NAP", "PA", "PYR")
+"CHR", "DBA3A", "FLE", "FLU", "ICDP", "NAP", "PA", "PYR")
 
-# Note: the child document must have no chunk labels, otherwise it will stop in the start of he second round
-#   because chunk labels are 'duplicated'
+# param_values <- c("BAA")
 
 for (param in param_values){
   
-  if (param == "HG"){
-    basis_medians <- "WWa"
-  } else {
-    basis_medians <- "WW"
-  }
+  params$param <- param
   
-  eqsplot <- as.character(param %in% lookup_eqs$PARAM)
-
-  params <- list(
-    param = param,
-    basis_medians = basis_medians,
-    basis_trends = "WW",
-    eqsplot = eqsplot,
-    include_trend = "TRUE"
-  )
+  if (param %in% lookup_eqs$PARAM){
+    if (param %in% c("BAA", "ANT")){
+      params$eqsplot <- "log"
+    } else {
+      params$eqsplot <- "ordinary"
+    }
+  } else {
+      params$eqsplot <- "FALSE"
+  }
   
   res <- knitr::knit_child('../434_Report_parameter_interactive_nochunklabels.Rmd', quiet = TRUE)
   cat(res, sep = '\n')
-  
+
 }
 
 # Alternative:

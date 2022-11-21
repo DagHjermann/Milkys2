@@ -1,0 +1,212 @@
+---
+title: "Fact sheet - PAH metabolites in cod bile"
+author: "DHJ"
+date: "2022-11-01"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+
+---
+
+```{r, include = FALSE}
+
+library(dplyr)
+library(ggplot2)
+library(ggiraph)
+library(forcats)
+
+source("../002_Utility_functions.R")
+
+knitr::opts_chunk$set(echo = FALSE, results = 'hold', warning = FALSE)
+
+#
+# Check PAH metabolites
+#
+
+# dat_raw <- readRDS("../Data/109_adjusted_data_2022-09-23.rds")  
+dat_medians <- readRDS("../Data/110_mediandata_updated_2022-09-23.rds")
+lookup_stations <- read.csv("../Input_data/Lookup_tables/Lookup_stationorder.csv")  
+
+
+```
+
+
+## 1-hydroxy pyrene (PYR1OH)  
+
+```{r, include = FALSE}
+
+#
+# As above but "non-normalized" 2009 also removed  
+#
+params <- c("PYR1O","PYR1OH")
+params <- "PYR1OH"
+plot_title <- "1-hydroxy pyrene in cod bile (PYR1OH)"
+ref_value <- 21
+data_plot <- dat_medians %>% 
+  filter(MYEAR > 2000 & PARAM %in% params & STATION_CODE %in% c("15B", "53B","23B","30B") & Basis == "WW") %>%
+  filter(!is.na(Value)) %>%
+  filter(!(MYEAR == 2009 & PARAM %in% c("PYR1OH"))) %>%
+  left_join(lookup_stations %>% select(STATION_CODE, Station_name, Order)) %>%
+  arrange(Order) %>%
+  mutate(
+    Station = paste(STATION_CODE, Station_name),
+    Station = fct_inorder(Station),
+    BAC_ratio = Value/ref_value,
+    FLAG1 = ifelse(Over_LOQ < 0.5*N_median, "<", as.character(NA)),
+    Value_txt = case_when(
+      is.na(FLAG1) ~ signif2(Value, 2, maxdigits = 5),
+      !is.na(FLAG1) & Value > 0 ~ paste0("<", signif2(Value, 2, maxdigits = 4)),
+      !is.na(FLAG1) & Value == 0 ~ "0"                                # for 'SCCP eksl. LOQ' + 'MCCP eksl. LOQ'
+    ),
+    txt_conc = paste0("Median value: ", Value_txt, 
+                      " (", signif(Value_min, 2), "-", signif(Value_max, 2), "; N =", N_median, ")"),
+    txt_perc = paste0("25% and 75% percentiles: ", signif(Value_p25, 2), "-", signif(Value_p75, 2)),
+    txt_loq = paste0("Measurements over LOQ: ", Over_LOQ, 
+                     " (", signif(100*(Over_LOQ/N_median), 1), " %); median LOQ = ", Det_limit),
+    txt_eqs = paste0("The median is ", signif(BAC_ratio, 2), " times the BAC (", ref_value, ")"),
+    Tooltip_txt = txt_conc,
+    Tooltip_txt = ifelse(N_median > 5, paste(Tooltip_txt, "<br>", txt_perc), Tooltip_txt),
+    Tooltip_txt = ifelse(Over_LOQ < N_median, paste(Tooltip_txt, "<br>", txt_loq), Tooltip_txt)
+  )
+
+
+
+```
+
+### Tile plot  
+
+```{r, warning=FALSE}
+
+proref_cols <- c(RColorBrewer::brewer.pal(6, "Blues")[5:2],
+                 RColorBrewer::brewer.pal(6, "YlOrRd")[1:5])
+startyr <- 2012
+current_year <- 2021
+
+gg <- data_plot %>%
+  filter(MYEAR >= startyr) %>%
+  mutate(Station = fct_rev(Station)) %>%
+  ggplot(aes(MYEAR, Station)) +
+      geom_tile(aes(fill = BAC_ratio)) + 
+      geom_text_interactive(aes(label = Value_txt, tooltip = Tooltip_txt), nudge_y = 0, size = 3) +
+      # geom_text(aes(label = LOQ_label), size = 3, nudge_y = 0.3) +
+      scale_fill_gradient2("BAC ratio", low = "lightblue", high = "pink", midpoint = 1, na.value = "grey85") +
+      scale_x_continuous(breaks = seq(startyr, 2020, 2), 
+                         limits = c(startyr-0.5, current_year+0.5)) +
+      theme_bw() +
+      guides(colour = "none") +
+      labs(
+        title = plot_title,
+        x = "Year", y = "", caption = paste("BAC =", ref_value))
+
+ girafe(ggobj = gg, height_svg = 5.7, width_svg = 9)
+
+```
+
+### Time series plot  
+
+```{r, warning=FALSE, fig.width=9, fig.height=6}
+
+ggplot(data_plot, aes(MYEAR, Value)) +
+  geom_pointrange(aes(ymin = Value_p25, ymax = Value_p75), color = "orchid3") +
+  geom_line(color = "orchid3") +
+  scale_color_brewer(palette = "Dark2") +
+  scale_y_log10() + 
+  geom_hline(yintercept = ref_value, linetype = "dashed", color = "blue") +
+  annotate("text", x = 1996, y = ref_value, label = "BAC", color = "blue", 
+           hjust = 0, vjust = -0.2, size = 3) +
+  facet_wrap(vars(Station)) +
+  labs(title = plot_title, y = "Concentration in bile (ng ml-1)", x = "") +
+  theme_bw()
+
+```
+
+
+## 1-hydroxy phenantrene (PA1OH)  
+
+```{r, include = FALSE}
+
+#
+# As above but "non-normalized" 2009 also removed  
+#
+params <- "PA1OH"
+plot_title <- "1-hydroxy phenantrene in cod bile (PA1OH)"
+ref_value <- 2.7
+
+data_plot <- dat_medians %>% 
+  filter(MYEAR > 2000 & PARAM %in% params & STATION_CODE %in% c("15B", "53B","23B","30B") & Basis == "WW") %>%
+  filter(!is.na(Value)) %>%
+  filter(!(MYEAR == 2009 & PARAM %in% c("PYR1OH"))) %>%
+  left_join(lookup_stations %>% select(STATION_CODE, Station_name, Order)) %>%
+  arrange(Order) %>%
+  mutate(
+    Station = paste(STATION_CODE, Station_name),
+    Station = fct_inorder(Station),
+    BAC_ratio = Value/ref_value,
+    FLAG1 = ifelse(Over_LOQ < 0.5*N_median, "<", as.character(NA)),
+    Value_txt = case_when(
+      is.na(FLAG1) ~ signif2(Value, 2, maxdigits = 5),
+      !is.na(FLAG1) & Value > 0 ~ paste0("<", signif2(Value, 2, maxdigits = 4)),
+      !is.na(FLAG1) & Value == 0 ~ "0"                                # for 'SCCP eksl. LOQ' + 'MCCP eksl. LOQ'
+    ),
+    txt_conc = paste0("Median value: ", Value_txt, 
+                      " (", signif(Value_min, 2), "-", signif(Value_max, 2), "; N =", N_median, ")"),
+    txt_perc = paste0("25% and 75% percentiles: ", signif(Value_p25, 2), "-", signif(Value_p75, 2)),
+    txt_loq = paste0("Measurements over LOQ: ", Over_LOQ, 
+                     " (", signif(100*(Over_LOQ/N_median), 1), " %); median LOQ = ", Det_limit),
+    txt_eqs = paste0("The median is ", signif(BAC_ratio, 2), " times the BAC (", ref_value, ")"),
+    Tooltip_txt = txt_conc,
+    Tooltip_txt = ifelse(N_median > 5, paste(Tooltip_txt, "<br>", txt_perc), Tooltip_txt),
+    Tooltip_txt = ifelse(Over_LOQ < N_median, paste(Tooltip_txt, "<br>", txt_loq), Tooltip_txt)
+  )
+
+
+
+```
+
+### Tile plot  
+
+```{r, warning=FALSE}
+
+proref_cols <- c(RColorBrewer::brewer.pal(6, "Blues")[5:2],
+                 RColorBrewer::brewer.pal(6, "YlOrRd")[1:5])
+startyr <- 2012
+current_year <- 2021
+
+gg <- data_plot %>%
+  filter(MYEAR >= startyr) %>%
+  mutate(Station = fct_rev(Station)) %>%
+  ggplot(aes(MYEAR, Station)) +
+      geom_tile(aes(fill = BAC_ratio)) + 
+      geom_text_interactive(aes(label = Value_txt, tooltip = Tooltip_txt), nudge_y = 0, size = 3) +
+      # geom_text(aes(label = LOQ_label), size = 3, nudge_y = 0.3) +
+      scale_fill_gradient2("BAC ratio", low = "lightblue", high = "pink", midpoint = 1, na.value = "grey85") +
+      scale_x_continuous(breaks = seq(startyr, 2020, 2), 
+                         limits = c(startyr-0.5, current_year+0.5)) +
+      theme_bw() +
+      guides(colour = "none") +
+      labs(
+        title = plot_title,
+        x = "Year", y = "", caption = paste("BAC =", ref_value))
+
+ girafe(ggobj = gg, height_svg = 5.7, width_svg = 9)
+
+```
+
+### Time series plot  
+
+```{r, warning=FALSE, fig.width=9, fig.height=6}
+
+ggplot(data_plot, aes(MYEAR, Value)) +
+  geom_pointrange(aes(ymin = Value_p25, ymax = Value_p75), color = "orchid3") +
+  geom_line(color = "orchid3") +
+  scale_color_brewer(palette = "Dark2") +
+  scale_y_log10() + 
+  geom_hline(yintercept = ref_value, linetype = "dashed", color = "blue") +
+  annotate("text", x = 1996, y = ref_value, label = "BAC", color = "blue", 
+           hjust = 0, vjust = -0.2, size = 3) +
+  facet_wrap(vars(Station)) +
+  labs(title = plot_title, y = "Concentration in bile (ng ml-1)", x = "") +
+  theme_bw()
+
+```

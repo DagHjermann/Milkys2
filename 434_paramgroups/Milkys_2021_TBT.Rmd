@@ -661,8 +661,10 @@ trend_colours <- c("red3", "green4", "grey20") %>% setNames(colour_order)
 trend_fill <- c("red2", "green2", "grey20") %>% setNames(colour_order)
 
 dat_trends_plot_list <- list()
+# debugonce(get_data_trends)
 dat_trends_plot_list[[speciesgroup]] <- get_data_trends(data_plot, basis = "WW", include_year = 2021, 
                                     filename_trends = "../Data/125_results_2021_07_output/126_df_trend_2021.rds") 
+
 
 # dat_trends_plot_list[[speciesgroup]]
 
