@@ -58,6 +58,12 @@ div.main-container {
 
 ```{r, include = FALSE}
 
+# pick-data-parametergroup
+
+# Parameters to select  
+params <- c("SCCP eksl. LOQ", "MCCP eksl. LOQ")
+tissues <- c("Lever", "Whole soft body", "Blod", "Egg")
+
 library(dplyr)
 library(ggplot2)
 library(ggiraph)
@@ -74,73 +80,114 @@ knitr::opts_chunk$set(echo = FALSE, results = 'hold', warning = FALSE)
 #
 
 # dat_raw <- readRDS("../Data/109_adjusted_data_2022-09-23.rds")  
-dat_medians <- readRDS("../Data/110_mediandata_updated_2022-09-23.rds")
+dat_medians <- readRDS("../Data/110_mediandata_updated_2022-09-23.rds") 
+
 lookup_stations <- read.csv("../Input_data/Lookup_tables/Lookup_stationorder.csv")  
+
+# HARD-CODED PART for this notebook: Fixing PARAM  
+
+# NOTE:
+# Parameters "SCCP" and "MCCP" until 2014 has been checked and found to be "eksl. LOQ"
+# Example: 98A2 in 2014 (report '98A2 blåskjell ordre 53-14.PDF' in
+#   'K:\Prosjekter\Sjøvann\JAMP\2014\analyser\analyserapporter')  
 
 sel <- with(dat_medians, PARAM %in% "SCCP" & MYEAR <= 2014)
 dat_medians$PARAM[sel] <- "SCCP eksl. LOQ"
 
 sel <- with(dat_medians, PARAM %in% "MCCP" & MYEAR <= 2014)
 dat_medians$PARAM[sel] <- "MCCP eksl. LOQ"
+# HARD-CODED PART end
+
+
+# Select all parameters
+dat_medians_sel_1 <- dat_medians %>%
+  filter(
+    PARAM %in% params,
+    TISSUE_NAME %in% tissues) 
+message("nrow(dat_medians_sel_1): ", nrow(dat_medians_sel_1))
+
+
+# HARD-CODED PART for this notebook: Fixing 2021 data
+dat_2021 <- readRDS("../Input_data/01_df_2021_notstandard_2022-09-23.rds") %>%
+  filter(NAME %in% c("SCCP eksl. LOQ", "MCCP eksl. LOQ"))
+
+# - check units
+check <- table(dat_2021$UNIT)
+if (!identical(names(check), "NG_P_G"))
+  stop("Check units!")
+
+# Code adapted from script 110, section 3    
+dat_2021_med <- dat_2021 %>%
+  rename(VALUE_WW = VALUE) %>%        # note: assume w.w.
+  group_by(PARAM = NAME, STATION_CODE, LATIN_NAME, TISSUE_NAME) %>%
+  summarise(
+    N_median = n(), 
+    Det_limit = median(VALUE_WW[!is.na(FLAG1)]), 
+    # Over_LOQ = sum(is.na(FLAG1)),
+    Value_min = min(VALUE_WW, na.rm = TRUE),
+    Value_p25 = quantile(VALUE_WW, probs = 0.25, na.rm = TRUE),
+    Value_p75 = quantile(VALUE_WW, probs = 0.75, na.rm = TRUE),
+    Value_max = max(VALUE_WW, na.rm = TRUE),
+    Value = median(VALUE_WW, na.rm = TRUE),
+    .groups = "drop") %>%
+  mutate(
+    UNIT = "UG_P_KG",
+    Basis = "WW",
+    MYEAR = 2021)
+
+# NOTE:
+dat_2021_med$Over_LOQ <- dat_2021_med$N_median
+
+# NOTE:
+sel <- dat_2021_med$STATION_CODE %in% "36A1"; sum(sel)
+dat_2021_med$STATION_CODE[sel] <- "36A"
+
+
+message("nrow(dat_medians_sel_1): ", nrow(dat_medians_sel_1))
+dat_medians_sel_1 <- dat_medians_sel_1 %>%
+  filter(!MYEAR %in% 2021:2022) %>%
+  bind_rows(dat_2021_med)
+message("nrow(dat_medians_sel_1): ", nrow(dat_medians_sel_1))
+
+# HARD-CODED PART end
 
 
 #
 # Get stations used in 2021  
 #
 
-tab <- dat_medians %>%
+tab_stations <- dat_medians_sel_1 %>%
   filter(MYEAR == 2021) %>%
-  filter(PARAM %in% "SCCP") %>%
-  xtabs(~STATION_CODE + (Over_LOQ > 0.5*N_median), .)
-# tab
-stations <- rownames(tab)
+  xtabs(~STATION_CODE + PARAM, .)
+tab_stations
+
+stations <- row.names(tab_stations)
+
+
+# Select data for those stations
+dat_medians_sel <- dat_medians_sel_1 %>%
+  filter(
+    STATION_CODE %in% stations,
+    Basis == "WW",
+    !is.na(Value)
+    ) %>%
+  left_join(lookup_stations %>% select(STATION_CODE, Station_name, Order),
+            by = "STATION_CODE") %>%
+  mutate(
+    Station = paste(STATION_CODE, Station_name),
+    FLAG1 = ifelse(Over_LOQ < 0.5*N_median, "<", as.character(NA))
+)
 
 if (FALSE){
   
-  # Parameters
-  dat_medians %>%
-    filter(grepl("SCCP", PARAM)) %>%
-    filter(MYEAR == 2021) %>%
-    xtabs(~PARAM + (Over_LOQ > 0.5*N_median), .)
+  xtabs(~MYEAR + STATION_CODE, dat_medians_sel)
   
+  # years
   dat_medians %>%
     filter(grepl("SCCP", PARAM)) %>%
     filter(MYEAR >= 2000) %>%
     xtabs(~MYEAR + PARAM , .)
 
-  dat_medians %>%
-    filter(grepl("MCCP", PARAM)) %>%
-    filter(MYEAR >= 2000) %>%
-    xtabs(~MYEAR + PARAM , .)
-  
-  # Detection of 'param' over stations/years
-  param <- "TBT"
-  param <- "VDSI"
-  param <- "DBT"
-  dat_medians %>%
-    filter(Basis == "WW" & STATION_CODE %in% stations) %>%
-    mutate(
-      FLAG1 = ifelse(Over_LOQ > 0.5*N_median, as.character(NA), "<"),
-      Detected =  Over_LOQ/N_median) %>% 
-    filter(PARAM == param) %>%
-    ggplot(aes(MYEAR, STATION_CODE)) +
-    geom_tile(aes(fill = Detected))
-  
-  # Detection for all parameters/stations for a given year  
-  year <- 2007
-  year <- 2013
-  year <- 2021
-  dat_medians %>%
-    filter(Basis == "WW" & STATION_CODE %in% stations) %>%
-    mutate(
-      FLAG1 = ifelse(Over_LOQ > 0.5*N_median, as.character(NA), "<"),
-      Detected =  Over_LOQ/N_median) %>% 
-    filter(MYEAR == year) %>%
-    ggplot(aes(STATION_CODE, PARAM)) +
-    geom_tile(aes(fill = Detected))
-  
-  # TBT, VDSI, MBT, DBT
-  
 }
 
 ```
@@ -148,193 +195,141 @@ if (FALSE){
 
 ## SCCP (short-chained chlorinated paraffins)   
 
-```{r, include = FALSE}
+```{r, include=FALSE}
 
-params <- "SCCP eksl. LOQ"
-plot_title <- "SCCP excl. LOQ"
+# pick-data-parameter
 
-data_plot <- dat_medians %>% 
-  filter(MYEAR > 2000 & PARAM %in% params & STATION_CODE %in% stations & Basis == "WW") %>%
-  filter(!is.na(Value))
- 
+# Change 1) heading above, 2) param + plot_title below, 3) lookup_ref_value, 4) caption_text1 and 2
+
+param <- "SCCP eksl. LOQ"
+plot_title <- "SCCP excl. LOQ"  
+
+# Add Ref_value 
+
+# HARD-CODED reference values
+# check <- read.csv("../Input_data/Lookup_tables/Lookup_EQS_limits.csv")
+# check <- read.csv("../Input_data/Lookup_tables/Lookup_proref.csv")
+# Ref. species-specific dry weight: https://dome.ices.dk/ohat/trDocuments/2021/help_ac_basis_conversion.html
 lookup_ref_value <- tribble(
-  ~LATIN_NAME, ~EQS,   
-  "Gadus morhua", 6000, 
-  "Somateria mollissima", 6000, 
-  "Mytilus edulis", 6000
+  ~LATIN_NAME,          ~Ref_value1, ~Basis1, ~Ref_value2, ~Basis2,   ~Perc_dry_weight,   
+  "Gadus morhua",           154,        "ww",     6000,        "ww",                NA,
+  "Somateria mollissima",   154,        "ww",     6000,        "ww",                NA,
+  "Mytilus edulis",       20.26,        "ww",     6000,        "ww",                NA
 )
 
-ref_type1 <- "EQS"
-ref_type2 <- NULL
+ref_type1 <- "PROREF"
+ref_type2 <- "EQS"
 ref_basis1 <- "ww"
-ref_basis2 <- NULL
+ref_basis2 <- "ww"
+
+# Used in add_tooltip_text_tiles()
+unit <- "µg/kg"
+
+caption_text1 <- paste0(
+  "All data are given in µg/kg w.w. <br>", 
+  "Colours show concentration relative to PROREF (154 µg/kg ww for cod). EQS: 6000 µg/kg ww.  <br>", 
+  "Note: For <i>Somateria mollissima</i> (eider duck), no PROREF has been developed, but PROREF for cod is used in this figure for illustrative purposes.")
+
+caption_text2 <- paste0(
+  "All data are given in µg/kg w.w. <br>", 
+  "Colours show concentration relative to PROREF (20.26 µg/kg ww for blue mussel). EQS: 6000 µg/kg ww.  <br>")
 
 #
 # Set reference values
 #
-lookup_ref_value$Ref_value1 <- lookup_ref_value[[ref_type1]]
-if (!is.null(ref_type2))
-  lookup_ref_value$Ref_value2 <- lookup_ref_value[[ref_type2]]
 
-units <- unique(data_plot$UNIT)
-if (length(units) > 1){
-  stop("More than one unit in the data!")
-}
-
-if (units[1] == "UG_P_KG"){
-  unit <- "µg/kg"
-} else if (units[1] == "MG_P_KG"){
-  unit <- "mg/kg"
-} else {
-  unit <- "" 
-}
-
-# Ref. species-specific dry weight: https://dome.ices.dk/ohat/trDocuments/2021/help_ac_basis_conversion.html
-
-# caption_text <- get_caption_text(lookup_ref_value, ref_type1, ref_type2, ref_basis1, ref_basis2, unit) 
-caption_text <- "All measurements are in µg/kg w.w." 
-
-
-#
-# Add Station_name and 'Ref_value1' (and if existing 'Ref_value2')  
-#
-data_plot <- data_plot %>% 
-  left_join(lookup_stations %>% select(STATION_CODE, Station_name, Order)) %>%
-  left_join(lookup_ref_value, by = "LATIN_NAME")
-
-#
-# Set Refratio
-#
-if (ref_basis1 == "dw"){
-  data_plot <- data_plot %>% 
-    mutate(
-      Value_dw = Value*Perc_dry_weight/100,
-      Refratio1 = Value_dw/Ref_value1)
-} else if (ref_basis1 == "ww"){
-  data_plot <- data_plot %>% 
-    mutate(
-      Refratio1 = Value/Ref_value1)
-}
-
-#
-# Set Refratio2
-# (only if ref_type2 is not set to NULL)
-#
-if (!is.null(ref_type2)){
-  if(ref_basis2 == "dw"){
-    data_plot <- data_plot %>% 
-      mutate(
-        Value_dw = Value*Perc_dry_weight/100,
-        Refratio2 = Value_dw/Ref_value2)
-  } else if (ref_basis2 == "ww"){
-    data_plot <- data_plot %>% 
-      mutate(
-        Refratio2 = Value/Ref_value2)
-  }
-}
-
-data_plot <- data_plot %>% 
-  left_join(lookup_stations %>% select(STATION_CODE, Station_name, Order)) %>%
+# Select data for those stations
+# ...and add reference values ans calculate ratios concentration/reference       
+dat_medians_param <- dat_medians_sel %>%
+  filter(PARAM %in% param) %>%
   left_join(lookup_ref_value, by = "LATIN_NAME") %>%
-  arrange(desc(Order)) %>%
   mutate(
-    FLAG1 = ifelse(Over_LOQ < 0.5*N_median, "<", as.character(NA)),
-    Refratio_cut = cut(Refratio1, breaks = c(0,0.5,0.75,0.9,1,2,5,10,20,100)),
-    Value_txt = case_when(
-      is.na(FLAG1) ~ signif2(Value, 2, maxdigits = 5),
-      !is.na(FLAG1) & Value > 0 ~ paste0("<", signif2(Value, 2, maxdigits = 4)),
-      !is.na(FLAG1) & Value == 0 ~ "0"),                              # for 'SCCP eksl. LOQ' + 'MCCP eksl. LOQ'
-    txt_conc = glue("Median value: {Value_txt} {unit} ({signif(Value_min, 2)} - {signif(Value_max, 2)}; N = {N_median})"),
-    txt_perc = glue("25% and 75% percentiles: {signif(Value_p25, 2)}-{signif(Value_p75, 2)}"),
-    txt_loq = case_when(
-      Over_LOQ < N_median ~ glue(
-        "Measurements over LOQ: {Over_LOQ} ({signif(100*(Over_LOQ/N_median))}%); median_LOQ = {Det_limit}"),
-      Over_LOQ == N_median ~ "All measurements are over LOQ"),
-    txt_ref1 = glue("The median is {signif(Refratio1, 2)} times the {ref_type1}"),
-    Tooltip_txt = txt_conc,
-    Tooltip_txt = ifelse(N_median > 5, paste(Tooltip_txt, "<br>", txt_perc), Tooltip_txt),
-    Tooltip_txt = paste(Tooltip_txt, "<br>", txt_loq),
-    Tooltip_txt = paste(Tooltip_txt, "<br>", txt_ref1)
-  )
-
-
-if (!is.null(ref_type2)){
-  data_plot <- data_plot %>% 
-    mutate(
-      txt_ref2 = glue("The median is {signif(Refratio2, 2)} times the {ref_type2}"),
-      Tooltip_txt = case_when(
-        !is.null(ref_type2) ~ paste(Tooltip_txt, "<br>", txt_ref2),
-        is.null(ref_type2) ~ Tooltip_txt)
+    Value_dw = Value*Perc_dry_weight/100,
+    Refratio1 = case_when(
+      Basis1 %in% "ww" ~ Value/Ref_value1,
+      Basis1 %in% "dw" ~ Value_dw/Ref_value1),
+    Refratio2 = case_when(
+      Basis2 %in% "ww" ~ Value/Ref_value2,
+      Basis2 %in% "dw" ~ Value_dw/Ref_value2)
     )
-}
 
-
-#    txt_loq = glue("Measurements over LOQ: {Over_LOQ} ({signif(100*(Over_LOQ/N_median))}%)"))
-
-  #   txt_ref = glue("The median is {signif(Refratio, 2)} times the reference value ({ref_type1})"),
-  #   Tooltip_txt = txt_conc,
-  #   Tooltip_txt = ifelse(N_median > 5, paste(Tooltip_txt, "<br>", txt_perc), Tooltip_txt),
-  #   Tooltip_txt = ifelse(Over_LOQ < N_median, paste(Tooltip_txt, "<br>", txt_loq), Tooltip_txt)
-  # )
+# Set Refratio and add tooltips  
 
 ```
 
 
+```{r}
 
-
-```{r, warning=FALSE}
+# create-tile-data1
 
 startyr <- 2012
 current_year <- 2021
 
-data_plot_sel <- data_plot %>%
+data_tiles <- list()
+
+data_tiles[[1]] <- dat_medians_param %>%
   filter(LATIN_NAME %in% c("Gadus morhua", "Somateria mollissoma")) %>%
   filter(MYEAR >= startyr) %>%
+  arrange(Order) %>%
   mutate(
-    Station = paste(STATION_CODE, Station_name),
     Station = fct_inorder(Station)
   )
 
-refratio_cols <- c(RColorBrewer::brewer.pal(6, "Blues")[5:2],
-                 RColorBrewer::brewer.pal(6, "YlOrRd")[1:5])
+data_tiles[[2]] <- dat_medians_param %>%
+  filter(LATIN_NAME %in% c("Mytilus edulis")) %>%
+  filter(MYEAR >= startyr) %>%
+  arrange(Order) %>%
+  mutate(
+    Station = fct_inorder(Station)
+  )
 
-check1 <- length(levels(data_plot$Refratio_cut))
-check2 <- length(refratio_cols)
-if (check1 != check2){
-  stop("Number of ratio categories = ", check1, ", number of colors = ", check2, ". They should be the same length.")
+# Check stations:  
+# paste(levels(data_tiles[[1]]$Station), collapse = ", ")
+# paste(levels(data_tiles[[2]]$Station), collapse = ", ")
+
+```
+
+```{r}
+
+# create-tile-data2
+
+for (i in seq_along(data_tiles)){
+  data_tiles[[i]] <- data_tiles[[i]] %>% 
+    check_unit() %>%     # Checks that the data has only a single unit  
+    mutate(Refratio_cut = cut(Refratio1, breaks = c(0,0.5,0.75,0.9,1,2,5,10,20,100))) %>%
+    add_tooltip_text_tiles(ref_type1 = "PROREF", ref_type2 = "EQS", unit = "µg/kg")
 }
 
-names(refratio_cols) <- levels(data_plot$Refratio_cut)
+if (FALSE){
+
+  # Check plot
+  gg <- data_tiles[[i]] %>%
+    mutate(Station = fct_rev(Station)) %>%
+    ggplot(aes(MYEAR, Station))
+  gg + geom_tile(aes(fill = Value))
+  gg + geom_tile(aes(fill = Refratio1))
+  
+}
+
+```
 
 
-gg_tile <- ggplot(data_plot, aes(MYEAR, Station)) +
-      geom_tile(aes(fill = Refratio_cut)) + 
-      geom_text_interactive(aes(label = Value_txt, tooltip = Tooltip_txt), nudge_y = 0, size = 3) +
-      # geom_text(aes(label = LOQ_label), size = 3, nudge_y = 0.3) +
-      scale_fill_manual(paste0("Ratio\nconc./", ref_type1), values = refratio_cols) +
-      scale_x_continuous(breaks = seq(startyr, 2020, 2), 
-                         limits = c(startyr-0.5, current_year+0.5)) +
-      theme_bw() +
-      guides(colour = "none") +
-      labs(
-        title = plot_title,
-        x = "Year", y = "")    # could also add: caption = caption_text)
+```{r, warning=FALSE}
 
- # girafe(ggobj = gg_tile, height_svg = 4.7, width_svg = 10)
+# create-tile-plots
+
+plot_tiles <- list()
+
+for (i in seq_along(data_tiles)){
+  tile_colours <- get_tile_colours(data_tiles[[i]])
+  plot_tiles[[i]] <- get_tile_plot(data_tiles[[i]], tile_colours)
+}
 
 ```
 
 ```{r, include=FALSE}
 
-#
-# Make trend plot data
-#
-
-speciesgroup <- 1
-dat_medians_list <- list()
-dat_medians_list[[speciesgroup]] <- data_plot
-
-# 05_trends_settings
+# create-trend-data
 
 shape_order <- c("Increasing", "Decreasing", "No change")
 colour_order <- shape_order
@@ -343,121 +338,356 @@ trend_shapes <- c(24, 25, 21) %>% setNames(shape_order)
 trend_colours <- c("red3", "green4", "grey20") %>% setNames(colour_order)
 trend_fill <- c("red2", "green2", "grey20") %>% setNames(colour_order)
 
-dat_trends_plot_list <- list()
-dat_trends_plot_list[[speciesgroup]] <- get_data_trends(data_plot, basis = "WW", include_year = 2021, 
-                                    filename_trends = "../Data/125_results_2021_07_output/126_df_trend_2021.rds") 
+# Data for trend plot
+data_trends <- list()
 
-# dat_trends_plot_list[[speciesgroup]]
+# y range for putting text in the right place in plot data
+y_ran <- list()
 
-y_ran <- list(list(), list())
-
-  dat_trends_plot_list[[speciesgroup]] <- dat_trends_plot_list[[speciesgroup]] %>%
-    mutate(
-      Tooltip_txt = paste0(
-        ifelse(Trend_type == "short", "10-year trend: ", "Long-term trend: "), Trend_string),
-      Tooltip_txt = ifelse(
-        Trend_string %in% c("Decreasing", "Increasing"),
-        paste0(Tooltip_txt, "<br>Change per year: ", sprintf("%.1f", Perc_annual), 
-              "% (conf.int.: ", round(Perc_annual_hi,1), " - ", round(Perc_annual_lo,1), ")"),
-        Trend_string
-        )
-    )
-
-  dat_trends_plot_list[[speciesgroup]]$label_coor <- NA
-
+for (i in seq_along(data_tiles)){
+  
+  data_trends[[i]] <- get_data_trends(
+    data_tiles[[i]], basis = "WW", include_year = 2021, 
+    filename_trends = "../Data/125_results_2021_07_output/126_df_trend_2021.rds") %>%
+    add_tooltip_text_trends() %>%
+    mutate(label_coor = NA)
+  
+  y_ran[[i]] <- list()
+  
   for (type in c("long", "short")){
     
     # y range equals the point estimates 
-    y_ran[[speciesgroup]][[type]] <- dat_trends_plot_list[[speciesgroup]] %>% 
+    y_ran[[i]][[type]] <- data_trends[[i]] %>% 
       filter(Trend_type %in% type) %>% 
       pull(Perc_annual) %>%
       range(na.rm = TRUE)
-    y_ran[[speciesgroup]][[type]] <- range(y_ran[[speciesgroup]][[type]], 0)
+    y_ran[[i]][[type]] <- range(y_ran[[i]][[type]], 0)
     
-  sel <- dat_trends_plot_list[[speciesgroup]]$Trend_type %in% type
-  dat_trends_plot_list[[speciesgroup]]$label_coor[sel] <- mean(y_ran[[speciesgroup]][[type]])
-
+    # y_ran is used to set variable 'label_coor', but is also used to set the range in ggplot later
+    sel <- data_trends[[i]]$Trend_type %in% type
+    data_trends[[i]]$label_coor[sel] <- mean(y_ran[[i]][[type]])
+    
   }
+
   
+}
 
-#
-# Make trend plots
-#
+```
+
+```{r, include=FALSE}
+
+# create-trend-plots
+
+plot_trends <- list()
+
+for (i in seq_along(data_tiles)){
   
-gg_trends_list <- list(list(), list())
-
-# for (speciesgroup in speciesgroups){
-
+  plot_trends[[i]] <- list()
+  
   for (type in c("long", "short")){
     
-    tab <- table(dat_medians_list[[speciesgroup]]$Station)
-    station_levels <- names(tab)
-    station_levels <- station_levels[tab != 0]
-    data_for_plot <- dat_trends_plot_list[[speciesgroup]] %>% 
+    station_levels <- rev(get_station_levels(data_tiles[[i]]))
+    data_for_plot <- data_trends[[i]] %>% 
       filter(Trend_type %in% type) %>%
       mutate(Station = factor(Station, levels = station_levels))
-    gg_trends_list[[speciesgroup]][[type]] <- ggplot(
-      data_for_plot, aes(x = Station, y = Perc_annual)) +
-      geom_linerange(aes(ymin = Perc_annual_lo, ymax = Perc_annual_hi, colour = Trend_color), size = 1) +
-      geom_point_interactive(aes(fill = Trend_color, shape = Trend_color, tooltip = Tooltip_txt), 
-                             colour = "black", size = 3) +
-      scale_colour_manual(values = trend_colours, drop = FALSE) +
-      scale_fill_manual(values = trend_colours, drop = FALSE) +
-      scale_shape_manual(values = trend_shapes, drop = FALSE) +
-      geom_hline(yintercept = 0, color = "grey30") +
-      geom_label(aes(y = label_coor, 
-                     label = Trend_text), fill = "white", color = "blue3", 
-                 label.size = 0, size = 3, hjust = 0.5) +
-      scale_x_discrete(limits = levels(data_for_plot$Station)) +
-      coord_flip(ylim = y_ran[[speciesgroup]][[type]]) +
-      labs(title = glue("Trend ({type}-term)"), y = "Change (%)") +
-      theme_bw() 
+    
+    plot_trends[[i]][[type]] <- get_trend_plot(data_for_plot, y_ran[[i]][[type]]) 
     
     if (trends_add_station){
       # For testing only (to check that trends are in correct order)
-      gg_trends_list[[speciesgroup]][[type]] <- gg_trends_list[[speciesgroup]][[type]] +
+      plot_trends[[i]][[type]] <- plot_trends[[i]][[type]] +
         geom_label(aes(y = label_coor, label = Station))
     }
-    
+  
   }
-  
-# }
 
-  
+}
+
+
 ```
 
 
 ```{r}
 
+# combine-plots
+
+plot_combo <- list()
+for (i in seq_along(data_tiles)){
+  plot_combo[[i]] <- get_combo_plot(plot_tiles[[i]], plot_trends[[i]])
+}
+
+```
+### Cod and eider duck  
+
+```{r}
+
+girafe( ggobj = plot_combo[[1]], width_svg = width_svg, height_svg = height_svg)
+
+```
+`r caption_text1`
+
+
+### Blue mussel  
+
+```{r}
+
+girafe( ggobj = plot_combo[[2]], width_svg = width_svg, height_svg = height_svg)
+
+```
+
+`r caption_text2`
+
+
+
+
+## MCCP (medium-chained chlorinated paraffins)   
+
+```{r, include=FALSE}
+
+# pick-data-parameter
+
+# Change 1) heading above, 2) param + plot_title below, 3) lookup_ref_value, 4) caption_text1 and 2
+
+param <- "MCCP eksl. LOQ"
+plot_title <- "MCCP excl. LOQ"  
+
+# Add Ref_value 
+
+# HARD-CODED reference values - hard-coded
+# check <- read.csv("../Input_data/Lookup_tables/Lookup_EQS_limits.csv")
+# check <- read.csv("../Input_data/Lookup_tables/Lookup_proref.csv")
+# Ref. species-specific dry weight: https://dome.ices.dk/ohat/trDocuments/2021/help_ac_basis_conversion.html
+
+lookup_ref_value <- tribble(
+  ~LATIN_NAME,          ~Ref_value1, ~Basis1, ~Ref_value2, ~Basis2,   ~Perc_dry_weight,   
+  "Gadus morhua",           392.8,        "ww",     170,        "ww",                NA,
+  "Somateria mollissima",   392.8,        "ww",     170,        "ww",                NA,
+  "Mytilus edulis",          87.6,        "ww",     170,        "ww",                NA
+)
+
+
+ref_type1 <- "PROREF"
+ref_type2 <- "EQS"
+ref_basis1 <- "ww"
+ref_basis2 <- "ww"
+
+# Used in add_tooltip_text_tiles()
+unit <- "µg/kg"
+
+caption_text1 <- paste0(
+  "All data are given in µg/kg w.w. <br>", 
+  "Colours show concentration relative to PROREF (392.8 µg/kg ww for cod). Red frame = EQS (170 µg/kg w.w.) exceeded.  <br>", 
+  "Note: For <i>Somateria mollissima</i> (eider duck), no PROREF has been developed, but PROREF for cod is used in this figure for illustrative purposes.")
+
+caption_text2 <- paste0(
+  "All data are given in µg/kg w.w. <br>", 
+  "Colours show concentration relative to PROREF (87.6 µg/kg ww for blue mussel). EQS: 170 µg/kg ww.  <br>")
+
 #
-# Combine tile plot and trend plots
+# Set reference values
 #
 
-gg_tile_list <- list(gg_tile)
-ggcomb_list <- list()
+# Select data for those stations
+# ...and add reference values ans calculate ratios concentration/reference       
+dat_medians_param <- dat_medians_sel %>%
+  filter(PARAM %in% param) %>%
+  left_join(lookup_ref_value, by = "LATIN_NAME") %>%
+  mutate(
+    Value_dw = Value*Perc_dry_weight/100,
+    Refratio1 = case_when(
+      Basis1 %in% "ww" ~ Value/Ref_value1,
+      Basis1 %in% "dw" ~ Value_dw/Ref_value1),
+    Refratio2 = case_when(
+      Basis2 %in% "ww" ~ Value/Ref_value2,
+      Basis2 %in% "dw" ~ Value_dw/Ref_value2)
+    )
 
-  ggcomb_list[[speciesgroup]] <- cowplot::plot_grid(
-    gg_tile_list[[speciesgroup]] + theme(legend.position = "none"), 
-    gg_trends_list[[speciesgroup]][[1]] + 
-      theme(axis.title.y = element_blank(),
-            axis.text.y = element_blank(),
-            legend.position = "none"), 
-    gg_trends_list[[speciesgroup]][[2]] + 
-      theme(axis.title.y = element_blank(),
-            axis.text.y = element_blank()), 
-    nrow = 1, ncol = 3,
-    rel_heights = 3,
-    rel_widths = c(2.7, 0.75, 1.25)
+# Set Refratio and add tooltips  
+
+```
+
+
+
+
+```{r}
+
+# create-tile-data1
+
+startyr <- 2012
+current_year <- 2021
+
+data_tiles <- list()
+
+data_tiles[[1]] <- dat_medians_param %>%
+  filter(LATIN_NAME %in% c("Gadus morhua", "Somateria mollissoma")) %>%
+  filter(MYEAR >= startyr) %>%
+  arrange(Order) %>%
+  mutate(
+    Station = fct_inorder(Station)
   )
 
+data_tiles[[2]] <- dat_medians_param %>%
+  filter(LATIN_NAME %in% c("Mytilus edulis")) %>%
+  filter(MYEAR >= startyr) %>%
+  arrange(Order) %>%
+  mutate(
+    Station = fct_inorder(Station)
+  )
+
+# Check stations:  
+# paste(levels(data_tiles[[1]]$Station), collapse = ", ")
+# paste(levels(data_tiles[[2]]$Station), collapse = ", ")
 
 ```
 
 ```{r}
 
-girafe( ggobj = ggcomb_list[[1]], width_svg = width_svg, height_svg = height_svg)
+# create-tile-data2
+
+for (i in seq_along(data_tiles)){
+  data_tiles[[i]] <- data_tiles[[i]] %>% 
+    check_unit() %>%     # Checks that the data has only a single unit  
+    mutate(Refratio_cut = cut(Refratio1, breaks = c(0,0.5,0.75,0.9,1,2,5,10,20,100))) %>%
+    add_tooltip_text_tiles(ref_type1 = "PROREF", ref_type2 = "EQS", unit = "µg/kg")
+}
+
+if (FALSE){
+
+  # Check plot
+  gg <- data_tiles[[i]] %>%
+    mutate(Station = fct_rev(Station)) %>%
+    ggplot(aes(MYEAR, Station))
+  gg + geom_tile(aes(fill = Value))
+  gg + geom_tile(aes(fill = Refratio1))
+  gg + geom_tile(aes(fill = Refratio2))
+  
+}
 
 ```
 
-`r caption_text`
+
+```{r, warning=FALSE}
+
+# create-tile-plots
+
+plot_tiles <- list()
+
+for (i in seq_along(data_tiles)){
+  tile_colours <- get_tile_colours(data_tiles[[i]])
+  plot_tiles[[i]] <- get_tile_plot(data_tiles[[i]], tile_colours)
+}
+
+```
+
+```{r, include=FALSE}
+
+# create-trend-data
+
+shape_order <- c("Increasing", "Decreasing", "No change")
+colour_order <- shape_order
+  
+trend_shapes <- c(24, 25, 21) %>% setNames(shape_order)
+trend_colours <- c("red3", "green4", "grey20") %>% setNames(colour_order)
+trend_fill <- c("red2", "green2", "grey20") %>% setNames(colour_order)
+
+# Data for trend plot
+data_trends <- list()
+
+# y range for putting text in the right place in plot data
+y_ran <- list()
+
+for (i in seq_along(data_tiles)){
+  
+  data_trends[[i]] <- get_data_trends(
+    data_tiles[[i]], basis = "WW", include_year = 2021, 
+    filename_trends = "../Data/125_results_2021_07_output/126_df_trend_2021.rds") %>%
+    add_tooltip_text_trends() %>%
+    mutate(label_coor = NA)
+  
+  y_ran[[i]] <- list()
+  
+  for (type in c("long", "short")){
+    
+    # y range equals the point estimates 
+    y_ran[[i]][[type]] <- data_trends[[i]] %>% 
+      filter(Trend_type %in% type) %>% 
+      pull(Perc_annual) %>%
+      range(na.rm = TRUE)
+    y_ran[[i]][[type]] <- range(y_ran[[i]][[type]], 0)
+    
+    # y_ran is used to set variable 'label_coor', but is also used to set the range in ggplot later
+    sel <- data_trends[[i]]$Trend_type %in% type
+    data_trends[[i]]$label_coor[sel] <- mean(y_ran[[i]][[type]])
+    
+  }
+
+  
+}
+
+```
+
+```{r, include=FALSE}
+
+# create-trend-plots
+
+plot_trends <- list()
+
+for (i in seq_along(data_tiles)){
+  
+  plot_trends[[i]] <- list()
+  
+  for (type in c("long", "short")){
+    
+    station_levels <- rev(get_station_levels(data_tiles[[i]]))
+    data_for_plot <- data_trends[[i]] %>% 
+      filter(Trend_type %in% type) %>%
+      mutate(Station = factor(Station, levels = station_levels))
+    
+    plot_trends[[i]][[type]] <- get_trend_plot(data_for_plot, y_ran[[i]][[type]]) 
+    
+    if (trends_add_station){
+      # For testing only (to check that trends are in correct order)
+      plot_trends[[i]][[type]] <- plot_trends[[i]][[type]] +
+        geom_label(aes(y = label_coor, label = Station))
+    }
+  
+  }
+
+}
+
+
+```
+
+
+```{r}
+
+# combine-plots
+
+plot_combo <- list()
+for (i in seq_along(data_tiles)){
+  plot_combo[[i]] <- get_combo_plot(plot_tiles[[i]], plot_trends[[i]])
+}
+
+```
+
+
+### Cod and eider duck  
+
+```{r}
+
+girafe( ggobj = plot_combo[[1]], width_svg = width_svg, height_svg = height_svg)
+
+```
+`r caption_text1`
+
+
+### Blue mussel  
+
+```{r}
+
+girafe( ggobj = plot_combo[[2]], width_svg = width_svg, height_svg = height_svg)
+
+```
+`r caption_text2`
+
 
