@@ -471,6 +471,18 @@ data_plot <- dat_medians %>%
   filter(MYEAR > 2000 & PARAM %in% params & STATION_CODE %in% stations & Basis == "WW") %>%
   filter(!is.na(Value))
 
+# HARD-CODED - add values for 2010, 2011, 2015 
+# Also zero, so no need to change values of Value
+data_plot_extra <- data_plot %>%
+  filter(STATION_CODE == "71G" & MYEAR %in% 2019:2021)
+data_plot_extra$MYEAR <- c(2010, 2011, 2015)
+data_plot_extra$DRYWT <- NA
+# Add
+data_plot <- bind_rows(data_plot, data_plot_extra)
+
+# HARD-CODED end 
+
+
 lookup_ref_value <- tribble(
   ~LATIN_NAME, ~BAC, ~EAC,   
   "Nucella lapillus", 0.3, 2, 
