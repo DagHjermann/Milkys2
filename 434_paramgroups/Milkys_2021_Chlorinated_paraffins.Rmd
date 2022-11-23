@@ -108,13 +108,30 @@ message("nrow(dat_medians_sel_1): ", nrow(dat_medians_sel_1))
 
 
 # HARD-CODED PART for this notebook: Fixing 2021 data
-dat_2021 <- readRDS("../Input_data/01_df_2021_notstandard_2022-09-23.rds") %>%
-  filter(NAME %in% c("SCCP eksl. LOQ", "MCCP eksl. LOQ"))
+dat_2021_all <- readRDS("../Input_data/01_df_2021_notstandard_2022-09-23.rds") %>%
+  filter(NAME %in% c("SCCP eksl. LOQ", "MCCP eksl. LOQ", "SCCP inkl. LOQ", "MCCP inkl. LOQ"))
 
 # - check units
-check <- table(dat_2021$UNIT)
+check <- table(dat_2021_all$UNIT)
 if (!identical(names(check), "NG_P_G"))
   stop("Check units!")
+
+# For adding "incl LOQ" value to tooltip
+dat_2021_inclLOQ <- dat_2021_all %>%
+  filter(NAME %in% c("SCCP inkl. LOQ", "MCCP inkl. LOQ")) %>%
+  mutate(NAME = sub("inkl", "eksl", NAME)) %>%   # (for left_join later)
+  select(NAME, STATION_CODE, LATIN_NAME, TISSUE_NAME, SAMPLE_NO, VALUE) %>%
+  rename(VALUE_incl = VALUE)
+
+dat_2021 <- dat_2021_all %>%
+  filter(NAME %in% c("SCCP eksl. LOQ", "MCCP eksl. LOQ")) %>%
+  left_join(dat_2021_inclLOQ, 
+            by = c("NAME", "STATION_CODE", "LATIN_NAME", "TISSUE_NAME", "SAMPLE_NO"))
+
+# For manual check
+# dat_2021 %>% 
+#   select(STATION_CODE, LATIN_NAME, TISSUE_NAME, SAMPLE_NO, NAME, VALUE, VALUE_incl) %>% 
+#   View("2021")
 
 # Code adapted from script 110, section 3    
 dat_2021_med <- dat_2021 %>%
@@ -123,12 +140,13 @@ dat_2021_med <- dat_2021 %>%
   summarise(
     N_median = n(), 
     Det_limit = median(VALUE_WW[!is.na(FLAG1)]), 
-    # Over_LOQ = sum(is.na(FLAG1)),
+    Over_LOQ = sum(is.na(FLAG1)),
     Value_min = min(VALUE_WW, na.rm = TRUE),
     Value_p25 = quantile(VALUE_WW, probs = 0.25, na.rm = TRUE),
     Value_p75 = quantile(VALUE_WW, probs = 0.75, na.rm = TRUE),
     Value_max = max(VALUE_WW, na.rm = TRUE),
     Value = median(VALUE_WW, na.rm = TRUE),
+    Value_incl = median(VALUE_incl, na.rm = TRUE),
     .groups = "drop") %>%
   mutate(
     UNIT = "UG_P_KG",
@@ -299,6 +317,19 @@ for (i in seq_along(data_tiles)){
     mutate(Refratio_cut = cut(Refratio1, breaks = c(0,0.5,0.75,0.9,1,2,5,10,20,100))) %>%
     add_tooltip_text_tiles(ref_type1 = "PROREF", ref_type2 = "EQS", unit = "µg/kg")
 }
+
+
+# HARD-CODED for SCCP/MCCP 
+for (i in seq_along(data_tiles)){
+  data_tiles[[i]] <- data_tiles[[i]] %>%
+    mutate(
+      Tooltip_txt = case_when(
+        MYEAR == 2021 & !LATIN_NAME %in% "Somateria mollissima" ~ paste0(Tooltip_txt, "<br>Incl. LOQ: ", Value_incl, " ", unit),
+        TRUE ~ Tooltip_txt
+      )
+    )
+}
+# HARD-CODED end
 
 if (FALSE){
 
@@ -551,6 +582,19 @@ for (i in seq_along(data_tiles)){
     add_tooltip_text_tiles(ref_type1 = "PROREF", ref_type2 = "EQS", unit = "µg/kg")
 }
 
+
+# HARD-CODED for SCCP/MCCP 
+for (i in seq_along(data_tiles)){
+  data_tiles[[i]] <- data_tiles[[i]] %>%
+    mutate(
+      Tooltip_txt = case_when(
+        MYEAR == 2021 & !LATIN_NAME %in% "Somateria mollissima" ~ paste0(Tooltip_txt, "<br>Incl. LOQ: ", Value_incl, " ", unit),
+        TRUE ~ Tooltip_txt
+      )
+    )
+}
+# HARD-CODED end
+
 if (FALSE){
 
   # Check plot
@@ -689,5 +733,7 @@ girafe( ggobj = plot_combo[[2]], width_svg = width_svg, height_svg = height_svg)
 
 ```
 `r caption_text2`
+
+
 
 
