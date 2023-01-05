@@ -17,21 +17,14 @@ params <- list(
   param = "BAA",
   basis_medians = "WW",
   basis_trends = "WW",
-  eqsplot = "log",
+  eqsplot = "ordinary",
   prorefplot = "TRUE",
   include_trend = "TRUE",
   serieslastuntil = 2021,
   called_from_mother = "TRUE",
   species3 = "Mytilus edulis"
 )
-  
 
-res <- knitr::knit_child('../434_Report_parameter_interactive_nochunklabels.Rmd', quiet = TRUE)
-cat(res, sep = '\n')
-
-# Alternative:
-# ```{r call_child, child = '434_Report_parameter_interactive.Rmd'}
-# ```
 
 ```
 
@@ -44,6 +37,17 @@ div.main-container {
 </style>
 
 
+```{r, echo=FALSE, results='asis', warning=FALSE, message=FALSE}
+
+res <- knitr::knit_child('../434_Report_parameter_interactive_nochunklabels.Rmd', quiet = TRUE)
+cat(res, sep = '\n')
+
+
+# Alternative:
+# ```{r call_child, child = '434_Report_parameter_interactive.Rmd'}
+# ```
+
+```
 
 
 

@@ -69,6 +69,7 @@ library(ggplot2)
 library(ggiraph)
 library(forcats)
 library(glue)
+library(tidyr)
 
 source("../002_Utility_functions.R")
 source("../431_Report_parameter_functions.R")
@@ -87,9 +88,11 @@ lookup_stations <- read.csv("../Input_data/Lookup_tables/Lookup_stationorder.csv
 # HARD-CODED PART for this notebook: Fixing PARAM  
 
 # NOTE:
-# Parameters "SCCP" and "MCCP" until 2014 has been checked and found to be "eksl. LOQ"
+# Parameters "SCCP" and "MCCP" until 2017 has been checked and found to be "eksl. LOQ"
+# For 2016-2019, see '872_Check_SCCP_MCCP_before2019.Rmd'  
 # Example: 98A2 in 2014 (report '98A2 blåskjell ordre 53-14.PDF' in
 #   'K:\Prosjekter\Sjøvann\JAMP\2014\analyser\analyserapporter')  
+# 
 
 sel <- with(dat_medians, PARAM %in% "SCCP" & MYEAR <= 2014)
 dat_medians$PARAM[sel] <- "SCCP eksl. LOQ"
@@ -107,36 +110,210 @@ dat_medians_sel_1 <- dat_medians %>%
 message("nrow(dat_medians_sel_1): ", nrow(dat_medians_sel_1))
 
 
-# HARD-CODED PART for this notebook: Fixing 2021 data
+# HARD-CODED PART for this notebook: "Fixing" Over LOQ for eider duck, all years
+sel <- dat_medians_sel_1$LATIN_NAME %in% "Somateria mollissima"
+dat_medians_sel_1$Over_LOQ[sel] <- NA    
+# HARD-CODED PART end
+
+
+# HARD-CODED PART for this notebook: Fixing 2018 data
+
+#> 
+#> 2018 
+#> Already only CCPs
+dat_2018_all <- readRDS("../Input_data/01_df_2018_notstandard_2022-11-25_CCP.rds")
+
+# - check units
+check <- table(dat_2018_all$UNIT)
+if (!identical(names(check), "UG_P_KG"))
+  stop("Check units!")
+
+# For adding "incl LOQ" value to tooltip (cod + blue mussel only)
+dat_2018_inclLOQ <- dat_2018_all %>%
+  filter(NAME %in% c("SCCP inkl. LOQ", "MCCP inkl. LOQ")) %>%
+  mutate(NAME = sub("inkl", "eksl", NAME)) %>%   # (for left_join later)
+  select(NAME, STATION_CODE, LATIN_NAME, TISSUE_NAME, SAMPLE_NO, VALUE) %>%
+  rename(VALUE_incl = VALUE)
+
+# cod + blue mussel data
+dat_2018_codmussel <- dat_2018_all %>%
+  filter(NAME %in% c("SCCP eksl. LOQ", "MCCP eksl. LOQ")) %>%
+  mutate(FLAG1 = ifelse(VALUE == 0, "<", as.character(NA))) %>%
+  left_join(dat_2018_inclLOQ, 
+            by = c("NAME", "STATION_CODE", "LATIN_NAME", "TISSUE_NAME", "SAMPLE_NO"))
+
+# Check
+# dat_2018_codmussel %>%
+#   select(STATION_CODE, LATIN_NAME, TISSUE_NAME, SAMPLE_NO, NAME, VALUE, VALUE_incl, FLAG1) %>%
+#   View("2018")
+
+
+#>
+#> 2019
+#> 
+dat_2019_all <- readRDS("../Input_data/01_df_2019_notstandard_2020-08-05.rds") %>%
+  filter(NAME %in% c("SCCP eksl. LOQ", "MCCP eksl. LOQ", "SCCP inkl. LOQ", "MCCP inkl. LOQ",
+                     "Kortkjedede (SCCP), C10-C13", "Mellomkjedede (MCCP), C14-C17"))
+
+lookup_spec <- dat_2018_all %>%
+  distinct(STATION_CODE, LATIN_NAME)
+dat_2019_all <- dat_2019_all %>%
+  select(-LATIN_NAME) %>%
+  left_join(lookup_spec, by = "STATION_CODE")
+
+# - check units
+check <- table(dat_2019_all$UNIT)
+
+# if (!identical(names(check), "UG_P_KG"))
+#   stop("Check units!")
+
+# hard-code unit after checking  
+dat_2019_all$UNIT <- "UG_P_KG"
+
+# Pivot to wide format to get the lacking zeros 
+df_SCCP <- dat_2019_all %>%
+  filter(grepl("SCCP", NAME)) %>%
+  select(STATION_CODE, LATIN_NAME, TISSUE_NAME, SAMPLE_NO, NAME, VALUE) %>%
+  pivot_wider(names_from = NAME, values_from = VALUE) %>%
+  mutate(
+    `SCCP eksl. LOQ` = ifelse(is.na(`SCCP eksl. LOQ`), 0,  `SCCP eksl. LOQ`),
+    `SCCP inkl. LOQ` = ifelse(is.na(`SCCP inkl. LOQ`), 0,  `SCCP inkl. LOQ`)
+  ) 
+df_MCCP <- dat_2019_all %>%
+  filter(grepl("MCCP", NAME)) %>%
+  select(STATION_CODE, LATIN_NAME, TISSUE_NAME, SAMPLE_NO, NAME, VALUE) %>%
+  pivot_wider(names_from = NAME, values_from = VALUE) %>%
+  mutate(
+    `MCCP eksl. LOQ` = ifelse(is.na(`MCCP eksl. LOQ`), 0,  `MCCP eksl. LOQ`),
+    `MCCP inkl. LOQ` = ifelse(is.na(`MCCP inkl. LOQ`), 0,  `MCCP inkl. LOQ`)
+  ) 
+
+
+# VALUE_incl is included for adding "incl LOQ" value to tooltip (cod + blue mussel only)
+dat_2019_codmussel <- bind_rows(
+  df_SCCP %>% 
+    mutate(NAME = "SCCP eksl. LOQ") %>%
+    rename(VALUE = `SCCP eksl. LOQ`, VALUE_incl = `SCCP inkl. LOQ`) %>% # View()
+    mutate(FLAG1 = ifelse(VALUE == 0, "<", as.character(NA))),
+  df_MCCP %>% 
+    mutate(NAME = "MCCP eksl. LOQ") %>%
+    rename(VALUE = `MCCP eksl. LOQ`, VALUE_incl = `MCCP inkl. LOQ`) %>% # View()
+    mutate(FLAG1 = ifelse(VALUE == 0, "<", as.character(NA)))
+)
+
+# For manual check
+# dat_2019_codmussel %>%
+#   select(STATION_CODE, LATIN_NAME, TISSUE_NAME, SAMPLE_NO, NAME, VALUE, VALUE_incl, FLAG1) %>%
+#   View("2019")
+
+
+#>
+#> 2020
+#> 
+dat_2020_all <- readRDS("../Input_data/01_df_2020_notstandard_2022-01-05.rds") %>%
+  filter(NAME %in% c("SCCP eksl. LOQ", "MCCP eksl. LOQ", "SCCP inkl. LOQ", "MCCP inkl. LOQ",
+                     "Kortkjedede (SCCP), C10-C13", "Mellomkjedede (MCCP), C14-C17"))
+
+# - check units
+check <- table(dat_2020_all$UNIT)
+
+# if (!identical(names(check), "UG_P_KG"))
+#   stop("Check units!")
+
+# hard-code unit after checking  
+dat_2020_all$UNIT <- "UG_P_KG"
+
+# Pivot to wide format to get the lacking zeros 
+df_SCCP <- dat_2020_all %>%
+  filter(grepl("SCCP", NAME)) %>%
+  select(STATION_CODE, LATIN_NAME, TISSUE_NAME, SAMPLE_NO, NAME, VALUE) %>%
+  pivot_wider(names_from = NAME, values_from = VALUE) %>%
+  mutate(
+    `SCCP eksl. LOQ` = ifelse(is.na(`SCCP eksl. LOQ`), 0,  `SCCP eksl. LOQ`),
+    `SCCP inkl. LOQ` = ifelse(is.na(`SCCP inkl. LOQ`), 0,  `SCCP inkl. LOQ`)
+  ) 
+df_MCCP <- dat_2020_all %>%
+  filter(grepl("MCCP", NAME)) %>%
+  select(STATION_CODE, LATIN_NAME, TISSUE_NAME, SAMPLE_NO, NAME, VALUE) %>%
+  pivot_wider(names_from = NAME, values_from = VALUE) %>%
+  mutate(
+    `MCCP eksl. LOQ` = ifelse(is.na(`MCCP eksl. LOQ`), 0,  `MCCP eksl. LOQ`),
+    `MCCP inkl. LOQ` = ifelse(is.na(`MCCP inkl. LOQ`), 0,  `MCCP inkl. LOQ`)
+  ) 
+
+# VALUE_incl is included for adding "incl LOQ" value to tooltip (cod + blue mussel only)
+dat_2020_codmussel <- bind_rows(
+  df_SCCP %>% 
+    mutate(NAME = "SCCP eksl. LOQ") %>%
+    rename(VALUE = `SCCP eksl. LOQ`, VALUE_incl = `SCCP inkl. LOQ`) %>% # View()
+    mutate(FLAG1 = ifelse(VALUE == 0, "<", as.character(NA))),
+  df_MCCP %>% 
+    mutate(NAME = "MCCP eksl. LOQ") %>%
+    rename(VALUE = `MCCP eksl. LOQ`, VALUE_incl = `MCCP inkl. LOQ`) %>% # View()
+    mutate(FLAG1 = ifelse(VALUE == 0, "<", as.character(NA)))
+)
+
+# For manual check
+# dat_2020_codmussel %>%
+#   select(STATION_CODE, LATIN_NAME, TISSUE_NAME, SAMPLE_NO, NAME, VALUE, VALUE_incl, FLAG1) %>%
+#   View("2020")
+
+
+
+#>
+#> 2021
+#> 
+#> This part is different because the data are already fixed
+
 dat_2021_all <- readRDS("../Input_data/01_df_2021_notstandard_2022-09-23.rds") %>%
-  filter(NAME %in% c("SCCP eksl. LOQ", "MCCP eksl. LOQ", "SCCP inkl. LOQ", "MCCP inkl. LOQ"))
+  filter(NAME %in% c("SCCP eksl. LOQ", "MCCP eksl. LOQ", "SCCP inkl. LOQ", "MCCP inkl. LOQ",
+                     "Kortkjedede (SCCP), C10-C13", "Mellomkjedede (MCCP), C14-C17"))
 
 # - check units
 check <- table(dat_2021_all$UNIT)
 if (!identical(names(check), "NG_P_G"))
   stop("Check units!")
 
-# For adding "incl LOQ" value to tooltip
+# For adding "incl LOQ" value to tooltip (cod + blue mussel only)
 dat_2021_inclLOQ <- dat_2021_all %>%
   filter(NAME %in% c("SCCP inkl. LOQ", "MCCP inkl. LOQ")) %>%
   mutate(NAME = sub("inkl", "eksl", NAME)) %>%   # (for left_join later)
   select(NAME, STATION_CODE, LATIN_NAME, TISSUE_NAME, SAMPLE_NO, VALUE) %>%
   rename(VALUE_incl = VALUE)
 
-dat_2021 <- dat_2021_all %>%
+# cod + blue mussel data
+dat_2021_codmussel <- dat_2021_all %>%
   filter(NAME %in% c("SCCP eksl. LOQ", "MCCP eksl. LOQ")) %>%
+  mutate(FLAG1 = as.character(NA)) %>%    # set wrong in script 001 or something...
   left_join(dat_2021_inclLOQ, 
             by = c("NAME", "STATION_CODE", "LATIN_NAME", "TISSUE_NAME", "SAMPLE_NO"))
 
+# Eider duck data
+dat_2021_eider_1 <- dat_2021_all %>%
+  filter(NAME %in% c("Kortkjedede (SCCP), C10-C13")) %>%
+  mutate(NAME = "SCCP eksl. LOQ") 
+dat_2021_eider_2 <- dat_2021_all %>%
+  filter(NAME %in% c("Mellomkjedede (MCCP), C14-C17")) %>%
+  mutate(NAME = "MCCP eksl. LOQ") 
+
+# All data, sample level  
+dat_2018_2021 <- bind_rows(
+  dat_2018_codmussel %>% mutate(MYEAR = 2018),
+  dat_2019_codmussel %>% mutate(MYEAR = 2019),
+  dat_2020_codmussel %>% mutate(MYEAR = 2020),
+  dat_2021_codmussel %>% mutate(MYEAR = 2021), 
+  dat_2021_eider_1 %>% mutate(MYEAR = 2021), 
+  dat_2021_eider_2 %>% mutate(MYEAR = 2021))
+
 # For manual check
-# dat_2021 %>% 
-#   select(STATION_CODE, LATIN_NAME, TISSUE_NAME, SAMPLE_NO, NAME, VALUE, VALUE_incl) %>% 
+# dat_2018_2021 %>%
+#   select(STATION_CODE, LATIN_NAME, TISSUE_NAME, SAMPLE_NO, NAME, VALUE, VALUE_incl, FLAG1) %>%
 #   View("2021")
 
 # Code adapted from script 110, section 3    
-dat_2021_med <- dat_2021 %>%
+dat_2018_2021_med <- dat_2018_2021 %>%
   rename(VALUE_WW = VALUE) %>%        # note: assume w.w.
-  group_by(PARAM = NAME, STATION_CODE, LATIN_NAME, TISSUE_NAME) %>%
+  group_by(MYEAR, PARAM = NAME, STATION_CODE, LATIN_NAME, TISSUE_NAME) %>%
   summarise(
     N_median = n(), 
     Det_limit = median(VALUE_WW[!is.na(FLAG1)]), 
@@ -150,21 +327,20 @@ dat_2021_med <- dat_2021 %>%
     .groups = "drop") %>%
   mutate(
     UNIT = "UG_P_KG",
-    Basis = "WW",
-    MYEAR = 2021)
+    Basis = "WW")
+
 
 # NOTE:
-dat_2021_med$Over_LOQ <- dat_2021_med$N_median
+sel <- dat_2018_2021_med$STATION_CODE %in% "36A1"; sum(sel)
+dat_2018_2021_med$STATION_CODE[sel] <- "36A"
 
-# NOTE:
-sel <- dat_2021_med$STATION_CODE %in% "36A1"; sum(sel)
-dat_2021_med$STATION_CODE[sel] <- "36A"
-
+# Data to replace
+sel1 <- with(dat_medians_sel_1, !LATIN_NAME %in% "Somateria mollissima" & MYEAR %in% 2018:2020)
+sel2 <- with(dat_medians_sel_1, MYEAR %in% 2021:2022)
 
 message("nrow(dat_medians_sel_1): ", nrow(dat_medians_sel_1))
-dat_medians_sel_1 <- dat_medians_sel_1 %>%
-  filter(!MYEAR %in% 2021:2022) %>%
-  bind_rows(dat_2021_med)
+dat_medians_sel_1 <- dat_medians_sel_1[!sel1 & !sel2,] %>%
+  bind_rows(dat_2018_2021_med)
 message("nrow(dat_medians_sel_1): ", nrow(dat_medians_sel_1))
 
 # HARD-CODED PART end
@@ -181,7 +357,6 @@ tab_stations
 
 stations <- row.names(tab_stations)
 
-
 # Select data for those stations
 dat_medians_sel <- dat_medians_sel_1 %>%
   filter(
@@ -192,13 +367,20 @@ dat_medians_sel <- dat_medians_sel_1 %>%
   left_join(lookup_stations %>% select(STATION_CODE, Station_name, Order),
             by = "STATION_CODE") %>%
   mutate(
-    Station = paste(STATION_CODE, Station_name),
+    Station = case_when(
+      !LATIN_NAME %in% "Somateria mollissima" ~ 
+        paste(STATION_CODE, Station_name),
+      LATIN_NAME %in% "Somateria mollissima" & TISSUE_NAME == "Blod" ~ 
+        paste(STATION_CODE, Station_name, "eider duck blood"),
+      LATIN_NAME %in% "Somateria mollissima"  & TISSUE_NAME == "Egg"~ 
+        paste(STATION_CODE, Station_name, "eider duck egg")),
     FLAG1 = ifelse(Over_LOQ < 0.5*N_median, "<", as.character(NA))
 )
 
 if (FALSE){
   
   xtabs(~MYEAR + STATION_CODE, dat_medians_sel)
+  xtabs(~Station, dat_medians_sel)
   
   # years
   dat_medians %>%
@@ -245,11 +427,13 @@ unit <- "µg/kg"
 
 caption_text1 <- paste0(
   "All data are given in µg/kg w.w. <br>", 
+  "Measurements for cod are exclusive LOQ (incl. LOQ given in tooltip for 2021) <br>", 
   "Colours show concentration relative to PROREF (154 µg/kg ww for cod). EQS: 6000 µg/kg ww.  <br>", 
   "Note: For <i>Somateria mollissima</i> (eider duck), no PROREF has been developed, but PROREF for cod is used in this figure for illustrative purposes.")
 
 caption_text2 <- paste0(
   "All data are given in µg/kg w.w. <br>", 
+  "Measurements are exclusive LOQ (incl. LOQ given in tooltip for 2021) <br>", 
   "Colours show concentration relative to PROREF (20.26 µg/kg ww for blue mussel). EQS: 6000 µg/kg ww.  <br>")
 
 #
@@ -273,6 +457,15 @@ dat_medians_param <- dat_medians_sel %>%
 
 # Set Refratio and add tooltips  
 
+if (FALSE){
+  # Check plot
+  gg <- dat_medians_param %>%
+    mutate(Station = fct_rev(Station)) %>%
+    ggplot(aes(MYEAR, Station))
+  gg + geom_tile(aes(fill = Value))
+  gg + geom_tile(aes(fill = Refratio1))
+}
+
 ```
 
 
@@ -286,7 +479,7 @@ current_year <- 2021
 data_tiles <- list()
 
 data_tiles[[1]] <- dat_medians_param %>%
-  filter(LATIN_NAME %in% c("Gadus morhua", "Somateria mollissoma")) %>%
+  filter(LATIN_NAME %in% c("Gadus morhua", "Somateria mollissima")) %>%
   filter(MYEAR >= startyr) %>%
   arrange(Order) %>%
   mutate(
@@ -311,6 +504,7 @@ data_tiles[[2]] <- dat_medians_param %>%
 
 # create-tile-data2
 
+# debugonce(add_tooltip_text_tiles)
 for (i in seq_along(data_tiles)){
   data_tiles[[i]] <- data_tiles[[i]] %>% 
     check_unit() %>%     # Checks that the data has only a single unit  
@@ -324,7 +518,7 @@ for (i in seq_along(data_tiles)){
   data_tiles[[i]] <- data_tiles[[i]] %>%
     mutate(
       Tooltip_txt = case_when(
-        MYEAR == 2021 & !LATIN_NAME %in% "Somateria mollissima" ~ paste0(Tooltip_txt, "<br>Incl. LOQ: ", Value_incl, " ", unit),
+        MYEAR >= 2018 & !LATIN_NAME %in% "Somateria mollissima" ~ paste0(Tooltip_txt, "<br>Incl. LOQ: ", Value_incl, " ", unit),
         TRUE ~ Tooltip_txt
       )
     )
@@ -507,11 +701,13 @@ unit <- "µg/kg"
 
 caption_text1 <- paste0(
   "All data are given in µg/kg w.w. <br>", 
+  "Measurements for cod are exclusive LOQ (incl. LOQ given in tooltip for 2021) <br>", 
   "Colours show concentration relative to PROREF (392.8 µg/kg ww for cod). Red frame = EQS (170 µg/kg w.w.) exceeded.  <br>", 
   "Note: For <i>Somateria mollissima</i> (eider duck), no PROREF has been developed, but PROREF for cod is used in this figure for illustrative purposes.")
 
 caption_text2 <- paste0(
   "All data are given in µg/kg w.w. <br>", 
+  "Measurements are exclusive LOQ (incl. LOQ given in tooltip for 2021) <br>", 
   "Colours show concentration relative to PROREF (87.6 µg/kg ww for blue mussel). EQS: 170 µg/kg ww.  <br>")
 
 #
@@ -550,7 +746,7 @@ current_year <- 2021
 data_tiles <- list()
 
 data_tiles[[1]] <- dat_medians_param %>%
-  filter(LATIN_NAME %in% c("Gadus morhua", "Somateria mollissoma")) %>%
+  filter(LATIN_NAME %in% c("Gadus morhua", "Somateria mollissima")) %>%
   filter(MYEAR >= startyr) %>%
   arrange(Order) %>%
   mutate(
@@ -588,7 +784,7 @@ for (i in seq_along(data_tiles)){
   data_tiles[[i]] <- data_tiles[[i]] %>%
     mutate(
       Tooltip_txt = case_when(
-        MYEAR == 2021 & !LATIN_NAME %in% "Somateria mollissima" ~ paste0(Tooltip_txt, "<br>Incl. LOQ: ", Value_incl, " ", unit),
+        MYEAR >= 2018 & !LATIN_NAME %in% "Somateria mollissima" ~ paste0(Tooltip_txt, "<br>Incl. LOQ: ", Value_incl, " ", unit),
         TRUE ~ Tooltip_txt
       )
     )
@@ -598,6 +794,7 @@ for (i in seq_along(data_tiles)){
 if (FALSE){
 
   # Check plot
+  i <- 1
   gg <- data_tiles[[i]] %>%
     mutate(Station = fct_rev(Station)) %>%
     ggplot(aes(MYEAR, Station))
