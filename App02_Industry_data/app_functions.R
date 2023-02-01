@@ -134,6 +134,15 @@ plot_timeseries_seriesno <- function(seriesno,
       .groups = "drop") %>%
     mutate(overLOQ = n_overLOQ > (0.5*n))
   
+  # GAM trend analysis
+  mod <- mgcv::gam(y ~ s(x), data = df_median)
+  plot_data <- data.frame(x = seq(min(df_median$x), max(df_median$x), length = 50))
+  pred <- mgcv::predict.gam(mod, plot_data, se.fit = TRUE)
+  plot_data$y <- pred$fit
+  plot_data$y_q2.5 <- pred$fit + qt(0.025, mod$df.residual)*pred$se.fit
+  plot_data$y_q97.5 <- pred$fit + qt(0.975, mod$df.residual)*pred$se.fit
+  resultlist$plot_data[[1]] <- plot_data
+  
   titlestring <- paste0(df_points$Param_name[1], " in ", df_points$Species_name[1], " at ", df_points$Station_name[1])
   subtitlestring <- paste0("Station code: ", resultlist$STATION_CODE, " (region: ", df_points$Region[1], "). ", 
                            str_to_sentence(df_points$Tissue_name[1]), " (basis ", resultlist$Basis, "), ", resultlist$LATIN_NAME)
@@ -166,8 +175,14 @@ plot_timeseries_seriesno <- function(seriesno,
   if (!is.null(resultlist$plot_data)){
     check_bug <- which(resultlist$k_values == resultlist$k_sel) == resultlist$k_sel
     # k_sel <- resultlist$k_sel               # old version - gives error, or (worse) picks the wrong model
-    k_sel <- as.character(resultlist$k_sel)   # corrected version
+    # k_sel <- as.character(resultlist$k_sel)   # corrected version
+    k_sel <- 1
     if (y_scale %in% c("ordinary", "log scale")){
+      # resultlist$plot_data[[k_sel]] <- resultlist$plot_data[[k_sel]] %>% 
+      #   mutate(
+      #     y = exp(y),
+      #     y_q2.5 = exp(y_q2.5),
+      #     y_q97.5 = exp(y_q97.5))
       resultlist$plot_data[[k_sel]] <- resultlist$plot_data[[k_sel]] %>% 
         mutate(
           y = exp(y),
