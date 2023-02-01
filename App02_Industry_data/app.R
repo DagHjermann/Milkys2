@@ -18,7 +18,8 @@ library(svglite)
 
 # Functions  
 source("../125_Calculate_trends_leftadjusted_functions.R")
-source("../402_Plot_time_series_functions.R")
+# source("../402_Plot_time_series_functions.R")
+source("app_functions.R")
 
 # Lookup file for station names  
 lookup_stations <- read.csv("../Input_data/Lookup_tables/Lookup_stationorder.csv") %>%
