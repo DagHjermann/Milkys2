@@ -167,7 +167,7 @@ server <- function(input, output) {
                                 proref = input$proref,
                                 folder = folder_results, 
                                 data = dat_all_prep3, 
-                                data_series = dat_series_trend, data_trend = df_trend, 
+                                data_series = dat_series_trend, data_trend = NULL, 
                                 quantiles = quantiles,
                                 medians = input$medians,
                                 allsamples = input$allsamples)
@@ -181,7 +181,7 @@ server <- function(input, output) {
                                 proref = input$proref,
                                 folder = folder_results, 
                                 data = dat_all_prep3, 
-                                data_series = dat_series_trend, data_trend = df_trend, 
+                                data_series = dat_series_trend, data_trend = NULL, 
                                 quantiles = quantiles,
                                 medians = input$medians,
                                 allsamples = input$allsamples)
