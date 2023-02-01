@@ -54,11 +54,9 @@ folder_input <- paste0(folder_results, "_input")
 folder_output <- paste0(folder_results, "_output")
 
 # Data
-dat_series_trend <- readRDS(paste0(folder_input, "/125_dat_series_trend.rds")) %>%
-  left_join(lookup_stations %>% select(STATION_CODE, Station), by = "STATION_CODE")
-dat_all_prep3 <- readRDS(paste0(folder_input, "/125_dat_all_prep3.rds"))
 dat_all_prep3 <- readRDS("data_chem_industry_ranfjord_elkem_ind_2022.rds") %>%
-  mutate(Basis = "WW")
+  mutate(Basis = "WW",
+         Station = paste(STATION_CODE, STATION_NAME))
 df_trend <- readRDS(paste0(folder_output, "/126_df_trend_2021.rds"))
 
 # Add 'Param_name' and 'Tissue_name' to data    
@@ -94,11 +92,11 @@ dat_all_prep3 <- bind_rows(
   left_join(lookup_proref, by = c("PARAM", "LATIN_NAME", "TISSUE_NAME", "Basis"))
 
 # For the menus
-params <- unique(dat_series_trend$PARAM) %>% sort()
-stations <- unique(dat_series_trend$Station) %>% sort()
-tissues <- unique(dat_series_trend$TISSUE_NAME) %>% sort()
+params <- unique(dat_all_prep3$PARAM) %>% sort()
+stations <- unique(dat_all_prep3$Station) %>% sort()
+tissues <- unique(dat_all_prep3$TISSUE_NAME) %>% sort()
 tissues <- c("(automatic)", tissues)
-basises <- unique(dat_series_trend$Basis) %>% sort()
+basises <- unique(dat_all_prep3$Basis) %>% sort()
 
 # Folder for saving plots
 folder <- "../Figures_402/Til 2021-rapporten/"
@@ -121,6 +119,10 @@ ui <- fluidPage(
   # Sidebar with a slider input for number of bins 
   sidebarLayout(
     sidebarPanel(
+      shiny::selectInput(inputId = "param", label = "Parameter", choices = params, selected = "HG"),
+      shiny::selectInput(inputId = "station", label = "Station code", choices = stations, selected = "98B1"),
+      shiny::selectInput(inputId = "tissue", label = "Tissue", choices = tissues, selected = "(automatic)"),  
+      shiny::selectInput(inputId = "basis", label = "Basis", choices = basises, selected = "WW"),
       sliderInput("bins",
                   "Number of bins:",
                   min = 1,
