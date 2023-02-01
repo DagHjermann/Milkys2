@@ -4,6 +4,43 @@
 #
 
 #
+# Get series number from PARAM + STATION_CODE (and more if necessary)
+#
+get_data <- function(param, stationcode, 
+                         tissue = NULL,
+                         species = NULL,
+                         basis = NULL,
+                         data = ""){
+  
+  # browser()
+  
+  sel <- with(data_series, PARAM %in% param & STATION_CODE %in% stationcode)
+  
+  if (!is.null(tissue))
+    sel <- sel & with(data_series, TISSUE_NAME %in% tissue)
+  
+  if (!is.null(species))
+    sel <- sel & with(data_series, LATIN_NAME %in% species)
+  
+  if (!is.null(basis))
+    sel <- sel & with(data_series, Basis %in% basis)
+  
+  if (sum(sel) == 0){
+    stop("No time series found")
+  }
+  
+  if (sum(sel) > 1){
+    cat("Values of TISSUE_NAME found:", unique(data_series$TISSUE_NAME), "\n")
+    cat("Values of LATIN_NAME found:", unique(data_series$LATIN_NAME), "\n")
+    warning(sum(sel), " time series found in data. You may want to specify 'tissue' and/or 'species'.")
+  }
+  
+  data_series$series_no[sel]
+  
+}
+
+
+#
 # Extract and plot data from results (on files) and data (in memory)
 #
 # This function is built on 'tsplot_param' from script 125..functions, but has been adapted
@@ -25,7 +62,7 @@ plot_timeseries <- function(param, stationcode,
                             medians = TRUE,
                             allsamples = FALSE){
   
-  # browser()
+  browser()
   
   seriesno <- get_seriesno(
     param = param, 
@@ -105,8 +142,9 @@ plot_timeseries_seriesno <- function(seriesno,
   
   # browser()
   
-  fn <- sprintf("trend_%04.0f.rda", seriesno)
-  resultlist <- readRDS(paste0(folder, "/", fn))
+  # fn <- sprintf("trend_%04.0f.rda", seriesno)
+  # resultlist <- readRDS(paste0(folder, "/", fn))
+  resultlist
   
   # str(resultlist, 1)
   
