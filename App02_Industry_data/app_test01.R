@@ -7,7 +7,7 @@
 #    http://shiny.rstudio.com/
 #
 
-dir("App02_Industry_data/")
+setwd("/home/jovyan/shared/DHJ/Milkys2/App02_Industry_data")
 
 library(dplyr)
 library(purrr)
@@ -110,103 +110,57 @@ if (!file_exists){
   close(zz)
 }
 
-# Define UI for application that draws a histogram
-ui <- fluidPage(
+
+setwd("/home/jovyan/shared/DHJ/Milkys2")
+
+if (FALSE){
   
-  # Application title
-  titlePanel("Old Faithful Geyser Data"),
+  data_trend <- get_gam_data(dat_all_prep3, "MYEAR", "VALUE")
   
-  # Sidebar with a slider input for number of bins 
-  sidebarLayout(
-    sidebarPanel(
-      shiny::selectInput(inputId = "param", label = "Parameter", choices = params, selected = "HG"),
-      shiny::selectInput(inputId = "station", label = "Station", choices = stations, selected = "98B1"),
-      shiny::selectInput(inputId = "tissue", label = "Tissue", choices = tissues, selected = "(automatic)"),  
-      shiny::selectInput(inputId = "basis", label = "Basis", choices = basises, selected = "WW"),
-      shiny::selectInput(inputId = "y_scale", label = "Y-scale", choices = c("ordinary", "log numbers", "log scale"), 
-                         selected = "ordinary"),
-      shiny::checkboxInput("eqs", "Include EQS line", value = TRUE),
-      shiny::textInput("proref", "Proref lines, separated by comma (e.g. 1,2,5)", value = "1"),
-      shiny::checkboxInput("medians", "Show medians", value = TRUE),
-      shiny::checkboxInput("allsamples", "Show single measurements", value = FALSE),
-      shiny::sliderInput("ymax_perc", "Max y (%)", value = 100, min = 2, max = 200, step = 2),
-      shiny::sliderInput("xmin_rel", "Change x min.", value = 0, min = -10, max = 40, step = 0.5),
-      shiny::sliderInput("xmax_rel", "Change x max.", value = 0, min = -40, max = 10, step = 0.5)
-    ),
-    
-    # Show a plot of the generated distribution
-    mainPanel(
-      plotOutput("timeseries_plot")
+  param <- "PB"
+  param <- "HG"
+  st <- "St. 1"
+  st <- "I965"
+  
+  table(dat_all_prep3$STATION_CODE) 
+
+  data_sel <- dat_all_prep3 %>%
+    filter(PARAM %in% param & STATION_CODE %in% st) %>%
+    rename(x = MYEAR) %>%
+    mutate(
+      y = log(VALUE),
+      LOQ = case_when(
+        is.na(FLAG1) ~ as.numeric(NA),
+        FLAG1 == "<" ~ y)
     )
-  )
-)
+  
+  data_sel_medians <- get_median_data(data_sel)
+  
+  data_sel_trend <- get_gam_data(data_sel_medians) %>%
+    rename(ymin = y_lo, ymax = y_hi)
+  
+  chg <- get_change_from_gamdata(data_sel_trend, "x", "y")
+  
+  get_trendstring(chg)
+  
+  # debugonce(get_trendstring_comb)
+  # debugonce(get_change_from_gamdata)
+  get_trendstring_comb(data_sel_trend)
+  
+  eqs <- get_eqs(param, "Mytilus edulis", "WW")
+  
+  titlestring <- paste0(data_sel$PARAM[1], " in ", data_sel$LATIN_NAME[1], " at ", data_sel$STATION_CODE[1])
 
-# Define server logic required to draw a histogram
-server <- function(input, output) {
+  # debugonce(plot_timeseries_trend)
+  plot_timeseries_trend(data_medians = data_sel_medians, 
+                        data_raw = data_sel, 
+                        data_trend = data_sel_trend, 
+                        titlestring = titlestring,
+                        eqs = TRUE,
+                        value_eqs = eqs,
+                        trendtext = get_trendstring(chg))
   
-  data_sel <- reactive({
-    dat_all_prep3 %>%
-      mutate(station = paste(STATION_CODE, STATION_NAME)) %>%
-      filter(PARAM %in% input$param & station %in% input$station) %>%
-      rename(x = MYEAR) %>%
-      mutate(
-        y = log(VALUE),
-        LOQ = case_when(
-          is.na(FLAG1) ~ as.numeric(NA),
-          FLAG1 == "<" ~ y)
-      )
-  })
+  
 
-  data_sel_medians <- reactive({
-    get_median_data(data_sel())
-    })
-  
-  data_sel_trend <- reactive({
-    get_gam_data(data_sel_medians()) %>%
-      rename(ymin = y_lo, ymax = y_hi)
-  })
-  
-  # For testing only
-  # - must also add plot
-  # output$data_rows <- renderPrint({
-  #   nrow(data_sel_trend())
-  #   })
-  
-  titlestring <- reactive({
-    paste0(input$param, " in ", data_sel()$LATIN_NAME[1], " at ", input$station)
-  })
-  
-  trendstring <- reactive({
-    # browser()
-    get_trendstring_comb(data_sel_trend())
-  })
-
-  eqs <- reactive({
-    latin_name <- data_sel()$LATIN_NAME[1]
-    # browser()
-    get_eqs(input$param, latin_name, input$basis, eqsdata = lookup_eqs)
-  })
-  
-  proref <- reactive({
-    latin_name <- data_sel()$LATIN_NAME[1]
-    get_proref(input$param, latin_name, basis = input$basis, prorefdata = lookup_proref)
-  })
-  
-  output$timeseries_plot <- renderPlot({
-  
-    plot_timeseries_trend(data_medians = data_sel_medians(),
-                          data_raw = data_sel(), 
-                          data_trend = data_sel_trend(),
-                          y_scale = input$y_scale, 
-                          ymax_perc = input$ymax_perc, 
-                          xmin_rel = input$xmin_rel, xmax_rel = input$xmax_rel,
-                          titlestring = titlestring(),
-                          trendtext = trendstring(),
-                          eqs = input$eqs,
-                          value_eqs = eqs(), value_proref = proref())
-  })
-  
 }
 
-# Run the application 
-shinyApp(ui = ui, server = server)
