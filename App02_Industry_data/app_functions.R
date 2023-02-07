@@ -337,7 +337,14 @@ plot_timeseries_seriesno <- function(seriesno,
 get_gam_data <- function(data, x = "x", y = "y", res = 0.25){
   names(data)[which(names(data) == x)[1]] <- "x"
   names(data)[which(names(data) == y)[1]] <- "y"
-  mod <- mgcv::gam(y ~ s(x), data = data)
+  # browser()
+  if (nrow(data)>8){
+    mod <- mgcv::gam(y ~ s(x), data = data)
+  } else if (nrow(data) %in% 7:8) {
+    mod <- mgcv::gam(y ~ s(x, k=4), data = data)
+  }  else if (nrow(data) <= 6) {
+    mod <- mgcv::gam(y ~ s(x, k=3), data = data)
+  }
   result <- data.frame(x = seq(min(data$x), max(data$x), by = res))
   pred <- mgcv::predict.gam(mod, result, se.fit = TRUE)
   result$y <- pred$fit
@@ -554,8 +561,6 @@ plot_timeseries_trend <- function(data_medians = NULL,
   
   # Get unit to print on y axis  
   
-  # unit_print <- get_unit_text(tail(data$UNIT, 1), tail(data$BASIS, 1), tail(data$PARAM, 1))
-
   if (y_scale %in% c("ordinary", "log scale")){
     data_medians <- data_medians %>% 
       mutate(
