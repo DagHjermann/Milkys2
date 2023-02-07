@@ -114,7 +114,7 @@ if (!file_exists){
 ui <- fluidPage(
   
   # Application title
-  titlePanel("Old Faithful Geyser Data"),
+  titlePanel("Industry data"),
   
   # Sidebar with a slider input for number of bins 
   sidebarLayout(
@@ -136,13 +136,21 @@ ui <- fluidPage(
     
     # Show a plot of the generated distribution
     mainPanel(
-      plotOutput("timeseries_plot")
+      plotOutput("timeseries_plot"),
+      shiny::actionButton("save", "Save plot"),
+      br(), br(),
+      shiny::textInput("plot_folder", "Folder name (inside 'App02_Industry_data')", value = "Figures_2022"),
+      shiny::textInput("filename_add", "Text to add to filename (e.g., '_ver02')", value = "")
     )
   )
 )
 
 # Define server logic required to draw a histogram
 server <- function(input, output) {
+  
+  #
+  # Get data for plot ----
+  #
   
   data_sel <- reactive({
     dat_all_prep3 %>%
@@ -156,9 +164,22 @@ server <- function(input, output) {
           FLAG1 == "<" ~ y)
       )
   })
+  
+  latin_name <- reactive({
+    data_sel()$LATIN_NAME[1]
+  })
+  
+  quantiles <- reactive({
+    if (latin_name() %in% "Mytilus edulis"){
+      quantiles <- c(0,1)
+    } else {
+      quantiles <- c(0.25, 0.75)
+    }
+    quantiles
+  })
 
   data_sel_medians <- reactive({
-    get_median_data(data_sel())
+    get_median_data(data_sel(), quantiles = quantiles())
     })
   
   data_sel_trend <- reactive({
@@ -172,8 +193,12 @@ server <- function(input, output) {
   #   nrow(data_sel_trend())
   #   })
   
+  #
+  # Get other values for plot ----
+  #
+  
   titlestring <- reactive({
-    paste0(input$param, " in ", data_sel()$LATIN_NAME[1], " at ", input$station)
+    paste0(input$param, " in ", latin_name(), " at ", input$station)
   })
   
   trendstring <- reactive({
@@ -182,29 +207,99 @@ server <- function(input, output) {
   })
 
   eqs <- reactive({
-    latin_name <- data_sel()$LATIN_NAME[1]
     # browser()
-    get_eqs(input$param, latin_name, input$basis, eqsdata = lookup_eqs)
+    get_eqs(input$param, latin_name(), input$basis, eqsdata = lookup_eqs)
   })
   
   proref <- reactive({
-    latin_name <- data_sel()$LATIN_NAME[1]
-    get_proref(input$param, latin_name, basis = input$basis, prorefdata = lookup_proref)
+    get_proref(input$param, latin_name(), basis = input$basis, prorefdata = lookup_proref)
   })
   
+  #
+  # Create plot ----
+  #
   output$timeseries_plot <- renderPlot({
   
+    data_sel <- data_sel() 
+    # browser()
+    
+    unit_print <- get_unit_text(
+      tail(data_sel$UNIT, 1), 
+      tail(data_sel$Basis, 1), 
+      tail(data_sel$PARAM, 1))
+    
     plot_timeseries_trend(data_medians = data_sel_medians(),
+                          data_raw = data_sel, 
+                          data_trend = data_sel_trend(),
+                          y_scale = input$y_scale, 
+                          ymax_perc = input$ymax_perc, 
+                          xmin_rel = input$xmin_rel, xmax_rel = input$xmax_rel,
+                          titlestring = titlestring(),
+                          y_label = unit_print,
+                          trendtext = trendstring(),
+                          quantiles = quantiles(),
+                          eqs = input$eqs,
+                          value_eqs = eqs(), 
+                          value_proref = proref())
+  })
+  
+  #
+  # Create plot for saving ----
+  #
+  timeseries_plot_for_file <- reactive({
+    
+    data_sel_medians <- data_sel_medians() 
+    
+    unit_print <- get_unit_text(
+      tail(data_sel_medians$UNIT, 1), 
+      tail(data_sel_medians$Basis, 1), 
+      tail(data_sel_medians$PARAM, 1))
+
+    plot_timeseries_trend(data_medians = data_sel_medians,
                           data_raw = data_sel(), 
                           data_trend = data_sel_trend(),
                           y_scale = input$y_scale, 
                           ymax_perc = input$ymax_perc, 
                           xmin_rel = input$xmin_rel, xmax_rel = input$xmax_rel,
                           titlestring = titlestring(),
+                          y_label = unit_print,
                           trendtext = trendstring(),
+                          quantiles = quantiles(),
                           eqs = input$eqs,
                           value_eqs = eqs(), value_proref = proref())
   })
+  
+  
+  
+  #
+  # Save to file ----
+  #
+  
+  observeEvent(input$save, {
+    stationcode <- subset(lookup_stations, Station %in% input$station)$STATION_CODE
+    if (input$tissue == "(automatic)"){
+      fn_base <- paste(input$param, stationcode, sep = "_")
+    } else {
+      fn_base <- paste(input$param, stationcode, input$tissue, sep = "_")
+    }
+    # Weed out slashes in the station code....
+    fn_base <- sub("/", "", fn_base, fixed = TRUE)
+    # Save plot
+    fn_base <- paste0(fn_base, input$filename_add)
+    fn <- paste0(input$plot_folder, "/", fn_base, ".png")
+    # browser()
+    ggplot <- timeseries_plot_for_file() +
+      theme(axis.text = element_text(size = 11),     # set size of numbers along axes
+            axis.title = element_text(size = 12),    # set size of axis labels
+            plot.title = element_text(size = 13))    # set size of plot title
+    width = 5.6; height = 4.4
+    #svglite(fn, height = height*1.2, width = width*1.2)                              ELU:testing with svglite (not png)
+    png(fn, height = height*1.2, width = width*1.2, units = "in", res = 400)    # create an empty plot file 
+    print(ggplot)                                                                         # ...plot on it...
+    dev.off()      
+
+  })
+  
   
 }
 
