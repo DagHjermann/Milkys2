@@ -532,6 +532,7 @@ plot_timeseries_trend <- function(data_medians = NULL,
                                   data_raw = NULL,
                                   data_trend = NULL,
                                   y_scale = "ordinary",
+                                  ymin_perc = 100,
                                   ymax_perc = 100,
                                   xmin_rel = 0, xmax_rel = 0,
                                   allsamples = FALSE,
@@ -577,7 +578,10 @@ plot_timeseries_trend <- function(data_medians = NULL,
   
   # Set y limits
   rn <- c(min(data_medians$ymin), max(data_medians$ymax))
-  y_limits <- c(rn[1], rn[1] + (rn[2]-rn[1])*ymax_perc/100)
+  y_limits_min <- rn[1] + (rn[2]-rn[1])*(ymin_perc-100)/100
+  y_limits_max <- rn[2] + (rn[2]-rn[1])*(ymax_perc-100)/100
+  y_limits <- c(y_limits_min, y_limits_max)
+  
   if (include_eqs){
     y_limits[1] <- min(rn[1], data_raw$EQS[1])
   }
@@ -714,6 +718,10 @@ get_unit_text <- function(unit, basis, param){
     unit_print <- "Concentration, mg/kg (w.w.)"
   } else if (basis %in% "WW" & unit %in% "UG_P_KG"){
     unit_print <- expression(Concentration*","*~mu*g/kg~(w.w.))
+  } else if (basis %in% "WW" & unit %in% "NG_P_KG"){
+    unit_print <- "Concentration, ng/kg (w.w.)"
+  } else if (basis %in% "WW" & unit %in% "%"){
+    unit_print <- "Percent (%)"
   } else if (basis %in% "DW" & unit %in% "MG_P_KG"){
     unit_print <- "Concentration, mg/kg (d.w.)"
   } else if (basis %in% "DW" & unit %in% "UG_P_KG"){
@@ -732,6 +740,8 @@ get_unit_text <- function(unit, basis, param){
     unit_print <- expression(Concentration*","*~mu*g/kg~(d.w.)~plain("for 50 cm cod"))
   } else if (basis %in% "FBa" & unit %in% "MG_P_KG"){
     unit_print <- "Concentration, mg/kg (lipid basis) for 50 cm cod"
+  } else if (basis %in% "FBa" & unit %in% "UG_P_KG"){
+    unit_print <- expression(Concentration*","*~mu*g/kg~(lipid~basis)~plain("for 50 cm cod"))
   } else if (basis %in% "FBa" & unit %in% "UG_P_KG"){
     unit_print <- expression(Concentration*","*~mu*g/kg~(lipid~basis)~plain("for 50 cm cod"))
   } else {

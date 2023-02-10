@@ -9,6 +9,8 @@
 
 dir("App02_Industry_data/")
 
+# startup: packages ----
+
 library(dplyr)
 library(purrr)
 library(ggplot2)
@@ -22,6 +24,10 @@ library(svglite)
 source("../125_Calculate_trends_leftadjusted_functions.R")
 # source("../402_Plot_time_series_functions.R")
 source("app_functions.R")
+
+
+
+# startup: lookup files ----  
 
 # Lookup file for station names  
 lookup_stations <- read.csv("../Input_data/Lookup_tables/Lookup_stationorder.csv") %>%
@@ -54,10 +60,26 @@ folder_input <- paste0(folder_results, "_input")
 folder_output <- paste0(folder_results, "_output")
 
 # Data
-dat_all_prep3 <- readRDS("data_chem_industry_ranfjord_elkem_ind_2022.rds") %>%
+# startup: data ----  
+
+# NOTE: 
+# These data sets have been created by Dag using scripts
+#   994_Industry_data_2022_Ranfjorden_Elkem.Rmd
+#   994_Industry_data_2022_Glencore.Rmd
+# in folder/project "Milkys"
+# 
+
+dataset1 <- readRDS("data_chem_industry_ranfjord_elkem_ind_2022.rds")
+dataset2 <- readRDS("data_chem_industry_kristiansand_glencore_ind_2022.rds")
+
+dat_all_prep3 <- bind_rows(dataset1, dataset2) %>%
   mutate(Basis = "WW",
-         Station = paste(STATION_CODE, STATION_NAME))
-df_trend <- readRDS(paste0(folder_output, "/126_df_trend_2021.rds"))
+         Station = case_when(
+           is.na(STATION_CODE) ~ STATION_NAME,
+           STATION_CODE %in% "" ~ STATION_NAME,
+           TRUE ~ paste(STATION_CODE, STATION_NAME))
+  ) %>%
+  filter(!is.na(VALUE))
 
 # Add 'Param_name' and 'Tissue_name' to data    
 dat_all_prep3 <- dat_all_prep3 %>%
@@ -70,6 +92,7 @@ dat_all_prep3 <- dat_all_prep3 %>%
       TISSUE_NAME %in% "Galle" ~ "Bile",
       TRUE ~ TISSUE_NAME)
   )
+
 
 # Add 'Species_name' to data    
 dat_all_prep3 <- dat_all_prep3 %>%
@@ -110,6 +133,8 @@ if (!file_exists){
   close(zz)
 }
 
+# UI ----
+
 # Define UI for application that draws a histogram
 ui <- fluidPage(
   
@@ -119,8 +144,8 @@ ui <- fluidPage(
   # Sidebar with a slider input for number of bins 
   sidebarLayout(
     sidebarPanel(
-      shiny::selectInput(inputId = "param", label = "Parameter", choices = params, selected = "HG"),
-      shiny::selectInput(inputId = "station", label = "Station", choices = stations, selected = "98B1"),
+      shiny::selectInput(inputId = "param", label = "Parameter", choices = params, selected = "PYR1OH"),
+      shiny::selectInput(inputId = "station", label = "Station", choices = stations, selected = "15B Ullerø"),
       shiny::selectInput(inputId = "tissue", label = "Tissue", choices = tissues, selected = "(automatic)"),  
       shiny::selectInput(inputId = "basis", label = "Basis", choices = basises, selected = "WW"),
       shiny::selectInput(inputId = "y_scale", label = "Y-scale", choices = c("ordinary", "log numbers", "log scale"), 
@@ -129,6 +154,7 @@ ui <- fluidPage(
       shiny::textInput("proref", "Proref lines, separated by comma (e.g. 1,2,5)", value = "1"),
       shiny::checkboxInput("medians", "Show medians", value = TRUE),
       shiny::checkboxInput("allsamples", "Show single measurements", value = FALSE),
+      shiny::sliderInput("ymin_perc", "Min y (%)", value = 100, min = 2, max = 200, step = 2),
       shiny::sliderInput("ymax_perc", "Max y (%)", value = 100, min = 2, max = 200, step = 2),
       shiny::sliderInput("xmin_rel", "Change x min.", value = 0, min = -10, max = 40, step = 0.5),
       shiny::sliderInput("xmax_rel", "Change x max.", value = 0, min = -40, max = 10, step = 0.5)
@@ -145,6 +171,8 @@ ui <- fluidPage(
   )
 )
 
+# SERVER ----
+
 # Define server logic required to draw a histogram
 server <- function(input, output) {
   
@@ -153,9 +181,9 @@ server <- function(input, output) {
   #
   
   data_sel <- reactive({
+    # browser()
     dat_all_prep3 %>%
-      mutate(station = paste(STATION_CODE, STATION_NAME)) %>%
-      filter(PARAM %in% input$param & station %in% input$station) %>%
+      filter(PARAM %in% input$param & Station %in% input$station) %>%
       rename(x = MYEAR) %>%
       mutate(
         y = log(VALUE),
@@ -232,6 +260,7 @@ server <- function(input, output) {
                           data_raw = data_sel, 
                           data_trend = data_sel_trend(),
                           y_scale = input$y_scale, 
+                          ymin_perc = input$ymin_perc, 
                           ymax_perc = input$ymax_perc, 
                           xmin_rel = input$xmin_rel, xmax_rel = input$xmax_rel,
                           titlestring = titlestring(),
@@ -239,6 +268,7 @@ server <- function(input, output) {
                           trendtext = trendstring(),
                           quantiles = quantiles(),
                           eqs = input$eqs,
+                          proref = input$proref,
                           value_eqs = eqs(), 
                           value_proref = proref())
   })
@@ -259,6 +289,7 @@ server <- function(input, output) {
                           data_raw = data_sel(), 
                           data_trend = data_sel_trend(),
                           y_scale = input$y_scale, 
+                          ymin_perc = input$ymin_perc, 
                           ymax_perc = input$ymax_perc, 
                           xmin_rel = input$xmin_rel, xmax_rel = input$xmax_rel,
                           titlestring = titlestring(),
@@ -266,6 +297,7 @@ server <- function(input, output) {
                           trendtext = trendstring(),
                           quantiles = quantiles(),
                           eqs = input$eqs,
+                          proref = input$proref,
                           value_eqs = eqs(), value_proref = proref())
   })
   

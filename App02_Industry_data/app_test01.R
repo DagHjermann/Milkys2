@@ -7,6 +7,7 @@
 #    http://shiny.rstudio.com/
 #
 
+# Set 
 setwd("/home/jovyan/shared/DHJ/Milkys2/App02_Industry_data")
 
 library(dplyr)
@@ -54,10 +55,29 @@ folder_input <- paste0(folder_results, "_input")
 folder_output <- paste0(folder_results, "_output")
 
 # Data
-dat_all_prep3 <- readRDS("data_chem_industry_ranfjord_elkem_ind_2022.rds") %>%
+
+dataset1 <- readRDS("data_chem_industry_ranfjord_elkem_ind_2022.rds")
+# dataset1b <- readRDS("../Data/109_adjusted_data_2022-09-23.rds") %>%
+#   filter(STATION_CODE %in% "15B",
+#          PARAM %in% c("PYR1OH","PYR1O")) %>%
+#   mutate(STATION_NAME = "Skågskjera, Farsund",
+#          BASIS = "WW") %>%
+#   select(-VALUE) %>%
+#   rename(VALUE = VALUE_WW)
+
+dataset2 <- readRDS("data_chem_industry_kristiansand_glencore_ind_2022.rds")
+
+dat_all_prep3 <- bind_rows(dataset1, dataset1b, dataset2) %>%
+# dat_all_prep3 <- bind_rows(dataset1, dataset1b, dataset2) %>%
   mutate(Basis = "WW",
-         Station = paste(STATION_CODE, STATION_NAME))
-df_trend <- readRDS(paste0(folder_output, "/126_df_trend_2021.rds"))
+         Station = case_when(
+           is.na(STATION_CODE) ~ STATION_NAME,
+           STATION_CODE %in% "" ~ STATION_NAME,
+           TRUE ~ paste(STATION_CODE, STATION_NAME))
+  ) %>%
+  filter(!is.na(VALUE))
+
+# df_trend <- readRDS(paste0(folder_output, "/126_df_trend_2021.rds"))
 
 # Add 'Param_name' and 'Tissue_name' to data    
 dat_all_prep3 <- dat_all_prep3 %>%
@@ -115,25 +135,34 @@ setwd("/home/jovyan/shared/DHJ/Milkys2")
 
 if (FALSE){
   
-  data_trend <- get_gam_data(dat_all_prep3, "MYEAR", "VALUE")
-  
   param <- "PB"
   param <- "HG"
-  st <- "St. 1"
-  st <- "I965"
-  
-  table(dat_all_prep3$STATION_CODE) 
+  param <- "NI"
+  param <- "PYR1O"
+  param <- "PYR1OH"
+  stcode <- "St. 1"
+  stcode <- "I965"
+  stcode <- "15B"
+  # stcode <- "I969"
+  #st <- "St. 1 Lumber"
+  #st <- "Hanneviksbukta"
+
+  # table(dat_all_prep3$STATION_CODE) 
+  # table(dat_all_prep3$Station) %>% names()
 
   data_sel <- dat_all_prep3 %>%
-    filter(PARAM %in% param & STATION_CODE %in% st) %>%
+    filter(PARAM %in% param & STATION_CODE %in% stcode) %>%
+    #filter(Station %in% st) %>% # xtabs(~PARAM, .)
+    filter(PARAM %in% param) %>%
     rename(x = MYEAR) %>%
     mutate(
       y = log(VALUE),
       LOQ = case_when(
         is.na(FLAG1) ~ as.numeric(NA),
         FLAG1 == "<" ~ y)
-    )
+    ) %>% filter(x >= 2001)
   
+  # debugonce(get_median_data)
   data_sel_medians <- get_median_data(data_sel)
   
   data_sel_trend <- get_gam_data(data_sel_medians) %>%
@@ -147,20 +176,31 @@ if (FALSE){
   # debugonce(get_change_from_gamdata)
   get_trendstring_comb(data_sel_trend)
   
-  eqs <- get_eqs(param, "Mytilus edulis", "WW")
+  eqs <- get_eqs(param, "Mytilus edulis", "WW", eqsdata = lookup_eqs)
+  proref <- get_proref(param, "Mytilus edulis", basis = "WW", prorefdata = lookup_proref)
   
-  titlestring <- paste0(data_sel$PARAM[1], " in ", data_sel$LATIN_NAME[1], " at ", data_sel$STATION_CODE[1])
+  titlestring <- paste0(data_sel$PARAM[1], " in ", data_sel$LATIN_NAME[1], " at ", data_sel$Station[1])
 
   # debugonce(plot_timeseries_trend)
   plot_timeseries_trend(data_medians = data_sel_medians, 
                         data_raw = data_sel, 
                         data_trend = data_sel_trend, 
                         titlestring = titlestring,
-                        eqs = TRUE,
+                        eqs = TRUE, proref = "1,2", value_proref = proref,
                         value_eqs = eqs,
                         trendtext = get_trendstring(chg))
   
   
 
+}
+
+if (FALSE){
+  
+  dat_all_prep3 <- readRDS(paste0(folder_input, "/125_dat_all_prep3.rds"))
+
+  dat_pyr10oh_lista <- readRDS("Data/109_adjusted_data_2022-09-23.rds") %>%
+    filter(STATION_CODE %in% "15B")
+  
+  
 }
 
