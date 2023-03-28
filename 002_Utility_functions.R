@@ -182,20 +182,30 @@ if (FALSE){
 #     - never rounds numbers to more than integer, compare signif(123) and signif2(123)   
 #     - sets maximum number of digits
 # - note the function has been vectorized
+# - does NOT round numbers < 0
 #
 #
+
 signif2 <- function(x, digits, dropzero = TRUE, maxdigits = 8){
-  digits2 <- pmax(digits-ceiling(log10(x)), 0)
+  sel <- !is.na(x) & x > 0
+  digits2 <- pmax(digits-ceiling(log10(x[sel])), 0)
   digits2 <- pmin(digits2, maxdigits)
   # round(x, digits2)
-  result <- sprintf("%.*f", digits2, x)
+  result_sel <- sprintf("%.*f", digits2, x[sel])
   if (dropzero){
-    result <- ifelse(x < 1, substr(result, 2, nchar(result)), result)
-  } 
+    result_sel <- ifelse(x[sel] < 1, 
+                         substr(result_sel, 2, nchar(result_sel)),
+                         result_sel
+    )
+  }
+  result <- x
+  result[sel] <- result_sel
   result
 }
 
 if (FALSE){
+  # debugonce(signif2)
+  signif2(0.1234, 2)
   signif2(0.1234, 2)
   signif2(0.1234, 2, dropzero = FALSE)
   signif2(0.01234, 2)
@@ -205,6 +215,8 @@ if (FALSE){
   signif2(0.000001234, 2)    # no scientific notation  
   signif(0.000001234, 2)     # scientific notation, unless you have changed 'scipen' in options()
   signif2(c(1.234,0.1234,0.01234,0.001234,0.0001234), 2, maxdigits = 4)  # check that it has been vectorized
+  signif2(c(1.234,NA,NA,0.001234,0.0001234), 2, maxdigits = 4)  # check that it works for NAs
+  signif2(c(1.234,0.1234,0.01234,-1.234,-0.1234,-0.01234), 2, maxdigits = 4)  # Note: under-zero are not rounded!
   signif2(1.234, 2)
   debugonce(signif2)
   signif2(12.34, 2)
