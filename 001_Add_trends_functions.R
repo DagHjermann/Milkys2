@@ -54,6 +54,54 @@
 
 
 
+#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
+#
+# TEST of calc_models_gam and statistics_for_excel
+#
+#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
+
+
+if (FALSE){
+  
+  #
+  # TEST of calc_models_gam
+  #
+  test <- list()
+  test$df_med_st <- data.frame(Year = 2011:2020, 
+                               Value = 2 + 0.1*(1:10) + 0.02*(1:10)^2 - 0.003*(1:10)^3 + rnorm(10, sd = 0.1),
+                               Over_LOQ = TRUE)
+  test$sel_ts <- rep(TRUE, 10)
+  ggplot(test$df_med_st) + 
+    geom_point(aes(Year, Value))
+  # plot(Value~Year, data = test$df_med_st)
+  test_result <- calc_models_gam(test, var_x = "Year", var_y = "Value", gam = TRUE)
+  str(test_result, 1)
+  str(test_result$mod_lin, 1)
+  str(test_result$mod_nonlin, 1)
+  str(test_result$mod_nonlin$yFit, 1)  
+  ggplot(test$df_med_st) + 
+    geom_ribbon(data = test_result$mod_nonlin$yFit, aes(x = Year, ymin = exp(LowLimit), ymax = exp(HighLimit)), fill = "grey80")  +
+    geom_line(data = test_result$mod_nonlin$yFit, aes(x = Year, y = exp(Estimate )))  +
+    geom_point(aes(Year, Value))
+  ggplot(test$df_med_st) + 
+    geom_ribbon(data = test_result$mod_lin$yFit, aes(x = Year, ymin = exp(LowLimit), ymax = exp(HighLimit)), fill = "grey80")  +
+    geom_line(data = test_result$mod_lin$yFit, aes(x = Year, y = exp(Estimate )))  +
+    geom_point(aes(Year, Value))
+  #
+  # TEST statistics_for_excel 
+  # In contrast to calc_models_gam, this function needs to have columns named MYEAR and Median
+  #
+  test2$df_med_st <- test2$df_med_st %>% rename(MYEAR = Year, Median = Value)
+  test2$N <- nrow(test2$df_med_st)
+  test2$Nplus <- nrow(test2$df_med_st)
+  # test2
+  statistics_for_excel(test2, test_result, gam = TRUE) 
+  
+}
+
+
+
+
 
 
 source("002_Utility_functions.R")
@@ -350,7 +398,7 @@ calc_models <- function(obj, var_x = "MYEAR_regr", var_y = "Median", gam = FALSE
 
 # Calculate gam models
 # Based on 'models_yr', but it uses the entire input data for regression
-calc_models_gam <- function(obj, var_x = "MYEAR_regr", var_y = "Median", gam = FALSE, log = TRUE){
+calc_models_gam <- function(obj, var_x = "MYEAR_regr", var_y = "Median", gam = FALSE, log = TRUE, n_pred = NULL){
   data <- obj$df_med_st[obj$sel_ts,]
   data_pick <- data[, c(var_x, var_y)]
   if (log)
@@ -359,9 +407,20 @@ calc_models_gam <- function(obj, var_x = "MYEAR_regr", var_y = "Median", gam = F
   if (sum(is.finite(data_pick$y)) > 0){
     mod_gam <- try(GAM_trend_analysis(dataset = data_pick))
     mod_lin <- lm(y~x, data = data_pick)
-    pr <- predict(mod_lin, se = TRUE)
     dY <- -qt(0.025, nrow(data_pick))
-    mod_lin_yFit <- data.frame(Year = data_pick$x[!is.na(data_pick$y)], Estimate = pr$fit, SE = pr$se.fit, LowLimit = pr$fit - dY*pr$se.fit, HighLimit = pr$fit + dY*pr$se.fit)  
+    if (is.null(n_pred)){
+      pr <- predict(mod_lin, se = TRUE)
+      mod_lin_yFit <- data.frame(Year = data_pick$x[!is.na(data_pick$y)], 
+                                 Estimate = pr$fit, SE = pr$se.fit, 
+                                 LowLimit = pr$fit - dY*pr$se.fit, HighLimit = pr$fit + dY*pr$se.fit)
+    } else {
+      x_predict <- seq(min(data_pick$x[!is.na(data_pick$y)]), max(data_pick$x[!is.na(data_pick$y)]), length = n_pred)
+      df_predict <- data.frame(x = x_predict)
+      pr <- predict(mod_lin, new = df_predict, se = TRUE)
+      mod_lin_yFit <- data.frame(Year = x_predict, 
+                                 Estimate = pr$fit, SE = pr$se.fit, 
+                                 LowLimit = pr$fit - dY*pr$se.fit, HighLimit = pr$fit + dY*pr$se.fit)
+    }
     if (class(mod_gam)[1] != "try-error"){
       result <- 
         list(AIC = c(nonlinear = AIC(mod_gam$model),
