@@ -1,0 +1,97 @@
+2020-09-17: 
+- WWa values lack for entire 2019  
+- PBDA for ærefugl blod, importer
+- Fikse Triphenyltin (TPhT)
+
+- Sn in eider duck -> tin (Sn)
+- Unit (or value) for HG in eider duck - 1000 times too high values
+- Station name for 20B
+- EQS for PCB6 uten LOQ
+- EQS for BDE6 uten LOQ
+- Nasjonal EQS for PCB7 = 0,6 µg/kg ww
+- Nasjonal EQS for Benzo[a]antracen = 304 
+
+DONE
+- Need to redo VDSI with log(x+1) or without log, plus siloxans of eider duck  
+- Need to add LOQ to sum without LOQ? or use log(x+1)
+- plots with log(y), set back-transformed data on y axis  
+
+DONE, BUT CHECK RESULTS:
+- NB! Trender som starter etter 2011 ikke tatt med!
+- NB2: Noen lange serier har ikke langtidstrend. Eks: Zn på 30B går tilbake til 1986, men har ikke langtidstrend
+- Først år mangler for noen langtidsstrender
+- to piler ned til to postkasser: MCCP Ålesund 28B  
+- Siste år for korttidstrend skal være 2021
+- Første år skal være last_year - 9, ikke 10  
+
+- Sjekke individnummer/LIMS, script 109 - se "Milkys_raw_data_2017-21" og mlding fra  
+
+- sum parameters
+Fix values for  SCCP and MCCP: fixed for 2015-2021 
+
+
+NOT DONE:
+
+PLOTTING + GRAPHS:
+- Viktig: Ikke klassifiser EQS/proref når LOQ>EQS - gjør om til -1 i den store excel  
+
+
+ONSDAG 12. OKT:
+Ag + HCB (+ CB136 og CB153) - fjerne tvilsomme trender i blåskjell
+Hg - merking av serier uten WWa - dette tar vi etter utkast er levert  
+"No model" i faktaark combo-figurer  
+I csv/excel: Mangler gråfarge for "for lite data" (se figuren til Merete) for 
+- Ag I024, 
+- PFOA (skal være grå der PFOS/PFOSA har gråfarge, G)
+- BDE153
+- HCB (skal være 2 stasjoner)  
+
+
+- Gråe ut når LOQ > proref 
+
+
+DATA:
+- 43B vs 43B2, og 98B vs 98B1 
+    - 2021 solution: always use 43B2 and 98B1
+
+
+TREND CALCULATION
+- For models tested for time trend, but where the best model was k = 1: keep differences for k = 2 model?   
+FIXED, but need o be taken into account when estimating percent change  
+
+- trends that are long enough but lacking, Trend_string = " / " 
+See MGR chat message 22.9 kl. 12:55
+Must be estimation issue?
+
+
+Ag - fjerne tvilsomme trender i blåskjell
+Hg - merking av serier uten WWa
+Gråe ut når LOQ > proref 
+"No model" i faktaark combo-figurer  
+Mangler:
+- tidstrendanalyse for Ag I024 (og fler?)
+- PFOA mangler der den skulle vært grå  
+
+GENERAL ISSUES - concnetrations
+
+- for SCCP and MCCP  
+
+MCCP eksl LOQ - all NA values deleted !!!!
+
+For prøver med 
+MCCP eksl LOQ = NA
+MCCP inkl LOQ = X      =>  LOQ = X
+
+For prøver med 
+MCCP eksl LOQ = X1
+MCCP inkl LOQ = X2     =>  LOQ = X2 - X1
+
+PROREF er feil for SCCP og MCCP (spesielt - og forsåvidt for PCB + PAH)  
+
+- BDE6S - enhetsfeil - for høye verdier
+
+
+GENERAL ISSUES - stations for time series
+# station 227G1 and 227G2 (shall count as 227G) 
+# station 36A and 36A1 (36A1 shall count as 36A) 
+
