@@ -1,7 +1,7 @@
 Data/*
 Data_Nivabasen/*
-Big_excel_table/*  
-Big_excel_table/*.rds    
+Big_excel_table/*
+Big_excel_table/*.rds
 Input_data/Trendtabell_20160919_Komplett_v4_GSE med samletabell.xlsx
 Input_data/Data_xl_lessthans_ver12.csv
 Input_data/Data_xl_lessthans_ver12.rds
@@ -20,3 +20,6 @@ BBE
 .Rhistory
 .Rproj.user
 .ipynb_checkpoints*
+434_paramgroups/*/*.RData
+434_paramgroups/*/*.rdb
+434_paramgroups/*/*.rdx

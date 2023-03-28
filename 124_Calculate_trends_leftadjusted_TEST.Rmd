@@ -257,12 +257,12 @@ station <- "10A2"; tissue = "Whole soft body"   # mean
 station <- "19N"; tissue = "Egg"                 # linear
 
 # One time only: create new folder for the results  
-# dir.create("Data/124_results")
+# dir.create("Data/125_results")
 
 # debugonce(get_splines_results)
 test <- get_splines_results(
   subset(dat_all, PARAM %in% param & STATION_CODE %in% station & TISSUE_NAME %in% tissue), 
-  raftery = FALSE, save_path = "Data/124_results/test1.rda")
+  raftery = FALSE, save_path = "Data/125_results/test1.rda")
 
 ```
 

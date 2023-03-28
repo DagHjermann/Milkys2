@@ -24,7 +24,7 @@ library(flextable)
 # library(glue)
 library(readxl)
 library(purrr)
-# library(glue)
+library(glue)
 # library(leftcensored)   # DHJ's package (https://github.com/DagHjermann/leftcensored)
 library(scico)            # colour palettes incl. "Vik" (https://github.com/thomasp85/scico)
 
@@ -39,8 +39,8 @@ library(cowplot)
 
 ```{r 03_data}
 
-dat_raw <- readRDS("Data/109_adjusted_data_2022-09-01.rds")                              
-dat_medians <- readRDS("Data/110_mediandata_updated_2022-09-01.rds")
+dat_raw <- readRDS("Data/109_adjusted_data_2022-09-23.rds")                              
+dat_medians <- readRDS("Data/110_mediandata_updated_2022-09-23.rds")
 
 # Stations - for corrrect ordering
 lookup_stations <- read.csv("Input_data/Lookup_tables/Lookup_stationorder.csv") # %>%
@@ -94,7 +94,8 @@ df_change_overloq %>%
 ```{r}
 
 xtabs(~STATION_CODE + is.na(VALUE_WWa), 
-      dat_raw %>% filter(MYEAR == 2021 & PARAM %in% "HG" & LATIN_NAME == "Gadus morhua"))
+      dat_raw %>% filter(MYEAR == current_year & PARAM %in% "HG" & LATIN_NAME == "Gadus morhua"))
+
 ```
 
 
@@ -102,7 +103,7 @@ xtabs(~STATION_CODE + is.na(VALUE_WWa),
 ### Plot Hg in cod, length-adjusted vs non-length-adjusted  
 ```{r}
 
-dat_raw %>% filter(MYEAR == 2021 & 
+dat_raw %>% filter(MYEAR == current_year & 
                      PARAM %in% "HG" & 
                      LATIN_NAME == "Gadus morhua" & 
                      !is.na(VALUE_WWa)) %>%
@@ -114,20 +115,44 @@ dat_raw %>% filter(MYEAR == 2021 &
 
 ```
 ### Plot Hg in cod, effect of adjustmed vs length   
-```{r}
+```{r, fig.width=9, fig.height=8}
 
-dat_plot <- dat_raw %>% filter(MYEAR == 2021 & 
+dat_plot <- dat_raw %>% filter(MYEAR == current_year & 
                      PARAM %in% "HG" & 
                      LATIN_NAME == "Gadus morhua" & 
                      !is.na(VALUE_WWa))
 
 ggplot(dat_plot, aes(LNMEA, VALUE_WWa/VALUE_WW)) + 
   # Extra layer to show all points, as "background":
-  annotate("point", x = dat_plot$LNMEA, y = dat_plot$VALUE_WWa/dat_plot$VALUE_WW, color = "grey80") + 
+  annotate("point", x = dat_plot$LNMEA, y = dat_plot$VALUE_WWa/dat_plot$VALUE_WW, color = "grey80", shape = 1) + 
   geom_point(color = "red3") + 
   geom_hline(yintercept = 1) +
   facet_wrap(vars(STATION_CODE)) + 
-  ggtitle("Hg in cod, WWa vs WW")
+  labs(title = glue("Hg in cod, ratio of length-adjusted/non-adjusted values ({current_year})"), 
+       x = "Fish length (mm)", y = "Ratio length-adjusted/non-adjusted Hg concentration") +
+  theme_bw()
 
 ```
 
+### Hg in cod, time series (medians)   
+```{r, fig.width=10, fig.height=7.5}
+
+dat_plot <- dat_raw %>%  
+  filter(PARAM %in% "HG",
+         LATIN_NAME == "Gadus morhua",
+         !is.na(VALUE_WWa)) %>%
+  select(STATION_CODE, MYEAR, SAMPLE_NO2, VALUE_WW, VALUE_WWa) %>%
+  pivot_longer(c(VALUE_WW, VALUE_WWa), names_to = "Basis", values_to = "Concentration") %>%
+  mutate(Adjustment = ifelse(Basis == "VALUE_WW", "Unadjusted", "Length-adjusted")) %>%
+  group_by(STATION_CODE, MYEAR, Adjustment) %>%
+  summarise(Concentration_median = median(Concentration))
+  
+ggplot(dat_plot, aes(MYEAR, Concentration_median, color = Adjustment)) + 
+  geom_line() + 
+  geom_point() + 
+  facet_wrap(vars(STATION_CODE)) + 
+  labs(title = "Hg in cod, ratio of length-adjusted/non-adjusted values", 
+       x = "Fish length (mm)", y = "Ratio length-adjusted/non-adjusted Hg concentration") +
+  theme_bw()
+
+```
