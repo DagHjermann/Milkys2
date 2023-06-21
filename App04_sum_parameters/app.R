@@ -59,6 +59,8 @@ data_all2_by_station <- data_all2_by_sample %>%
     )
   )
 
+stations <- unique(data_all2_by_station$STATION_CODE)
+
 data_plot <- data_all2_by_station %>%
   filter(STATION_CODE == "I714")
 
@@ -75,11 +77,7 @@ ui <- fluidPage(
     sidebarLayout(
         sidebarPanel(
           selectInput("param", "Sum parameter", choices = params),
-          sliderInput("bins",
-                      "Number of bins:",
-                      min = 1,
-                      max = 50,
-                      value = 30)
+          selectInput("station", "Station", choices = stations)
         ),
 
         # Show a plot of the generated distribution
