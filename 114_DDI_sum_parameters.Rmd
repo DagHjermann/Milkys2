@@ -1,0 +1,147 @@
+---
+title: "114_DDI_sum_params"
+author: "DHJ"
+date: "2023-06-21"
+output: html_document
+---
+
+
+## 1. Packages
+```{r}
+
+library(dplyr)
+library(purrr)
+# library(stringr)
+library(lubridate)
+library(ggplot2)
+library(readr)
+library(tidyr)
+library(glue)
+
+source("002_Utility_functions.R")
+source("101_Combine_with_legacy_data_functions.R")
+source("109_Adjust_for_fish_length_functions.R")
+
+```
+
+### Settings  
+
+```{r}
+
+myear <- 2020
+
+```
+
+
+## 2. Data   
+
+```{r}
+
+data_all2 <- readRDS("Data/109_adjusted_data_2022-09-23.rds")
+
+```
+
+
+## 3. DDI  
+
+### For sum of 6 PBDEs (BDE6S)     
+
+```{r}
+
+# sum_parameters$BDE6S  
+
+params <- names(sum_parameters)
+
+param <- "BDE6S"
+
+data_all2_by_samplepar <- data_all2 %>%
+  filter(PARAM %in% sum_parameters[[param]],
+         MYEAR == 2020) %>% # View()  
+  mutate(
+    VALUE_WW_wo_loq = case_when(
+      is.na(FLAG1) ~ VALUE_WW,
+      !is.na(FLAG1) ~ 0)
+    )
+
+data_all2_by_sample <- data_all2_by_samplepar %>%
+  group_by(STATION_CODE, LATIN_NAME, TISSUE_NAME, MYEAR, SAMPLE_NO2, UNIT) %>%
+  summarize(
+    VALUE_lb = sum(VALUE_WW_wo_loq),
+    VALUE_ub = sum(VALUE_WW),
+    n_param = n(), .groups = "drop")
+
+data_all2_by_station <- data_all2_by_sample %>%
+  group_by(STATION_CODE, LATIN_NAME, TISSUE_NAME, MYEAR, UNIT) %>%
+  summarize(
+    N_over_zero = sum(VALUE_lb > 0),
+    Min_over_zero = min(VALUE_lb[VALUE_lb > 0]),
+    Max_over_zero = max(VALUE_lb[VALUE_lb > 0]), .groups = "drop") %>%
+  mutate(
+    DDI = case_when(
+      N_over_zero > 1 ~ glue("{N_over_zero} [{round(Min_over_zero,2)}-{round(Max_over_zero,2)}]"),
+      N_over_zero == 1 ~ glue("{N_over_zero} [{round(Max_over_zero,2)}]"),
+      N_over_zero == 0 ~ glue("{N_over_zero} (-)")
+    )
+  )
+
+```
+
+
+### All sums  
+
+* Collect results in list  
+* Write list to excel  
+
+```{r}
+
+ddi_list <- list()
+
+for (param in params){
+
+  #
+  # Code copied from previous chunk
+  #
+  data_all2_by_samplepar <- data_all2 %>%
+    filter(PARAM %in% sum_parameters[[param]],
+           MYEAR == 2020) %>% # View()  
+    mutate(
+      VALUE_WW_wo_loq = case_when(
+        is.na(FLAG1) ~ VALUE_WW,
+        !is.na(FLAG1) ~ 0)
+    )
+  
+  data_all2_by_sample <- data_all2_by_samplepar %>%
+    group_by(STATION_CODE, LATIN_NAME, TISSUE_NAME, MYEAR, SAMPLE_NO2, UNIT) %>%
+    summarize(
+      VALUE_lb = sum(VALUE_WW_wo_loq),
+      VALUE_ub = sum(VALUE_WW),
+      n_param = n(), .groups = "drop")
+  
+  data_all2_by_station <- data_all2_by_sample %>%
+    group_by(STATION_CODE, LATIN_NAME, TISSUE_NAME, MYEAR, UNIT) %>%
+    summarize(
+      N_over_zero = sum(VALUE_lb > 0),
+      Min_over_zero = min(VALUE_lb[VALUE_lb > 0]),
+      Max_over_zero = max(VALUE_lb[VALUE_lb > 0]), .groups = "drop") %>%
+    mutate(
+      DDI = case_when(
+        N_over_zero > 1 ~ glue("{N_over_zero} [{round(Min_over_zero,2)}-{round(Max_over_zero,2)}]"),
+        N_over_zero == 1 ~ glue("{N_over_zero} [{round(Max_over_zero,2)}]"),
+        N_over_zero == 0 ~ glue("{N_over_zero} [-]")
+      )
+    )
+  
+  #
+  # Storing in list 
+  #
+  
+  ddi_list[[param]] <- data_all2_by_station
+  
+}
+
+writexl::write_xlsx(ddi_list, "Data/114_DDI_for_sum_parameters_2020.xlsx")
+
+```
+
+
+
