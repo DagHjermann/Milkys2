@@ -23,6 +23,8 @@ source("../101_Combine_with_legacy_data_functions.R")
 
 data_all2 <- readRDS("../Data/109_adjusted_data_2022-09-23.rds")  
 
+params <- names(sum_parameters)
+
 param <- "BDE6S"
 
 data_all2_by_samplepar <- data_all2 %>%
@@ -72,11 +74,12 @@ ui <- fluidPage(
     # Sidebar with a slider input for number of bins 
     sidebarLayout(
         sidebarPanel(
-            sliderInput("bins",
-                        "Number of bins:",
-                        min = 1,
-                        max = 50,
-                        value = 30)
+          selectInput("param", "Sum parameter", choices = params),
+          sliderInput("bins",
+                      "Number of bins:",
+                      min = 1,
+                      max = 50,
+                      value = 30)
         ),
 
         # Show a plot of the generated distribution
@@ -88,17 +91,9 @@ ui <- fluidPage(
 
 # Define server logic required to draw a histogram
 server <- function(input, output) {
-
+  
     output$distPlot <- renderPlot({
-        # generate bins based on input$bins from ui.R
-        x    <- faithful[, 2]
-        bins <- seq(min(x), max(x), length.out = input$bins + 1)
-
-        # draw the histogram with the specified number of bins
-        hist(x, breaks = bins, col = 'darkgray', border = 'white',
-             xlab = 'Waiting time to next eruption (in mins)',
-             main = 'Histogram of waiting times')
-        
+      
         gg <- ggplot(data_plot, aes(MYEAR, ymin = VALUE_lb, ymax = VALUE_ub)) +
           geom_errorbar(width = 0.2)
         print(gg)
