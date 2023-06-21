@@ -25,8 +25,6 @@ data_all2 <- readRDS("../Data/109_adjusted_data_2022-09-23.rds")
 
 params <- names(sum_parameters)
 
-param <- "BDE6S"
-
 data_all2_by_samplepar_all <- data_all2 %>%
   filter(MYEAR >= 2010) %>% # View()  
   mutate(
@@ -37,15 +35,11 @@ data_all2_by_samplepar_all <- data_all2 %>%
 
 stations <- unique(data_all2_by_samplepar_all$STATION_CODE)
 
-data_plot <- data_all2_by_station %>%
-  filter(STATION_CODE == "I714")
-
-
 # Define UI for application that draws a histogram
 ui <- fluidPage(
 
     # Application title
-    titlePanel("Old Faithful Geyser Data"),
+    titlePanel("Median lower and upper bound for sum parameters"),
 
     # Sidebar with a slider input for number of bins 
     sidebarLayout(
