@@ -13,10 +13,10 @@
 # setwd(".."); getwd()
 
 library(shiny)
-
 library(dplyr)
 library(ggplot2)
 library(glue)
+library(DT)
 
 source("../002_Utility_functions.R")
 source("../101_Combine_with_legacy_data_functions.R")
@@ -50,7 +50,8 @@ ui <- fluidPage(
 
         # Show a plot of the generated distribution
         mainPanel(
-           plotOutput("distPlot")
+           plotOutput("distPlot"),
+           DT::dataTableOutput("table_summarized_data")
         )
     )
 )
@@ -98,13 +99,16 @@ server <- function(input, output) {
     
     
   output$distPlot <- renderPlot({
-    
     data_plot <- data_parameter_station()
     gg <- ggplot(data_plot, aes(MYEAR, ymin = VALUE_lb, ymax = VALUE_ub)) +
       geom_errorbar(width = 0.2)
     print(gg)
-    
   })
+  
+  output$table_summarized_data <- DT::renderDataTable({
+    data_parameter()
+  }, filter = "top")
+  
 }
 
 # Run the application 
