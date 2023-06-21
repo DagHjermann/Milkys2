@@ -33,7 +33,7 @@ data_all2_by_samplepar_all <- data_all2 %>%
       !is.na(FLAG1) ~ 0)
   )
 
-stations <- unique(data_all2_by_samplepar_all$STATION_CODE)
+
 
 # Define UI for application that draws a histogram
 ui <- fluidPage(
@@ -45,7 +45,7 @@ ui <- fluidPage(
     sidebarLayout(
         sidebarPanel(
           selectInput("param", "Sum parameter", choices = params),
-          selectInput("station", "Station", choices = stations)
+          uiOutput("selectInput_station")
         ),
 
         # Show a plot of the generated distribution
@@ -84,6 +84,11 @@ server <- function(input, output) {
         )
       )
     data_all2_by_station
+  })
+  
+  output$selectInput_station <- renderUI({
+    stations <- unique(data_parameter()$STATION_CODE)
+    selectInput("station", "Station", choices = stations)
   })
   
   data_parameter_station <- reactive({
