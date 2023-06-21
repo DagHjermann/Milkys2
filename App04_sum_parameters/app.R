@@ -50,7 +50,7 @@ ui <- fluidPage(
 
         # Show a plot of the generated distribution
         mainPanel(
-           plotOutput("distPlot"),
+           plotOutput("plot_summarized_data"),
            DT::dataTableOutput("table_summarized_data")
         )
     )
@@ -98,7 +98,7 @@ server <- function(input, output) {
   })
     
     
-  output$distPlot <- renderPlot({
+  output$plot_summarized_data <- renderPlot({
     data_plot <- data_parameter_station()
     gg <- ggplot(data_plot, aes(MYEAR, ymin = VALUE_lb, ymax = VALUE_ub)) +
       geom_errorbar(width = 0.2)
