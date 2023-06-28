@@ -111,7 +111,69 @@ if (load_data){
 
 if (FALSE){
   
-  # Remove all objects made above
+  # Testing ----
+  
+  input <- list()
+  input$param <- "HG"
+  input$param <- "VDSI"
+  stationcode <- "30B"
+  stationcode <- "36G"
+  latinname = "Gadus morhua"
+  latinname = "Nucella lapillus"
+  
+  input$tissue <- "(automatic)"  
+  input$basis <- "WW"  
+  input$y_scale  <- "ordinary"
+  input$eqs <- TRUE
+  input$proref <- "1"
+  input$medians <- TRUE
+  input$allsamples <- FALSE
+  input$ymax_perc <- 100
+  input$xmin_rel <- 0
+  input$xmax_rel <- 0
+  
+  if (latinname %in% "Mytilus edulis"){
+    quantiles <- c(0,1)
+  } else {
+    quantiles <- c(0.25, 0.75)
+  }
+  
+  setwd("/home/jovyan/shared/DHJ/Milkys2/App01_timeseries")
+  
+  # debugonce(plot_timeseries)
+  # debugonce(plot_timeseries_seriesno)
+  tsplot <- plot_timeseries(param = input$param, stationcode = stationcode, basis = input$basis, 
+                            y_scale = input$y_scale,
+                            ymax_perc = input$ymax_perc,
+                            xmin_rel = input$xmin_rel,
+                            xmax_rel = input$xmax_rel,
+                            eqs = input$eqs,
+                            proref = input$proref,
+                            folder = folder_results, 
+                            data = dat_all_prep3, 
+                            data_series = dat_series_trend, data_trend = df_trend, 
+                            quantiles = quantiles,
+                            medians = input$medians,
+                            allsamples = input$allsamples)
+  
+  dat_all_prep3 %>%
+    filter(STATION_CODE %in% stationcode, PARAM %in% input$param) %>%
+    group_by(MYEAR) %>%
+    summarize(Value = median(VALUE_WW)) %>%
+    mutate(Value2 = exp(Value)) %>%
+    View()
+  
+  setwd("/home/jovyan/shared/DHJ/Milkys2")
+  
+  rm(list = c("input", stationcode, latinname, quantiles))
+  
+  
+}
+
+
+if (FALSE){
+  
+  # Remove all objects made above ----
   
   # ls() %>% dput()
   

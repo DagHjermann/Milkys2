@@ -137,8 +137,12 @@ plot_timeseries_seriesno <- function(seriesno,
   titlestring <- paste0(df_points$Param_name[1], " in ", df_points$Species_name[1], " at ", df_points$Station_name[1])
   subtitlestring <- paste0("Station code: ", resultlist$STATION_CODE, " (region: ", df_points$Region[1], "). ", 
                            str_to_sentence(df_points$Tissue_name[1]), " (basis ", resultlist$Basis, "), ", resultlist$LATIN_NAME)
+  
+  # Some parameters (VDSI, sums with exloq, etc.) contain zeros and we used log(x+1) instead of log(x) fpr their analysis
+  # See 125_extra1_2021.R
+  log_xplus_1 <- grepl("VDSI", df_points$PARAM[1]) | grepl("_exloq", df_points$PARAM[1], fixed = TRUE)
 
-  if (y_scale %in% c("ordinary", "log scale")){
+  if (y_scale %in% c("ordinary", "log scale") & !log_xplus_1){
     df_median <- df_median %>% 
       mutate(
         y = exp(y),
@@ -147,6 +151,15 @@ plot_timeseries_seriesno <- function(seriesno,
     df_points <- df_points %>% 
       mutate(y = exp(y),
              threshold = exp(threshold))
+  } else if (y_scale %in% c("ordinary", "log scale") & log_xplus_1){
+      df_median <- df_median %>% 
+        mutate(
+          y = exp(y)-1,
+          ymin = exp(ymin)-1,
+          ymax = exp(ymax)-1)
+      df_points <- df_points %>% 
+        mutate(y = exp(y)-1,
+               threshold = exp(threshold))
   }
     
   # Set x limits
@@ -167,12 +180,18 @@ plot_timeseries_seriesno <- function(seriesno,
     check_bug <- which(resultlist$k_values == resultlist$k_sel) == resultlist$k_sel
     # k_sel <- resultlist$k_sel               # old version - gives error, or (worse) picks the wrong model
     k_sel <- as.character(resultlist$k_sel)   # corrected version
-    if (y_scale %in% c("ordinary", "log scale")){
+    if (y_scale %in% c("ordinary", "log scale") & !log_xplus_1){
       resultlist$plot_data[[k_sel]] <- resultlist$plot_data[[k_sel]] %>% 
         mutate(
           y = exp(y),
           y_q2.5 = exp(y_q2.5),
           y_q97.5 = exp(y_q97.5))
+    } else if (y_scale %in% c("ordinary", "log scale") & log_xplus_1) {
+      resultlist$plot_data[[k_sel]] <- resultlist$plot_data[[k_sel]] %>% 
+        mutate(
+          y = exp(y)-1,
+          y_q2.5 = exp(y_q2.5)-1,
+          y_q97.5 = exp(y_q97.5)-1)
     }
     gg <- gg +
       geom_ribbon(data = resultlist$plot_data[[k_sel]], aes(ymin = y_q2.5, ymax = y_q97.5), fill = "grey70") +
