@@ -24,13 +24,14 @@ library(purrr)
 library(lubridate)
 library(stringr)
 # library(ggplot2)
-library(niRvana)
+# library(niRvana) # Only used for reading from Nivabasen Orracle database (on a pc)
 
 # If needed
 # remotes::install_github("https://github.com/moodymudskipper/safejoin")
 library(safejoin) # https://github.com/moodymudskipper/safejoin
 
-source("810_Import_til_NIVAbasen_functions.R")
+# source("810_Import_til_NIVAbasen_functions.R")
+# Only used for writing to Nivabasen Orracle database (on a pc)
 
 # "Restart" for lazy people that don't want to write the 
 #    database password again (deletes all objects except database password/username)
@@ -63,7 +64,7 @@ Store your username and password to R (only once per R session)
 ### a. Year
 ```{r}
 
-selected_year <- 2021
+selected_year <- 2022
 
 ```
 
@@ -77,8 +78,8 @@ but new samples (liver) are numbered corresponding to the muscle samples
 
 ```{r, message=FALSE}
 
-folder_vdsi <- "K:/Prosjekter/Sjøvann/JAMP/2021/opparbeiding/Snegl"
-folder_vdsi <- "Input_files_2021/Snegl"
+# folder_vdsi <- "K:/Prosjekter/Sjøvann/JAMP/2021/opparbeiding/Snegl"
+folder_vdsi <- "Input_data/opparbeiding_biota/Snegl_2022/"
 
 #
 # 1. Imposex in Littorina
@@ -141,8 +142,8 @@ xtabs(~is.na(VALUE_WW) + addNA(Sex), dat_vdsi)
 # 2. Intersex
 #
 # dir(folder_vdsi)
-fn <- "71G_fugloy_intersex_LITTORINA_2021.xlsx"
-df <- readxl::read_excel(paste0(folder_vdsi, "/", fn), range = "A3:G53")
+fn <- "71G_fugløy_intersex_LITTORINA_2022.xlsx"
+df <- readxl::read_excel(paste0(folder_vdsi, fn), range = "A3:G53")
 
 dat_intersex <- df %>%
   filter(F == 1) %>%
@@ -183,7 +184,13 @@ xtabs(~PARAM, dat )
 
 ```
 
-### c1. Get samples in Labware file     
+## 2. NIVAbasen (Oracle)    
+
+- The rest of this script *cannot be run on Jupyterhub*    
+- It is for adding the Imposex data tp NIVA's Oracle database  
+- Must be run with connection to NIVA's Oracle database (on a pc)     
+
+### a. Get samples in Labware file     
 ```{r}
 
 #
@@ -216,7 +223,7 @@ df_samples <- bind_rows(df_labware_01, df_labware_02) %>%
 
 ```
 
-### c2. Check that we have all stations  
+### b. Check that we have all stations  
 
 ```{r}
 
@@ -232,7 +239,10 @@ if (length(check) == 0){
 
 ```
 
-#### 227G is lacking  
+### c. 227G is lacking  
+
+* 
+
 ```{r}
 
 sql <- paste(
@@ -285,7 +295,6 @@ dat %>%
 ```
 
 
-## 2.Connection to NIVAbasen  
 
 ### Get some generic lookup tables  
 ```{r}
