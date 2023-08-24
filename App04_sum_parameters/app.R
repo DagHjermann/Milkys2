@@ -59,8 +59,44 @@ ui <- fluidPage(
 # Define server logic required to draw a histogram
 server <- function(input, output) {
   
+
+  data_parameter_single <- reactive({
+    
+    #
+    # This runs whenever the 'param' menu is used  
+    #
+    # Code is adapted from script 114
+    #
+    
+    data_all2_by_sample <- data_all2_by_samplepar_all %>%
+      filter(PARAM %in% sum_parameters[[input$param]])
+    
+    data_all2_by_station <- data_all2_by_sample %>%
+      group_by(STATION_CODE, LATIN_NAME, TISSUE_NAME, MYEAR, UNIT) %>%
+      summarize(
+        N_over_zero = sum(VALUE_lb > 0),
+        Min_over_zero = min(VALUE_lb[VALUE_lb > 0]),
+        Max_over_zero = max(VALUE_lb[VALUE_lb > 0]),
+        VALUE_lb = median(VALUE_lb),
+        VALUE_ub = median(VALUE_ub), .groups = "drop") %>%
+      mutate(
+        DDI = case_when(
+          N_over_zero > 1 ~ glue("{N_over_zero} [{round(Min_over_zero,2)}-{round(Max_over_zero,2)}]"),
+          N_over_zero == 1 ~ glue("{N_over_zero} [{round(Max_over_zero,2)}]"),
+          N_over_zero == 0 ~ glue("{N_over_zero} (-)")
+        )
+      )
+    data_all2_by_station
+  })
   
   data_parameter <- reactive({
+    
+    #
+    # This runs whenever the 'param' menu is used  
+    #
+    # Code is adapted from script 114
+    #
+    
     data_all2_by_sample <- data_all2_by_samplepar_all %>%
       filter(PARAM %in% sum_parameters[[input$param]]) %>%
       group_by(STATION_CODE, LATIN_NAME, TISSUE_NAME, MYEAR, SAMPLE_NO2, UNIT) %>%
@@ -88,17 +124,26 @@ server <- function(input, output) {
   })
   
   output$selectInput_station <- renderUI({
+    #
+    # This is triggered by making a change in the 'param' menu    
+    #
     stations <- unique(data_parameter()$STATION_CODE)
     selectInput("station", "Station", choices = stations)
   })
   
   data_parameter_station <- reactive({
+    #
+    # This is triggered by making a change in the 'station' menu    
+    #
     data_parameter() %>%
       filter(STATION_CODE %in% input$station)
   })
     
     
   output$plot_summarized_data <- renderPlot({
+    #
+    # This is triggered by making a change in the 'station' menu    
+    #
     data_plot <- data_parameter_station()
     gg <- ggplot(data_plot, aes(MYEAR, ymin = VALUE_lb, ymax = VALUE_ub)) +
       geom_errorbar(width = 0.2)
@@ -106,6 +151,10 @@ server <- function(input, output) {
   })
   
   output$table_summarized_data <- DT::renderDataTable({
+    #
+    # This is triggered by making a change in the 'param' menu
+    #    (as it shows all stations)
+    #
     data_parameter()
   }, filter = "top")
   

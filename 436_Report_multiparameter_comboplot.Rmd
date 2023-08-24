@@ -3,7 +3,7 @@ title: "Report for parameter (431)"
 author: "DHJ"
 date: "04.10.2022"
 params:
-  param: "DDEPP"
+  param_vector: "DDEPP,HCHG"
   basis_medians: "WW"
   basis_trends: "WW"
   include_trend: "TRUE"
@@ -16,24 +16,28 @@ output:
 
 ```{r, include=FALSE}
 
+# Aldrin,alfa-Klordan (cis),Dieldrin,Endrin,gamma-Klordan (trans),HCB,HCHA,HCHB,HCHD,HCHG,Heptaklor,Heptaklor epoksid,Mirex,Oxyklordan,QCB,Toksafen Parlar 26,Toksafen Parlar 50,Toksafen Parlar 62,trans-Heptaklorepoksid
+
 #
 # NOTE: This file is run by knitting one of the .Rmd files in '434_paramgroups'
 #
 
 dat_groups <- read.csv("Input_data/Lookup_tables/Lookup table - substance groups.csv")  
-header_param <- subset(dat_groups, PARAM %in% params$param, select = Parameter.Name)[1,1]
+# header_param <- subset(dat_groups, PARAM %in% param, select = Parameter.Name)[1,1]
 
 ```
 
 
-# `r header_param`  
+# Pesticides    
    
 ```{r, include=FALSE}
 
 # 01_settings
 
 current_year <- 2021
-knitr::opts_chunk$set(echo = FALSE, results = 'hold', warning = FALSE)
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE)
+
+# results = 'hold', 
 
 ```
 
@@ -80,6 +84,11 @@ source("002_Utility_functions.R")
 
 ```{r, warning=FALSE, message=FALSE}
 
+param_vector <- strsplit(params$param_vector, split = ",")[[1]]
+
+for (param in param_vector){
+
+
 # 03_medians_data1
 
 library(dplyr)    # need to load dplyr AFTER ggiraph fro some reason, otherwise error "%>% is not found" 
@@ -91,22 +100,22 @@ library(dplyr)    # need to load dplyr AFTER ggiraph fro some reason, otherwise 
 
 # debugonce(get_data_medians)
 dat_temporary <- list(
-  get_data_medians(param = params$param, 
+  get_data_medians(param = param, 
                    species = "Gadus morhua",
-                   tissue = ifelse(params$param %in% "HG", "Muskel", "Lever"),
+                   tissue = ifelse(param %in% "HG", "Muskel", "Lever"),
                    basis = params$basis_medians, 
                    include_year = params$serieslastuntil),
-  get_data_medians(param = params$param, 
+  get_data_medians(param = param, 
                    species = "Somateria mollissima",
                    tissue = "Blod",
                    basis = "WW", 
                    include_year = params$serieslastuntil),
-  get_data_medians(param = params$param, 
+  get_data_medians(param = param, 
                    species = "Somateria mollissima",
                    tissue = "Egg",
                    basis = "WW", 
                    include_year = params$serieslastuntil),
-  get_data_medians(param = params$param, 
+  get_data_medians(param = param, 
                    species = "Mytilus edulis",
                    tissue = "Whole soft body",
                    basis = "WW", 
@@ -123,11 +132,14 @@ dat_temporary <- list(
 lookup_stations <- read.csv("Input_data/Lookup_tables/Lookup_stationorder.csv") # %>%
 
 
-```
 
-```{r}
 
+
+
+
+#
 # 03_medians_data2
+#
 
 library(purrr)
 library(ggplot2)
@@ -164,7 +176,7 @@ dat_medians_list[[1]]$Station <- factor(dat_medians_list[[1]]$Station,
 
 # For Hg: add an asterisk after station names for stations that are NOT length-adjusted (for Hg only)
 # - these data are also used for 'ratio plots' (last year's concentrations)  
-if (params$param %in% "HG" & params$basis_medians %in% "WWa"){
+if (param %in% "HG" & params$basis_medians %in% "WWa"){
   # View(dat_medians_list[[1]])
   tab <- xtabs(~Basis + Station, dat_medians_list[[1]])
   not_length_adjusted <- colnames(tab)[tab[2,] == 0]
@@ -182,12 +194,14 @@ dat_medians_list[[2]] <- dat_temporary[[4]]
 # Check number of rows for cod/birds and blue mussel:
 # map(dat_medians_list, nrow)
 
-```
 
 
-```{r, fig.width=10, fig.height=8, warning=FALSE}
 
+#
 # 04_medians_plot
+#
+
+
 
 proref_cols <- c(RColorBrewer::brewer.pal(6, "Blues")[5:2],
                  RColorBrewer::brewer.pal(6, "YlOrRd")[1:5])
@@ -233,9 +247,9 @@ for (speciesgroup in 1:2){
     
 
     # Set plot title (mercury in cod+birds is treated as a special case)
-    if (params$param %in% "HG" & speciesgroup == 1 & params$basis_medians == "WW"){
+    if (param %in% "HG" & speciesgroup == 1 & params$basis_medians == "WW"){
       plot_title <- paste0(dat_medians$Parameter.Name[1], " (not length-adjusted) in ", speciesgroup_txt[[speciesgroup]])
-    } else if (params$param %in% "HG" & speciesgroup == 1 & params$basis_medians == "WWa"){
+    } else if (param %in% "HG" & speciesgroup == 1 & params$basis_medians == "WWa"){
       plot_title <- paste0(dat_medians$Parameter.Name[1], " (length-adjusted) in ", speciesgroup_txt[[speciesgroup]])
     } else {
       plot_title <- paste0(dat_medians$Parameter.Name[1], " in ", speciesgroup_txt[[speciesgroup]])
@@ -274,17 +288,19 @@ if (FALSE){
   # Special case: SCCP and MCCP (eksl. LOQ)
   width_tileplot_only <- 2.7 / (2.7 + 0.75 + 1.25)
   for (speciesgroup in 1:2){
-    filename <- glue::glue("Figures/431/{params$param}_combo_{speciesgroup}.png")
+    filename <- glue::glue("Figures/431/{param}_combo_{speciesgroup}.png")
     # ggsave(filename, gg_tile_list[[speciesgroup]], width = 14*width_tileplot_only, height = 8, dpi = 200)
   }
   
 }
 
-```
 
-```{r}
 
+
+
+#
 # 05_trends_settings
+#
 
 shape_order <- c("Increasing", "Decreasing", "No change")
 colour_order <- shape_order
@@ -293,11 +309,12 @@ trend_shapes <- c(24, 25, 21) %>% setNames(shape_order)
 trend_colours <- c("red3", "green4", "grey20") %>% setNames(colour_order)
 trend_fill <- c("red2", "green2", "grey20") %>% setNames(colour_order)
 
-```
 
-```{r}
 
+
+#
 # 05_trends_data
+#
 
 dat_trends_plot_list <- purrr::map(
   dat_medians_list, 
@@ -315,11 +332,15 @@ dat_trends_plot_list <- purrr::map(
 # Check number of rows for cod/birds and blue mussel:
 # map(dat_trends_plot_list, nrow)
 
-```
 
-```{r}
 
+
+
+#
 # 05_trends_create_plots
+#
+
+
 
 # Which species groups do we have? 
 if (is.null(dat_trends_plot_list[[1]])){
@@ -420,11 +441,12 @@ if (FALSE){
 }
 
 
-```
 
-```{r, fig.width=10, fig.height=8, warning=FALSE}
 
+
+#
 # 06_combine_plots
+#
 
 ggcomb_list <- list()
 
@@ -457,9 +479,9 @@ for (speciesgroup in speciesgroups){
   
   # Set name of figure file (mercury in cod+birds is treated as a special case)
   if (params$basis_medians != params$basis_trends & speciesgroup == 1){
-    filename <- glue::glue("Figures/431/{params$param}-{params$basis_medians}-{params$basis_trends}_combo_{speciesgroup}.png")
+    filename <- glue::glue("Figures/431/{param}-{params$basis_medians}-{params$basis_trends}_combo_{speciesgroup}.png")
   } else {
-    filename <- glue::glue("Figures/431/{params$param}_combo_{speciesgroup}.png")
+    filename <- glue::glue("Figures/431/{param}_combo_{speciesgroup}.png")
   }
   
   if (params$include_trend == "TRUE"){
@@ -480,16 +502,29 @@ for (speciesgroup in speciesgroups){
 # ggcomb_list[[2]]
 
 
+
+
+
+
+
+}   # end of param in param_values
+
+
+
 ```
 
 
-```{r}
+```{r, results='asis'}
 
 if (!is.null(ggcomb_list[[1]])){
   
   girafe( ggobj = ggcomb_list[[1]], width_svg = 12, height_svg = 6)
+  # girafe( ggobj = ggcomb_list[[2]], width_svg = 12, height_svg = 6)
+  # print(girafe( ggobj = ggcomb_list[[1]], width_svg = 12, height_svg = 6))
+  # print(girafe( ggobj = ggcomb_list[[2]], width_svg = 12, height_svg = 6))
   
 }
+
 
 ```
 
@@ -499,10 +534,9 @@ if (!is.null(ggcomb_list[[1]])){
 if (!is.null(ggcomb_list[[2]])){
   
   girafe( ggobj = ggcomb_list[[2]], width_svg = 12, height_svg = 6)
+  # print(girafe( ggobj = ggcomb_list[[2]], width_svg = 12, height_svg = 6))
   
 }
 
 ```
-
-
 

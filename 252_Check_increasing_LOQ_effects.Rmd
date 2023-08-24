@@ -74,7 +74,9 @@ file_date <- data_list$file_date
 ```
 
 ### b. Medians per year   
+
 Made in script 110  
+
 ```{r, results='hold', echo = FALSE}
 
 filepattern <- "110_mediandata_updated_"         # entire file name except date and extension
@@ -96,9 +98,10 @@ cat("File date text:", data_list$file_date, "\n")
 ```
 
 ### c. Time trend results   
+
 ```{r, results='hold', echo = FALSE}
 
-last_year <- 2020
+last_year <- 2021
 date_pattern <- "[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]"
 version_pattern <- "run[0-9][0-9]"
 
