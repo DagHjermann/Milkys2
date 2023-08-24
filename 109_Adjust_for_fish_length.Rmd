@@ -16,10 +16,9 @@ on your PC using script 801 from project 'Milkys2_pc"
 
 - 1. Packages & functions  
 - 2. Read data  
-    - 2a. Reads 'data_all', which is the most recent 101 file and has LNMEA through 2018  
+    - 2a. Reads 'data_all', which is the most recent 105 file and has LNMEA through 2018  
     - 2b. Length data  
     - 2c. Sample data (from LIMS/Labware)
-- 2a. Reads 'data_all', which is the most recent 101 file and has LNMEA through 2018
 - 3. Makes 'df_lnmea_since_previous', which should contain all LNMEA values for 2019, 2020 and 2021
     - Two steps: 
     - 3a. Makes 'df_lnmea_previous' - for 2021 only. Made based on LIMS + excel data  
@@ -261,7 +260,7 @@ df_fishsamples %>%
 ```
 
 ### c3. Also use labware import file   
-- In order to remove solixans and other confusing stuff from 'df_fishsamples'   
+- In order to remove siloxans and other confusing stuff from 'df_fishsamples'   
 - Creates 'df_fishsamples1'  
 ```{r}
 
@@ -724,8 +723,10 @@ data_all2 <- bind_rows(
 
 
 
-## 5. Length adjustment - preparations 
-### a. Make data set 'data_lengthreg' to save regression results
+## 5. Length adjustment - preparations   
+
+### a. Make data set 'data_lengthreg' to save regression results  
+
 ```{r}
 
 data_lengthreg <- subset(data_all2, MYEAR %in% 1980:selected_year & is.finite(VALUE_WW) &
@@ -845,7 +846,7 @@ if (nrow(check2) > 0)
 ### Select data  
 ```{r}
 
-station <- "45B2"
+station <- "30B"
 par <- "HG"
 
 cat("Chosen", par, "at", station, "\n\n")
@@ -904,6 +905,8 @@ cat("'a' (constant that will be used in log-transformation) set to", a)
 
 ### Perform test adjustment
 ```{r, fig.width = 9, fig.height=3}
+
+debugonce(adjust_selected)
 
 result <- try(adjust_selected(data_all2, sel, var = "VALUE_WW", a = a))        # adjust_selected()
 if (class(result) != "try-error"){
@@ -1143,7 +1146,7 @@ if (nrow(check) > 0){
 
 par <- "CB_S7"
 par <- "HG"
-par <- "CD"
+# par <- "CD"
 
 if (FALSE){
   # Not length-adjusted 
