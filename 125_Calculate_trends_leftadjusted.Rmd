@@ -242,6 +242,70 @@ dat_all_prep1 <- bind_rows(
 
 ```
 
+### c3. Sum parameters  
+
+
+*Not used*   
+  
+Idea was to use the leftcensored method for sums, setting trends based on agreement between trends for "without LOQ" and "with LOQ" data.   
+    - E.g. set downward trend if bothtremds of "without LOQ" and "with LOQ" data have a downwards trend, otherwise set trend unknown  
+
+
+```{r}
+
+if (FALSE){
+  
+  source("101_Combine_with_legacy_data_functions.R")  # list 'sum_parameters'  
+  
+  names(sum_parameters)
+  
+  # sum_parameters[["DDTEP"]]
+  # sum_parameters[["CB_S7"]]
+  sum_parameters[["BDE6S"]]
+  
+  year1 <- 2011
+  sumpar <- "BDE6S"
+  
+  df_without_loq <- dat_all_prep1 %>%
+    filter(PARAM %in% sum_parameters[[sumpar]] & MYEAR >= year1) %>%
+    mutate(
+      VALUE_WW = case_when(
+        is.na(FLAG1) ~ VALUE_WW,
+        !is.na(FLAG1) ~ 0)
+    ) %>%
+    group_by(STATION_CODE, TISSUE_NAME, LATIN_NAME, x) %>%
+    summarize(
+      VALUE_WW = sum(VALUE_WW)
+    ) %>%
+    ungroup() %>%
+    mutate(
+      PARAM = paste0(sumpar, "_without_LOQ"),
+      FLAG1 = as.character(NA)
+    )
+  
+  df_with_loq <- dat_all_prep1 %>%
+    filter(PARAM %in% sum_parameters[[sumpar]] & MYEAR >= year1) %>%
+    group_by(STATION_CODE, TISSUE_NAME, LATIN_NAME, x) %>%
+    summarize(
+      VALUE_WW = sum(VALUE_WW)
+    ) %>%
+    ungroup() %>%
+    mutate(
+      PARAM = paste0(sumpar, "_with_LOQ"),
+      FLAG1 = as.character(NA)
+    )
+  
+  df_with_and_without_loq <- bind_rows(df_without_loq, df_with_loq)
+  
+}
+
+
+# dat_all_prep1 <- dat_all_prep1 %>%
+#   filter(PARAM %in% "HG")
+
+```
+
+
 
 ### d1. Add flags for rule 1 and rule 2 (columns Rule1 and Rule2)   
 
