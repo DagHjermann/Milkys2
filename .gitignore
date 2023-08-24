@@ -20,6 +20,18 @@ BBE
 .Rhistory
 .Rproj.user
 .ipynb_checkpoints*
-434_paramgroups/*/*.RData
-434_paramgroups/*/*.rdb
-434_paramgroups/*/*.rdx
+434_paramgroups/*/html/*.RData
+434_paramgroups/*/html/*.rdb
+434_paramgroups/*/html/*.rdx
+434_paramgroups/Milkys_2021*cache
+Input_data/01_*
+Input_data/01_*
+Input_data/Kartbase_edit_outdated*
+Input_data/Lookup table - preferred parameter units_OLD*
+Input_data/Lookup table - standard parameter names - OLD.csv
+Input_data/Lookup table - substance groups - OLD*
+Input_data/Lookup for big excel - param - OLD*
+Input_data/Labware_samples*
+Input_data/Labware_import*
+Untitled*.ipynb
+
