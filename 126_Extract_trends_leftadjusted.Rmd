@@ -307,7 +307,14 @@ tsplot_seriesno(58, folder_results)
 # Exactly the same
 tsplot_param("SCCP", "13B", folder = folder_results)
 
-tsplot_param("CB138", "11X", folder = folder_results)
+tsplot_param("CB138", "11X", folder = folder_results, allsamples = TRUE)
+tsplot_param("CB138", "98A2", folder = folder_results, allsamples = TRUE)
+
+# debugonce(tsplot_param)
+# debugonce(tsplot_seriesno)
+tsplot_param("CB138", "65A", folder = folder_results, allsamples = TRUE)
+tsplot_param("CB138", "64A", folder = folder_results, allsamples = TRUE)
+
 
 # debugonce(tsplot_param)
 tsplot_param("AG", "71A", folder = folder_results)

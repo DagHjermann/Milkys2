@@ -1,23 +1,28 @@
 
 #
-# New run of only the series with zeros ('dat_all_prep1_with_zeros') - but only sum "exloq" results
-#   (VDSI which we save for later, or for logistic regression?) 
-# We have used log(x+1) instead of log(x) 
+# New run of particular ('pick') series 
 #
 
-# Run first part of 125, to get 'dat_all_prep1_with_zeros'  
-# - but don't make or especially save dat_series! The new 'dat_series'  will be in a different order than 'dat_series' on disk
-#   used to create the result files
+# Run first part of 125 to get 'dat_all_prep3': 
+#    - Run 0, 1 and 2a-2b 
+#      (note that you might have to install 'leftcensored' in order to update to latest version)
+#    - 2c and d1 may be skipped (d1 is slow), instead load data /dat_all_prep3) using the "commented out" line in 2.d2
+#
+
+# REMEMBER TO UPDATE folder_results!
 
 #o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
 #
 # Make dat_series_pick - get key columns from data ----
 #
+# This is where we pick the data to re-analyse
+#
 #o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
 
-dat_series_pick_1 <- dat_all_with_zeros %>%
+# Use 'dat_rerun' from script 126 appendix B.
+dat_rerun <- dat_rerun %>%
   distinct(PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME) %>%
-  filter(grepl("exloq", PARAM))
+  mutate(Pick = TRUE)
 
 #o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
 #
@@ -34,9 +39,12 @@ dat_series_pick_1 <- dat_all_with_zeros %>%
 max_warningless <- function(x)
   ifelse(length(x)==0, NA, max(x))
 
-dat_series_pick_1 <- dat_all_prep1_with_zeros %>%
-  # Select sum with exloq
-  filter(grepl("exloq", PARAM)) %>%
+dat_series_pick_1 <- dat_all_prep3 %>%
+  # Select data using 'dat_rerun'
+  left_join(dat_rerun) %>%
+  filter(Pick) %>%
+  # Also skip isotopes
+  filter(!Substance.Group %in% "Isotopes") %>%
   group_by(Substance.Group, PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME, x) %>%
   summarise(
     N = n(),
@@ -95,10 +103,11 @@ nrow(dat_series_pick_1)
 #
 # Get key columns from the result files themselves 
 #
-folder_results <- paste0("Data/125_results_2021_02")
+folder_results <- paste0("Data/125_results_2021_04")
 fns <- dir(folder_results, full.names = TRUE) %>% sort()
 result_list <-lapply(fns, readRDS)
 cat(length(fns), "files read \n")
+
 # Extract 'seriesno' from file name (just for checking, see nex chunk)
 series_no_filename <- substr(fns, nchar(folder_results) + 8, nchar(folder_results) + 11)
 # Extract key columns 
@@ -151,7 +160,7 @@ dat_all_prep3$Uncertainty[sel] <- 0.3
 # 
 #o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
 
-if (FALSE){
+# if (TRUE){
   
   #
   # Do only once: registering cores
@@ -169,7 +178,7 @@ if (FALSE){
   cl <- makeCluster(n_cores-1)
   registerDoParallel(cores = (n_cores-1))
   
-}
+# }
 
 
 # Old version of 'get_splines_results_seriesno' used only row number of the data series file
@@ -186,7 +195,7 @@ length(series_no) # 1507
 if (FALSE){
   # TEST
   series_no[1]   # 1841
-  debugonce(get_splines_results_seriesno)
+  # debugonce(get_splines_results_seriesno)
   # debugonce(lc_fixedsplines_tp)
   get_splines_results_seriesno(series_no[1], 
                                dat_all_prep3, dat_series_pick, foldername = folder_results,
