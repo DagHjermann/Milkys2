@@ -32,7 +32,7 @@ editor_options:
 5. Fix units  
 6. Add parameter sums for PCBs, BDEs etc.  
 7. Add columns for dry weight and fat percentage (drawn from the data itself)   
-
+  
 * NOTE: When changing parameter names, remember that parameter names are found different places:   
     - data_legacy - see part 3-d2 in this script (Triphenyl -> TPhT)   
     - PROREF values - found in "Proref_report_2017.xlsx" and "Proref_paper.xlsx" (both in Input_data)   
@@ -61,12 +61,11 @@ source("002_Utility_functions.R")
 source("101_Combine_with_legacy_data_functions.R")
 
 ```
-
 ### Set year  
 Note: there are still some hard-coded "2019" given in the code  
 ```{r}
 
-lastyear <- 2021
+lastyear <- 2022
 
 ```
 
@@ -386,7 +385,7 @@ files <- list_files("Data", pattern = "101_data_updated")
 files
 
 # HARD_CODED: pick most recent data from last year
-data_legacy <- readRDS("Data/101_data_updated_2022-01-05.rds") %>%
+data_legacy <- readRDS("Data/101_data_updated_2022-09-23.rds") %>%
   mutate(PARAM = case_when(
     PARAM %in% "TTBTIN" ~ "TTBT",
     TRUE ~ PARAM)
@@ -693,7 +692,7 @@ if (nrow(df_duplicates) > 0){
   xtabs(~PARAM, df_duplicates) %>% print()
   xtabs(~MYEAR, df_duplicates) %>% print()
   xtabs(~MYEAR + PARAM, df_duplicates) %>% print()
-  stop("Duplicates in the data! Check 'df_duplicates'. (Section 10d)\n")
+  stop("Duplicates in the data! Check 'df_duplicates'. (Section 2.b3)\n")
 } else {
   cat("No duplicates found in the data. \n")
 }
@@ -785,7 +784,15 @@ if (nrow(df_duplicates) > 0){
   cat("No duplicates found in the data. \n")
 }
 
+
 ```
+### b4. Save data so far  
+```{r}
+
+
+
+```
+
 
 ### c. Remove sums  
 ```{r}
