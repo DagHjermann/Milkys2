@@ -66,6 +66,8 @@ Store your username and password to R (only once per R session)
 
 selected_year <- 2022
 
+# NOTE! Also change this in 2a!
+
 ```
 
 
@@ -184,6 +186,42 @@ xtabs(~PARAM, dat )
 
 ```
 
+### Change 277G to 277G2   
+
+- which is the code currenølty used 
+
+```{r}
+
+sel <- dat$STATION_CODE %in% "227G"
+sum(sel)
+dat$STATION_CODE[sel] <- "227G2"
+
+```
+
+#### FOR 2023  
+
+```{r}
+
+sel <- dat$STATION_CODE %in% "227G2"
+sum(sel)
+dat$VALUE[sel] <- 0
+
+```
+
+
+### For copying to code in part 2 (definition of 'stations')
+
+```{r}
+
+# For the code in part 2
+# dput(unique(dat$STATION_CODE))
+
+# dput(dat)
+
+```
+
+
+
 ## 2. NIVAbasen (Oracle)    
 
 - The rest of this script *cannot be run on Jupyterhub*    
@@ -194,8 +232,34 @@ xtabs(~PARAM, dat )
 ```{r}
 
 #
-# For data the same year    
+# COPY-PASTE THE CONTENTS OF THIS CHUNK TO RSTUDIO ON YOUR PC
 #
+
+library(dplyr)
+library(purrr)
+library(lubridate)
+library(stringr)
+library(niRvana)
+library(safejoin) # https://github.com/moodymudskipper/safejoin
+source("810_Import_til_NIVAbasen_functions.R")
+
+selected_year <- 2022
+stations <- c("11G", "131G", "15G", "227G2", "22G", "36G", "71G", "76G", "98G")
+
+dat <- structure(list(STATION_CODE = c("11G", "131G", "15G", "227G2", 
+"22G", "36G", "71G", "76G", "98G"), PARAM = c("VDSI", "VDSI", 
+"VDSI", "VDSI", "VDSI", "VDSI", "Intersex", "VDSI", "VDSI"), 
+    LATIN_NAME = c("Nucella lapillus", "Nucella lapillus", "Nucella lapillus", 
+    "Nucella lapillus", "Nucella lapillus", "Nucella lapillus", 
+    "Littorina littorea", "Nucella lapillus", "Nucella lapillus"
+    ), VALUE = c(0, 0, 0, 0, 0, 0, 0, 0, 0), MYEAR = c(2022, 
+    2022, 2022, 2022, 2022, 2022, 2022, 2022, 2022), TISSUE_NAME = c("Whole soft body", 
+    "Whole soft body", "Whole soft body", "Whole soft body", 
+    "Whole soft body", "Whole soft body", "Whole soft body", 
+    "Whole soft body", "Whole soft body")), row.names = c(NA, 
+-9L), class = c("tbl_df", "tbl", "data.frame"))
+
+# For data the same year    
 
 project_name <- "O 210200.ANAIN"
 
@@ -219,7 +283,7 @@ sql <- paste(
 df_labware_02 <- get_nivabase_data(sql)
 
 df_samples <- bind_rows(df_labware_01, df_labware_02) %>%
-  filter(AQUAMONITOR_CODE %in% dat$STATION_CODE)
+  filter(AQUAMONITOR_CODE %in% stations)
 
 ```
 
@@ -227,7 +291,11 @@ df_samples <- bind_rows(df_labware_01, df_labware_02) %>%
 
 ```{r}
 
-a <- dat$STATION_CODE
+#
+# COPY-PASTE THE CONTENTS OF THIS CHUNK TO RSTUDIO ON YOUR PC
+#
+
+a <- stations
 b <- df_samples$AQUAMONITOR_CODE
 check <- a[!a %in% b]  
 
@@ -239,21 +307,8 @@ if (length(check) == 0){
 
 ```
 
-### c. 227G is lacking  
+### c. Get dates to data    
 
-* 
-
-```{r}
-
-sql <- paste(
-  "select * from NIVADATABASE.LABWARE_CHECK_SAMPLE", 
-  "where extract(YEAR from SAMPLED_DATE) >", 2010, 
-  "and AQUAMONITOR_CODE = '227G2';")
-check <- get_nivabase_data(sql)
-
-```
-
-### d. Add dates to data    
 ```{r}
 
 check <- df_samples %>%
@@ -264,33 +319,42 @@ if (nrow(check) > 0){
   stop("'df_samples' have > 1 lines per station. Check 'check'")
 }
 
-# In this case, two records of 71G, both with same date
+# If there are two records of 71G, both with same date
 # Delete the "extra" one
-nrow(df_samples)
-df_samples <- df_samples %>%
-  filter(!grepl("Snegl - Ekstra", DESCRIPTION))
-nrow(df_samples)
+# nrow(df_samples)
+# df_samples <- df_samples %>%
+#   filter(!grepl("Snegl - Ekstra", DESCRIPTION))
+# nrow(df_samples)
+
+```
+
+### d. Add dates to data    
+
+```{r}
 
 # Merge
 dat <- dat %>%
-  safe_left_join(df_samples, 
+  # safe_left_join(df_samples, 
+  #                na_matches = "never",
+  #                by = c("STATION_CODE" = "AQUAMONITOR_CODE"),
+  #                check = "BCMV") %>%
+  left_join(df_samples, 
                  na_matches = "never",
                  by = c("STATION_CODE" = "AQUAMONITOR_CODE"),
-                 check = "BCMV") %>%
+                 ) %>%
   rename(SAMPLE_DATE = SAMPLED_DATE)
 
 ```
 
+
 #### Add date manually for 227G  
 ```{r}
 
-sel <- dat$STATION_CODE == "227G"
-sum(sel)
-
-dat$SAMPLE_DATE[sel] <- ymd_hms("2021-11-05 00:00:00")
-
-dat %>%
-  count(STATION_CODE, SAMPLE_DATE)
+# sel <- dat$STATION_CODE == "227G"
+# sum(sel)
+# dat$SAMPLE_DATE[sel] <- ymd_hms("2021-11-05 00:00:00")
+# dat %>%
+#   count(STATION_CODE, SAMPLE_DATE)
 
 ```
 
@@ -363,7 +427,10 @@ df_methods
 pars <- df_methods$NAME
 
 ```
+
+
 ### b. Add Intersex method  
+
 ```{r}
 
 # done last year. METHOD_ID = 35415
@@ -501,6 +568,8 @@ if (FALSE){
 
 #### Add specimen and sample for 227G (Nucella lapillus)   
 
+**NOT NEEDED - we use 227G2**    
+
 ```{r}
 
 # Check data from previous year to get station ID + tissue_id
@@ -572,6 +641,9 @@ make_sql_samples_specimens(1, sample_specimens_227G)
 
 
 #### Add SAMPLE_ID for 227G2  
+
+**NOT NEEDED - we use 227G2**    
+
 ```{r}
 
 sel <- dat_summ$STATION_CODE == "227G"
