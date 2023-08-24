@@ -1,0 +1,36 @@
+"PARAM","Long_name","LATIN_NAME","Basis","Limit","Kommentar"
+"HG","Kvikksølv",NA,"WW",0.02,"se figur"
+"TBT","TBT",NA,"WW",150,NA
+"BDE47","Bromerte difenyletere",NA,"WW",0.0085,"se figur"
+BDE6S_exloq,"Bromerte difenyletere",NA,"WW",0.0085,"se figur"
+"HCB","Heksaklorbensen",NA,"WW",10,"se figur"
+"HCBD","Heksaklorbutadien",NA,"WW",55,"i.u."
+"HCHG","Heksaklorsykloheksan",NA,"WW",61,NA
+SCCP eksl. LOQ,"C10-13 kloralkaner",NA,"WW",6000,"g.>maks., n = 74 (0<LOQ)"
+"QCB","Pentaklorbenzen",NA,"WW",50,"se figur, g.>maks., n=1446 (1132 <LOQ)"
+"NAP","Naftalen",NA,"WW",2400,"(Har ingen sum av naftalen)"
+"ANT","Antracen",NA,"WW",2400,"se figur, g.>maks., n=326 (146 <LOQ)"
+"FLU","Fluroanten",NA,"WW",30,"se figur"
+"BAP","Benzo(a)pyren",NA,"WW",5,"se figur"
+"4-N-NP","Nonylfenol",NA,"WW",3000,"se figur, g.>maks., n=113 (86 <LOQ)"
+"4-T-NP","Nonylfenol",NA,"WW",3000,"se figur, g.>maks., n=113 (86 <LOQ)"
+"4-N-OP","Oktylfenol",NA,"WW",0.004,"se figur"
+"4-T-OP","Oktylfenol",NA,"WW",0.004,"se figur"
+"HBCDA","HBCDD",NA,"WW",167,"se figur"
+"PFOS","PFOS",NA,"WW",9.1,"se figur"
+"TCDDN","Dioksiner og",NA,"WW",6.5,"se figur"
+"TCDD","dioksinlignende forbindelser",NA,"WW",6.5,NA
+"TE_DFI05","Dioksiner og",NA,"WW",6.5,"se figur"
+"TE_CBNOI05","dioksinlignende forbindelser",NA,"WW",6.5,NA
+"DDEPP","DDT",NA,"WW",610,"se figur, g.>maks., n=1446 (alle <LOQ)"
+"DD_SS","DDT",NA,"WW",610,"se figur, g.>maks., n=1446 (alle <LOQ)"
+"D5","Dekametyl",NA,"WW",15217,"i.u."
+"PFOA","PFOA",NA,"WW",91.3,"se figur, g.>maks., n=77 (alle <LOQ)"
+"TPhT","Trifenyltin",NA,"WW",150,"i.u."
+CB_S7_exloq,"PCB7",NA,"WW",0.6,"se figur"
+CB_S6_exloq,PCB6,Gadus morhua,WW,200,
+CB_S6_exloq,PCB6,Mytilus edulis,WW,75,
+CB_S6_exloq,PCB6,Somateria mollissima,WW,75,
+CB118,PCB118,NA,FB,25,
+"BAA","Benzo(a) antracen",NA,"WW",304,"se figur"
+MCCP eksl. LOQ,MCCP eksl. LOQ,NA,"WW",170,NA

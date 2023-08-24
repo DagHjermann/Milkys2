@@ -1,0 +1,1215 @@
+"","PARAM","LATIN_NAME","TISSUE_NAME","Basis","Stations","N_stations","N","Median","Proref"
+"1","CO","Mytilus edulis","Whole soft body","WW","26A2,I241",2,34,NA,0.08
+"2","SN","Mytilus edulis","Whole soft body","WW","10A2,11X,15A,22A,26A2,30A,31A,35A,57A,63A,64A,65A,69A,71A,91A2,97A2,98A2,I023,I131A,I133,I301,I304,I306,I965,I969,I241,52A,I307,I712",29,625,NA,0.3
+"3","CB28","Mytilus edulis","Whole soft body","WW","10A2,11X,15A,22A,36A,41A,43A,44A,46A,48A,56A,57A,63A,65A,69A,84A,91A2,92A1,98A2",19,910,NA,0.12
+"4","CB52","Mytilus edulis","Whole soft body","WW","10A2,11X,15A,26A2,41A,43A,64A,65A,69A,84A,97A2,98A2",12,480,NA,0.2
+"5","CB101","Mytilus edulis","Whole soft body","WW","43A,48A,98A2,97A2,10A2,64A,26A2,11X,41A",9,245,NA,0.2
+"6","CB105","Mytilus edulis","Whole soft body","WW","10A2,11X,15A,41A,43A,46A,48A",7,208,NA,0.15
+"7","CB118","Mytilus edulis","Whole soft body","WW","43A",1,15,NA,0.07
+"8","CB138","Mytilus edulis","Whole soft body","WW","43A,10A2,11X,41A",4,153,NA,0.2
+"9","CB153","Mytilus edulis","Whole soft body","WW","43A,11X,10A2,41A",4,153,NA,0.26
+"10","CB156","Mytilus edulis","Whole soft body","WW","10A2,11X,15A,22A,35A,36A,41A,43A,44A,46A,48A",11,399,NA,0.15
+"11","CB180","Mytilus edulis","Whole soft body","WW","10A2,11X,15A,22A,26A2",5,282,NA,0.1
+"12","DDTPP","Mytilus edulis","Whole soft body","WW","10A2,11X,15A,22A,30A,31A,36A,71A,76A,98A2,I022,I023,I024,I131A,I132,I133,I304,I306,I307,I712",20,644,NA,0.6
+"13","ACNLE","Mytilus edulis","Whole soft body","WW","30A,71A,98A2,I023,I131A,I132,I133",7,266,NA,1
+"14","ACNE","Mytilus edulis","Whole soft body","WW","30A,71A,98A2,I023,I131A",5,177,NA,0.8
+"15","FLE","Mytilus edulis","Whole soft body","WW","30A,71A,98A2,I023,I131A,I304,I306,I307,I915",9,364,NA,1.6
+"16","PA","Mytilus edulis","Whole soft body","WW","98A2,I023,71A",3,47,NA,2.28
+"17","PYR","Mytilus edulis","Whole soft body","WW","98A2",1,17,NA,1.02
+"18","CHR","Mytilus edulis","Whole soft body","WW","98A2",1,17,NA,0.52
+"19","BBJF","Mytilus edulis","Whole soft body","WW","98A2,I023,I304,I306,I307",5,107,NA,6.24
+"20","BKF","Mytilus edulis","Whole soft body","WW","30A,98A2,I023,I304,I306,I307,I913",7,167,NA,1.5
+"21","ICDP","Mytilus edulis","Whole soft body","WW","30A,71A,98A2,I023,I131A",5,176,NA,1.73
+"22","DBA3A","Mytilus edulis","Whole soft body","WW","30A,I131A",2,117,NA,0.5
+"23","BGHIP","Mytilus edulis","Whole soft body","WW","98A2,I023,I304,I306,I307,I913,71A",7,254,NA,2.07
+"24","CB77","Mytilus edulis","Whole soft body","WW","76A",1,18,NA,0.01
+"25","CB81","Mytilus edulis","Whole soft body","WW",NA,NA,NA,NA,NA
+"26","CB126","Mytilus edulis","Whole soft body","WW",NA,NA,NA,NA,NA
+"27","CB169","Mytilus edulis","Whole soft body","WW",NA,NA,NA,NA,NA
+"28","MBTIN","Mytilus edulis","Whole soft body","WW","22A",1,14,NA,0.86
+"29","DBTIN","Mytilus edulis","Whole soft body","WW","30A,I131A,I201,I205,I304,I306,I307",7,317,NA,4.77
+"30","4-N-NP","Mytilus edulis","Whole soft body","WW",NA,NA,NA,NA,NA
+"31","4-N-OP","Mytilus edulis","Whole soft body","WW",NA,NA,NA,NA,NA
+"32","4-T-NP","Mytilus edulis","Whole soft body","WW",NA,NA,NA,NA,NA
+"33","4-T-OP","Mytilus edulis","Whole soft body","WW",NA,NA,NA,NA,NA
+"34","BDE28","Mytilus edulis","Whole soft body","WW",NA,NA,NA,NA,NA
+"35","BDE99","Mytilus edulis","Whole soft body","WW","98A2,91A2,26A2,I023",4,61,NA,0.06
+"36","BDE100","Mytilus edulis","Whole soft body","WW","98A2,26A2,I023,91A2,71A",5,79,NA,0.05
+"37","BDE126","Mytilus edulis","Whole soft body","WW","71A,97A2,26A2,I023,91A2",5,75,NA,0.05
+"38","BDE153","Mytilus edulis","Whole soft body","WW","97A2,26A2,I023,91A2,71A,98A2,30A",7,109,NA,0.05
+"39","BDE154","Mytilus edulis","Whole soft body","WW","97A2,26A2,I023,91A2,71A,98A2,30A",7,109,NA,0.05
+"40","BDE183","Mytilus edulis","Whole soft body","WW","71A,97A2,26A2,I023,91A2,98A2",6,92,NA,0.3
+"41","BDE196","Mytilus edulis","Whole soft body","WW","71A,97A2,26A2,I023,91A2",5,75,NA,0.3
+"42","BDE209","Mytilus edulis","Whole soft body","WW","71A,97A2,91A2,I023,26A2",5,75,NA,1.29
+"43","HBCDG","Mytilus edulis","Whole soft body","WW","I023,97A2,91A2",3,44,NA,0.03
+"44","HBCDB","Mytilus edulis","Whole soft body","WW","I023,97A2,91A2",3,44,NA,0.02
+"45","TCHT","Mytilus edulis","Whole soft body","WW","I301,I133,22A,30A",4,65,NA,2
+"46","TDEPP","Mytilus edulis","Whole soft body","WW","41A,43A,44A,46A,48A,92A1",6,93,NA,0.1
+"47","TBEP","Mytilus edulis","Whole soft body","WW","26A2,I023,91A2,97A2,30A",5,71,NA,11.3
+"48","TBP","Mytilus edulis","Whole soft body","WW","30A,I023,97A2,26A2,91A2",5,71,NA,5.96
+"49","TCEP","Mytilus edulis","Whole soft body","WW","26A2,I023,91A2,97A2,30A",5,71,NA,55.5
+"50","TCPP","Mytilus edulis","Whole soft body","WW","30A,26A2,97A2,91A2",4,56,NA,40.25
+"51","TDCP","Mytilus edulis","Whole soft body","WW","26A2,91A2,97A2,I023,30A",5,71,NA,8.93
+"52","TEHP","Mytilus edulis","Whole soft body","WW","26A2,I023,91A2,97A2,30A",5,71,NA,23.95
+"53","TIBP","Mytilus edulis","Whole soft body","WW","30A,I023,26A2,97A2,91A2",5,71,NA,9.9
+"54","EHDPP","Mytilus edulis","Whole soft body","WW","30A,26A2,I023,91A2,97A2",5,71,NA,11.05
+"55","BPA","Mytilus edulis","Whole soft body","WW","30A,97A2,I023",3,45,NA,7.45
+"56","TBBPA","Mytilus edulis","Whole soft body","WW","30A,97A2,26A2,I023,71A,91A2",6,87,NA,0.27
+"57","C/N","Mytilus edulis","Whole soft body","WW","15A,71A,I304,22A,30A,I023,97A2,56A",8,120,NA,4.98
+"58","Delta13C","Mytilus edulis","Whole soft body","WW","97A2,22A,26A2,15A",4,60,NA,20.45
+"59","Delta15N","Mytilus edulis","Whole soft body","WW","56A,51A",2,30,NA,3.77
+"60","DOT","Mytilus edulis","Whole soft body","WW","I301,I133,22A,30A",4,65,NA,0.99
+"61","MOT","Mytilus edulis","Whole soft body","WW","I301,I133,22A,30A",4,65,NA,0.99
+"62","MBTIN","Nucella lapillus","Whole soft body","WW","22G,98G,36G,11G,15G,76G,131G,227G1",8,47,NA,2.18
+"63","DBTIN","Nucella lapillus","Whole soft body","WW","11G,131G,15G,98G,36G,22G,76G",7,42,NA,1.2
+"64","TPhT","Nucella lapillus","Whole soft body","WW","71G",1,6,NA,1.65
+"65","TBT","Nucella lapillus","Whole soft body","WW","11G,131G,15G,98G",4,66,NA,23.54
+"66","TCHT","Nucella lapillus","Whole soft body","WW","76G,22G,131G,11G,36G,15G,98G,227G1",8,55,NA,2.33
+"67","VDSI","Nucella lapillus","Whole soft body","WW","11G,15G,131G,76G",4,63,NA,3.68
+"68","DOT","Nucella lapillus","Whole soft body","WW","76G,22G,131G,36G,15G,11G,98G,227G1",8,55,NA,1.2
+"69","MOT","Nucella lapillus","Whole soft body","WW","76G,22G,131G,36G,15G,11G,98G,227G1",8,55,NA,1.2
+"70","BAP3O","Gadus morhua","Bile","WW","30B,15B",2,305,NA,2.78
+"71","PA1O","Gadus morhua","Bile","WW","23B,15B,30B,53B",4,800,NA,6.15
+"72","PYR1O","Gadus morhua","Bile","WW","23B",1,398,NA,15.84
+"73","ALAD","Gadus morhua","Blood","WW","53B",1,395,NA,34.94
+"74","CR","Gadus morhua","Lever","WW","10B,15B,71B,43B2,80B,13B,36B,30B,98B1",9,1176,NA,0.4
+"75","NI","Gadus morhua","Lever","WW","15B,23B,43B2,10B,71B,80B,53B,36B",8,973,NA,0.65
+"76","AG","Gadus morhua","Lever","WW","80B,10B",2,229,NA,0.93
+"77","CO","Gadus morhua","Lever","WW","43B2",1,145,NA,0.06
+"78","AS","Gadus morhua","Lever","WW","10B,13B,80B,43B2,71B,15B",6,721,NA,12.8
+"79","SN","Gadus morhua","Lever","WW","10B,15B,23B,36B,43B2,53B,71B,80B,13B,98B1,30B",11,1381,NA,0.3
+"80","CB28","Gadus morhua","Lever","WW","80B,98B1,23B,67B,10B,43B,92B,53B,43B2",9,3039,NA,8
+"81","CB52","Gadus morhua","Lever","WW","67B,23B,98B1",3,1385,NA,16
+"82","CB101","Gadus morhua","Lever","WW","23B",1,554,NA,32.35
+"83","CB118","Gadus morhua","Lever","WW","98B1,23B,10B,92B,43B,67B,80B",7,2359,NA,100
+"84","CB138","Gadus morhua","Lever","WW","98B1,10B,43B,92B",4,1282,NA,157.95
+"85","CB153","Gadus morhua","Lever","WW","98B1,10B,92B,43B",4,1282,NA,189.95
+"86","CB180","Gadus morhua","Lever","WW","98B1,10B,92B",3,1165,NA,45.8
+"87","DDTPP","Gadus morhua","Lever","WW","10B,23B,36B,98B1",4,885,NA,13
+"88","HCHA","Gadus morhua","Lever","WW","53B,15B,36B,10B,23B,30B,67B,92B,43B,98B1",10,4071,NA,8
+"89","CYP1A","Gadus morhua","Lever","WW","23B,53B",2,487,NA,2.07
+"90","EROD","Gadus morhua","Lever","WW","23B,53B,36B,30B",4,1303,NA,192.29
+"91","BDE28","Gadus morhua","Lever","WW","36B,13B,98B1,23B,43B2",5,701,NA,1.4
+"92","BDE99","Gadus morhua","Lever","WW","13B,23B",2,363,NA,0.75
+"93","BDE100","Gadus morhua","Lever","WW","98B1",1,173,NA,2.6
+"94","BDE126","Gadus morhua","Lever","WW","13B,23B,30B,36B,43B2,80B",6,419,NA,0.1
+"95","BDE153","Gadus morhua","Lever","WW","13B,23B",2,363,NA,0.15
+"96","BDE154","Gadus morhua","Lever","WW","98B1,36B",2,323,NA,1.5
+"97","BDE183","Gadus morhua","Lever","WW","13B,23B,30B,36B,43B2,53B,80B,98B1",8,1360,NA,0.6
+"98","BDE196","Gadus morhua","Lever","WW","13B,23B,30B,36B,43B2,53B,80B,98B1",8,1142,NA,1
+"99","BDE209","Gadus morhua","Lever","WW","13B",1,131,NA,2
+"100","HBCDG","Gadus morhua","Lever","WW","43B2,80B",2,135,NA,0.89
+"101","HBCDB","Gadus morhua","Lever","WW","43B2,80B",2,135,NA,0.4
+"102","PFBS","Gadus morhua","Lever","WW","13B,36B,43B2,53B,80B,23B,30B,98B1",8,1316,NA,8
+"103","PFNA","Gadus morhua","Lever","WW","13B,23B,30B,36B,43B2,80B,98B1,53B",8,1315,NA,5
+"104","PFUdA","Gadus morhua","Lever","WW",NA,NA,NA,NA,NA
+"105","TDEPP","Gadus morhua","Lever","WW","23B,92B,36B",3,1303,NA,32
+"106","TBEP","Gadus morhua","Lever","WW","43B2",1,65,NA,135
+"107","TBP","Gadus morhua","Lever","WW","43B2",1,65,NA,135
+"108","TCEP","Gadus morhua","Lever","WW","43B2",1,65,NA,477.2
+"109","TCPP","Gadus morhua","Lever","WW","43B2",1,65,NA,67.6
+"110","TDCP","Gadus morhua","Lever","WW","43B2",1,65,NA,71.12
+"111","TEHP","Gadus morhua","Lever","WW","43B2",1,64,NA,334.15
+"112","TIBP","Gadus morhua","Lever","WW","43B2",1,65,NA,135
+"113","EHDPP","Gadus morhua","Lever","WW","43B2",1,65,NA,66.42
+"114","BPA","Gadus morhua","Lever","WW","43B2,80B",2,134,NA,2
+"115","TBBPA","Gadus morhua","Lever","WW","80B,43B2",2,135,NA,0.57
+"116","4-N-NP","Gadus morhua","Lever","DW","80B,43B2",2,135,NA,259.984615384615
+"117","4-N-NP","Gadus morhua","Lever","DWa","80B,43B2",2,135,NA,245.466958144159
+"118","4-N-NP","Gadus morhua","Lever","FB","80B,43B2",2,135,NA,349.79649122807
+"119","4-N-NP","Gadus morhua","Lever","FBa","80B,43B2",2,135,NA,274.220727228286
+"120","4-N-NP","Gadus morhua","Lever","WWa","80B,43B2",2,135,NA,142.197086396935
+"121","4-N-NP","Gadus morhua","Muskel","FB",NA,NA,NA,NA,1250
+"122","4-N-OP","Gadus morhua","Lever","DW","43B2,80B",2,135,NA,81.9507692307692
+"123","4-N-OP","Gadus morhua","Lever","DWa","43B2,80B",2,135,NA,59.0013250554451
+"124","4-N-OP","Gadus morhua","Lever","FB","43B2,80B",2,135,NA,96.8190989565306
+"125","4-N-OP","Gadus morhua","Lever","FBa","43B2,80B",2,135,NA,74.0480237971422
+"126","4-N-OP","Gadus morhua","Lever","WWa","43B2,80B",2,135,NA,25.2034734284847
+"127","4-N-OP","Gadus morhua","Muskel","FB",NA,NA,NA,NA,2500
+"128","4-T-NP","Gadus morhua","Lever","DW","43B2,80B",2,135,NA,550.306513409962
+"129","4-T-NP","Gadus morhua","Lever","DWa","43B2,80B",2,135,NA,478.354398647683
+"130","4-T-NP","Gadus morhua","Lever","FB","43B2,80B",2,135,NA,718.791995865025
+"131","4-T-NP","Gadus morhua","Lever","FBa","43B2,80B",2,135,NA,633.199193578756
+"132","4-T-NP","Gadus morhua","Lever","WWa","43B2,80B",2,135,NA,206.303716159579
+"133","4-T-NP","Gadus morhua","Muskel","FB",NA,NA,NA,NA,5000
+"134","4-T-OP","Gadus morhua","Lever","DW","80B,43B2",2,135,NA,47.6190476190476
+"135","4-T-OP","Gadus morhua","Lever","DWa","80B,43B2",2,135,NA,27.9200677542027
+"136","4-T-OP","Gadus morhua","Lever","FB","80B,43B2",2,135,NA,71.7391304347826
+"137","4-T-OP","Gadus morhua","Lever","FBa","80B,43B2",2,135,NA,35.7713790118824
+"138","4-T-OP","Gadus morhua","Lever","WWa","80B,43B2",2,135,NA,11.2135435336687
+"139","4-T-OP","Gadus morhua","Muskel","FB",NA,NA,NA,NA,1250
+"140","ACNE","Gadus morhua","Lever","DW",NA,NA,NA,NA,4.51813811188811
+"141","ACNE","Gadus morhua","Lever","FB",NA,NA,NA,NA,52.7197802197802
+"142","ACNE","Gadus morhua","Muskel","FB",NA,NA,NA,NA,66.6666666666667
+"143","ACNE","Mytilus edulis","Whole soft body","DW","30A,71A,98A2,I023,I131A",5,177,NA,5.68040233614536
+"144","ACNE","Mytilus edulis","Whole soft body","FB","30A,71A,98A2,I023,I131A",5,177,NA,81.6102650874224
+"145","ACNLE","Gadus morhua","Lever","DW",NA,NA,NA,NA,10.9941066997519
+"146","ACNLE","Gadus morhua","Lever","FB",NA,NA,NA,NA,86.411149825784
+"147","ACNLE","Gadus morhua","Muskel","FB",NA,NA,NA,NA,66.6666666666667
+"148","ACNLE","Mytilus edulis","Whole soft body","DW","30A,71A,98A2,I023,I131A,I132,I133",7,266,NA,6.80994176031499
+"149","ACNLE","Mytilus edulis","Whole soft body","FB","30A,71A,98A2,I023,I131A,I132,I133",7,266,NA,138.888888888889
+"150","AG","Gadus morhua","Lever","DW","80B,10B",2,229,NA,2.01006802721088
+"151","AG","Gadus morhua","Lever","DWa","80B,10B",2,229,NA,2.55043634392491
+"152","AG","Gadus morhua","Lever","FB","80B,10B",2,229,NA,2.96783575705731
+"153","AG","Gadus morhua","Lever","FBa","80B,10B",2,229,NA,4.3653357918543
+"154","AG","Gadus morhua","Lever","WWa","80B,10B",2,229,NA,1.09615436170164
+"155","AG","Limanda limanda","Lever","DW",NA,NA,NA,NA,0.357658045977011
+"156","AG","Limanda limanda","Lever","FB",NA,NA,NA,NA,0.981318993968362
+"157","AG","Mytilus edulis","Whole soft body","DW","26A2,63A,65A,97A2,I023,I131A,I306,I712,I241,22A,I304",11,232,NA,0.0503235294117647
+"158","AG","Mytilus edulis","Whole soft body","FB","26A2,63A,65A,97A2,I023,I131A,I306,I712,I241,22A,I304",11,232,NA,0.69
+"159","AG","Platichthys flesus","Lever","DW",NA,NA,NA,NA,0.492897727272727
+"160","AG","Platichthys flesus","Lever","FB",NA,NA,NA,NA,0.892307692307692
+"161","ALAD","Gadus morhua","Blood","WWa","53B",1,395,NA,34.1626166050672
+"162","ANT","Gadus morhua","Lever","DW",NA,NA,NA,NA,12.0524854574299
+"163","ANT","Gadus morhua","Lever","FB",NA,NA,NA,NA,96.1091753774681
+"164","ANT","Gadus morhua","Muskel","FB",NA,NA,NA,NA,66.6666666666667
+"165","ANT","Mytilus edulis","Whole soft body","DW","30A,71A,98A2,I023",4,112,NA,8.00446428571428
+"166","ANT","Mytilus edulis","Whole soft body","FB","30A,71A,98A2,I023",4,112,NA,114
+"167","AS","Gadus morhua","Lever","DW","10B,13B,80B,43B2,71B,15B",6,721,NA,36.5473572938689
+"168","AS","Gadus morhua","Lever","DWa","10B,13B,80B,43B2,71B,15B",6,721,NA,37.4502339562032
+"169","AS","Gadus morhua","Lever","FB","10B,13B,80B,43B2,71B,15B",6,721,NA,86.2332089552238
+"170","AS","Gadus morhua","Lever","FBa","10B,13B,80B,43B2,71B,15B",6,721,NA,85.3514362353283
+"171","AS","Gadus morhua","Lever","WWa","10B,13B,80B,43B2,71B,15B",6,721,NA,12.7957720397945
+"172","AS","Gadus morhua","Muskel","DW",NA,NA,NA,NA,108.738454958919
+"173","AS","Gadus morhua","Muskel","FB",NA,NA,NA,NA,1860.60606060606
+"174","AS","Limanda limanda","Lever","DW",NA,NA,NA,NA,68.6778846153846
+"175","AS","Limanda limanda","Lever","FB",NA,NA,NA,NA,183.378947368421
+"176","AS","Mytilus edulis","Whole soft body","DW","31A,B5,I301,I023,B2,30A",6,204,NA,18.2040310077519
+"177","AS","Mytilus edulis","Whole soft body","FB","31A,B5,I301,I023,B2,30A",6,204,NA,216.533333333333
+"178","AS","Platichthys flesus","Lever","DW",NA,NA,NA,NA,58.7715151515151
+"179","AS","Platichthys flesus","Lever","FB",NA,NA,NA,NA,102.066844919786
+"180","BAA","Gadus morhua","Lever","DW",NA,NA,NA,NA,0.979640401903755
+"181","BAA","Gadus morhua","Lever","FB",NA,NA,NA,NA,7.23199092456041
+"182","BAA","Gadus morhua","Muskel","FB",NA,NA,NA,NA,66.6666666666667
+"183","BAA","Mytilus edulis","Whole soft body","DW","98A2,I023",2,32,NA,11.4615384615385
+"184","BAA","Mytilus edulis","Whole soft body","FB","98A2,I023",2,32,NA,135.934065934066
+"185","BAP","Gadus morhua","Lever","DW",NA,NA,NA,NA,0.479341768682624
+"186","BAP","Gadus morhua","Lever","FB",NA,NA,NA,NA,4.34065934065934
+"187","BAP","Gadus morhua","Muskel","FB",NA,NA,NA,NA,66.6666666666667
+"188","BAP","Mytilus edulis","Whole soft body","DW","30A,71A,98A2,I023,I131A",5,177,NA,8.62441081617465
+"189","BAP","Mytilus edulis","Whole soft body","FB","30A,71A,98A2,I023,I131A",5,177,NA,145.416666666667
+"190","BAP3O","Gadus morhua","Bile","WWa","30B,15B",2,305,NA,3.02975940609319
+"191","BBJF","Mytilus edulis","Whole soft body","DW","98A2,I023,I304,I306,I307",5,107,NA,45.8076923076923
+"192","BBJF","Mytilus edulis","Whole soft body","FB","98A2,I023,I304,I306,I307",5,107,NA,471.649122807017
+"193","BDE100","Gadus morhua","Lever","DW","98B1",1,173,NA,4.0602902105048
+"194","BDE100","Gadus morhua","Lever","DWa","98B1",1,173,NA,2.82169046156692
+"195","BDE100","Gadus morhua","Lever","FB","98B1",1,173,NA,5.65217391304348
+"196","BDE100","Gadus morhua","Lever","FBa","98B1",1,173,NA,4.57815274192499
+"197","BDE100","Gadus morhua","Lever","WWa","98B1",1,173,NA,1.42131317657771
+"198","BDE100","Gadus morhua","Muskel","FB",NA,NA,NA,NA,33.3333333333333
+"199","BDE100","Mytilus edulis","Whole soft body","DW","98A2,26A2,I023,91A2,71A",5,79,NA,0.416666666666667
+"200","BDE100","Mytilus edulis","Whole soft body","FB","98A2,26A2,I023,91A2,71A",5,79,NA,3.89230769230769
+"201","BDE126","Gadus morhua","Lever","DW","13B,23B,30B,36B,43B2,80B",6,419,NA,0.5
+"202","BDE126","Gadus morhua","Lever","DWa","13B,23B,30B,36B,43B2,80B",6,419,NA,0.280043355431784
+"203","BDE126","Gadus morhua","Lever","FB","13B,23B,30B,36B,43B2,80B",6,419,NA,1.03272434632557
+"204","BDE126","Gadus morhua","Lever","FBa","13B,23B,30B,36B,43B2,80B",6,419,NA,0.718736401837261
+"205","BDE126","Gadus morhua","Lever","WWa","13B,23B,30B,36B,43B2,80B",6,419,NA,0.0620658700333387
+"206","BDE126","Gadus morhua","Muskel","FB",NA,NA,NA,NA,31.6666666666666
+"207","BDE126","Mytilus edulis","Whole soft body","DW","71A,97A2,26A2,I023,91A2",5,75,NA,0.384615384615385
+"208","BDE126","Mytilus edulis","Whole soft body","FB","71A,97A2,26A2,I023,91A2",5,75,NA,3.84615384615385
+"209","BDE153","Gadus morhua","Lever","DW","13B,23B",2,363,NA,0.392372881355932
+"210","BDE153","Gadus morhua","Lever","DWa","13B,23B",2,363,NA,0.272988888578109
+"211","BDE153","Gadus morhua","Lever","FB","13B,23B",2,363,NA,0.908080808080808
+"212","BDE153","Gadus morhua","Lever","FBa","13B,23B",2,363,NA,0.559964729011518
+"213","BDE153","Gadus morhua","Lever","WWa","13B,23B",2,363,NA,0.147621895701063
+"214","BDE153","Gadus morhua","Muskel","FB",NA,NA,NA,NA,31.6666666666666
+"215","BDE153","Mytilus edulis","Whole soft body","DW","97A2,26A2,I023,91A2,71A,98A2,30A",7,109,NA,0.384615384615385
+"216","BDE153","Mytilus edulis","Whole soft body","FB","97A2,26A2,I023,91A2,71A,98A2,30A",7,109,NA,3.84615384615385
+"217","BDE154","Gadus morhua","Lever","DW","98B1,36B",2,323,NA,3.12767857142857
+"218","BDE154","Gadus morhua","Lever","DWa","98B1,36B",2,323,NA,2.50992889864811
+"219","BDE154","Gadus morhua","Lever","FB","98B1,36B",2,323,NA,4.88970182911551
+"220","BDE154","Gadus morhua","Lever","FBa","98B1,36B",2,323,NA,4.66935975593665
+"221","BDE154","Gadus morhua","Lever","WWa","98B1,36B",2,323,NA,1.11240887141879
+"222","BDE154","Gadus morhua","Muskel","FB",NA,NA,NA,NA,31.6666666666666
+"223","BDE154","Mytilus edulis","Whole soft body","DW","97A2,26A2,I023,91A2,71A,98A2,30A",7,109,NA,0.384615384615385
+"224","BDE154","Mytilus edulis","Whole soft body","FB","97A2,26A2,I023,91A2,71A,98A2,30A",7,109,NA,3.84615384615385
+"225","BDE183","Gadus morhua","Lever","DW","13B,23B,30B,36B,43B2,53B,80B,98B1",8,1360,NA,1.42901785714286
+"226","BDE183","Gadus morhua","Lever","DWa","13B,23B,30B,36B,43B2,53B,80B,98B1",8,1360,NA,1.03648916423322
+"227","BDE183","Gadus morhua","Lever","FB","13B,23B,30B,36B,43B2,53B,80B,98B1",8,1360,NA,3.2447210841475
+"228","BDE183","Gadus morhua","Lever","FBa","13B,23B,30B,36B,43B2,53B,80B,98B1",8,1360,NA,2.34789644174454
+"229","BDE183","Gadus morhua","Lever","WWa","13B,23B,30B,36B,43B2,53B,80B,98B1",8,1360,NA,0.562377575826552
+"230","BDE183","Gadus morhua","Muskel","FB",NA,NA,NA,NA,94.9999999999999
+"231","BDE183","Mytilus edulis","Whole soft body","DW","71A,97A2,26A2,I023,91A2,98A2",6,92,NA,2.16923076923077
+"232","BDE183","Mytilus edulis","Whole soft body","FB","71A,97A2,26A2,I023,91A2,98A2",6,92,NA,22.5824175824176
+"233","BDE196","Gadus morhua","Lever","DW","13B,23B,30B,36B,43B2,53B,80B,98B1",8,1142,NA,2.04069858712716
+"234","BDE196","Gadus morhua","Lever","DWa","13B,23B,30B,36B,43B2,53B,80B,98B1",8,1142,NA,1.99622403128938
+"235","BDE196","Gadus morhua","Lever","FB","13B,23B,30B,36B,43B2,53B,80B,98B1",8,1142,NA,5.27160146355192
+"236","BDE196","Gadus morhua","Lever","FBa","13B,23B,30B,36B,43B2,53B,80B,98B1",8,1142,NA,3.63756679203547
+"237","BDE196","Gadus morhua","Lever","WWa","13B,23B,30B,36B,43B2,53B,80B,98B1",8,1142,NA,0.785977541502471
+"238","BDE196","Gadus morhua","Muskel","FB",NA,NA,NA,NA,94.9999999999999
+"239","BDE196","Mytilus edulis","Whole soft body","DW","71A,97A2,26A2,I023,91A2",5,75,NA,2.30769230769231
+"240","BDE196","Mytilus edulis","Whole soft body","FB","71A,97A2,26A2,I023,91A2",5,75,NA,23.0769230769231
+"241","BDE209","Gadus morhua","Lever","DW","13B",1,131,NA,3.62337662337662
+"242","BDE209","Gadus morhua","Lever","DWa","13B",1,131,NA,1.7923231692162
+"243","BDE209","Gadus morhua","Lever","FB","13B",1,131,NA,10.0198412698413
+"244","BDE209","Gadus morhua","Lever","FBa","13B",1,131,NA,3.99792378212537
+"245","BDE209","Gadus morhua","Lever","WWa","13B",1,131,NA,1.0000150407955
+"246","BDE209","Gadus morhua","Muskel","FB",NA,NA,NA,NA,158.333333333333
+"247","BDE209","Mytilus edulis","Whole soft body","DW","71A,97A2,91A2,I023,26A2",5,75,NA,7.98105263157895
+"248","BDE209","Mytilus edulis","Whole soft body","FB","71A,97A2,91A2,I023,26A2",5,75,NA,75.15
+"249","BDE28","Gadus morhua","Lever","DW","36B,13B,98B1,23B,43B2",5,701,NA,2.90811965811966
+"250","BDE28","Gadus morhua","Lever","DWa","36B,13B,98B1,23B,43B2",5,701,NA,2.86400948830474
+"251","BDE28","Gadus morhua","Lever","FB","36B,13B,98B1,23B,43B2",5,701,NA,5.17786178152563
+"252","BDE28","Gadus morhua","Lever","FBa","36B,13B,98B1,23B,43B2",5,701,NA,5.4592814007737
+"253","BDE28","Gadus morhua","Lever","WWa","36B,13B,98B1,23B,43B2",5,701,NA,1.33746153668463
+"254","BDE47","Gadus morhua","Lever","DW","98B1,36B,23B",3,557,NA,28.4795321637427
+"255","BDE47","Gadus morhua","Lever","DWa","98B1,36B,23B",3,557,NA,27.2886463491177
+"256","BDE47","Gadus morhua","Lever","FB","98B1,36B,23B",3,557,NA,50.4135338345864
+"257","BDE47","Gadus morhua","Lever","FBa","98B1,36B,23B",3,557,NA,48.1906497993961
+"258","BDE47","Gadus morhua","Lever","WWa","98B1,36B,23B",3,557,NA,13.0615799184558
+"259","BDE47","Gadus morhua","Muskel","FB",NA,NA,NA,NA,61.3333333333333
+"260","BDE47","Mytilus edulis","Whole soft body","DW","98A2,26A2,I023,71A,91A2",5,79,NA,0.902201371346085
+"261","BDE47","Mytilus edulis","Whole soft body","FB","98A2,26A2,I023,71A,91A2",5,79,NA,9.69565217391304
+"262","BDE99","Gadus morhua","Lever","DW","13B,23B",2,363,NA,1.40126050420168
+"263","BDE99","Gadus morhua","Lever","DWa","13B,23B",2,363,NA,1.4884344024014
+"264","BDE99","Gadus morhua","Lever","FB","13B,23B",2,363,NA,2.13966664737543
+"265","BDE99","Gadus morhua","Lever","FBa","13B,23B",2,363,NA,2.09811176097286
+"266","BDE99","Gadus morhua","Lever","WWa","13B,23B",2,363,NA,0.76452865235126
+"267","BDE99","Gadus morhua","Muskel","FB",NA,NA,NA,NA,31.6666666666666
+"268","BDE99","Mytilus edulis","Whole soft body","DW","98A2,91A2,26A2,I023",4,61,NA,0.416666666666667
+"269","BDE99","Mytilus edulis","Whole soft body","FB","98A2,91A2,26A2,I023",4,61,NA,4.55736263736264
+"270","BGHIP","Gadus morhua","Lever","DW",NA,NA,NA,NA,1.36936437968208
+"271","BGHIP","Gadus morhua","Lever","FB",NA,NA,NA,NA,10.8516483516484
+"272","BGHIP","Gadus morhua","Muskel","FB",NA,NA,NA,NA,66.6666666666667
+"273","BGHIP","Mytilus edulis","Whole soft body","DW","98A2,I023,I304,I306,I307,I913,71A",7,254,NA,14.2202380952381
+"274","BGHIP","Mytilus edulis","Whole soft body","FB","98A2,I023,I304,I306,I307,I913,71A",7,254,NA,177.609819121447
+"275","BKF","Mytilus edulis","Whole soft body","DW","30A,98A2,I023,I304,I306,I307,I913",7,167,NA,10.8333333333333
+"276","BKF","Mytilus edulis","Whole soft body","FB","30A,98A2,I023,I304,I306,I307,I913",7,167,NA,150.877192982456
+"277","BPA","Gadus morhua","Lever","DW","43B2,80B",2,134,NA,3.33333333333333
+"278","BPA","Gadus morhua","Lever","DWa","43B2,80B",2,134,NA,1.49312820543131
+"279","BPA","Gadus morhua","Lever","FB","43B2,80B",2,134,NA,7.42291629642794
+"280","BPA","Gadus morhua","Lever","FBa","43B2,80B",2,134,NA,3.19192399100439
+"281","BPA","Gadus morhua","Lever","WWa","43B2,80B",2,134,NA,1.06718952778402
+"282","BPA","Gadus morhua","Muskel","FB",NA,NA,NA,NA,250
+"283","BPA","Mytilus edulis","Whole soft body","DW","30A,97A2,I023",3,45,NA,56.9875
+"284","BPA","Mytilus edulis","Whole soft body","FB","30A,97A2,I023",3,45,NA,382.666666666667
+"285","C/N","Gadus morhua","Muskel","DW",NA,NA,NA,NA,17.8381578947368
+"286","C/N","Gadus morhua","Muskel","DWa",NA,NA,NA,NA,17.5926776514152
+"287","C/N","Gadus morhua","Muskel","FB",NA,NA,NA,NA,942.760682666666
+"288","C/N","Gadus morhua","Muskel","FBa",NA,NA,NA,NA,794.9302450999
+"289","C/N","Gadus morhua","Muskel","WWa",NA,NA,NA,NA,3.26250182690714
+"290","C/N","Mytilus edulis","Whole soft body","DW","15A,71A,I304,22A,30A,I023,97A2,56A",8,120,NA,37.9708333333333
+"291","C/N","Mytilus edulis","Whole soft body","FB","15A,71A,I304,22A,30A,I023,97A2,56A",8,120,NA,499.166666666667
+"292","CB101","Gadus morhua","Lever","DW","23B",1,554,NA,60.1572494669509
+"293","CB101","Gadus morhua","Lever","DWa","23B",1,554,NA,46.7605493153697
+"294","CB101","Gadus morhua","Lever","FB","23B",1,554,NA,88.8888888888889
+"295","CB101","Gadus morhua","Lever","FBa","23B",1,554,NA,79.5479225984536
+"296","CB101","Gadus morhua","Lever","WWa","23B",1,554,NA,23.8117685496714
+"297","CB101","Gadus morhua","Muskel","DW",NA,NA,NA,NA,5.83086124401914
+"298","CB101","Gadus morhua","Muskel","FB",NA,NA,NA,NA,452.784946236558
+"299","CB101","Limanda limanda","Lever","DW",NA,NA,NA,NA,192.649328023892
+"300","CB101","Limanda limanda","Lever","FB",NA,NA,NA,NA,303.070652173913
+"301","CB101","Limanda limanda","Muskel","DW",NA,NA,NA,NA,4.85503309295664
+"302","CB101","Limanda limanda","Muskel","FB",NA,NA,NA,NA,251.785714285715
+"303","CB101","Mytilus edulis","Whole soft body","DW","43A,48A,98A2,97A2,10A2,64A,26A2,11X,41A",9,245,NA,1.16666666666667
+"304","CB101","Mytilus edulis","Whole soft body","FB","43A,48A,98A2,97A2,10A2,64A,26A2,11X,41A",9,245,NA,13.0921052631579
+"305","CB101","Platichthys flesus","Lever","DW",NA,NA,NA,NA,213.089025625049
+"306","CB101","Platichthys flesus","Lever","FB",NA,NA,NA,NA,425.982742090125
+"307","CB101","Platichthys flesus","Muskel","DW",NA,NA,NA,NA,12.2543478260869
+"308","CB101","Platichthys flesus","Muskel","FB",NA,NA,NA,NA,497.435897435897
+"309","CB105","Gadus morhua","Lever","DW",NA,NA,NA,NA,448.639915145012
+"310","CB105","Gadus morhua","Lever","FB",NA,NA,NA,NA,734.041297935103
+"311","CB105","Gadus morhua","Muskel","DW",NA,NA,NA,NA,5.11544756040054
+"312","CB105","Gadus morhua","Muskel","FB",NA,NA,NA,NA,428.051948051948
+"313","CB105","Limanda limanda","Lever","DW",NA,NA,NA,NA,111.295539033457
+"314","CB105","Limanda limanda","Lever","FB",NA,NA,NA,NA,175.548387096774
+"315","CB105","Limanda limanda","Muskel","DW",NA,NA,NA,NA,4.39999999999999
+"316","CB105","Limanda limanda","Muskel","FB",NA,NA,NA,NA,179.141012909633
+"317","CB105","Mytilus edulis","Whole soft body","DW","10A2,11X,15A,41A,43A,46A,48A",7,208,NA,0.754924242424242
+"318","CB105","Mytilus edulis","Whole soft body","FB","10A2,11X,15A,41A,43A,46A,48A",7,208,NA,10.7142857142857
+"319","CB105","Platichthys flesus","Lever","DW",NA,NA,NA,NA,54.830917874396
+"320","CB105","Platichthys flesus","Lever","FB",NA,NA,NA,NA,102.764595103578
+"321","CB105","Platichthys flesus","Muskel","DW",NA,NA,NA,NA,2.67391304347826
+"322","CB105","Platichthys flesus","Muskel","FB",NA,NA,NA,NA,103.142857142857
+"323","CB118","Gadus morhua","Lever","DW","98B1,23B,10B,92B,43B,67B,80B",7,2359,NA,208.583333333333
+"324","CB118","Gadus morhua","Lever","DWa","98B1,23B,10B,92B,43B,67B,80B",7,2359,NA,202.396597659496
+"325","CB118","Gadus morhua","Lever","FB","98B1,23B,10B,92B,43B,67B,80B",7,2359,NA,306.388585968739
+"326","CB118","Gadus morhua","Lever","FBa","98B1,23B,10B,92B,43B,67B,80B",7,2359,NA,298.617425264294
+"327","CB118","Gadus morhua","Lever","WWa","98B1,23B,10B,92B,43B,67B,80B",7,2359,NA,84.3843275375565
+"328","CB118","Gadus morhua","Muskel","DW",NA,NA,NA,NA,11.3216721361912
+"329","CB118","Gadus morhua","Muskel","FB",NA,NA,NA,NA,1000
+"330","CB118","Limanda limanda","Lever","DW",NA,NA,NA,NA,388.69282891022
+"331","CB118","Limanda limanda","Lever","FB",NA,NA,NA,NA,608.695652173913
+"332","CB118","Limanda limanda","Muskel","DW",NA,NA,NA,NA,13.4944381864264
+"333","CB118","Limanda limanda","Muskel","FB",NA,NA,NA,NA,563.636363636364
+"334","CB118","Mytilus edulis","Whole soft body","DW","43A",1,15,NA,0.489177489177489
+"335","CB118","Mytilus edulis","Whole soft body","FB","43A",1,15,NA,7.46715180917728
+"336","CB118","Platichthys flesus","Lever","DW",NA,NA,NA,NA,211.501294219154
+"337","CB118","Platichthys flesus","Lever","FB",NA,NA,NA,NA,460.938833570413
+"338","CB118","Platichthys flesus","Muskel","DW",NA,NA,NA,NA,9.7801736509759
+"339","CB118","Platichthys flesus","Muskel","FB",NA,NA,NA,NA,396.029411764705
+"340","CB126","Gadus morhua","Lever","DW",NA,NA,NA,NA,0.631522289925719
+"341","CB126","Gadus morhua","Lever","FB",NA,NA,NA,NA,0.820318881118881
+"342","CB126","Gadus morhua","Muskel","DW",NA,NA,NA,NA,0.00922911562959333
+"343","CB126","Mytilus edulis","Whole soft body","DW","76A",1,18,NA,0.00592134502923976
+"344","CB126","Mytilus edulis","Whole soft body","FB","76A",1,18,NA,0.0731258741258741
+"345","CB138","Gadus morhua","Lever","DW","98B1,10B,43B,92B",4,1282,NA,311.564936734169
+"346","CB138","Gadus morhua","Lever","DWa","98B1,10B,43B,92B",4,1282,NA,275.475250141742
+"347","CB138","Gadus morhua","Lever","FB","98B1,10B,43B,92B",4,1282,NA,399.253731343284
+"348","CB138","Gadus morhua","Lever","FBa","98B1,10B,43B,92B",4,1282,NA,392.358854028742
+"349","CB138","Gadus morhua","Lever","WWa","98B1,10B,43B,92B",4,1282,NA,111.667255864537
+"350","CB138","Gadus morhua","Muskel","DW",NA,NA,NA,NA,16.5575499629904
+"351","CB138","Gadus morhua","Muskel","FB",NA,NA,NA,NA,1678.85714285714
+"352","CB138","Limanda limanda","Lever","DW",NA,NA,NA,NA,603.560371517028
+"353","CB138","Limanda limanda","Lever","FB",NA,NA,NA,NA,920.05737704918
+"354","CB138","Limanda limanda","Muskel","DW",NA,NA,NA,NA,16.2951152946419
+"355","CB138","Limanda limanda","Muskel","FB",NA,NA,NA,NA,785.714285714286
+"356","CB138","Mytilus edulis","Whole soft body","DW","43A,10A2,11X,41A",4,153,NA,1.09398619783109
+"357","CB138","Mytilus edulis","Whole soft body","FB","43A,10A2,11X,41A",4,153,NA,14.2094017094017
+"358","CB138","Platichthys flesus","Lever","DW",NA,NA,NA,NA,285.043478260869
+"359","CB138","Platichthys flesus","Lever","FB",NA,NA,NA,NA,600.450237766011
+"360","CB138","Platichthys flesus","Muskel","DW",NA,NA,NA,NA,14.6307692307692
+"361","CB138","Platichthys flesus","Muskel","FB",NA,NA,NA,NA,543.25719649562
+"362","CB153","Gadus morhua","Lever","DW","98B1,10B,92B,43B",4,1282,NA,382.971414550362
+"363","CB153","Gadus morhua","Lever","DWa","98B1,10B,92B,43B",4,1282,NA,371.838028514903
+"364","CB153","Gadus morhua","Lever","FB","98B1,10B,92B,43B",4,1282,NA,523.349436392915
+"365","CB153","Gadus morhua","Lever","FBa","98B1,10B,92B,43B",4,1282,NA,552.238964239899
+"366","CB153","Gadus morhua","Lever","WWa","98B1,10B,92B,43B",4,1282,NA,150.998255375834
+"367","CB153","Gadus morhua","Muskel","DW",NA,NA,NA,NA,20.5099813261092
+"368","CB153","Gadus morhua","Muskel","FB",NA,NA,NA,NA,2232.15384615385
+"369","CB153","Limanda limanda","Lever","DW",NA,NA,NA,NA,816.828710323134
+"370","CB153","Limanda limanda","Lever","FB",NA,NA,NA,NA,1250
+"371","CB153","Limanda limanda","Muskel","DW",NA,NA,NA,NA,23.8728897715988
+"372","CB153","Limanda limanda","Muskel","FB",NA,NA,NA,NA,1034.48275862069
+"373","CB153","Mytilus edulis","Whole soft body","DW","43A,11X,10A2,41A",4,153,NA,1.47071473750791
+"374","CB153","Mytilus edulis","Whole soft body","FB","43A,11X,10A2,41A",4,153,NA,18.0895813047712
+"375","CB153","Platichthys flesus","Lever","DW",NA,NA,NA,NA,330.038700700091
+"376","CB153","Platichthys flesus","Lever","FB",NA,NA,NA,NA,698.272200772201
+"377","CB153","Platichthys flesus","Muskel","DW",NA,NA,NA,NA,16.1831269654088
+"378","CB153","Platichthys flesus","Muskel","FB",NA,NA,NA,NA,595.095238095238
+"379","CB156","Gadus morhua","Lever","DW",NA,NA,NA,NA,164.412737799835
+"380","CB156","Gadus morhua","Lever","FB",NA,NA,NA,NA,287.594026548672
+"381","CB156","Gadus morhua","Muskel","DW",NA,NA,NA,NA,1.53814956303313
+"382","CB156","Gadus morhua","Muskel","FB",NA,NA,NA,NA,138.608374384236
+"383","CB156","Limanda limanda","Lever","DW",NA,NA,NA,NA,43.3850931677019
+"384","CB156","Limanda limanda","Lever","FB",NA,NA,NA,NA,70.6496062992126
+"385","CB156","Limanda limanda","Muskel","DW",NA,NA,NA,NA,1.41227823148409
+"386","CB156","Limanda limanda","Muskel","FB",NA,NA,NA,NA,67.188995215311
+"387","CB156","Mytilus edulis","Whole soft body","DW","10A2,11X,15A,22A,35A,36A,41A,43A,44A,46A,48A",11,399,NA,0.662693156732892
+"388","CB156","Mytilus edulis","Whole soft body","FB","10A2,11X,15A,22A,35A,36A,41A,43A,44A,46A,48A",11,399,NA,10
+"389","CB156","Platichthys flesus","Lever","DW",NA,NA,NA,NA,22.6434410999628
+"390","CB156","Platichthys flesus","Lever","FB",NA,NA,NA,NA,50.0123257798426
+"391","CB156","Platichthys flesus","Muskel","DW",NA,NA,NA,NA,1.26125765720714
+"392","CB156","Platichthys flesus","Muskel","FB",NA,NA,NA,NA,50
+"393","CB169","Gadus morhua","Lever","DW",NA,NA,NA,NA,0.14706024644073
+"394","CB169","Gadus morhua","Lever","FB",NA,NA,NA,NA,0.190926923076923
+"395","CB169","Gadus morhua","Muskel","DW",NA,NA,NA,NA,0.00234725624693777
+"396","CB169","Mytilus edulis","Whole soft body","DW","76A",1,18,NA,0.00091375
+"397","CB169","Mytilus edulis","Whole soft body","FB","76A",1,18,NA,0.0113343642611684
+"398","CB180","Gadus morhua","Lever","DW","98B1,10B,92B",3,1165,NA,97.3305410492272
+"399","CB180","Gadus morhua","Lever","DWa","98B1,10B,92B",3,1165,NA,89.7808369849536
+"400","CB180","Gadus morhua","Lever","FB","98B1,10B,92B",3,1165,NA,131.663799477589
+"401","CB180","Gadus morhua","Lever","FBa","98B1,10B,92B",3,1165,NA,130.154492779423
+"402","CB180","Gadus morhua","Lever","WWa","98B1,10B,92B",3,1165,NA,36.840805191814
+"403","CB180","Gadus morhua","Muskel","DW",NA,NA,NA,NA,5.41398653702319
+"404","CB180","Gadus morhua","Muskel","FB",NA,NA,NA,NA,586.206896551724
+"405","CB180","Limanda limanda","Lever","DW",NA,NA,NA,NA,147.834101382488
+"406","CB180","Limanda limanda","Lever","FB",NA,NA,NA,NA,237.613138686131
+"407","CB180","Limanda limanda","Muskel","DW",NA,NA,NA,NA,4.03933625336927
+"408","CB180","Limanda limanda","Muskel","FB",NA,NA,NA,NA,178.181818181818
+"409","CB180","Mytilus edulis","Whole soft body","DW","10A2,11X,15A,22A,26A2",5,282,NA,0.66644591611479
+"410","CB180","Mytilus edulis","Whole soft body","FB","10A2,11X,15A,22A,26A2",5,282,NA,10.2295918367347
+"411","CB180","Platichthys flesus","Lever","DW",NA,NA,NA,NA,81.3916759568934
+"412","CB180","Platichthys flesus","Lever","FB",NA,NA,NA,NA,171.764705882353
+"413","CB180","Platichthys flesus","Muskel","DW",NA,NA,NA,NA,4.45824010563768
+"414","CB180","Platichthys flesus","Muskel","FB",NA,NA,NA,NA,154.255167498218
+"415","CB28","Gadus morhua","Lever","DW","80B,98B1,23B,67B,10B,43B,92B,53B,43B2",9,3039,NA,14.8181216931217
+"416","CB28","Gadus morhua","Lever","DWa","80B,98B1,23B,67B,10B,43B,92B,53B,43B2",9,3039,NA,14.1288965165503
+"417","CB28","Gadus morhua","Lever","FB","80B,98B1,23B,67B,10B,43B,92B,53B,43B2",9,3039,NA,26.3302486986697
+"418","CB28","Gadus morhua","Lever","FBa","80B,98B1,23B,67B,10B,43B,92B,53B,43B2",9,3039,NA,24.3304036089492
+"419","CB28","Gadus morhua","Lever","WWa","80B,98B1,23B,67B,10B,43B,92B,53B,43B2",9,3039,NA,6.3814536459944
+"420","CB28","Gadus morhua","Muskel","DW",NA,NA,NA,NA,0.526315789473684
+"421","CB28","Gadus morhua","Muskel","FB",NA,NA,NA,NA,38.5664335664336
+"422","CB28","Limanda limanda","Lever","DW",NA,NA,NA,NA,23.1268889721494
+"423","CB28","Limanda limanda","Lever","FB",NA,NA,NA,NA,37.7987622705933
+"424","CB28","Limanda limanda","Muskel","DW",NA,NA,NA,NA,0.838987688098491
+"425","CB28","Limanda limanda","Muskel","FB",NA,NA,NA,NA,45.8181818181818
+"426","CB28","Mytilus edulis","Whole soft body","DW","10A2,11X,15A,22A,36A,41A,43A,44A,46A,48A,56A,57A,63A,65A,69A,84A,91A2,92A1,98A2",19,910,NA,0.805157840262204
+"427","CB28","Mytilus edulis","Whole soft body","FB","10A2,11X,15A,22A,36A,41A,43A,44A,46A,48A,56A,57A,63A,65A,69A,84A,91A2,92A1,98A2",19,910,NA,10
+"428","CB28","Platichthys flesus","Lever","DW",NA,NA,NA,NA,43.5087719298245
+"429","CB28","Platichthys flesus","Lever","FB",NA,NA,NA,NA,106.418485237484
+"430","CB28","Platichthys flesus","Muskel","DW",NA,NA,NA,NA,2.27790697674419
+"431","CB28","Platichthys flesus","Muskel","FB",NA,NA,NA,NA,104.084967320261
+"432","CB52","Gadus morhua","Lever","DW","67B,23B,98B1",3,1385,NA,24.8611111111111
+"433","CB52","Gadus morhua","Lever","DWa","67B,23B,98B1",3,1385,NA,15.4642063863557
+"434","CB52","Gadus morhua","Lever","FB","67B,23B,98B1",3,1385,NA,32.2014337394855
+"435","CB52","Gadus morhua","Lever","FBa","67B,23B,98B1",3,1385,NA,23.5569080972689
+"436","CB52","Gadus morhua","Lever","WWa","67B,23B,98B1",3,1385,NA,9.38610855640194
+"437","CB52","Gadus morhua","Muskel","DW",NA,NA,NA,NA,1.32834224598931
+"438","CB52","Gadus morhua","Muskel","FB",NA,NA,NA,NA,124.4
+"439","CB52","Limanda limanda","Lever","DW",NA,NA,NA,NA,56.0975609756098
+"440","CB52","Limanda limanda","Lever","FB",NA,NA,NA,NA,74.0190476190477
+"441","CB52","Limanda limanda","Muskel","DW",NA,NA,NA,NA,1.75506836397926
+"442","CB52","Limanda limanda","Muskel","FB",NA,NA,NA,NA,89.5833333333333
+"443","CB52","Mytilus edulis","Whole soft body","DW","10A2,11X,15A,26A2,41A,43A,64A,65A,69A,84A,97A2,98A2",12,480,NA,1.11111111111111
+"444","CB52","Mytilus edulis","Whole soft body","FB","10A2,11X,15A,26A2,41A,43A,64A,65A,69A,84A,97A2,98A2",12,480,NA,12.625
+"445","CB52","Platichthys flesus","Lever","DW",NA,NA,NA,NA,73.5601673101674
+"446","CB52","Platichthys flesus","Lever","FB",NA,NA,NA,NA,153.061224489796
+"447","CB52","Platichthys flesus","Muskel","DW",NA,NA,NA,NA,4.49239631336405
+"448","CB52","Platichthys flesus","Muskel","FB",NA,NA,NA,NA,174.431818181818
+"449","CB77","Gadus morhua","Lever","DW",NA,NA,NA,NA,1.40459703196347
+"450","CB77","Gadus morhua","Lever","FB",NA,NA,NA,NA,2.52184400260756
+"451","CB77","Gadus morhua","Muskel","DW",NA,NA,NA,NA,0.0169148395394414
+"452","CB77","Mytilus edulis","Whole soft body","DW","76A",1,18,NA,0.05716
+"453","CB77","Mytilus edulis","Whole soft body","FB","76A",1,18,NA,0.708692307692308
+"454","CB81","Gadus morhua","Lever","DW",NA,NA,NA,NA,0.0622712191358024
+"455","CB81","Gadus morhua","Lever","FB",NA,NA,NA,NA,0.0975425684485006
+"456","CB81","Gadus morhua","Muskel","DW",NA,NA,NA,NA,0.000516658500734934
+"457","CB81","Mytilus edulis","Whole soft body","DW","76A",1,18,NA,0.00279208333333333
+"458","CB81","Mytilus edulis","Whole soft body","FB","76A",1,18,NA,0.0336909090909091
+"459","CD","Gadus morhua","Lever","DW","80B,67B,15B,23B",4,1655,NA,0.338626561236409
+"460","CD","Gadus morhua","Lever","DWa","80B,67B,15B,23B",4,1655,NA,0.265622180152224
+"461","CD","Gadus morhua","Lever","FB","80B,67B,15B,23B",4,1655,NA,0.715863422291991
+"462","CD","Gadus morhua","Lever","FBa","80B,67B,15B,23B",4,1655,NA,0.649742431919117
+"463","CD","Gadus morhua","Lever","WWa","80B,67B,15B,23B",4,1655,NA,0.0878579488172119
+"464","CD","Gadus morhua","Muskel","DW",NA,NA,NA,NA,0.0637305699481865
+"465","CD","Gadus morhua","Muskel","FB",NA,NA,NA,NA,3.57047872340426
+"466","CD","Limanda limanda","Lever","DW",NA,NA,NA,NA,1.47257534246575
+"467","CD","Limanda limanda","Lever","FB",NA,NA,NA,NA,2.97796963516882
+"468","CD","Mytilus edulis","Whole soft body","DW","I241,26A2,I969",3,106,NA,0.995714285714286
+"469","CD","Mytilus edulis","Whole soft body","FB","I241,26A2,I969",3,106,NA,9.66630434782608
+"470","CD","Platichthys flesus","Lever","DW",NA,NA,NA,NA,10.2158407079646
+"471","CD","Platichthys flesus","Lever","FB",NA,NA,NA,NA,19.5704506140806
+"472","CD","Platichthys flesus","Muskel","DW",NA,NA,NA,NA,0.228749928799639
+"473","CD","Platichthys flesus","Muskel","FB",NA,NA,NA,NA,7.57666666666666
+"474","CHR","Gadus morhua","Lever","DW",NA,NA,NA,NA,2.0652298521151
+"475","CHR","Gadus morhua","Lever","FB",NA,NA,NA,NA,24.9169435215947
+"476","CHR","Gadus morhua","Muskel","FB",NA,NA,NA,NA,66.6666666666667
+"477","CHR","Mytilus edulis","Whole soft body","DW","98A2",1,17,NA,3.45333333333333
+"478","CHR","Mytilus edulis","Whole soft body","FB","98A2",1,17,NA,38.4615384615385
+"479","CO","Gadus morhua","Lever","DW","43B2",1,145,NA,0.168803902439024
+"480","CO","Gadus morhua","Lever","DWa","43B2",1,145,NA,0.169943957520403
+"481","CO","Gadus morhua","Lever","FB","43B2",1,145,NA,0.379622885186619
+"482","CO","Gadus morhua","Lever","FBa","43B2",1,145,NA,0.538008559169224
+"483","CO","Gadus morhua","Lever","WWa","43B2",1,145,NA,0.059238047101486
+"484","CO","Limanda limanda","Lever","DW",NA,NA,NA,NA,1.62041666666667
+"485","CO","Limanda limanda","Lever","FB",NA,NA,NA,NA,2.62125
+"486","CO","Mytilus edulis","Whole soft body","DW","26A2,I241",2,34,NA,0.455972222222222
+"487","CO","Mytilus edulis","Whole soft body","FB","26A2,I241",2,34,NA,3.71936868686869
+"488","CO","Platichthys flesus","Lever","DW",NA,NA,NA,NA,2.15596092503987
+"489","CO","Platichthys flesus","Lever","FB",NA,NA,NA,NA,3.38863636363636
+"490","CR","Gadus morhua","Lever","DW","10B,15B,71B,43B2,80B,13B,36B,30B,98B1",9,1176,NA,1.30321484209036
+"491","CR","Gadus morhua","Lever","DWa","10B,15B,71B,43B2,80B,13B,36B,30B,98B1",9,1176,NA,1.23293476847145
+"492","CR","Gadus morhua","Lever","FB","10B,15B,71B,43B2,80B,13B,36B,30B,98B1",9,1176,NA,3.63636363636364
+"493","CR","Gadus morhua","Lever","FBa","10B,15B,71B,43B2,80B,13B,36B,30B,98B1",9,1176,NA,2.70594702707159
+"494","CR","Gadus morhua","Lever","WWa","10B,15B,71B,43B2,80B,13B,36B,30B,98B1",9,1176,NA,0.430482615096473
+"495","CR","Gadus morhua","Muskel","DW",NA,NA,NA,NA,2.8045
+"496","CR","Limanda limanda","Lever","DW",NA,NA,NA,NA,1.65757575757576
+"497","CR","Limanda limanda","Lever","FB",NA,NA,NA,NA,3.20869565217391
+"498","CR","Mytilus edulis","Whole soft body","DW","52A,15A,26A2,I131A,64A",5,100,NA,2.03841059602649
+"499","CR","Mytilus edulis","Whole soft body","FB","52A,15A,26A2,I131A,64A",5,100,NA,24.8095238095238
+"500","CR","Platichthys flesus","Lever","DW",NA,NA,NA,NA,1.45121275121275
+"501","CR","Platichthys flesus","Lever","FB",NA,NA,NA,NA,3.08303964757709
+"502","CU","Gadus morhua","Lever","DW","10B,15B,80B",3,1101,NA,36.1369063877941
+"503","CU","Gadus morhua","Lever","DWa","10B,15B,80B",3,1101,NA,35.2290031403494
+"504","CU","Gadus morhua","Lever","FB","10B,15B,80B",3,1101,NA,77.6875
+"505","CU","Gadus morhua","Lever","FBa","10B,15B,80B",3,1101,NA,80.1715396831974
+"506","CU","Gadus morhua","Lever","WWa","10B,15B,80B",3,1101,NA,13.2336793637676
+"507","CU","Gadus morhua","Muskel","DW",NA,NA,NA,NA,24.7002975629773
+"508","CU","Limanda limanda","Lever","DW",NA,NA,NA,NA,42.7428571428571
+"509","CU","Limanda limanda","Lever","FB",NA,NA,NA,NA,87.7279367918903
+"510","CU","Mytilus edulis","Whole soft body","DW","I307,I712,63A,I306,I304,57A,B11,51A,B6,64A,I023,56A,B10",13,517,NA,9.57490566037736
+"511","CU","Mytilus edulis","Whole soft body","FB","I307,I712,63A,I306,I304,57A,B11,51A,B6,64A,I023,56A,B10",13,517,NA,114.646962233169
+"512","CU","Platichthys flesus","Lever","DW",NA,NA,NA,NA,88.660944759938
+"513","CU","Platichthys flesus","Lever","FB",NA,NA,NA,NA,342.324755033918
+"514","CYP1A","Gadus morhua","Lever","DW","23B,53B",2,487,NA,1.60878054054054
+"515","CYP1A","Gadus morhua","Lever","DWa","23B,53B",2,487,NA,3.74816368676493
+"516","CYP1A","Gadus morhua","Lever","FB","23B,53B",2,487,NA,5.64880952380952
+"517","CYP1A","Gadus morhua","Lever","FBa","23B,53B",2,487,NA,7.11624984472638
+"518","CYP1A","Gadus morhua","Lever","WWa","23B,53B",2,487,NA,2.10079260990229
+"519","DBA3A","Gadus morhua","Lever","DW",NA,NA,NA,NA,0.479341768682624
+"520","DBA3A","Gadus morhua","Lever","FB",NA,NA,NA,NA,4.34065934065934
+"521","DBA3A","Gadus morhua","Muskel","FB",NA,NA,NA,NA,66.6666666666667
+"522","DBA3A","Mytilus edulis","Whole soft body","DW","30A,I131A",2,117,NA,3.84615384615385
+"523","DBA3A","Mytilus edulis","Whole soft body","FB","30A,I131A",2,117,NA,60.4246253305907
+"524","DBTIN","Gadus morhua","Muskel","FB",NA,NA,NA,NA,122.5
+"525","DBTIN","Littorina littorea","Whole soft body","DW",NA,NA,NA,NA,2.22222222222222
+"526","DBTIN","Mytilus edulis","Whole soft body","DW","30A,I131A,I201,I205,I304,I306,I307",7,317,NA,31.9598214285714
+"527","DBTIN","Mytilus edulis","Whole soft body","FB","30A,I131A,I201,I205,I304,I306,I307",7,317,NA,392.318181818182
+"528","DBTIN","Nucella lapillus","Whole soft body","DW","11G,131G,15G,98G,36G,22G,76G",7,42,NA,4.44764096662831
+"529","DBTIN","Platichthys flesus","Muskel","FB",NA,NA,NA,NA,23.8095238095238
+"530","DDEPP","Gadus morhua","Lever","DW","23B,10B,98B1",3,1498,NA,329.933248759984
+"531","DDEPP","Gadus morhua","Lever","DWa","23B,10B,98B1",3,1498,NA,289.201763601456
+"532","DDEPP","Gadus morhua","Lever","FB","23B,10B,98B1",3,1498,NA,478.044871794872
+"533","DDEPP","Gadus morhua","Lever","FBa","23B,10B,98B1",3,1498,NA,448.917872463684
+"534","DDEPP","Gadus morhua","Lever","WWa","23B,10B,98B1",3,1498,NA,125.984021183091
+"535","DDEPP","Gadus morhua","Muskel","DW",NA,NA,NA,NA,13.7718485702779
+"536","DDEPP","Gadus morhua","Muskel","FB",NA,NA,NA,NA,1154.5641025641
+"537","DDEPP","Limanda limanda","Lever","DW",NA,NA,NA,NA,227.846153846153
+"538","DDEPP","Limanda limanda","Lever","FB",NA,NA,NA,NA,357.489130434783
+"539","DDEPP","Limanda limanda","Muskel","DW",NA,NA,NA,NA,9.3767335886937
+"540","DDEPP","Limanda limanda","Muskel","FB",NA,NA,NA,NA,384
+"541","DDEPP","Mytilus edulis","Whole soft body","DW","43A,41A,10A2,11X",4,147,NA,1.17948717948718
+"542","DDEPP","Mytilus edulis","Whole soft body","FB","43A,41A,10A2,11X",4,147,NA,15.6267942583732
+"543","DDEPP","Platichthys flesus","Lever","DW",NA,NA,NA,NA,242.7464906638
+"544","DDEPP","Platichthys flesus","Lever","FB",NA,NA,NA,NA,528.230059327621
+"545","DDEPP","Platichthys flesus","Muskel","DW",NA,NA,NA,NA,19.8589491760431
+"546","DDEPP","Platichthys flesus","Muskel","FB",NA,NA,NA,NA,608.255319148936
+"547","DDTPP","Gadus morhua","Lever","DW","10B,23B,36B,98B1",4,885,NA,28.0138339920949
+"548","DDTPP","Gadus morhua","Lever","DWa","10B,23B,36B,98B1",4,885,NA,25.8147251376001
+"549","DDTPP","Gadus morhua","Lever","FB","10B,23B,36B,98B1",4,885,NA,42.2348484848485
+"550","DDTPP","Gadus morhua","Lever","FBa","10B,23B,36B,98B1",4,885,NA,38.8240760800982
+"551","DDTPP","Gadus morhua","Lever","WWa","10B,23B,36B,98B1",4,885,NA,12.1486677561139
+"552","DDTPP","Gadus morhua","Muskel","DW",NA,NA,NA,NA,1.05263157894737
+"553","DDTPP","Gadus morhua","Muskel","FB",NA,NA,NA,NA,205.672969966629
+"554","DDTPP","Limanda limanda","Lever","DW",NA,NA,NA,NA,83.1019108280255
+"555","DDTPP","Limanda limanda","Lever","FB",NA,NA,NA,NA,65.5128205128205
+"556","DDTPP","Limanda limanda","Muskel","DW",NA,NA,NA,NA,1.73421052631579
+"557","DDTPP","Limanda limanda","Muskel","FB",NA,NA,NA,NA,98.2456140350877
+"558","DDTPP","Mytilus edulis","Whole soft body","DW","10A2,11X,15A,22A,30A,31A,36A,71A,76A,98A2,I022,I023,I024,I131A,I132,I133,I304,I306,I307,I712",20,644,NA,3.78256963162624
+"559","DDTPP","Mytilus edulis","Whole soft body","FB","10A2,11X,15A,22A,30A,31A,36A,71A,76A,98A2,I022,I023,I024,I131A,I132,I133,I304,I306,I307,I712",20,644,NA,57.7310924369748
+"560","DDTPP","Platichthys flesus","Lever","DW",NA,NA,NA,NA,156.23635280884
+"561","DDTPP","Platichthys flesus","Lever","FB",NA,NA,NA,NA,387.047666070068
+"562","DDTPP","Platichthys flesus","Muskel","DW",NA,NA,NA,NA,6.53708439897695
+"563","DDTPP","Platichthys flesus","Muskel","FB",NA,NA,NA,NA,144.179894179894
+"564","Delta13C","Gadus morhua","Muskel","DW",NA,NA,NA,NA,-84.1595238095238
+"565","Delta13C","Gadus morhua","Muskel","FB",NA,NA,NA,NA,-3401.059
+"566","Delta13C","Mytilus edulis","Whole soft body","DW","97A2,22A,26A2,15A",4,60,NA,-107.097631578947
+"567","Delta13C","Mytilus edulis","Whole soft body","FB","97A2,22A,26A2,15A",4,60,NA,-818.387362637363
+"568","Delta15N","Gadus morhua","Muskel","DW",NA,NA,NA,NA,93.5361111111111
+"569","Delta15N","Gadus morhua","Muskel","DWa",NA,NA,NA,NA,92.867003583125
+"570","Delta15N","Gadus morhua","Muskel","FB",NA,NA,NA,NA,4794.29764
+"571","Delta15N","Gadus morhua","Muskel","FBa",NA,NA,NA,NA,5015.69312268486
+"572","Delta15N","Gadus morhua","Muskel","WWa",NA,NA,NA,NA,17.1184653622561
+"573","Delta15N","Mytilus edulis","Whole soft body","DW","56A,51A",2,30,NA,28.2634614615237
+"574","Delta15N","Mytilus edulis","Whole soft body","FB","56A,51A",2,30,NA,313.60842005
+"575","DOT","Littorina littorea","Whole soft body","DW",NA,NA,NA,NA,1.48148148148148
+"576","DOT","Mytilus edulis","Whole soft body","DW","I301,I133,22A,30A",4,65,NA,7.46356643356643
+"577","DOT","Mytilus edulis","Whole soft body","FB","I301,I133,22A,30A",4,65,NA,95.8463855421687
+"578","DOT","Nucella lapillus","Whole soft body","DW","76G,22G,131G,36G,15G,11G,98G,227G1",8,55,NA,3.66967741935484
+"579","EHDPP","Gadus morhua","Lever","DW","43B2",1,65,NA,45.9879807692308
+"580","EHDPP","Gadus morhua","Lever","DWa","43B2",1,65,NA,17.3166627915308
+"581","EHDPP","Gadus morhua","Lever","FB","43B2",1,65,NA,158.526950898363
+"582","EHDPP","Gadus morhua","Lever","FBa","43B2",1,65,NA,74.6555850235999
+"583","EHDPP","Gadus morhua","Lever","WWa","43B2",1,65,NA,37.6060529224744
+"584","EHDPP","Mytilus edulis","Whole soft body","DW","30A,26A2,I023,91A2,97A2",5,71,NA,71.1944444444445
+"585","EHDPP","Mytilus edulis","Whole soft body","FB","30A,26A2,I023,91A2,97A2",5,71,NA,1150.375
+"586","EROD","Gadus morhua","Lever","DW","23B,53B,36B,30B",4,1303,NA,475.136927483173
+"587","EROD","Gadus morhua","Lever","DWa","23B,53B,36B,30B",4,1303,NA,432.581930493896
+"588","EROD","Gadus morhua","Lever","FB","23B,53B,36B,30B",4,1303,NA,1196.37333333333
+"589","EROD","Gadus morhua","Lever","FBa","23B,53B,36B,30B",4,1303,NA,1079.4562743377
+"590","EROD","Gadus morhua","Lever","WWa","23B,53B,36B,30B",4,1303,NA,194.590008116617
+"591","FLE","Gadus morhua","Lever","DW",NA,NA,NA,NA,1.34943181818182
+"592","FLE","Gadus morhua","Lever","FB",NA,NA,NA,NA,16.1513859275053
+"593","FLE","Gadus morhua","Muskel","FB",NA,NA,NA,NA,66.6666666666667
+"594","FLE","Mytilus edulis","Whole soft body","DW","30A,71A,98A2,I023,I131A,I304,I306,I307,I915",9,364,NA,9.03802107191938
+"595","FLE","Mytilus edulis","Whole soft body","FB","30A,71A,98A2,I023,I131A,I304,I306,I307,I915",9,364,NA,104.987760097919
+"596","FLU","Gadus morhua","Lever","DW",NA,NA,NA,NA,9.28758741258741
+"597","FLU","Gadus morhua","Lever","FB",NA,NA,NA,NA,114.019189765458
+"598","FLU","Gadus morhua","Muskel","FB",NA,NA,NA,NA,190
+"599","FLU","Mytilus edulis","Whole soft body","DW","98A2,I023",2,32,NA,41.2307692307692
+"600","FLU","Mytilus edulis","Whole soft body","FB","98A2,I023",2,32,NA,495
+"601","FLU","Platichthys flesus","Muskel","FB",NA,NA,NA,NA,109.126984126984
+"602","HBCDA","Gadus morhua","Lever","DW","43B2",1,65,NA,10.047
+"603","HBCDA","Gadus morhua","Lever","DWa","43B2",1,65,NA,7.65700439240504
+"604","HBCDA","Gadus morhua","Lever","FB","43B2",1,65,NA,17.923389953375
+"605","HBCDA","Gadus morhua","Lever","FBa","43B2",1,65,NA,7.96750677608244
+"606","HBCDA","Gadus morhua","Lever","WWa","43B2",1,65,NA,5.02513417126252
+"607","HBCDA","Gadus morhua","Muskel","FB",NA,NA,NA,NA,1.2375
+"608","HBCDA","Mytilus edulis","Whole soft body","DW","I023,97A2,91A2",3,44,NA,0.679404761904762
+"609","HBCDA","Mytilus edulis","Whole soft body","FB","I023,97A2,91A2",3,44,NA,8.2875
+"610","HBCDB","Gadus morhua","Lever","DW","43B2,80B",2,135,NA,0.57625754527163
+"611","HBCDB","Gadus morhua","Lever","DWa","43B2,80B",2,135,NA,0.415352808539043
+"612","HBCDB","Gadus morhua","Lever","FB","43B2,80B",2,135,NA,0.788051470588236
+"613","HBCDB","Gadus morhua","Lever","FBa","43B2,80B",2,135,NA,0.420975032431478
+"614","HBCDB","Gadus morhua","Lever","WWa","43B2,80B",2,135,NA,0.309037548086194
+"615","HBCDB","Gadus morhua","Muskel","FB",NA,NA,NA,NA,1.2375
+"616","HBCDB","Mytilus edulis","Whole soft body","DW","I023,97A2,91A2",3,44,NA,0.141666666666667
+"617","HBCDB","Mytilus edulis","Whole soft body","FB","I023,97A2,91A2",3,44,NA,1.33333333333333
+"618","HBCDG","Gadus morhua","Lever","DW","43B2,80B",2,135,NA,1.6462229481421
+"619","HBCDG","Gadus morhua","Lever","DWa","43B2,80B",2,135,NA,1.17488928581299
+"620","HBCDG","Gadus morhua","Lever","FB","43B2,80B",2,135,NA,1.84461664392906
+"621","HBCDG","Gadus morhua","Lever","FBa","43B2,80B",2,135,NA,1.17852082983057
+"622","HBCDG","Gadus morhua","Lever","WWa","43B2,80B",2,135,NA,0.817657226536616
+"623","HBCDG","Gadus morhua","Muskel","FB",NA,NA,NA,NA,1.25
+"624","HBCDG","Mytilus edulis","Whole soft body","DW","I023,97A2,91A2",3,44,NA,0.200333333333333
+"625","HBCDG","Mytilus edulis","Whole soft body","FB","I023,97A2,91A2",3,44,NA,2.5
+"626","HCB","Gadus morhua","Lever","DW","36B,53B",2,1079,NA,25.555659963666
+"627","HCB","Gadus morhua","Lever","DWa","36B,53B",2,1079,NA,25.2147044268688
+"628","HCB","Gadus morhua","Lever","FB","36B,53B",2,1079,NA,43.7235475182763
+"629","HCB","Gadus morhua","Lever","FBa","36B,53B",2,1079,NA,41.1004987650022
+"630","HCB","Gadus morhua","Lever","WWa","36B,53B",2,1079,NA,13.837389125537
+"631","HCB","Gadus morhua","Muskel","DW",NA,NA,NA,NA,53.9755462832386
+"632","HCB","Gadus morhua","Muskel","FB",NA,NA,NA,NA,60
+"633","HCB","Limanda limanda","Lever","DW",NA,NA,NA,NA,17.7584209219565
+"634","HCB","Limanda limanda","Lever","FB",NA,NA,NA,NA,28.294930875576
+"635","HCB","Limanda limanda","Muskel","DW",NA,NA,NA,NA,0.848029163818637
+"636","HCB","Limanda limanda","Muskel","FB",NA,NA,NA,NA,37.037037037037
+"637","HCB","Mytilus edulis","Whole soft body","DW","22A,11X,43A,48A,10A2,15A,30A,31A,36A,41A,44A,46A",12,517,NA,0.53777971519907
+"638","HCB","Mytilus edulis","Whole soft body","FB","22A,11X,43A,48A,10A2,15A,30A,31A,36A,41A,44A,46A",12,517,NA,8.05714285714285
+"639","HCB","Platichthys flesus","Lever","DW",NA,NA,NA,NA,37.3406574974841
+"640","HCB","Platichthys flesus","Lever","FB",NA,NA,NA,NA,199.019607843137
+"641","HCB","Platichthys flesus","Muskel","DW",NA,NA,NA,NA,40.1606425702811
+"642","HCB","Platichthys flesus","Muskel","FB",NA,NA,NA,NA,49.3617021276596
+"643","HCHA","Gadus morhua","Lever","DW","53B,15B,36B,10B,23B,30B,67B,92B,43B,98B1",10,4071,NA,12.3228596830379
+"644","HCHA","Gadus morhua","Lever","DWa","53B,15B,36B,10B,23B,30B,67B,92B,43B,98B1",10,4071,NA,9.27058328481481
+"645","HCHA","Gadus morhua","Lever","FB","53B,15B,36B,10B,23B,30B,67B,92B,43B,98B1",10,4071,NA,19.4363538295577
+"646","HCHA","Gadus morhua","Lever","FBa","53B,15B,36B,10B,23B,30B,67B,92B,43B,98B1",10,4071,NA,12.483974613152
+"647","HCHA","Gadus morhua","Lever","WWa","53B,15B,36B,10B,23B,30B,67B,92B,43B,98B1",10,4071,NA,6.00043706348842
+"648","HCHA","Gadus morhua","Muskel","DW",NA,NA,NA,NA,1.38047619047619
+"649","HCHA","Gadus morhua","Muskel","FB",NA,NA,NA,NA,45.4545454545455
+"650","HCHA","Limanda limanda","Lever","DW",NA,NA,NA,NA,20.5519530923465
+"651","HCHA","Limanda limanda","Lever","FB",NA,NA,NA,NA,29.1910499139414
+"652","HCHA","Limanda limanda","Muskel","DW",NA,NA,NA,NA,0.53475935828877
+"653","HCHA","Limanda limanda","Muskel","FB",NA,NA,NA,NA,38.4615384615385
+"654","HCHA","Mytilus edulis","Whole soft body","DW",NA,NA,NA,NA,1.04966044142614
+"655","HCHA","Mytilus edulis","Whole soft body","FB",NA,NA,NA,NA,12.5
+"656","HCHA","Platichthys flesus","Lever","DW",NA,NA,NA,NA,15.6164897544208
+"657","HCHA","Platichthys flesus","Lever","FB",NA,NA,NA,NA,44.467708914945
+"658","HCHA","Platichthys flesus","Muskel","DW",NA,NA,NA,NA,1.00052501312533
+"659","HCHA","Platichthys flesus","Muskel","FB",NA,NA,NA,NA,43.1987577639752
+"660","HCHG","Gadus morhua","Lever","DW","53B,36B,10B,15B,30B,43B,92B,23B,67B,98B1",10,4074,NA,20.6460575367518
+"661","HCHG","Gadus morhua","Lever","DWa","53B,36B,10B,15B,30B,43B,92B,23B,67B,98B1",10,4074,NA,20.1153944669087
+"662","HCHG","Gadus morhua","Lever","FB","53B,36B,10B,15B,30B,43B,92B,23B,67B,98B1",10,4074,NA,29.4006519484368
+"663","HCHG","Gadus morhua","Lever","FBa","53B,36B,10B,15B,30B,43B,92B,23B,67B,98B1",10,4074,NA,27.3054015163376
+"664","HCHG","Gadus morhua","Lever","WWa","53B,36B,10B,15B,30B,43B,92B,23B,67B,98B1",10,4074,NA,12.3775863194813
+"665","HCHG","Gadus morhua","Muskel","DW",NA,NA,NA,NA,0.942676767676767
+"666","HCHG","Gadus morhua","Muskel","FB",NA,NA,NA,NA,50
+"667","HCHG","Limanda limanda","Lever","DW",NA,NA,NA,NA,18.4408318737565
+"668","HCHG","Limanda limanda","Lever","FB",NA,NA,NA,NA,30.5512117394204
+"669","HCHG","Limanda limanda","Muskel","DW",NA,NA,NA,NA,1.43372834570721
+"670","HCHG","Limanda limanda","Muskel","FB",NA,NA,NA,NA,62.5462962962963
+"671","HCHG","Mytilus edulis","Whole soft body","DW",NA,NA,NA,NA,3.26688737292669
+"672","HCHG","Mytilus edulis","Whole soft body","FB",NA,NA,NA,NA,36.5008130081301
+"673","HCHG","Platichthys flesus","Lever","DW",NA,NA,NA,NA,17.797619047619
+"674","HCHG","Platichthys flesus","Lever","FB",NA,NA,NA,NA,44.4444444444444
+"675","HCHG","Platichthys flesus","Muskel","DW",NA,NA,NA,NA,0.951666666666667
+"676","HCHG","Platichthys flesus","Muskel","FB",NA,NA,NA,NA,54.3055555555556
+"677","HG","Gadus morhua","Lever","DW",NA,NA,NA,NA,0.381962864721485
+"678","HG","Gadus morhua","Lever","FB",NA,NA,NA,NA,0.6775
+"679","HG","Gadus morhua","Muskel","DW","10B",1,504,NA,0.295114140773621
+"680","HG","Gadus morhua","Muskel","DWa","10B",1,504,NA,0.30565411209576
+"681","HG","Gadus morhua","Muskel","FB","10B",1,504,NA,20.3846153846154
+"682","HG","Gadus morhua","Muskel","WWa","10B",1,504,NA,0.0589391694525566
+"683","HG","Limanda limanda","Muskel","DW",NA,NA,NA,NA,1.24345078176613
+"684","HG","Limanda limanda","Muskel","FB",NA,NA,NA,NA,69.125
+"685","HG","Mytilus edulis","Whole soft body","DW","36A,46A,10A2",3,137,NA,0.0648213272830402
+"686","HG","Mytilus edulis","Whole soft body","FB","36A,46A,10A2",3,137,NA,0.951354279523293
+"687","HG","Platichthys flesus","Muskel","DW",NA,NA,NA,NA,2.58229268292683
+"688","HG","Platichthys flesus","Muskel","FB",NA,NA,NA,NA,110
+"689","ICDP","Gadus morhua","Lever","DW",NA,NA,NA,NA,0.892877535172666
+"690","ICDP","Gadus morhua","Lever","FB",NA,NA,NA,NA,4.84901277584204
+"691","ICDP","Gadus morhua","Muskel","FB",NA,NA,NA,NA,66.6666666666667
+"692","ICDP","Mytilus edulis","Whole soft body","DW","30A,71A,98A2,I023,I131A",5,176,NA,12.4545454545454
+"693","ICDP","Mytilus edulis","Whole soft body","FB","30A,71A,98A2,I023,I131A",5,176,NA,194.897959183673
+"694","MBTIN","Littorina littorea","Whole soft body","DW",NA,NA,NA,NA,1.11111111111111
+"695","MBTIN","Mytilus edulis","Whole soft body","DW","22A",1,14,NA,7.64090909090909
+"696","MBTIN","Mytilus edulis","Whole soft body","FB","22A",1,14,NA,120.071428571429
+"697","MBTIN","Nucella lapillus","Whole soft body","DW","22G,98G,36G,11G,15G,76G,131G,227G1",8,47,NA,5.54739583333333
+"698","MCCP","Gadus morhua","Lever","DW","23B,43B2",2,174,NA,710.104166666667
+"699","MCCP","Gadus morhua","Lever","DWa","23B,43B2",2,174,NA,695.844917684947
+"700","MCCP","Gadus morhua","Lever","FB","23B,43B2",2,174,NA,969.166666666665
+"701","MCCP","Gadus morhua","Lever","FBa","23B,43B2",2,174,NA,869.588063394978
+"702","MCCP","Gadus morhua","Lever","WWa","23B,43B2",2,174,NA,413.685201250636
+"703","MCCP","Gadus morhua","Muskel","FB",NA,NA,NA,NA,1096.125
+"704","MCCP","Mytilus edulis","Whole soft body","DW","I023,26A2,71A,91A2,97A2,30A",6,89,NA,613.019607843137
+"705","MCCP","Mytilus edulis","Whole soft body","FB","I023,26A2,71A,91A2,97A2,30A",6,89,NA,7020.71428571429
+"706","MOT","Littorina littorea","Whole soft body","DW",NA,NA,NA,NA,1.48148148148148
+"707","MOT","Mytilus edulis","Whole soft body","DW","I301,I133,22A,30A",4,65,NA,7.46356643356643
+"708","MOT","Mytilus edulis","Whole soft body","FB","I301,I133,22A,30A",4,65,NA,95.8463855421687
+"709","MOT","Nucella lapillus","Whole soft body","DW","76G,22G,131G,36G,15G,11G,98G,227G1",8,55,NA,3.66967741935484
+"710","NAP","Gadus morhua","Lever","DW",NA,NA,NA,NA,0.479341768682624
+"711","NAP","Gadus morhua","Lever","FB",NA,NA,NA,NA,4.34065934065934
+"712","NAP","Gadus morhua","Muskel","FB",NA,NA,NA,NA,2725
+"713","NAP","Mytilus edulis","Whole soft body","DW","98A2,I023,71A",3,47,NA,104.181818181818
+"714","NAP","Mytilus edulis","Whole soft body","FB","98A2,I023,71A",3,47,NA,635.210084033613
+"715","NAP","Platichthys flesus","Muskel","FB",NA,NA,NA,NA,4033.33333333333
+"716","NI","Gadus morhua","Lever","DW","15B,23B,43B2,10B,71B,80B,53B,36B",8,973,NA,1.57063492063492
+"717","NI","Gadus morhua","Lever","DWa","15B,23B,43B2,10B,71B,80B,53B,36B",8,973,NA,1.57418964857559
+"718","NI","Gadus morhua","Lever","FB","15B,23B,43B2,10B,71B,80B,53B,36B",8,973,NA,3.59461152882203
+"719","NI","Gadus morhua","Lever","FBa","15B,23B,43B2,10B,71B,80B,53B,36B",8,973,NA,4.00856192057284
+"720","NI","Gadus morhua","Lever","WWa","15B,23B,43B2,10B,71B,80B,53B,36B",8,973,NA,0.678898128671007
+"721","NI","Gadus morhua","Muskel","DW",NA,NA,NA,NA,2.891
+"722","NI","Limanda limanda","Lever","DW",NA,NA,NA,NA,1.48833333333333
+"723","NI","Limanda limanda","Lever","FB",NA,NA,NA,NA,2.61643523787844
+"724","NI","Mytilus edulis","Whole soft body","DW","I241,I131A,52A,57A,26A2",5,101,NA,1.69807692307692
+"725","NI","Mytilus edulis","Whole soft body","FB","I241,I131A,52A,57A,26A2",5,101,NA,15.8878504672897
+"726","NI","Platichthys flesus","Lever","DW",NA,NA,NA,NA,1.43181818181818
+"727","NI","Platichthys flesus","Lever","FB",NA,NA,NA,NA,2.79010989010989
+"728","PA","Gadus morhua","Lever","DW",NA,NA,NA,NA,2.63891078184111
+"729","PA","Gadus morhua","Lever","FB",NA,NA,NA,NA,18.0579659840333
+"730","PA","Gadus morhua","Muskel","FB",NA,NA,NA,NA,772.5
+"731","PA","Mytilus edulis","Whole soft body","DW","98A2,I023,71A",3,47,NA,18.3666666666667
+"732","PA","Mytilus edulis","Whole soft body","FB","98A2,I023,71A",3,47,NA,213.613595706619
+"733","PA","Platichthys flesus","Muskel","FB",NA,NA,NA,NA,558.730158730159
+"734","PA1O","Gadus morhua","Bile","WWa","23B,15B,30B,53B",4,800,NA,6.54477233465003
+"735","PB","Gadus morhua","Lever","DW","10B,36B,67B,92B,15B,43B,98B1,13B,23B,43B2",10,3616,NA,0.152478504091992
+"736","PB","Gadus morhua","Lever","DWa","10B,36B,67B,92B,15B,43B,98B1,13B,23B,43B2",10,3616,NA,0.0908955732441175
+"737","PB","Gadus morhua","Lever","FB","10B,36B,67B,92B,15B,43B,98B1,13B,23B,43B2",10,3616,NA,0.371774193548386
+"738","PB","Gadus morhua","Lever","FBa","10B,36B,67B,92B,15B,43B,98B1,13B,23B,43B2",10,3616,NA,0.246554344511471
+"739","PB","Gadus morhua","Lever","WWa","10B,36B,67B,92B,15B,43B,98B1,13B,23B,43B2",10,3616,NA,0.0345508862627076
+"740","PB","Gadus morhua","Muskel","DW",NA,NA,NA,NA,0.0411861684318487
+"741","PB","Gadus morhua","Muskel","FB",NA,NA,NA,NA,0.871111111111111
+"742","PB","Limanda limanda","Lever","DW",NA,NA,NA,NA,1.09835196214408
+"743","PB","Limanda limanda","Lever","FB",NA,NA,NA,NA,1.87364028406531
+"744","PB","Mytilus edulis","Whole soft body","DW","11X,48A",2,75,NA,1.1628366434439
+"745","PB","Mytilus edulis","Whole soft body","FB","11X,48A",2,75,NA,12.1462365591398
+"746","PB","Platichthys flesus","Lever","DW",NA,NA,NA,NA,4.36918313884258
+"747","PB","Platichthys flesus","Lever","FB",NA,NA,NA,NA,9.15967741935483
+"748","PFBS","Gadus morhua","Lever","DW","13B,36B,43B2,53B,80B,23B,30B,98B1",8,1316,NA,14.4456289978678
+"749","PFBS","Gadus morhua","Lever","DWa","13B,36B,43B2,53B,80B,23B,30B,98B1",8,1316,NA,7.61000863014376
+"750","PFBS","Gadus morhua","Lever","FB","13B,36B,43B2,53B,80B,23B,30B,98B1",8,1316,NA,22.8817204301074
+"751","PFBS","Gadus morhua","Lever","FBa","13B,36B,43B2,53B,80B,23B,30B,98B1",8,1316,NA,11.8002173231637
+"752","PFBS","Gadus morhua","Lever","WWa","13B,36B,43B2,53B,80B,23B,30B,98B1",8,1316,NA,3.89132469356809
+"753","PFNA","Gadus morhua","Lever","DW","13B,23B,30B,36B,43B2,80B,98B1,53B",8,1315,NA,12.5
+"754","PFNA","Gadus morhua","Lever","DWa","13B,23B,30B,36B,43B2,80B,98B1,53B",8,1315,NA,7.01009511119551
+"755","PFNA","Gadus morhua","Lever","FB","13B,23B,30B,36B,43B2,80B,98B1,53B",8,1315,NA,21.9565217391305
+"756","PFNA","Gadus morhua","Lever","FBa","13B,23B,30B,36B,43B2,80B,98B1,53B",8,1315,NA,12.189842620523
+"757","PFNA","Gadus morhua","Lever","WWa","13B,23B,30B,36B,43B2,80B,98B1,53B",8,1315,NA,2.76875016988691
+"758","PFOA","Gadus morhua","Lever","DW","13B,43B2,80B,53B,23B,36B,30B,98B1",8,1289,NA,17.8253968253968
+"759","PFOA","Gadus morhua","Lever","DWa","13B,43B2,80B,53B,23B,36B,30B,98B1",8,1289,NA,9.28758695530855
+"760","PFOA","Gadus morhua","Lever","FB","13B,43B2,80B,53B,23B,36B,30B,98B1",8,1289,NA,27.7777777777778
+"761","PFOA","Gadus morhua","Lever","FBa","13B,43B2,80B,53B,23B,36B,30B,98B1",8,1289,NA,14.3248863712203
+"762","PFOA","Gadus morhua","Lever","WWa","13B,43B2,80B,53B,23B,36B,30B,98B1",8,1289,NA,4.82292862886917
+"763","PFOS","Gadus morhua","Lever","DW","43B2,80B",2,251,NA,28.2051282051282
+"764","PFOS","Gadus morhua","Lever","DWa","43B2,80B",2,251,NA,25.147705306871
+"765","PFOS","Gadus morhua","Lever","FB","43B2,80B",2,251,NA,50
+"766","PFOS","Gadus morhua","Lever","FBa","43B2,80B",2,251,NA,41.936319953959
+"767","PFOS","Gadus morhua","Lever","WWa","43B2,80B",2,251,NA,9.58903412363678
+"768","PFOSA","Gadus morhua","Lever","DW","43B2,98B1,53B,80B,23B",5,718,NA,13.6964285714286
+"769","PFOSA","Gadus morhua","Lever","DWa","43B2,98B1,53B,80B,23B",5,718,NA,9.57811747048508
+"770","PFOSA","Gadus morhua","Lever","FB","43B2,98B1,53B,80B,23B",5,718,NA,25.0961538461538
+"771","PFOSA","Gadus morhua","Lever","FBa","43B2,98B1,53B,80B,23B",5,718,NA,18.8481019417887
+"772","PFOSA","Gadus morhua","Lever","WWa","43B2,98B1,53B,80B,23B",5,718,NA,4.3293122978399
+"773","PYR","Gadus morhua","Lever","DW",NA,NA,NA,NA,5.29218732087585
+"774","PYR","Gadus morhua","Lever","FB",NA,NA,NA,NA,42.3864894795127
+"775","PYR","Gadus morhua","Muskel","FB",NA,NA,NA,NA,88.3333333333333
+"776","PYR","Mytilus edulis","Whole soft body","DW","98A2",1,17,NA,6.46666666666667
+"777","PYR","Mytilus edulis","Whole soft body","FB","98A2",1,17,NA,64.375
+"778","PYR","Platichthys flesus","Muskel","FB",NA,NA,NA,NA,214.285714285714
+"779","PYR1O","Gadus morhua","Bile","WWa","23B",1,398,NA,17.7227944504778
+"780","SCCP","Gadus morhua","Lever","DW","23B,43B2,80B",3,245,NA,235.31506849315
+"781","SCCP","Gadus morhua","Lever","DWa","23B,43B2,80B",3,245,NA,199.16770359869
+"782","SCCP","Gadus morhua","Lever","FB","23B,43B2,80B",3,245,NA,344.481605351171
+"783","SCCP","Gadus morhua","Lever","FBa","23B,43B2,80B",3,245,NA,269.563660777479
+"784","SCCP","Gadus morhua","Lever","WWa","23B,43B2,80B",3,245,NA,132.992127492211
+"785","SCCP","Gadus morhua","Muskel","FB",NA,NA,NA,NA,103.4125
+"786","SCCP","Mytilus edulis","Whole soft body","DW","I023,71A,91A2,97A2,26A2,30A",6,90,NA,118.580701754386
+"787","SCCP","Mytilus edulis","Whole soft body","FB","I023,71A,91A2,97A2,26A2,30A",6,90,NA,1186.05263157895
+"788","SN","Gadus morhua","Lever","DW","10B,15B,23B,36B,43B2,53B,71B,80B,13B,98B1,30B",11,1381,NA,1.25
+"789","SN","Gadus morhua","Lever","DWa","10B,15B,23B,36B,43B2,53B,71B,80B,13B,98B1,30B",11,1381,NA,0.638421757907885
+"790","SN","Gadus morhua","Lever","FB","10B,15B,23B,36B,43B2,53B,71B,80B,13B,98B1,30B",11,1381,NA,3.61406553735074
+"791","SN","Gadus morhua","Lever","FBa","10B,15B,23B,36B,43B2,53B,71B,80B,13B,98B1,30B",11,1381,NA,2.42024967952061
+"792","SN","Gadus morhua","Lever","WWa","10B,15B,23B,36B,43B2,53B,71B,80B,13B,98B1,30B",11,1381,NA,0.180867302429436
+"793","SN","Limanda limanda","Lever","DW",NA,NA,NA,NA,1.25
+"794","SN","Limanda limanda","Lever","FB",NA,NA,NA,NA,3.85493771438888
+"795","SN","Mytilus edulis","Whole soft body","DW","10A2,11X,15A,22A,26A2,30A,31A,35A,57A,63A,64A,65A,69A,71A,91A2,97A2,98A2,I023,I131A,I133,I301,I304,I306,I965,I969,I241,52A,I307,I712",29,625,NA,2.30769230769231
+"796","SN","Mytilus edulis","Whole soft body","FB","10A2,11X,15A,22A,26A2,30A,31A,35A,57A,63A,64A,65A,69A,71A,91A2,97A2,98A2,I023,I131A,I133,I301,I304,I306,I965,I969,I241,52A,I307,I712",29,625,NA,30
+"797","SN","Platichthys flesus","Lever","DW",NA,NA,NA,NA,1.0448275862069
+"798","SN","Platichthys flesus","Lever","FB",NA,NA,NA,NA,2.52272727272727
+"799","TBBPA","Gadus morhua","Lever","DW","80B,43B2",2,135,NA,1.39391025641026
+"800","TBBPA","Gadus morhua","Lever","DWa","80B,43B2",2,135,NA,0.610780764223042
+"801","TBBPA","Gadus morhua","Lever","FB","80B,43B2",2,135,NA,2.26736331405113
+"802","TBBPA","Gadus morhua","Lever","FBa","80B,43B2",2,135,NA,1.18915355940632
+"803","TBBPA","Gadus morhua","Lever","WWa","80B,43B2",2,135,NA,0.325783923628134
+"804","TBBPA","Gadus morhua","Muskel","FB",NA,NA,NA,NA,19.52
+"805","TBBPA","Mytilus edulis","Whole soft body","DW","30A,97A2,26A2,I023,71A,91A2",6,87,NA,1.89692307692308
+"806","TBBPA","Mytilus edulis","Whole soft body","FB","30A,97A2,26A2,I023,71A,91A2",6,87,NA,23.6645454545454
+"807","TBEP","Gadus morhua","Lever","DW","43B2",1,65,NA,118.806100217865
+"808","TBEP","Gadus morhua","Lever","DWa","43B2",1,65,NA,57.4272371494862
+"809","TBEP","Gadus morhua","Lever","FB","43B2",1,65,NA,365.134153028317
+"810","TBEP","Gadus morhua","Lever","FBa","43B2",1,65,NA,156.660323246505
+"811","TBEP","Gadus morhua","Lever","WWa","43B2",1,65,NA,67.321156299391
+"812","TBEP","Gadus morhua","Muskel","FB",NA,NA,NA,NA,2850
+"813","TBEP","Mytilus edulis","Whole soft body","DW","26A2,I023,91A2,97A2,30A",5,71,NA,81.5961538461538
+"814","TBEP","Mytilus edulis","Whole soft body","FB","26A2,I023,91A2,97A2,30A",5,71,NA,1029.5
+"815","TBP","Gadus morhua","Lever","DW","43B2",1,65,NA,43.1821120689655
+"816","TBP","Gadus morhua","Lever","DWa","43B2",1,65,NA,17.9670924618385
+"817","TBP","Gadus morhua","Lever","FB","43B2",1,65,NA,319.676660851474
+"818","TBP","Gadus morhua","Lever","FBa","43B2",1,65,NA,146.023185239399
+"819","TBP","Gadus morhua","Lever","WWa","43B2",1,65,NA,72.181593834753
+"820","TBP","Gadus morhua","Muskel","FB",NA,NA,NA,NA,666.666666666667
+"821","TBP","Mytilus edulis","Whole soft body","DW","30A,I023,97A2,26A2,91A2",5,71,NA,45.2807692307692
+"822","TBP","Mytilus edulis","Whole soft body","FB","30A,I023,97A2,26A2,91A2",5,71,NA,490.85
+"823","TBT","Gadus morhua","Lever","DW",NA,NA,NA,NA,114.557691431695
+"824","TBT","Gadus morhua","Lever","FB",NA,NA,NA,NA,152.225378787879
+"825","TBT","Littorina littorea","Whole soft body","DW",NA,NA,NA,NA,12.2222222222222
+"826","TBT","Mytilus edulis","Whole soft body","DW","11X",1,20,NA,33.495557261957
+"827","TBT","Mytilus edulis","Whole soft body","FB","11X",1,20,NA,289.13
+"828","TBT","Nucella lapillus","Whole soft body","DW","11G,131G,15G,98G",4,66,NA,65.3967481715187
+"829","TCEP","Gadus morhua","Lever","DW","43B2",1,65,NA,735.5
+"830","TCEP","Gadus morhua","Lever","DWa","43B2",1,65,NA,345.263720110623
+"831","TCEP","Gadus morhua","Lever","FB","43B2",1,65,NA,1011.47934191412
+"832","TCEP","Gadus morhua","Lever","FBa","43B2",1,65,NA,440.367854621892
+"833","TCEP","Gadus morhua","Lever","WWa","43B2",1,65,NA,239.625103276256
+"834","TCEP","Gadus morhua","Muskel","FB",NA,NA,NA,NA,21666.6666666667
+"835","TCEP","Mytilus edulis","Whole soft body","DW","26A2,I023,91A2,97A2,30A",5,71,NA,345.511363636364
+"836","TCEP","Mytilus edulis","Whole soft body","FB","26A2,I023,91A2,97A2,30A",5,71,NA,4100
+"837","TCHT","Littorina littorea","Whole soft body","DW",NA,NA,NA,NA,1.11111111111111
+"838","TCHT","Mytilus edulis","Whole soft body","DW","I301,I133,22A,30A",4,65,NA,15.3846153846154
+"839","TCHT","Mytilus edulis","Whole soft body","FB","I301,I133,22A,30A",4,65,NA,203.883619584722
+"840","TCHT","Nucella lapillus","Whole soft body","DW","76G,22G,131G,11G,36G,15G,98G,227G1",8,55,NA,7.33935483870968
+"841","TCPP","Gadus morhua","Lever","DW","43B2",1,65,NA,37.1155172413793
+"842","TCPP","Gadus morhua","Lever","DWa","43B2",1,65,NA,15.0829328254544
+"843","TCPP","Gadus morhua","Lever","FB","43B2",1,65,NA,159.353971848689
+"844","TCPP","Gadus morhua","Lever","FBa","43B2",1,65,NA,73.7901844525671
+"845","TCPP","Gadus morhua","Lever","WWa","43B2",1,65,NA,38.554938383811
+"846","TCPP","Gadus morhua","Muskel","FB",NA,NA,NA,NA,1058.2
+"847","TCPP","Mytilus edulis","Whole soft body","DW","30A,26A2,97A2,91A2",4,56,NA,238.823529411765
+"848","TCPP","Mytilus edulis","Whole soft body","FB","30A,26A2,97A2,91A2",4,56,NA,2695.75
+"849","TDCP","Gadus morhua","Lever","DW","43B2",1,65,NA,51.0957767722473
+"850","TDCP","Gadus morhua","Lever","DWa","43B2",1,65,NA,23.9524015135071
+"851","TDCP","Gadus morhua","Lever","FB","43B2",1,65,NA,178.546358536545
+"852","TDCP","Gadus morhua","Lever","FBa","43B2",1,65,NA,77.6930962065273
+"853","TDCP","Gadus morhua","Lever","WWa","43B2",1,65,NA,37.0463153656524
+"854","TDCP","Gadus morhua","Muskel","FB",NA,NA,NA,NA,1425
+"855","TDCP","Mytilus edulis","Whole soft body","DW","26A2,91A2,97A2,I023,30A",5,71,NA,61.3627450980392
+"856","TDCP","Mytilus edulis","Whole soft body","FB","26A2,91A2,97A2,I023,30A",5,71,NA,1025
+"857","TDEPP","Gadus morhua","Lever","DW","23B,92B,36B",3,1303,NA,69.4943198228554
+"858","TDEPP","Gadus morhua","Lever","DWa","23B,92B,36B",3,1303,NA,54.4589726119804
+"859","TDEPP","Gadus morhua","Lever","FB","23B,92B,36B",3,1303,NA,119.746376811594
+"860","TDEPP","Gadus morhua","Lever","FBa","23B,92B,36B",3,1303,NA,117.035588719767
+"861","TDEPP","Gadus morhua","Lever","WWa","23B,92B,36B",3,1303,NA,22.650767923096
+"862","TDEPP","Gadus morhua","Muskel","DW",NA,NA,NA,NA,2.3949246629659
+"863","TDEPP","Gadus morhua","Muskel","FB",NA,NA,NA,NA,127.375
+"864","TDEPP","Limanda limanda","Lever","DW",NA,NA,NA,NA,43.085261621847
+"865","TDEPP","Limanda limanda","Lever","FB",NA,NA,NA,NA,62.0680018630647
+"866","TDEPP","Limanda limanda","Muskel","DW",NA,NA,NA,NA,1.2580685203575
+"867","TDEPP","Limanda limanda","Muskel","FB",NA,NA,NA,NA,71.4285714285714
+"868","TDEPP","Mytilus edulis","Whole soft body","DW","41A,43A,44A,46A,48A,92A1",6,93,NA,0.714285714285714
+"869","TDEPP","Mytilus edulis","Whole soft body","FB","41A,43A,44A,46A,48A,92A1",6,93,NA,10.1855670103093
+"870","TDEPP","Platichthys flesus","Lever","DW",NA,NA,NA,NA,64.4957983193277
+"871","TDEPP","Platichthys flesus","Lever","FB",NA,NA,NA,NA,114.973239135089
+"872","TDEPP","Platichthys flesus","Muskel","DW",NA,NA,NA,NA,3.97926267281106
+"873","TDEPP","Platichthys flesus","Muskel","FB",NA,NA,NA,NA,150
+"874","TEHP","Gadus morhua","Lever","DW","43B2",1,64,NA,302.157657657657
+"875","TEHP","Gadus morhua","Lever","DWa","43B2",1,64,NA,127.98066339019
+"876","TEHP","Gadus morhua","Lever","FB","43B2",1,64,NA,898.344944831493
+"877","TEHP","Gadus morhua","Lever","FBa","43B2",1,64,NA,296.104069329541
+"878","TEHP","Gadus morhua","Lever","WWa","43B2",1,64,NA,156.00872277965
+"879","TEHP","Mytilus edulis","Whole soft body","DW","26A2,I023,91A2,97A2,30A",5,71,NA,137.091503267974
+"880","TEHP","Mytilus edulis","Whole soft body","FB","26A2,I023,91A2,97A2,30A",5,71,NA,1390
+"881","TIBP","Gadus morhua","Lever","DW","43B2",1,65,NA,95.0523329129886
+"882","TIBP","Gadus morhua","Lever","DWa","43B2",1,65,NA,41.6259566850142
+"883","TIBP","Gadus morhua","Lever","FB","43B2",1,65,NA,319.676660851474
+"884","TIBP","Gadus morhua","Lever","FBa","43B2",1,65,NA,144.904238674867
+"885","TIBP","Gadus morhua","Lever","WWa","43B2",1,65,NA,69.4173922060908
+"886","TIBP","Mytilus edulis","Whole soft body","DW","30A,I023,26A2,97A2,91A2",5,71,NA,73.8429487179487
+"887","TIBP","Mytilus edulis","Whole soft body","FB","30A,I023,26A2,97A2,91A2",5,71,NA,933.958333333333
+"888","TPhT","Littorina littorea","Whole soft body","DW",NA,NA,NA,NA,1.11111111111111
+"889","TPhT","Mytilus edulis","Whole soft body","DW",NA,NA,NA,NA,16.9230769230769
+"890","TPhT","Mytilus edulis","Whole soft body","FB",NA,NA,NA,NA,183.333333333333
+"891","VDSI","Nucella lapillus","Whole soft body","DW","11G,15G,131G,76G",4,63,NA,11.1800075878848
+"892","ZN","Gadus morhua","Lever","DW","98B1,10B,92B,43B2,80B",5,1351,NA,112.744135297327
+"893","ZN","Gadus morhua","Lever","DWa","98B1,10B,92B,43B2,80B",5,1351,NA,117.642097617872
+"894","ZN","Gadus morhua","Lever","FB","98B1,10B,92B,43B2,80B",5,1351,NA,236.84265010352
+"895","ZN","Gadus morhua","Lever","FBa","98B1,10B,92B,43B2,80B",5,1351,NA,244.775489136917
+"896","ZN","Gadus morhua","Lever","WWa","98B1,10B,92B,43B2,80B",5,1351,NA,35.2062566495313
+"897","ZN","Gadus morhua","Muskel","DW",NA,NA,NA,NA,22.5965855556793
+"898","ZN","Limanda limanda","Lever","DW",NA,NA,NA,NA,156.330659935676
+"899","ZN","Limanda limanda","Lever","FB",NA,NA,NA,NA,389.830786644029
+"900","ZN","Mytilus edulis","Whole soft body","DW","43A,I712,48A",3,49,NA,134.009819967267
+"901","ZN","Mytilus edulis","Whole soft body","FB","43A,I712,48A",3,49,NA,2145.58404558404
+"902","ZN","Platichthys flesus","Lever","DW",NA,NA,NA,NA,223.117937291103
+"903","ZN","Platichthys flesus","Lever","FB",NA,NA,NA,NA,987.255813953488
+"904","BBJKF","Mytilus edulis","Whole soft body","DW","I304,I306,30A,I307",4,96,9.71675845790716,23.2651446654611
+"905","BBJKF","Mytilus edulis","Whole soft body","FB","I304,I306,I307,30A",4,87,100,257
+"906","BBJKF","Mytilus edulis","Whole soft body","WW","I304,I306,I307,30A",4,96,1.3,3.925
+"907","BDE119","Gadus morhua","Lever","DW",NA,NA,NA,NA,NA
+"908","BDE119","Gadus morhua","Lever","FB",NA,NA,NA,NA,NA
+"909","BDE119","Gadus morhua","Lever","WW",NA,NA,NA,NA,NA
+"910","BDE119","Mytilus edulis","Whole soft body","DW",NA,NA,NA,NA,NA
+"911","BDE119","Mytilus edulis","Whole soft body","FB",NA,NA,NA,NA,NA
+"912","BDE119","Mytilus edulis","Whole soft body","WW",NA,NA,NA,NA,NA
+"913","BDE138","Gadus morhua","Lever","DW","98B1,30B,23B,53B",4,558,0.24390243902439,0.857881773399015
+"914","BDE138","Gadus morhua","Lever","FB","98B1,30B,23B,53B",4,558,0.350877192982456,1.76785714285714
+"915","BDE138","Gadus morhua","Lever","WW","30B,23B,53B,98B1",4,561,0.12,0.3
+"916","BDE138","Mytilus edulis","Whole soft body","DW",NA,NA,NA,NA,NA
+"917","BDE138","Mytilus edulis","Whole soft body","FB",NA,NA,NA,NA,NA
+"918","BDE138","Mytilus edulis","Whole soft body","WW",NA,NA,NA,NA,NA
+"919","BDE156","Mytilus edulis","Whole soft body","DW",NA,NA,NA,NA,NA
+"920","BDE156","Mytilus edulis","Whole soft body","FB",NA,NA,NA,NA,NA
+"921","BDE156","Mytilus edulis","Whole soft body","WW",NA,NA,NA,NA,NA
+"922","BDE17","Mytilus edulis","Whole soft body","DW",NA,NA,NA,NA,NA
+"923","BDE17","Mytilus edulis","Whole soft body","FB",NA,NA,NA,NA,NA
+"924","BDE17","Mytilus edulis","Whole soft body","WW",NA,NA,NA,NA,NA
+"925","BDE184","Mytilus edulis","Whole soft body","DW",NA,NA,NA,NA,NA
+"926","BDE184","Mytilus edulis","Whole soft body","FB",NA,NA,NA,NA,NA
+"927","BDE184","Mytilus edulis","Whole soft body","WW",NA,NA,NA,NA,NA
+"928","BDE191","Mytilus edulis","Whole soft body","DW",NA,NA,NA,NA,NA
+"929","BDE191","Mytilus edulis","Whole soft body","FB",NA,NA,NA,NA,NA
+"930","BDE191","Mytilus edulis","Whole soft body","WW",NA,NA,NA,NA,NA
+"931","BDE197","Mytilus edulis","Whole soft body","DW",NA,NA,NA,NA,NA
+"932","BDE197","Mytilus edulis","Whole soft body","FB",NA,NA,NA,NA,NA
+"933","BDE197","Mytilus edulis","Whole soft body","WW",NA,NA,NA,NA,NA
+"934","BDE205","Gadus morhua","Lever","DW","23B,30B,98B1,53B",4,559,0.697674418604651,2.91911764705882
+"935","BDE205","Gadus morhua","Lever","FB","23B,98B1,30B,53B",4,559,0.9375,4.83870967741935
+"936","BDE205","Gadus morhua","Lever","WW","23B,30B,98B1,53B",4,559,0.3,1.5
+"937","BDE205","Mytilus edulis","Whole soft body","DW",NA,NA,NA,NA,NA
+"938","BDE205","Mytilus edulis","Whole soft body","FB",NA,NA,NA,NA,NA
+"939","BDE205","Mytilus edulis","Whole soft body","WW",NA,NA,NA,NA,NA
+"940","BDE206","Gadus morhua","Lever","FB",NA,NA,NA,NA,NA
+"941","BDE206","Gadus morhua","Lever","WW",NA,NA,NA,NA,NA
+"942","BDE206","Mytilus edulis","Whole soft body","DW",NA,NA,NA,NA,NA
+"943","BDE206","Mytilus edulis","Whole soft body","FB",NA,NA,NA,NA,NA
+"944","BDE206","Mytilus edulis","Whole soft body","WW",NA,NA,NA,NA,NA
+"945","BDE207","Mytilus edulis","Whole soft body","DW",NA,NA,NA,NA,NA
+"946","BDE207","Mytilus edulis","Whole soft body","FB",NA,NA,NA,NA,NA
+"947","BDE207","Mytilus edulis","Whole soft body","WW",NA,NA,NA,NA,NA
+"948","BDE49","Gadus morhua","Lever","DW","23B,98B1",2,266,1.03896103896104,6.72037037037037
+"949","BDE49","Gadus morhua","Lever","FB","98B1,23B",2,266,1.39805194805195,8.93370856785491
+"950","BDE49","Gadus morhua","Lever","WW","23B,98B1",2,266,0.62,3.95
+"951","BDE49","Mytilus edulis","Whole soft body","DW",NA,NA,NA,NA,NA
+"952","BDE49","Mytilus edulis","Whole soft body","FB",NA,NA,NA,NA,NA
+"953","BDE49","Mytilus edulis","Whole soft body","WW",NA,NA,NA,NA,NA
+"954","BDE66","Gadus morhua","Lever","DW","23B,98B1",2,266,0.248456790123457,1.01156359979889
+"955","BDE66","Gadus morhua","Lever","FB","98B1,23B",2,266,0.333333333333333,1.55986933031788
+"956","BDE66","Gadus morhua","Lever","WW","23B,98B1",2,266,0.13,0.595
+"957","BDE66","Mytilus edulis","Whole soft body","DW",NA,NA,NA,NA,NA
+"958","BDE66","Mytilus edulis","Whole soft body","FB",NA,NA,NA,NA,NA
+"959","BDE66","Mytilus edulis","Whole soft body","WW",NA,NA,NA,NA,NA
+"960","BDE6S","Gadus morhua","Lever","DW","98B1",1,172,7.60227272727273,28.2415492957746
+"961","BDE6S","Gadus morhua","Lever","DWa","98B1",1,166,6.87630093106707,21.1269642782779
+"962","BDE6S","Gadus morhua","Lever","FB","98B1",1,173,9.88235294117647,39.7549404182316
+"963","BDE6S","Gadus morhua","Lever","FBa","98B1",1,167,9.43897876653057,30.2711667992569
+"964","BDE6S","Gadus morhua","Lever","WWa","98B1",1,167,3.9766770622423,11.6964158170146
+"965","BDE6S","Mytilus edulis","Whole soft body","DW","98A2,26A2,91A2",3,46,0.328544117647059,1.21995192307692
+"966","BDE6S","Mytilus edulis","Whole soft body","FB","26A2,91A2",2,30,3.95266666666667,11.5192307692308
+"967","BDE71","Gadus morhua","Lever","DW","98B1,23B",2,261,0.133333333333333,0.588235294117647
+"968","BDE71","Gadus morhua","Lever","FB","98B1,23B",2,261,0.169491525423729,1.11111111111111
+"969","BDE71","Gadus morhua","Lever","WW","98B1,23B,53B,30B",4,553,0.11,0.4
+"970","BDE71","Mytilus edulis","Whole soft body","DW",NA,NA,NA,NA,NA
+"971","BDE71","Mytilus edulis","Whole soft body","FB",NA,NA,NA,NA,NA
+"972","BDE71","Mytilus edulis","Whole soft body","WW",NA,NA,NA,NA,NA
+"973","BDE77","Gadus morhua","Lever","DW","30B",1,122,0.267511177347243,2.88737486095661
+"974","BDE77","Gadus morhua","Lever","FB","30B",1,122,0.391260162601626,5.03884180790959
+"975","BDE77","Gadus morhua","Lever","WW","30B",1,122,0.15,1.69
+"976","BDE77","Mytilus edulis","Whole soft body","DW",NA,NA,NA,NA,NA
+"977","BDE77","Mytilus edulis","Whole soft body","FB",NA,NA,NA,NA,NA
+"978","BDE77","Mytilus edulis","Whole soft body","WW",NA,NA,NA,NA,NA
+"979","BDE85","Gadus morhua","Lever","DW","98B1,23B,30B,53B",4,536,0.163934426229508,2.92506631299735
+"980","BDE85","Gadus morhua","Lever","FB","98B1,23B,30B,53B",4,536,0.236235119047619,4.12037037037037
+"981","BDE85","Gadus morhua","Lever","WW","98B1,53B,23B,30B",4,536,0.1,1.725
+"982","BDE85","Mytilus edulis","Whole soft body","DW",NA,NA,NA,NA,NA
+"983","BDE85","Mytilus edulis","Whole soft body","FB",NA,NA,NA,NA,NA
+"984","BDE85","Mytilus edulis","Whole soft body","WW",NA,NA,NA,NA,NA
+"985","BDESS","Gadus morhua","Lever","DW","98B1",1,172,7.69276094276094,29.0629044537495
+"986","BDESS","Gadus morhua","Lever","DWa","98B1",1,166,7.33255141815021,21.869544552347
+"987","BDESS","Gadus morhua","Lever","FB","98B1",1,173,10.6666666666667,41.1244147157191
+"988","BDESS","Gadus morhua","Lever","FBa","98B1",1,167,9.89736629305595,31.0989202528704
+"989","BDESS","Gadus morhua","Lever","WWa","98B1",1,167,4.27277888055531,12.427815607878
+"990","BDESS","Mytilus edulis","Whole soft body","DW","98A2",1,16,0.160666666666667,1.01225490196078
+"991","BDESS","Mytilus edulis","Whole soft body","FB","26A2,91A2,71A",3,46,4.21787878787879,61.6223214285714
+"992","BDESS","Mytilus edulis","Whole soft body","WW","98A2",1,16,0.0241,0.1925
+"993","BJKF","Gadus morhua","Lever","DW",NA,NA,NA,NA,NA
+"994","BJKF","Gadus morhua","Lever","FB",NA,NA,NA,NA,NA
+"995","BJKF","Gadus morhua","Lever","WW",NA,NA,NA,NA,NA
+"996","BJKF","Mytilus edulis","Whole soft body","DW",NA,NA,NA,NA,NA
+"997","BJKF","Mytilus edulis","Whole soft body","FB",NA,NA,NA,NA,NA
+"998","BJKF","Mytilus edulis","Whole soft body","WW",NA,NA,NA,NA,NA
+"999","CB_S7","Gadus morhua","Lever","DW","98B1,92B",2,634,191.677083333333,931.251857583238
+"1000","CB_S7","Gadus morhua","Lever","DWa","98B1",1,429,164.018801574606,781.35277649461
+"1001","CB_S7","Gadus morhua","Lever","FB","98B1,92B,43B",3,747,241.224489795918,1425.16397849462
+"1002","CB_S7","Gadus morhua","Lever","FBa","98B1",1,430,212.944729091232,1362.3371766946
+"1003","CB_S7","Gadus morhua","Lever","WWa","98B1",1,430,97.4434188591258,381.29787620596
+"1004","CB_S7","Limanda limanda","Lever","DW","15F",1,91,170.185185185185,1378.79495232436
+"1005","CB_S7","Limanda limanda","Lever","FB","15F",1,91,260,670.759677419355
+"1006","CB_S7","Limanda limanda","Lever","WW","15F",1,91,59.2,128.41
+"1007","CB_S7","Mytilus edulis","Whole soft body","DW","11X,10A2",2,96,1.04554865424431,4.66559691912709
+"1008","CB_S7","Mytilus edulis","Whole soft body","FB","11X,10A2",2,96,11.9168356997972,53.0769230769231
+"1009","CB_S7","Platichthys flesus","Lever","DW","67F,21F",2,86,84.9653661018276,282.265565257598
+"1010","CB_S7","Platichthys flesus","Lever","FB","67F,21F",2,87,142.285714285714,796.911764705883
+"1011","CB_S7","Platichthys flesus","Lever","WW","21F,67F",2,87,34.3,89.87
+"1012","CB114","Mytilus edulis","Whole soft body","DW",NA,NA,NA,NA,NA
+"1013","CB114","Mytilus edulis","Whole soft body","FB",NA,NA,NA,NA,NA
+"1014","CB114","Mytilus edulis","Whole soft body","WW",NA,NA,NA,NA,NA
+"1015","CB123","Mytilus edulis","Whole soft body","DW",NA,NA,NA,NA,NA
+"1016","CB123","Mytilus edulis","Whole soft body","FB",NA,NA,NA,NA,NA
+"1017","CB123","Mytilus edulis","Whole soft body","WW",NA,NA,NA,NA,NA
+"1018","CB157","Mytilus edulis","Whole soft body","DW",NA,NA,NA,NA,NA
+"1019","CB157","Mytilus edulis","Whole soft body","FB",NA,NA,NA,NA,NA
+"1020","CB157","Mytilus edulis","Whole soft body","WW",NA,NA,NA,NA,NA
+"1021","CB167","Mytilus edulis","Whole soft body","DW",NA,NA,NA,NA,NA
+"1022","CB167","Mytilus edulis","Whole soft body","FB",NA,NA,NA,NA,NA
+"1023","CB167","Mytilus edulis","Whole soft body","WW",NA,NA,NA,NA,NA
+"1024","CB189","Mytilus edulis","Whole soft body","DW",NA,NA,NA,NA,NA
+"1025","CB189","Mytilus edulis","Whole soft body","FB",NA,NA,NA,NA,NA
+"1026","CB189","Mytilus edulis","Whole soft body","WW",NA,NA,NA,NA,NA
+"1027","DBT","Littorina littorea","Whole soft body","WW","71G",1,5,1.2,1.964
+"1028","DDTEP","Gadus morhua","Lever","DW",NA,NA,NA,NA,NA
+"1029","DDTEP","Gadus morhua","Lever","DWa",NA,NA,NA,NA,NA
+"1030","DDTEP","Gadus morhua","Lever","FB",NA,NA,NA,NA,NA
+"1031","DDTEP","Gadus morhua","Lever","FBa",NA,NA,NA,NA,NA
+"1032","DDTEP","Gadus morhua","Lever","WW",NA,NA,NA,NA,NA
+"1033","DDTEP","Gadus morhua","Lever","WWa",NA,NA,NA,NA,NA
+"1034","DDTEP","Limanda limanda","Lever","DW",NA,NA,NA,NA,NA
+"1035","DDTEP","Limanda limanda","Lever","FB",NA,NA,NA,NA,NA
+"1036","DDTEP","Limanda limanda","Lever","WW",NA,NA,NA,NA,NA
+"1037","DDTEP","Mytilus edulis","Whole soft body","DW","36A,84A",2,48,3.74641783742224,10.5739835385853
+"1038","DDTEP","Mytilus edulis","Whole soft body","FB","36A,84A",2,48,42.512908777969,187.393162393162
+"1039","DDTEP","Mytilus edulis","Whole soft body","WW","84A,36A,71A,31A",4,107,0.9,3
+"1040","DDTEP","Platichthys flesus","Lever","DW",NA,NA,NA,NA,NA
+"1041","DDTEP","Platichthys flesus","Lever","FB",NA,NA,NA,NA,NA
+"1042","DDTEP","Platichthys flesus","Lever","WW",NA,NA,NA,NA,NA
+"1043","DIOKTYLT","Littorina littorea","Whole soft body","WW",NA,NA,NA,NA,NA
+"1044","DIOKTYLTIN","Littorina littorea","Whole soft body","WW",NA,NA,NA,NA,NA
+"1045","DIOKTYLTIN","Nucella lapillus","Whole soft body","WW",NA,NA,NA,NA,NA
+"1046","DPTIN","Littorina littorea","Whole soft body","WW",NA,NA,NA,NA,NA
+"1047","DPTIN","Nucella lapillus","Whole soft body","WW","71G",1,5,1,1.94
+"1048","Fett","Gadus morhua","Lever","DW",NA,NA,NA,NA,NA
+"1049","Fett","Gadus morhua","Lever","DWa",NA,NA,NA,NA,NA
+"1050","Fett","Gadus morhua","Lever","FB",NA,NA,NA,NA,NA
+"1051","Fett","Gadus morhua","Lever","FBa",NA,NA,NA,NA,NA
+"1052","Fett","Gadus morhua","Lever","WW",NA,NA,NA,NA,NA
+"1053","Fett","Gadus morhua","Lever","WWa",NA,NA,NA,NA,NA
+"1054","Fett","Limanda limanda","Lever","DW",NA,NA,NA,NA,NA
+"1055","Fett","Limanda limanda","Lever","FB",NA,NA,NA,NA,NA
+"1056","Fett","Limanda limanda","Lever","WW",NA,NA,NA,NA,NA
+"1057","Fett","Mytilus edulis","Whole soft body","DW",NA,NA,NA,NA,NA
+"1058","Fett","Mytilus edulis","Whole soft body","FB",NA,NA,NA,NA,NA
+"1059","Fett","Mytilus edulis","Whole soft body","WW",NA,NA,NA,NA,NA
+"1060","Fett","Platichthys flesus","Lever","DW",NA,NA,NA,NA,NA
+"1061","Fett","Platichthys flesus","Lever","FB",NA,NA,NA,NA,NA
+"1062","Fett","Platichthys flesus","Lever","WW",NA,NA,NA,NA,NA
+"1063","HBCDD","Gadus morhua","Lever","DW",NA,NA,NA,NA,NA
+"1064","HBCDD","Gadus morhua","Lever","DWa",NA,NA,NA,NA,NA
+"1065","HBCDD","Gadus morhua","Lever","FB","43B2",1,65,4.47712418300654,18.1434677166911
+"1066","HBCDD","Gadus morhua","Lever","FBa","43B2",1,65,2.85601405819987,8.4460351228925
+"1067","HBCDD","Gadus morhua","Lever","WW","43B2",1,65,2.277,7.18
+"1068","HBCDD","Gadus morhua","Lever","WWa","43B2",1,65,1.8029975722783,5.06609449138039
+"1069","HBCDD","Mytilus edulis","Whole soft body","DW","91A2,I023,97A2",3,44,0.370879120879121,0.858571428571429
+"1070","HBCDD","Mytilus edulis","Whole soft body","FB","91A2,I023,97A2",3,44,3.74166666666667,10.7824825174825
+"1071","HBCDD","Mytilus edulis","Whole soft body","WW","I023,97A2,91A2",3,44,0.0601,0.1467
+"1072","HCBD","Mytilus edulis","Whole soft body","DW",NA,NA,NA,NA,NA
+"1073","HCBD","Mytilus edulis","Whole soft body","FB",NA,NA,NA,NA,NA
+"1074","HCBD","Mytilus edulis","Whole soft body","WW",NA,NA,NA,NA,NA
+"1075","KPAH","Gadus morhua","Lever","DW",NA,NA,NA,NA,NA
+"1076","KPAH","Gadus morhua","Lever","FB",NA,NA,NA,NA,NA
+"1077","KPAH","Gadus morhua","Lever","WW",NA,NA,NA,NA,NA
+"1078","KPAH","Mytilus edulis","Whole soft body","DW","98A2",1,17,0,4.14666666666667
+"1079","KPAH","Mytilus edulis","Whole soft body","FB","98A2",1,17,0,43.3296703296703
+"1080","KPAH","Mytilus edulis","Whole soft body","WW","98A2",1,17,0,0.622
+"1081","MBT","Littorina littorea","Whole soft body","WW","71G",1,5,0.913,1.344
+"1082","MO","Gadus morhua","Lever","FB",NA,NA,NA,NA,NA
+"1083","MO","Gadus morhua","Lever","WW",NA,NA,NA,NA,NA
+"1084","MO","Mytilus edulis","Whole soft body","DW","B7,B3,35A,B5,B2,B11,B10,B6",8,191,0.714285714285714,1.78551628551629
+"1085","MO","Mytilus edulis","Whole soft body","FB","35A",1,26,8.07142857142857,17.2222222222222
+"1086","MO","Mytilus edulis","Whole soft body","WW","B7,B11,B2,B3,B6,B10,35A,B5",8,207,0.1,0.22
+"1087","MONOKTYLT","Littorina littorea","Whole soft body","WW",NA,NA,NA,NA,NA
+"1088","MONOKTYLTIN","Littorina littorea","Whole soft body","WW",NA,NA,NA,NA,NA
+"1089","MONOKTYLTIN","Nucella lapillus","Whole soft body","WW",NA,NA,NA,NA,NA
+"1090","MPTIN","Littorina littorea","Whole soft body","WW",NA,NA,NA,NA,NA
+"1091","MPTIN","Nucella lapillus","Whole soft body","WW","71G",1,5,1,2.624
+"1092","P_S","Gadus morhua","Lever","DW",NA,NA,NA,NA,NA
+"1093","P_S","Gadus morhua","Lever","FB",NA,NA,NA,NA,NA
+"1094","P_S","Gadus morhua","Lever","WW",NA,NA,NA,NA,NA
+"1095","P_S","Mytilus edulis","Whole soft body","DW","98A2",1,17,10.7333333333333,38.25
+"1096","P_S","Mytilus edulis","Whole soft body","FB","98A2",1,15,80,379.3125
+"1097","PAH16","Gadus morhua","Lever","DW",NA,NA,NA,NA,NA
+"1098","PAH16","Gadus morhua","Lever","FB",NA,NA,NA,NA,NA
+"1099","PAH16","Gadus morhua","Lever","WW",NA,NA,NA,NA,NA
+"1100","PAH16","Mytilus edulis","Whole soft body","DW","98A2,I023",2,32,30.2416666666667,198.188461538461
+"1101","PAH16","Mytilus edulis","Whole soft body","FB","98A2",1,15,80,1146.99632352941
+"1102","PAH16","Mytilus edulis","Whole soft body","WW","98A2,I023",2,32,4.05,30.05
+"1103","PFAS","Gadus morhua","Lever","DW","43B2,80B,23B,53B",4,622,4.76556776556777,45.689935064935
+"1104","PFAS","Gadus morhua","Lever","DWa","80B,43B2,53B,23B,98B1",5,766,5.97346641384016,46.4848807967785
+"1105","PFAS","Gadus morhua","Lever","FB","43B2,80B,23B,53B",4,652,5.6751012145749,83.2499999999998
+"1106","PFAS","Gadus morhua","Lever","FBa","80B,43B2,23B,53B",4,649,6.51825895046062,86.7381917550557
+"1107","PFAS","Gadus morhua","Lever","WW","43B2,80B",2,251,1.57,11
+"1108","PFAS","Gadus morhua","Lever","WWa","43B2,80B",2,251,1.88828316142996,10.7330387573528
+"1109","PFAS","Mytilus edulis","Whole soft body","WW",NA,NA,NA,NA,NA
+"1110","PFDcA","Gadus morhua","Lever","DW",NA,NA,NA,NA,NA
+"1111","PFDcA","Gadus morhua","Lever","DWa",NA,NA,NA,NA,NA
+"1112","PFDcA","Gadus morhua","Lever","FB",NA,NA,NA,NA,NA
+"1113","PFDcA","Gadus morhua","Lever","FBa",NA,NA,NA,NA,NA
+"1114","PFDcA","Gadus morhua","Lever","WW",NA,NA,NA,NA,NA
+"1115","PFDcA","Gadus morhua","Lever","WWa",NA,NA,NA,NA,NA
+"1116","PFHpA","Gadus morhua","Lever","DW",NA,NA,NA,NA,NA
+"1117","PFHpA","Gadus morhua","Lever","DWa",NA,NA,NA,NA,NA
+"1118","PFHpA","Gadus morhua","Lever","FB",NA,NA,NA,NA,NA
+"1119","PFHpA","Gadus morhua","Lever","FBa",NA,NA,NA,NA,NA
+"1120","PFHpA","Gadus morhua","Lever","WW",NA,NA,NA,NA,NA
+"1121","PFHpA","Gadus morhua","Lever","WWa",NA,NA,NA,NA,NA
+"1122","PFHxA","Gadus morhua","Lever","DW",NA,NA,NA,NA,NA
+"1123","PFHxA","Gadus morhua","Lever","DWa",NA,NA,NA,NA,NA
+"1124","PFHxA","Gadus morhua","Lever","FB",NA,NA,NA,NA,NA
+"1125","PFHxA","Gadus morhua","Lever","FBa",NA,NA,NA,NA,NA
+"1126","PFHxA","Gadus morhua","Lever","WW",NA,NA,NA,NA,NA
+"1127","PFHxA","Gadus morhua","Lever","WWa",NA,NA,NA,NA,NA
+"1128","TCrP","Gadus morhua","Lever","DW",NA,NA,NA,NA,NA
+"1129","TCrP","Gadus morhua","Lever","DWa",NA,NA,NA,NA,NA
+"1130","TCrP","Gadus morhua","Lever","FB",NA,NA,NA,NA,NA
+"1131","TCrP","Gadus morhua","Lever","FBa",NA,NA,NA,NA,NA
+"1132","TCrP","Gadus morhua","Lever","WW",NA,NA,NA,NA,NA
+"1133","TCrP","Gadus morhua","Lever","WWa",NA,NA,NA,NA,NA
+"1134","TCrP","Mytilus edulis","Whole soft body","DW",NA,NA,NA,NA,NA
+"1135","TCrP","Mytilus edulis","Whole soft body","FB",NA,NA,NA,NA,NA
+"1136","TCrP","Mytilus edulis","Whole soft body","WW",NA,NA,NA,NA,NA
+"1137","TETRABUTYLT","Littorina littorea","Whole soft body","WW",NA,NA,NA,NA,NA
+"1138","TETRABUTYLTIN","Littorina littorea","Whole soft body","WW",NA,NA,NA,NA,NA
+"1139","TETRABUTYLTIN","Nucella lapillus","Whole soft body","WW",NA,NA,NA,NA,NA
+"1140","ToCrP","Gadus morhua","Lever","DW",NA,NA,NA,NA,NA
+"1141","ToCrP","Gadus morhua","Lever","DWa",NA,NA,NA,NA,NA
+"1142","ToCrP","Gadus morhua","Lever","FB",NA,NA,NA,NA,NA
+"1143","ToCrP","Gadus morhua","Lever","FBa",NA,NA,NA,NA,NA
+"1144","ToCrP","Gadus morhua","Lever","WW",NA,NA,NA,NA,NA
+"1145","ToCrP","Gadus morhua","Lever","WWa",NA,NA,NA,NA,NA
+"1146","ToCrP","Mytilus edulis","Whole soft body","DW",NA,NA,NA,NA,NA
+"1147","ToCrP","Mytilus edulis","Whole soft body","FB",NA,NA,NA,NA,NA
+"1148","ToCrP","Mytilus edulis","Whole soft body","WW",NA,NA,NA,NA,NA
+"1149","TPhP","Gadus morhua","Lever","DW",NA,NA,NA,NA,NA
+"1150","TPhP","Gadus morhua","Lever","DWa",NA,NA,NA,NA,NA
+"1151","TPhP","Gadus morhua","Lever","FB",NA,NA,NA,NA,NA
+"1152","TPhP","Gadus morhua","Lever","FBa",NA,NA,NA,NA,NA
+"1153","TPhP","Gadus morhua","Lever","WW",NA,NA,NA,NA,NA
+"1154","TPhP","Gadus morhua","Lever","WWa",NA,NA,NA,NA,NA
+"1155","TPhP","Mytilus edulis","Whole soft body","DW",NA,NA,NA,NA,NA
+"1156","TPhP","Mytilus edulis","Whole soft body","FB",NA,NA,NA,NA,NA
+"1157","TPhP","Mytilus edulis","Whole soft body","WW",NA,NA,NA,NA,NA
+"1158","TRISYKLOHEKSYLT","Littorina littorea","Whole soft body","WW",NA,NA,NA,NA,NA
+"1159","TRISYKLOHEKSYLTIN","Littorina littorea","Whole soft body","WW",NA,NA,NA,NA,NA
+"1160","TRISYKLOHEKSYLTIN","Nucella lapillus","Whole soft body","WW",NA,NA,NA,NA,NA
+"1161","TTBT","Littorina littorea","Whole soft body","WW",NA,NA,NA,NA,NA
+"1162","TTBT","Mytilus edulis","Whole soft body","DW",NA,NA,NA,NA,NA
+"1163","TTBT","Mytilus edulis","Whole soft body","FB",NA,NA,NA,NA,NA
+"1164","TTBT","Mytilus edulis","Whole soft body","WW",NA,NA,NA,NA,NA
+"1165","TTBT","Nucella lapillus","Whole soft body","DW","15G,22G,11G",3,15,1.96666666666667,2.49467492260062
+"1166","TTBT","Nucella lapillus","Whole soft body","WW","15G,76G,22G,131G,36G,11G,227G",7,35,0.708,1.0149
+"1167","HG","Gadus morhua","Muskel","WW","10B",1,504,0.019,0.056
+"1168","CD","Gadus morhua","Lever","WW","80B,67B,15B,23B",4,1655,0.0223,0.1365
+"1169","CU","Gadus morhua","Lever","WW","10B,15B,80B",3,1101,3.84,14
+"1170","PB","Gadus morhua","Lever","WW","92B,36B,67B,43B,15B,43B2,98B1,10B,23B,80B",10,3588,0.03,0.05
+"1171","ZN","Gadus morhua","Lever","WW","98B1,10B,92B,43B2,80B",5,1351,19.1,35
+"1172","CB_S7","Gadus morhua","Lever","WW","98B1,10B,92B,43B",4,1229,125,614
+"1173","DDEPP","Gadus morhua","Lever","WW","23B,10B,98B1",3,1498,41,160.749999999999
+"1174","HCHG","Gadus morhua","Lever","WW","53B,10B,92B,36B",4,1602,2,11
+"1175","HCB","Gadus morhua","Lever","WW","36B,53B",2,1079,4.9,14
+"1176","4-N-NP","Gadus morhua","Lever","WW","80B,43B2",2,135,10,131
+"1177","4-N-OP","Gadus morhua","Lever","WW","43B2,80B",2,135,20,23.5000000000001
+"1178","4-T-NP","Gadus morhua","Lever","WW","43B2,80B",2,135,100,240.9
+"1179","4-T-OP","Gadus morhua","Lever","WW","80B,43B2",2,135,10,20
+"1180","BDE47","Gadus morhua","Lever","WW","98B1,36B,23B",3,557,4,16
+"1181","BDE6S","Gadus morhua","Lever","WW","98B1",1,173,4.6,19.882
+"1182","BDESS","Gadus morhua","Lever","WW","98B1",1,173,7.3,21.42
+"1183","HBCDA","Gadus morhua","Lever","WW","43B2",1,65,2.16,7
+"1184","PFOA","Gadus morhua","Lever","WW","43B2,13B,80B,53B,36B,98B1,23B,30B",8,1289,1,10
+"1185","PFOS","Gadus morhua","Lever","WW","43B2,80B",2,251,1.1,10.25
+"1186","PFOSA","Gadus morhua","Lever","WW","43B2,98B1,53B,80B,23B",5,718,2,6.24499999999999
+"1187","SCCP","Gadus morhua","Lever","WW","23B,43B2,80B",3,245,59.4,154
+"1188","MCCP","Gadus morhua","Lever","WW","23B,43B2",2,174,76.3,392.8
+"1189","HG","Mytilus edulis","Whole soft body","WW","36A,46A,10A2",3,137,0.008,0.0122
+"1190","CD","Mytilus edulis","Whole soft body","WW","I241,26A2,I969",3,106,0.1075,0.18
+"1191","CR","Mytilus edulis","Whole soft body","WW","52A,15A,26A2,I131A,64A",5,100,0.1,0.361
+"1192","CU","Mytilus edulis","Whole soft body","WW","I307,I712,63A,I306,I304,57A,51A,64A,I023",9,353,0.92,1.4
+"1193","NI","Mytilus edulis","Whole soft body","WW","I241,I131A,52A,57A,26A2",5,101,0.15,0.29
+"1194","PB","Mytilus edulis","Whole soft body","WW","11X,48A",2,75,0.07,0.195
+"1195","AG","Mytilus edulis","Whole soft body","WW","26A2,22A,I241,I023,I712,I131A,63A,97A2",8,162,0.00415,0.00856499999999999
+"1196","ZN","Mytilus edulis","Whole soft body","WW","43A,I712,48A",3,49,13.4,17.66
+"1197","AS","Mytilus edulis","Whole soft body","WW","31A,I301,I023,30A,I712",5,116,1.4,2.5025
+"1198","CB_S7","Mytilus edulis","Whole soft body","WW","10A2,41A,11X,98A2,64A,97A2",6,194,0.59,1.15675
+"1199","DDEPP","Mytilus edulis","Whole soft body","WW","43A,41A,10A2,11X",4,147,0.09,0.224
+"1200","HCB","Mytilus edulis","Whole soft body","WW","48A,43A,15A,22A,46A,41A,98A2,11X,30A,10A2,36A",11,473,0.05,0.1
+"1201","NAP","Mytilus edulis","Whole soft body","WW","I023,98A2,71A",3,47,0.5,17.3
+"1202","ANT","Mytilus edulis","Whole soft body","WW","98A2,I131A,I307,I915,I913,71A",6,208,0.5,0.8
+"1203","FLU","Mytilus edulis","Whole soft body","WW","98A2,I023",2,32,1.2,5.35
+"1204","BAA","Mytilus edulis","Whole soft body","WW","I023,98A2",2,32,0.5,1.49
+"1205","BAP","Mytilus edulis","Whole soft body","WW","98A2,I307,I131A,I306,I304,30A,I913",7,354,0.5,1.2
+"1206","P_S","Mytilus edulis","Whole soft body","WW","98A2,I023",2,32,9.55,33.828
+"1207","BDE47","Mytilus edulis","Whole soft body","WW","98A2,26A2,71A,I023,91A2,30A",6,94,0.04295,0.1705
+"1208","BDE6S","Mytilus edulis","Whole soft body","WW","98A2,26A2,91A2,71A,I023,97A2,30A",7,109,0.1071,0.408
+"1209","HBCDA","Mytilus edulis","Whole soft body","WW","I023,97A2,91A2",3,44,0.0589,0.10985
+"1210","SCCP","Mytilus edulis","Whole soft body","WW","I023,71A,91A2,97A2,26A2,30A",6,90,2.705,20.26
+"1211","MCCP","Mytilus edulis","Whole soft body","WW","I023,26A2,71A,91A2,97A2,30A",6,89,13.9,87.6
+"1212","TBT","Mytilus edulis","Whole soft body","WW","11X",1,20,1,7.1065
+"1213","TBT","Littorina/Nucella","Whole soft body","WW","11G,15G,131G,98G",4,66,2.25,23.535
+"1214","VDSI/Intersex","Nucella lapillus","Whole soft body","WW","11G,15G,131G,76G",4,63,NA,3.68
