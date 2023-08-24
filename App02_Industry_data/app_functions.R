@@ -62,7 +62,7 @@ plot_timeseries <- function(param, stationcode,
                             medians = TRUE,
                             allsamples = FALSE){
   
-  browser()
+  #browser()
   
   seriesno <- get_seriesno(
     param = param, 
@@ -335,15 +335,15 @@ plot_timeseries_seriesno <- function(seriesno,
 #
 
 get_gam_data <- function(data, x = "x", y = "y", res = 0.25){
+  # browser()
   names(data)[which(names(data) == x)[1]] <- "x"
   names(data)[which(names(data) == y)[1]] <- "y"
-  # browser()
   if (nrow(data)>8){
-    mod <- mgcv::gam(y ~ s(x), data = data)
+    mod <- mgcv::gam(y ~ s(x, k=5), data = data)
   } else if (nrow(data) %in% 7:8) {
     mod <- mgcv::gam(y ~ s(x, k=4), data = data)
   }  else if (nrow(data) <= 6) {
-    mod <- mgcv::gam(y ~ s(x, k=3), data = data)
+    mod <- mgcv::gam(y ~ x, data = data)
   }
   result <- data.frame(x = seq(min(data$x), max(data$x), by = res))
   pred <- mgcv::predict.gam(mod, result, se.fit = TRUE)
@@ -351,7 +351,8 @@ get_gam_data <- function(data, x = "x", y = "y", res = 0.25){
   result$se <- pred$se.fit
   result$y_q2.5 <- pred$fit + qt(0.025, mod$df.residual)*pred$se.fit
   result$y_q97.5 <- pred$fit + qt(0.975, mod$df.residual)*pred$se.fit
-  names(result)[1:5] <- c(x, y, "se", paste0(y, "_lo"), paste0(y, "_hi"))
+  result$n <- nrow(data)
+  names(result)[1:6] <- c(x, y, "se", paste0(y, "_lo"), paste0(y, "_hi"), "n")
   result
 }
 
@@ -373,12 +374,13 @@ get_change_from_gamdata <- function(gamdata, x, y, dx = NULL){
   y_diff <- y2 - y1
   y_diff_se <- sqrt(y1_se^2 + y2_se^2)
   t <- abs(y_diff/y_diff_se)
+  df <- gamdata$n[1] - 1
   data.frame(
     change = y_diff,
     dx = dx,
     change_per_x = y_diff/dx, 
     t = t,
-    p = 2*(1-pnorm(t))
+    p = 2*(1-pt(t, df=df))
   )
 }
 
@@ -507,7 +509,12 @@ get_proref <- function(param, latin_name, tissue_name = NULL, basis, prorefdata)
 }
 
 if (FALSE){
+  lookup_proref <- read.csv("Input_data/Lookup_tables/Lookup_proref.csv") %>%
+    # filter(Basis %in% c("WW", "WWa")) %>%
+    select(PARAM, LATIN_NAME, TISSUE_NAME, Basis, Proref) 
   get_proref("HG", "Mytilus edulis", "Whole soft body", basis = "WW", prorefdata = lookup_proref)
+  get_proref("CU", "Mytilus edulis", "Whole soft body", basis = "WW", prorefdata = lookup_proref)
+  get_proref("CU", "Mytilus edulis", "Whole soft body", basis = "DW", prorefdata = lookup_proref)
 }
 
 
@@ -535,6 +542,7 @@ plot_timeseries_trend <- function(data_medians = NULL,
                                   ymin_perc = 100,
                                   ymax_perc = 100,
                                   xmin_rel = 0, xmax_rel = 0,
+                                  x_step = NULL,
                                   allsamples = FALSE,
                                   eqs = FALSE, 
                                   proref = "1",
@@ -675,6 +683,17 @@ plot_timeseries_trend <- function(data_medians = NULL,
       x = x_label) +
     annotate("text", x = trendtext_x, y = Inf, label = trendtext, hjust = 1, vjust = 1.2, size = trendtext_size, colour = "blue3")
 
+  # Optionally: control steps of the x axis
+  if (x_step %in% 0)
+    x_step <- round(diff(x_limits)/5, 0)
+  if (is.null(x_step))
+    x_step <- round(diff(x_limits)/5, 0)
+  if (x_step > 0)
+    gg <- gg +
+    scale_x_continuous(breaks = seq(x_limits[1], x_limits[2], by = x_step))
+  
+  
+  
 # Return the ggplot object
 gg
 

@@ -45,7 +45,6 @@ lookup_eqs <- read.csv("../Input_data/Lookup_tables/Lookup_EQS_limits.csv") %>%
   select(-Long_name, -Kommentar) %>%
   rename(EQS = Limit)
 lookup_proref <- read.csv("../Input_data/Lookup_tables/Lookup_proref.csv") %>%
-  filter(Basis %in% c("WW", "WWa")) %>%
   select(PARAM, LATIN_NAME, TISSUE_NAME, Basis, Proref) 
 
 # Lookup file for full parameter names
@@ -73,11 +72,14 @@ dataset1 <- readRDS("data_chem_industry_ranfjord_elkem_ind_2022.rds")
 dataset2 <- readRDS("data_chem_industry_kristiansand_glencore_ind_2022.rds")
 
 dat_all_prep3 <- bind_rows(dataset1, dataset2) %>%
-  mutate(Basis = "WW",
-         Station = case_when(
-           is.na(STATION_CODE) ~ STATION_NAME,
-           STATION_CODE %in% "" ~ STATION_NAME,
-           TRUE ~ paste(STATION_CODE, STATION_NAME))
+  mutate(
+    Basis = case_when(
+      BASIS %in% "W" ~ "WW",
+      BASIS %in% "D" ~ "DW"),
+    Station = case_when(
+      is.na(STATION_CODE) ~ STATION_NAME,
+      STATION_CODE %in% "" ~ STATION_NAME,
+      TRUE ~ paste(STATION_CODE, STATION_NAME))
   ) %>%
   filter(!is.na(VALUE))
 
@@ -133,6 +135,9 @@ if (!file_exists){
   close(zz)
 }
 
+
+
+
 # UI ----
 
 # Define UI for application that draws a histogram
@@ -144,8 +149,8 @@ ui <- fluidPage(
   # Sidebar with a slider input for number of bins 
   sidebarLayout(
     sidebarPanel(
-      shiny::selectInput(inputId = "param", label = "Parameter", choices = params, selected = "PYR1OH"),
-      shiny::selectInput(inputId = "station", label = "Station", choices = stations, selected = "15B Ullerø"),
+      shiny::selectInput(inputId = "param", label = "Parameter", choices = params, selected = "CD"),
+      shiny::selectInput(inputId = "station", label = "Station", choices = stations, selected = "St. 2 Fiskå"),
       shiny::selectInput(inputId = "tissue", label = "Tissue", choices = tissues, selected = "(automatic)"),  
       shiny::selectInput(inputId = "basis", label = "Basis", choices = basises, selected = "WW"),
       shiny::selectInput(inputId = "y_scale", label = "Y-scale", choices = c("ordinary", "log numbers", "log scale"), 
@@ -154,10 +159,11 @@ ui <- fluidPage(
       shiny::textInput("proref", "Proref lines, separated by comma (e.g. 1,2,5)", value = "1"),
       shiny::checkboxInput("medians", "Show medians", value = TRUE),
       shiny::checkboxInput("allsamples", "Show single measurements", value = FALSE),
-      shiny::sliderInput("ymin_perc", "Min y (%)", value = 100, min = 2, max = 200, step = 2),
-      shiny::sliderInput("ymax_perc", "Max y (%)", value = 100, min = 2, max = 200, step = 2),
+      shiny::sliderInput("ymin_perc", "Min y (%), fine-tune with arrow keys", value = 100, min = 0.1, max = 250, step = 0.1),
+      shiny::sliderInput("ymax_perc", "Max y (%), fine-tune with arrow keys", value = 100, min = 0.1, max = 250, step = 0.1),
       shiny::sliderInput("xmin_rel", "Change x min.", value = 0, min = -10, max = 40, step = 0.5),
-      shiny::sliderInput("xmax_rel", "Change x max.", value = 0, min = -40, max = 10, step = 0.5)
+      shiny::sliderInput("xmax_rel", "Change x max.", value = 0, min = -40, max = 10, step = 0.5),
+      shiny::sliderInput("x_step", "Distance between x labels (0 = auto)", value = 0, min = 0, max = 10, step = 1)
     ),
     
     # Show a plot of the generated distribution
@@ -181,9 +187,10 @@ server <- function(input, output) {
   #
   
   data_sel <- reactive({
-    # browser()
+    #if (input$param == "CO" & input$station == "Dvergsøya (referansestasjon)")
+    #  browser()
     dat_all_prep3 %>%
-      filter(PARAM %in% input$param & Station %in% input$station) %>%
+      filter(PARAM %in% input$param & Station %in% input$station & Basis %in% input$basis) %>%
       rename(x = MYEAR) %>%
       mutate(
         y = log(VALUE),
@@ -263,6 +270,7 @@ server <- function(input, output) {
                           ymin_perc = input$ymin_perc, 
                           ymax_perc = input$ymax_perc, 
                           xmin_rel = input$xmin_rel, xmax_rel = input$xmax_rel,
+                          x_step =  input$x_step,
                           titlestring = titlestring(),
                           y_label = unit_print,
                           trendtext = trendstring(),
@@ -292,6 +300,7 @@ server <- function(input, output) {
                           ymin_perc = input$ymin_perc, 
                           ymax_perc = input$ymax_perc, 
                           xmin_rel = input$xmin_rel, xmax_rel = input$xmax_rel,
+                          x_step =  input$x_step,
                           titlestring = titlestring(),
                           y_label = unit_print,
                           trendtext = trendstring(),

@@ -1,0 +1,23 @@
+model {
+  
+  y.hat <- a0*X + a %*% B ## expected response  
+  
+  for (i in 1:N){
+    Y[i] ~ dnorm(y.hat[i], tau)
+  }
+  sigma <- 1/tau         ## convert tau to standard GLM scale
+  tau ~ dgamma(.05,.005) ## precision parameter prior 
+  
+  a0 ~ dnorm(0, lambda[1])
+  
+  # Specify priors for spline terms
+  for (k in 1:K) {
+    a[k] ~ dnorm(0, lambda[2])
+  }
+  
+  ## smoothing parameter priors   
+  for (m in 1:2) {
+    lambda[m] ~ dgamma(.05,.005)
+    rho[m] <- log(lambda[m])
+  }
+}

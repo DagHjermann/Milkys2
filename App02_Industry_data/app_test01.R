@@ -7,8 +7,20 @@
 #    http://shiny.rstudio.com/
 #
 
-# Set 
+#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
+#
+# Code from the app, before UI and server parts ----
+# - ie. runs when the app starts
+#
+# . set work directory ----
+#
+#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
 setwd("/home/jovyan/shared/DHJ/Milkys2/App02_Industry_data")
+
+
+dir("App02_Industry_data/")
+
+# startup: packages ----
 
 library(dplyr)
 library(purrr)
@@ -23,6 +35,10 @@ library(svglite)
 source("../125_Calculate_trends_leftadjusted_functions.R")
 # source("../402_Plot_time_series_functions.R")
 source("app_functions.R")
+
+
+
+# startup: lookup files ----  
 
 # Lookup file for station names  
 lookup_stations <- read.csv("../Input_data/Lookup_tables/Lookup_stationorder.csv") %>%
@@ -40,7 +56,6 @@ lookup_eqs <- read.csv("../Input_data/Lookup_tables/Lookup_EQS_limits.csv") %>%
   select(-Long_name, -Kommentar) %>%
   rename(EQS = Limit)
 lookup_proref <- read.csv("../Input_data/Lookup_tables/Lookup_proref.csv") %>%
-  filter(Basis %in% c("WW", "WWa")) %>%
   select(PARAM, LATIN_NAME, TISSUE_NAME, Basis, Proref) 
 
 # Lookup file for full parameter names
@@ -55,29 +70,29 @@ folder_input <- paste0(folder_results, "_input")
 folder_output <- paste0(folder_results, "_output")
 
 # Data
+# startup: data ----  
+
+# NOTE: 
+# These data sets have been created by Dag using scripts
+#   994_Industry_data_2022_Ranfjorden_Elkem.Rmd
+#   994_Industry_data_2022_Glencore.Rmd
+# in folder/project "Milkys"
+# 
 
 dataset1 <- readRDS("data_chem_industry_ranfjord_elkem_ind_2022.rds")
-# dataset1b <- readRDS("../Data/109_adjusted_data_2022-09-23.rds") %>%
-#   filter(STATION_CODE %in% "15B",
-#          PARAM %in% c("PYR1OH","PYR1O")) %>%
-#   mutate(STATION_NAME = "Skågskjera, Farsund",
-#          BASIS = "WW") %>%
-#   select(-VALUE) %>%
-#   rename(VALUE = VALUE_WW)
-
 dataset2 <- readRDS("data_chem_industry_kristiansand_glencore_ind_2022.rds")
 
-dat_all_prep3 <- bind_rows(dataset1, dataset1b, dataset2) %>%
-# dat_all_prep3 <- bind_rows(dataset1, dataset1b, dataset2) %>%
-  mutate(Basis = "WW",
-         Station = case_when(
-           is.na(STATION_CODE) ~ STATION_NAME,
-           STATION_CODE %in% "" ~ STATION_NAME,
-           TRUE ~ paste(STATION_CODE, STATION_NAME))
+dat_all_prep3 <- bind_rows(dataset1, dataset2) %>%
+  mutate(
+    Basis = case_when(
+      BASIS %in% "W" ~ "WW",
+      BASIS %in% "D" ~ "DW"),
+    Station = case_when(
+      is.na(STATION_CODE) ~ STATION_NAME,
+      STATION_CODE %in% "" ~ STATION_NAME,
+      TRUE ~ paste(STATION_CODE, STATION_NAME))
   ) %>%
   filter(!is.na(VALUE))
-
-# df_trend <- readRDS(paste0(folder_output, "/126_df_trend_2021.rds"))
 
 # Add 'Param_name' and 'Tissue_name' to data    
 dat_all_prep3 <- dat_all_prep3 %>%
@@ -90,6 +105,7 @@ dat_all_prep3 <- dat_all_prep3 %>%
       TISSUE_NAME %in% "Galle" ~ "Bile",
       TRUE ~ TISSUE_NAME)
   )
+
 
 # Add 'Species_name' to data    
 dat_all_prep3 <- dat_all_prep3 %>%
@@ -131,7 +147,33 @@ if (!file_exists){
 }
 
 
+
+
+
+#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
+#
+# . set work directory back to normal ----
+#
+#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
+
 setwd("/home/jovyan/shared/DHJ/Milkys2")
+
+
+
+#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
+#
+# Test area ----
+#
+#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
+
+
+if (F){
+  
+  table(dataset2$MYEAR)
+  
+}
+
+
 
 if (FALSE){
   
@@ -140,20 +182,30 @@ if (FALSE){
   param <- "NI"
   param <- "PYR1O"
   param <- "PYR1OH"
+  param <-  "Dioksiner og dioksinliknende PCB"
   stcode <- "St. 1"
   stcode <- "I965"
+  stcode <- "15B"
   stcode <- "15B"
   # stcode <- "I969"
   #st <- "St. 1 Lumber"
   #st <- "Hanneviksbukta"
+  st <- "Glencore kai"
+  st <- "Dvergsøya (referansestasjon)"
 
   # table(dat_all_prep3$STATION_CODE) 
   # table(dat_all_prep3$Station) %>% names()
-
+  
+  if (FALSE){ 
+    dat_all_prep3 %>% filter(PARAM %in% input$param & Station %in% input$station & Basis %in% input$basis) %>% nrow()
+    dat_all_prep3 %>% filter(PARAM %in% input$param & Station %in% input$station) %>% nrow()
+    dat_all_prep3 %>% filter(PARAM %in% input$param) %>% nrow()
+  }
+  
   data_sel <- dat_all_prep3 %>%
-    filter(PARAM %in% param & STATION_CODE %in% stcode) %>%
-    #filter(Station %in% st) %>% # xtabs(~PARAM, .)
     filter(PARAM %in% param) %>%
+    # filter(STATION_CODE %in% stcode) %>%
+    filter(Station %in% st) %>% # xtabs(~PARAM, .)
     rename(x = MYEAR) %>%
     mutate(
       y = log(VALUE),
@@ -165,9 +217,13 @@ if (FALSE){
   # debugonce(get_median_data)
   data_sel_medians <- get_median_data(data_sel)
   
+  # debugonce(get_gam_data)
   data_sel_trend <- get_gam_data(data_sel_medians) %>%
     rename(ymin = y_lo, ymax = y_hi)
   
+  ggplot(data_sel_trend, aes(x,y)) + geom_ribbon(aes(ymin = ymin, ymax = ymax), fill = "grey70") + geom_point() 
+  
+  # debugonce(get_change_from_gamdata)
   chg <- get_change_from_gamdata(data_sel_trend, "x", "y")
   
   get_trendstring(chg)
