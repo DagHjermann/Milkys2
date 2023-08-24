@@ -107,8 +107,13 @@ file_date <- data_list$file_date
 # FOR 2021 DATA!  DATA WITHOUT STATION CODE!
 #
 
-warning("NOTE!!!! FOR 2021 DATA!  DATA WITHOUT STATION CODE!")
+if (sum(is.na(data_med2$STATION_CODE)) > 0){
+  stop("NOTE!!!! DATA WITHOUT STATION CODE!")
+}
+
 nrow(data_med2)
+
+# Remove isotopes  
 data_med2 <- data_med2 %>%
   filter(!(is.na(STATION_CODE) & PARAM %in% c("% C", "% N", "C/N", "Delta13C", "Delta15N")))
 nrow(data_med2)
@@ -174,7 +179,13 @@ sel_year <- as.numeric(substr(folders, 18, 21)) %in% last_year
 folders_last_year <- folders[sel_type & sel_year]
 versions <- as.numeric(substr(folders_last_year, 23, 24)) 
 
+message("Available version numbers: ", paste(versions, collapse = ", "))
+
 folders_last_year_latest <- folders_last_year[which.max(versions)]
+
+cat("\n")
+message("Picked version: ", max(versions))
+message("Picked folder: ", folders_last_year_latest)
 
 cat("\nSelected folder: \n   ", folders_last_year_latest, "\n")
 
