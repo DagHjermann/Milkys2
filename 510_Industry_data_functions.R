@@ -349,6 +349,7 @@ plot_medians_and_trends2 <- function(ser, x_rel = 0.8, y_rel = 0.9, xlim = NULL,
   # Add trend symbol
   trends <- set_symbol_word(bind_rows(time_trend_long, time_trend_10yr))
   
+  # browser()
   if (trendsymbols){
     gg <- add_trend(gg, trendsymbols = trends, x_rel = x_rel, y_rel = y_rel, 
                     x_spacing = trendsymbols_x_spacing, 
@@ -402,4 +403,233 @@ set_symbol_word <- function(data){
   # result[sel] <- chr(234)
   result
 }
+
+
+round_pvalue <- function(x){
+  if (x > 0.2){
+    "P > 0.2"
+  } else if (x >= 0.05){
+    paste("P =", round(x, 2))
+  } else if (x >= 0.01){
+    "0.01 <= P < 0.05"
+  } else if (x >= 0.001){
+    "0.001 <= P < 0.01"
+  } else if (x < 0.001){
+    "P < 0.001"
+  }
+}
+
+
+# Function for plotting proref only   
+# * Need this in some cases where just changing x and y limits isnn't enough  
+
+plot_medians_proref <- function(X, proref,
+                               title = NULL, 
+                               include_zero = TRUE, proref_x = NULL, show_proref = 1:5, 
+                               xlim = NULL, ylim = NULL, ylim_proref = NULL,
+                               trend_color = "black", trend_size = 2,    # For eqs_type = "background", use e.g. dark/light green for trends:
+                               ci_fill = "grey80",                        # trend_color = "#33a02c", ci_fill = "#b2df8a"  (rom  PuBuGn)
+                               points_color = "black", points_fill = "grey30", points_size = 3, points_shape = 21, 
+                               points_color_loq = "black", points_fill_loq = "#a6cee3", points_size_loq = 3, points_shape_loq = 25,  # light blue
+                               proref_label_transparent = TRUE,                                        # if TRUE, 'PROREF ...' will be on a white rectangle 
+                               proref_label_size = 4,                                                 # Size of 'PROREF ...' label 
+                               add_line = FALSE,        # for line through points   
+                               add_trend_linear = FALSE,  # for linear regression line
+                               add_trend_text = TRUE
+){      # red
+  
+  sel_detlimit <- with(X$df_data, Over_LOQ <= N_median*0.5) 
+  
+  gg <- ggplot(X$df_data, aes(x = MYEAR))
+  
+  if (add_line){
+    gg <- gg + 
+      geom_line(data = X$df_data, aes(y = Median))
+  }
+  
+  if (add_trend_linear){
+    gg <- gg + 
+      geom_smooth(data = X$df_data, aes(y = Median), method = "lm", se = FALSE)
+  }
+  
+  gg <- gg + 
+    geom_point(data = X$df_data[!sel_detlimit,], aes(y = Median), 
+               shape = points_shape, color = points_color, fill = points_fill, size = points_size) +
+    geom_point(data = X$df_data[sel_detlimit,], aes(y = Median), 
+               shape = points_shape_loq, color = points_color_loq, fill = points_fill_loq, size = points_size_loq) +
+    scale_x_continuous(breaks = unique(X$df_data$MYEAR), minor_breaks = NULL)
+
+  if (is.null(xlim))
+    xlim <- range(X$df_data$MYEAR, na.rm = TRUE) + c(-1,0)
+  if (is.null(proref_x)){
+    proref_x <- rep(xlim[1], 5)
+  }
+  
+    
+  txt_lim <- data.frame(
+    MYEAR = proref_x, 
+    Median = c(1,2,5,10,20)*proref, 
+    txt = c("PROREF", "PROREF x 2", "PROREF x 5", "PROREF x 10", "PROREF x 20")
+  )
+  
+  # PROREF lines
+  if (!is.na(proref) & proref_label_transparent){
+    for (i in show_proref){
+      gg <- gg +
+        geom_hline(yintercept = txt_lim[i, "Median"], linetype = 2, col = "grey25") +
+        geom_text(data = txt_lim[show_proref,], aes(y = Median, label = txt), hjust = 0, vjust = -0.5, size = proref_label_size)
+    }
+      
+    } else if (!is.na(proref) & !proref_label_transparent){
+      for (i in show_proref){
+        gg <- gg +
+          geom_hline(yintercept = txt_lim[i, "Median"], linetype = 2, col = "grey25") +
+          geom_label(data = txt_lim[show_proref,], aes(y = Median, label = txt), hjust = 0, vjust = -0.5, size = proref_label_size, label.size = 0)
+      }
+    }
+
+  
+  if (add_trend_text){
+    mod <- lm(Median ~ MYEAR, X$df_data)
+    trend_coef <- summary(mod)$coef["MYEAR",]
+    trend_text <- paste0(
+      "Trend: ", round(trend_coef["Estimate"], 3), "/yr", 
+      " (", round_pvalue(trend_coef["Pr(>|t|)"]), ")"
+    )
+    gg <- gg + annotate("label", x = Inf, y = Inf, label = trend_text, 
+                        hjust = 1.5, vjust = 1.5,
+                        size = 4)
+  }
+  
+  gg
+
+  
+}
+
+
+
+#
+# Used in 512_Hvaler_Fucus_bluemussel
+#
+
+get_trendsymbol <- function(trendsymbol, windows = FALSE){
+  library(extrafont)
+  # For Windows PCs
+  if (windows){
+    txt <- case_when(
+      trendsymbol == "arrowup" ~ "\u2191",    # Wingdings 3, h
+      trendsymbol == "arrowdown" ~ "\u2193",  # Wingdings 3, i
+      trendsymbol == "circle" ~ "\u26AA",     # Wingdings, U+2B58 
+      trendsymbol == "star" ~ "\u2606",
+      trendsymbol == "square" ~ "\u25FE"
+    )
+    fontsize_rel <- case_when(
+      trendsymbol == "arrowup" ~ 0.8,
+      trendsymbol == "arrowdown" ~ 0.8,
+      trendsymbol == "circle" ~ 0.7,
+      trendsymbol == "star" ~ 1,
+      trendsymbol == "square" ~ 1.3
+    )
+    # For Linux (e.g. Jupyterhub)
+  } else {
+    txt <- case_when(
+      trendsymbol == "arrowup" ~ "\u2191",
+      trendsymbol == "arrowdown" ~ "\u2193",
+      trendsymbol == "circle" ~ "\u25CB",
+      trendsymbol == "star" ~ "\u2606",
+      trendsymbol == "filledsquare" ~ "\u25FE"  # 25FE
+    )
+    relsize <- case_when(
+      trendsymbol == "filledsquare" ~ 0.55,
+      trendsymbol == "arrowdown" ~ 0.8,
+      trendsymbol == "arrowup" ~ 0.8,
+      trendsymbol == "star" ~ 0.65,
+      TRUE ~ 1
+    )
+  }
+  
+  list(txt, relsize)
+  
+}
+
+
+select_data <- function(ser, data_medians){
+  data_medians %>%
+    filter(PARAM == ser[1] & LATIN_NAME == ser[2] & TISSUE_NAME == ser[3] & 
+             STATION_CODE == ser[4] & Basis == ser[5])
+}
+
+plot_medians_and_trends3 <- function(ser, x_rel = 0.8, y_rel = 0.9, xlim = NULL, ylim = NULL, 
+                                     titlesize = 0.85, 
+                                     trend_years = NULL, 
+                                     data_medians,
+                                     fontsize = 5,
+                                     trend_hjust = 1.3, trend_vjust = 1.3, trend_size = 12){
+  
+  if (is.null(trend_years) & !is.null(xlim))
+    trend_years <- seq(xlim[1], xlim[2])
+  if (is.null(trend_years) & is.null(xlim))
+    stop("You must supply either xlim or trend_years")
+  
+  df_data <- select_data(ser=ser, data_medians=data_medians)
+  
+  obj <- list()
+  obj$df_med_st <- df_data %>% mutate(MYEAR_regr = MYEAR)
+  obj$sel_ts <- rep(TRUE, 10)
+  obj$N <- nrow(obj$df_med_st)
+  obj$Nplus <- nrow(obj$df_med_st)
+  regr_result <- calc_models_gam(obj, gam = TRUE, n_pred = 30)
+  time_trend <- statistics_for_excel(obj, regr_result, gam = TRUE) 
+  time_trend$N_data <- nrow(obj$df_med_st)
+  
+  # Add trend symbol
+  trend <- set_symbol_word(time_trend)
+  trendsymbol <- get_trendsymbol(trend)
+  
+  # Title
+  plot_title <- paste0(ser[1], " i ", ser[2], ", stasjon ", ser[4])
+  
+  # y limit
+  ylim <- c(0, max(df_data$Median, na.rm = TRUE)*1.3)
+  
+  # Start plot
+  gg <- ggplot(df_data, aes(x = MYEAR))
+  
+  # Add trend
+  if (time_trend$AICc_nonlin[1] < time_trend$AICc_lin[1]){
+    # Non-linear trend
+    gg <- gg +
+      geom_ribbon(data = regr_result$mod_lin_yFit, aes(x = Year, ymin = exp(LowLimit), ymax = exp(HighLimit)), fill = "lightsteelblue") + 
+      geom_line(data = regr_result$mod_lin_yFit, aes(x = Year, y = exp(Estimate)))
+  } else {
+    # Linear trend
+    gg <- gg +
+      geom_smooth(aes(y = Median), method = "lm", fill = "lightsteelblue")
+  }
+
+  # Add points and the rest
+  gg <- gg +
+    geom_point(aes(y = Median)) +
+    labs(title = plot_title) +
+    coord_cartesian(ylim = ylim ) +
+    annotate("text", x = Inf, y = Inf, label = trendsymbol[[1]],  
+             hjust = trend_hjust, vjust = trend_vjust, size = trend_size*trendsymbol[[2]])
+  
+  ## Add theme
+  gg <- gg + theme_bw()
+  
+  # Make file name (but does not save file)
+  fn <- paste0("TSplot_", ser[1], "_", ser[2], "_", ser[3], "_", ser[4], "_", ser[5], ".png")
+  fn <- tolower(fn)
+  fn <- sub("æ", "ae", fn)
+  fn <- sub("ø", "oe", fn)
+  fn <- sub("å", "aa", fn)
+  
+  # Return plot (gg) and file name (fn)
+  list(gg = gg, fn = fn)
+  
+}
+
+
+
 

@@ -433,6 +433,9 @@ get_data_trends <- function(data_medians,
                             include_year){
   
   spp <- unique(data_medians$LATIN_NAME)
+  if ("Littorina littorea" %in% spp){
+    spp <- c(spp, "N. lapillus / L. littorea")
+  }
 
   dat_trends_list <- list()
   for (species in spp){
@@ -475,6 +478,9 @@ get_data_trends <- function(data_medians,
     data_medians_series %>% mutate(Trend_type = "long"),
     data_medians_series %>% mutate(Trend_type = "short")
   )
+  
+  sel <- dat_trends_all$STATION_CODE %in% "71G"
+  dat_trends_all$LATIN_NAME[sel] <- "Littorina littorea" 
   
   dat_trends_01 <- data_medians_series %>%
     left_join(dat_trends_all,
@@ -548,6 +554,8 @@ get_data_trends2 <- function(data_medians,
   dat_trends_all
 }
 
+
+
 # get_data_trends2(dat_medians_list[[1]], basis = "WW", include_year = 2021) 
 
 
@@ -592,6 +600,158 @@ if (FALSE){
   get_caption_text(lookup_ref_value, "BAC", "EAC", "dw", "dw", "µg/kg")
 }
 
+
+check_unit <- function(data){
+  # Check that the data has only a single unit  
+  units <- unique(data$UNIT)
+  if (length(units) > 1){
+    stop("More than one unit in the data!")
+  }
+  data
+}
+
+#
+# Adds the variable 'Tooltip_txt' based on the following variables:
+#   Value, Value_min, Value_max, Value_p25, Value_p75
+#   N_median
+#   Over_LOQ, N_median, Det_limit
+#   Refratio1 and ref_type1 (text string, e.g. "PROREF")  
+#   Refratio2 and ref_type2 (text string, e.g. "EQS") - only if ref_type2 is given  
+
+add_tooltip_text_tiles <- function(data, ref_type1, ref_type2 = NULL, unit){
+  result <- data %>%
+    mutate(
+    Value_txt = case_when(
+      is.na(FLAG1) ~ signif2(Value, 2, maxdigits = 5),
+      !is.na(FLAG1) & Value > 0 ~ paste0("<", signif2(Value, 2, maxdigits = 4)),
+      !is.na(FLAG1) & Value == 0 ~ "0"),                              # for 'SCCP eksl. LOQ' + 'MCCP eksl. LOQ'
+    txt_conc = glue("Median value: {Value_txt} {unit} ({signif(Value_min, 2)} - {signif(Value_max, 2)}; N = {N_median})"),
+    txt_perc = glue("25% and 75% percentiles: {signif(Value_p25, 2)}-{signif(Value_p75, 2)}"),
+    txt_loq = case_when(
+      Over_LOQ < N_median ~ glue(
+        "Measurements over LOQ: {Over_LOQ} ({signif(100*(Over_LOQ/N_median))}%); median_LOQ = {Det_limit}"),
+      Over_LOQ == N_median ~ "All measurements are over LOQ"),
+    txt_ref1 = glue("The median is {signif(Refratio1, 2)} times the {ref_type1}"),
+    Tooltip_txt = txt_conc,
+    Tooltip_txt = ifelse(N_median > 5, paste(Tooltip_txt, "<br>", txt_perc), Tooltip_txt),
+    Tooltip_txt = paste(Tooltip_txt, "<br>", txt_loq),
+    Tooltip_txt = paste(Tooltip_txt, "<br>", txt_ref1)
+  )
+  if (!is.null(ref_type2)){
+    result <- result %>% 
+      mutate(
+        txt_ref2 = glue("The median is {signif(Refratio2, 2)} times the {ref_type2}"),
+        Tooltip_txt = case_when(
+          !is.null(ref_type2) ~ paste(Tooltip_txt, "<br>", txt_ref2),
+          is.null(ref_type2) ~ Tooltip_txt)
+      )
+  }
+  result
+}
+
+add_tooltip_text_trends <- function(data){
+  data %>% 
+    mutate(
+      Tooltip_txt = paste0(
+        ifelse(Trend_type == "short", "10-year trend: ", "Long-term trend: "), Trend_string),
+      Tooltip_txt = ifelse(
+        Trend_string %in% c("Decreasing", "Increasing"),
+        paste0(Tooltip_txt, "<br>Change per year: ", sprintf("%.1f", Perc_annual), 
+               "% (conf.int.: ", round(Perc_annual_hi,1), " - ", round(Perc_annual_lo,1), ")"),
+        Trend_string
+      )
+    )
+}
+
+check_tile_colours <- function(data, tile_colours){
+  check1 <- length(levels(data$Refratio_cut))
+  check2 <- length(tile_colours)
+  if (check1 != check2){
+    stop("Number of ratio categories = ", check1, ", number of colors = ", check2, ". They should be the same length.")
+  }
+}
+
+# data must contain variable 'Refratio_cut'
+
+get_tile_colours <- function(data){
+  
+  tile_colours <- c(RColorBrewer::brewer.pal(6, "Blues")[5:2],
+                    RColorBrewer::brewer.pal(6, "YlOrRd")[1:5])
+  names(tile_colours) <- levels(data$Refratio_cut)
+  
+  check_tile_colours(data, tile_colours)
+  
+  tile_colours
+  
+}
+
+get_tile_plot <- function(data, tile_colours){
+  
+  check_tile_colours(data, tile_colours)
+  
+  data <- data %>%
+    mutate(Station = fct_rev(Station))
+  
+  ggplot(data, aes(MYEAR, Station)) +
+    geom_tile(aes(fill = Refratio_cut)) + 
+    geom_tile(data = subset(data, Refratio2 > 1),
+              color = "red", size = 1, height = 0.9, width = 0.9, alpha = 0) +
+    geom_text_interactive(aes(label = Value_txt, tooltip = Tooltip_txt), nudge_y = 0, size = 3) +
+    # geom_text(aes(label = LOQ_label), size = 3, nudge_y = 0.3) +
+    scale_fill_manual(paste0("Ratio\nconc./", ref_type1), values = tile_colours) +
+    scale_x_continuous(breaks = seq(startyr, 2020, 2), 
+                       limits = c(startyr-0.5, current_year+0.5)) +
+    theme_bw() +
+    guides(colour = "none") +
+    labs(
+      title = plot_title,
+      x = "Year", y = "")    # could also add: caption = caption_text)
+  
+}
+
+get_station_levels <- function(data){
+  tab <- table(data$Station)
+  station_levels <- names(tab)
+  station_levels <- station_levels[tab != 0]
+  station_levels
+}
+
+get_trend_plot <- function(data, y_range){
+  
+  ggplot(data, aes(x = Station, y = Perc_annual)) +
+    geom_linerange(aes(ymin = Perc_annual_lo, ymax = Perc_annual_hi, colour = Trend_color), size = 1) +
+    geom_point_interactive(aes(fill = Trend_color, shape = Trend_color, tooltip = Tooltip_txt), 
+                           colour = "black", size = 3) +
+    scale_colour_manual(values = trend_colours, drop = FALSE) +
+    scale_fill_manual(values = trend_colours, drop = FALSE) +
+    scale_shape_manual(values = trend_shapes, drop = FALSE) +
+    geom_hline(yintercept = 0, color = "grey30") +
+    geom_label(aes(y = label_coor, 
+                   label = Trend_text), fill = "white", color = "blue3", 
+               label.size = 0, size = 3, hjust = 0.5) +
+    scale_x_discrete(limits = levels(data$Station)) +
+    coord_flip(ylim = y_range) +
+    labs(title = glue("Trend ({type}-term)"), y = "Change (%)") +
+    theme_bw() 
+
+}
+
+get_combo_plot <- function(tileplot, trendplots){
+  cowplot::plot_grid(
+    tileplot + theme(legend.position = "none"), 
+    trendplots[[1]] + 
+      theme(axis.title.y = element_blank(),
+            axis.text.y = element_blank(),
+            legend.position = "none"), 
+    trendplots[[2]] + 
+      theme(axis.title.y = element_blank(),
+            axis.text.y = element_blank()), 
+    nrow = 1, ncol = 3,
+    rel_heights = 3,
+    rel_widths = c(2.7, 0.75, 1.25)
+  )
+}
+
 #o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
 #
 # APPENDIX: LOQ ----
@@ -607,7 +767,9 @@ if (FALSE){
   dat_trends <- readRDS("Data/125_results_2021_07_output/126_df_trend_2021.rds")  
   dat_trends %>%
     dplyr::filter(PARAM %in% "TBT" & Basis == "WW") %>% View("tbt")
-   
+
+  dat_trends %>%
+    dplyr::filter(STATION_CODE %in% "71G") %>% View("71G")
   
   # LOQ median values for all parameters
   dat_raw %>%

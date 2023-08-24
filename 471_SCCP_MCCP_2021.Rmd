@@ -1,0 +1,214 @@
+---
+title: "471_SCCP_MCCP_2021"
+author: "DHJ"
+date: "2022-10-30"
+output: html_document
+---
+
+ we assume that uncertainty is the same for all years (sounds worse than it is?)
+
+## 0. Settings  
+```{r}
+
+selected_year <- 2021
+
+```
+
+
+## 1. Packages  
+```{r}
+
+library(dplyr)
+library(tidyr)
+library(purrr)
+library(readxl)
+library(ggplot2)
+source("002_Utility_functions.R")
+
+```
+
+
+## 2. Get data  
+
+### a. Main data  
+Read and reformat the most recent data (by default)     
+```{r}
+
+# Code from script 105
+
+# Files 
+files <- list_files("Data", pattern = "101_data_updated")
+
+# Pick file
+filename <- files[1]
+cat("\nLast file:", filename, "\n")
+cat("Time since this file was modified: \n")
+Sys.time() - file.info(paste0("Data/", filename))$mtime 
+
+# Info
+cat("\nIf you want to read a different file, input a different name for 'filename' \n")
+
+# Read data
+dat_all <- readRDS(paste0("Data/", filename))
+
+# We save the date part of the text (e.g., '2020-04-23')
+# This will be used in part 10, when we save the resulting file
+file_date <- substr(filename, 18, 27)    # pick out the part of the text from character no. 17 to no. 26
+
+```
+
+## 3. Tables for SCCP    
+
+### PARAM used by year    
+```{r}
+
+dat_all %>% filter(grepl("SCCP", PARAM)) %>% xtabs(~MYEAR + PARAM, .)
+
+```
+
+### PARAM used by year    
+```{r}
+
+dat_all %>% filter(grepl("SCCP", PARAM)) %>% xtabs(~MYEAR + PARAM, .)
+
+```
+
+### Number of samples by PARAM + station, last years   
+```{r}
+
+dat_all %>% filter(grepl("SCCP", PARAM) & MYEAR == 2021) %>% xtabs(~STATION_CODE + PARAM, .)
+dat_all %>% filter(grepl("SCCP", PARAM) & MYEAR == 2020) %>% xtabs(~STATION_CODE + PARAM, .)
+
+```
+### Less-than values, 2021      
+
+```{r}
+
+dat_all %>% filter(grepl("SCCP", PARAM) & MYEAR %in% 2021 & FLAG1 %in% "<") %>% xtabs(~STATION_CODE + MYEAR + PARAM, .)
+
+```
+
+### Less-than values, 2019-2020    
+
+```{r}
+
+dat_all %>% filter(grepl("SCCP", PARAM) & FLAG1 %in% "<") %>% xtabs(~MYEAR + PARAM, .)
+
+dat_all %>% filter(grepl("SCCP", PARAM) & MYEAR %in% 2019:2020 & FLAG1 %in% "<") %>% xtabs(~STATION_CODE + MYEAR + PARAM, .)
+
+```
+
+### Check a station, 2021  
+
+```{r}
+
+stn <- "98B1"  
+yr <- 2021  
+
+dat_all %>% 
+  filter(grepl("SCCP", PARAM) & MYEAR %in% yr & STATION_CODE == stn) %>%
+  select(STATION_CODE, SAMPLE_NO2, PARAM, VALUE=VALUE_WW, FLAG1) %>%
+  pivot_wider(id_cols = c(STATION_CODE, SAMPLE_NO2), names_from = c(PARAM), values_from = c(VALUE, FLAG1)) %>%
+  arrange(STATION_CODE, SAMPLE_NO2)
+
+```
+
+
+### Incl. and excl. LOQ  
+```{r, fig.width=8.5, fig.height=6}
+
+# spec <- "Gadus morhua"
+param <- "SCCP"
+params <- paste(param, c("eksl. LOQ", "inkl. LOQ"))
+
+for (spec in c("Gadus morhua", "Mytilus edulis")){
+  
+  gg <- dat_all %>% 
+    filter(PARAM %in% params,
+           LATIN_NAME %in% spec,
+           MYEAR >= 2015) %>%
+    group_by(STATION_CODE, MYEAR, PARAM) %>%
+    summarise(Median = median(VALUE_WW)) %>%
+    ggplot(aes(MYEAR, Median, colour = PARAM)) +
+    scale_colour_manual(values = c("blue4", "red2")) +
+    geom_line(shape = 1) +
+    facet_wrap(vars(STATION_CODE)) +
+    labs(title = paste(param, "(with/without LOQ)")) +
+    theme_bw()
+  
+  print(gg)
+  
+}
+
+```
+
+
+### Incl. and excl. LOQ  
+```{r, fig.width=10, fig.height=8}
+
+spec <- "Gadus morhua"
+
+dat_all %>% 
+  filter(PARAM %in% c("SCCP eksl. LOQ", "SCCP inkl. LOQ"),
+         LATIN_NAME %in% spec,
+         MYEAR >= 2015) %>%
+  select(STATION_CODE, SAMPLE_NO2, MYEAR, PARAM, VALUE_WW) %>%
+  ggplot(aes(MYEAR, VALUE_WW, colour = PARAM)) +
+  geom_point(shape = 1) +
+  facet_wrap(vars(STATION_CODE))
+
+```
+
+
+## Tables for 2021, for report    
+
+### SCCP eksl. LOQ   
+
+```{r}
+
+spec <- "Gadus morhua"
+
+dat_all %>% 
+  filter(PARAM %in% "SCCP eksl. LOQ") & MYEAR %in% selected_year & LATIN_NAME %in% spec) %>%
+  group_by(STATION_CODE) %>%
+  summarise(
+    n = n(), 
+    min = min(VALUE_WW),
+    max = max(VALUE_WW)
+    )
+  pivot_wider(id_cols = c(STATION_CODE, SAMPLE_NO2), names_from = c(PARAM), values_from = c(VALUE, FLAG1)) %>%
+  arrange(STATION_CODE, SAMPLE_NO2) 
+
+```
+
+
+## 
+
+### a. Main data  
+Read and reformat the most recent data (by default)     
+```{r}
+
+# Code from script 105
+
+# Files 
+files <- list_files("Data", pattern = "109_adjusted")
+
+# Pick file
+filename <- files[1]
+cat("\nLast file:", filename, "\n")
+cat("Time since this file was modified: \n")
+Sys.time() - file.info(paste0("Data/", filename))$mtime 
+
+# Info
+cat("\nIf you want to read a different file, input a different name for 'filename' \n")
+
+# Read data
+dat_all <- readRDS(paste0("Data/", filename))
+
+# We save the date part of the text (e.g., '2020-04-23')
+# This will be used in part 10, when we save the resulting file
+file_date <- substr(filename, 18, 27)    # pick out the part of the text from character no. 17 to no. 26
+
+```
+
+

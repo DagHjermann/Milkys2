@@ -42,8 +42,8 @@ library(cowplot)
 
 ```{r 03_medians_data1}
 
-dat_raw <- readRDS("Data/109_adjusted_data_2022-09-01.rds")                              
-dat_medians <- readRDS("Data/110_mediandata_updated_2022-09-01.rds")
+dat_raw <- readRDS("Data/109_adjusted_data_2022-09-23.rds")                              
+dat_medians <- readRDS("Data/110_mediandata_updated_2022-09-23.rds")
 
 # Stations - for corrrect ordering
 lookup_stations <- read.csv("Input_data/Lookup_tables/Lookup_stationorder.csv") # %>%

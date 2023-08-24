@@ -198,7 +198,7 @@ type <- "line"
 # debugonce(plot_medians_color)
 ymax <- 0.45
 X <- plot_medians_and_trends(c("HG", "Gadus morhua", "Muskel", "30B",  "WW"),  
-                             eqs_type = "line", xlim = c(1976, 2021), ylim = c(0, ymax), add_trend_symbols = TRUE)
+                             eqs_type = "line", xlim = c(1976, 2020), ylim = c(0, ymax), add_trend_symbols = TRUE)
 X                               # show below (in this Rmd file)
 #save_trendplot(X, folder_test)  # save as file
 

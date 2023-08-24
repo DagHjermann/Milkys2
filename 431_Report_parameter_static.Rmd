@@ -3,11 +3,11 @@ title: "Report for parameter (431)"
 author: "DHJ"
 date: "04.10.2022"
 params:
-  param: "HG"
+  param: "D5"
   basis_medians: "WW"
-  basis_trends: "WWa"
+  basis_trends: "WW"
   eqsplot: "TRUE"
-  ratioplot_trend: "TRUE"
+  include_trend: "TRUE"
 output: 
   html_document:
   keep_md: false
@@ -20,8 +20,8 @@ toc_float: true
 
 # Normal 'params' (see heading above)
 # - WW for both 'basis_medians' and 'basis_trends' (exception for Hg, see special case 1 below)  
-# - eqsplot "TRUE" or "FALSE" depending on whether EQS exists or not (see 431_run_markdown)   
-# - ratioplot_trend "TRUE" normally (exception for SCCP and MCCP, see special case 1 below)
+# - eqsplot - whther EQS plot should be made - "TRUE" or "FALSE" depending on whether EQS exists or not (see 431_run_markdown)   
+# - include_trend - whether the EQS/Proref plots should mark trends using color and shape of median - "TRUE" normally (exception for SCCP and MCCP, see special case 1 below)
 
 # Special case 1: Hg plots  
 # - Needs
@@ -36,7 +36,7 @@ toc_float: true
 #     (do NOT run '06_combine_plots', whcich will overwrite your plots)
 # - Ratio plots: 
 #     no Proref ratios for any of them
-#     EQS plot for 'MCCP eksl. LOQ' - set 'ratioplot_trend' above = 'FALSE' - then run      
+#     EQS plot for 'MCCP eksl. LOQ' - set 'include_trend' above = 'FALSE' - then run      
 
 
 ```
@@ -171,6 +171,8 @@ if (params$param %in% "HG" & params$basis_medians %in% "WWa"){
 
 dat_medians_list[[2]] <- dat_temporary[[4]]
 
+map(dat_medians_list, nrow)
+
 ```
 
 
@@ -252,8 +254,6 @@ if (FALSE){
   
 }
 
-
-
 ```
 
 ```{r 05_trends_settings}
@@ -282,6 +282,8 @@ dat_trends_plot_list <- purrr::map(
 # levels(dat_trends_plot_list[[1]]$Station)
 # View(dat_trends_plot_list[[1]])
 
+map(dat_trends_plot_list, nrow)
+
 ```
 
 ```{r 05_trends_create_plots}
@@ -294,6 +296,8 @@ if (is.null(dat_trends_plot_list[[1]])){
 } else {
   speciesgroups <- 1:2
 }
+
+if (params$include_trend == "TRUE"){
 
 #
 # Two things happens here: 
@@ -351,6 +355,8 @@ for (speciesgroup in speciesgroups){
   
 }
 
+}
+
 
 if (FALSE){
   gg_trends_list[[1]][["long"]]
@@ -368,6 +374,8 @@ ggcomb_list <- list()
 
 for (speciesgroup in speciesgroups){
   
+  if (params$include_trend == "TRUE"){
+
   ggcomb_list[[speciesgroup]] <- cowplot::plot_grid(
     gg_tile_list[[speciesgroup]] + theme(legend.position = "none"), 
     gg_trends_list[[speciesgroup]][[1]] + 
@@ -382,6 +390,13 @@ for (speciesgroup in speciesgroups){
     rel_widths = c(2.7, 0.75, 1.25)
   )
   
+  } else {
+    
+    ggcomb_list[[speciesgroup]] <- gg_tile_list[[speciesgroup]] + 
+      theme(legend.position = "none")
+    
+  }
+  
   ggcomb_legend <- cowplot::get_legend(gg_tile_list[[speciesgroup]])
   
   # Set name of figure file (mercury in cod+birds is treated as a special case)
@@ -391,8 +406,13 @@ for (speciesgroup in speciesgroups){
     filename <- glue::glue("Figures/431/{params$param}_combo_{speciesgroup}.png")
   }
   
+  if (params$include_trend == "TRUE"){
+    width <- 14
+  } else {
+    width <- 14*2.7/(2.7 + 0.75 + 1.25)
+  }
   # Save
-  ggsave(filename, ggcomb_list[[speciesgroup]], width = 14, height = 8, dpi = 200)
+  ggsave(filename, ggcomb_list[[speciesgroup]], width = width, height = 8, dpi = 200)
     
   # Make and save legend
   filename <- glue::glue("Figures/431/_combo_legend.png")
@@ -412,6 +432,9 @@ for (speciesgroup in speciesgroups){
 
 ```
 
+
+
+
 ## Last year's concentrations (EQS + Proref ratio)       
 
 ```{r 06_ratio_data_1}  
@@ -423,7 +446,12 @@ for (speciesgroup in speciesgroups){
 # Note: the 'current_year' in get_data_raw means "only series that includes current_year",
 #   previous years are also included
 
-dat_raw1 <- get_data_raw(params$param, "Gadus morhua", "Muskel", params$basis_medians, include_year=current_year)  
+if (params$param %in% "HG"){
+  fish_tissue <- "Muskel"
+} else {
+  fish_tissue <- "Lever"
+}
+dat_raw1 <- get_data_raw(params$param, "Gadus morhua", fish_tissue, params$basis_medians, include_year=current_year)  
 dat_raw2 <- get_data_raw(params$param, "Somateria mollissima", "Blod", "WW", include_year=current_year)
 dat_raw3 <- get_data_raw(params$param, "Somateria mollissima", "Egg", "WW", include_year=current_year)  
 
@@ -468,26 +496,31 @@ if (!identical(st1,st2)){
 # debugonce(get_data_raw)  
 dat_raw_mussel <- get_data_raw(params$param, "Mytilus edulis", "Whole soft body", "WW", current_year)  
 
-#
-# Blue mussel median data
-#
-dat_to_add <- dat_raw_mussel %>%
-  filter(MYEAR %in% current_year & !is.na(Value)) %>%
-  group_by(PARAM, LATIN_NAME, TISSUE_NAME, STATION_CODE, Basis) %>%
-  summarise(
-    Value_lo = min(Value),                             # note: min and max for blue mussel
-    Value_hi = max(Value), .groups = "drop") %>%
-  mutate(STATION_CODE = ifelse(STATION_CODE == "36A1", "36A", STATION_CODE))
-
-dat_last_mussel <- dat_medians_list[[2]] %>%                           # 2 for blue mussel
-  filter(MYEAR %in% current_year) %>%
-  left_join(dat_to_add, by = c("PARAM", "LATIN_NAME", "TISSUE_NAME", "STATION_CODE", "Basis"))
-
-st1 <- unique(dat_to_add$STATION_CODE) %>% sort()
-st2 <- unique(dat_medians_list[[2]]$STATION_CODE) %>% sort()
-if (!identical(st1,st2)){
-  warning("Station codes are not identical")
+if (nrow(dat_raw_mussel) > 0){
+  
+  #
+  # Blue mussel median data
+  #
+  dat_to_add <- dat_raw_mussel %>%
+    filter(MYEAR %in% current_year & !is.na(Value)) %>%
+    group_by(PARAM, LATIN_NAME, TISSUE_NAME, STATION_CODE, Basis) %>%
+    summarise(
+      Value_lo = min(Value),                             # note: min and max for blue mussel
+      Value_hi = max(Value), .groups = "drop") %>%
+    mutate(STATION_CODE = ifelse(STATION_CODE == "36A1", "36A", STATION_CODE))
+  
+  dat_last_mussel <- dat_medians_list[[2]] %>%                           # 2 for blue mussel
+    filter(MYEAR %in% current_year) %>%
+    left_join(dat_to_add, by = c("PARAM", "LATIN_NAME", "TISSUE_NAME", "STATION_CODE", "Basis"))
+  
+  st1 <- unique(dat_to_add$STATION_CODE) %>% sort()
+  st2 <- unique(dat_medians_list[[2]]$STATION_CODE) %>% sort()
+  if (!identical(st1,st2)){
+    warning("Station codes are not identical")
+  }
+  
 }
+
 
 if (FALSE){
   # Check station names in the two
@@ -501,17 +534,34 @@ if (FALSE){
 
 ```{r 06_ratio_data_3}
 
-dat_last_list <- list(
-  dat_last_codeider,
-  dat_last_mussel)
-
-dat_raw_list <- list(
-  dat_raw_codeider %>% 
-    filter(MYEAR %in% current_year & !is.na(Value)),
-  dat_raw_mussel %>% 
-    filter(MYEAR %in% current_year & !is.na(Value)) %>% 
-    mutate(STATION_CODE = ifelse(STATION_CODE == "36A1", "36A", STATION_CODE))
-)
+if (nrow(dat_raw_mussel) > 0){
+  
+  dat_last_list <- list(
+    dat_last_codeider,
+    dat_last_mussel)
+  
+  dat_raw_list <- list(
+    dat_raw_codeider %>% 
+      filter(MYEAR %in% current_year & !is.na(Value)),
+    dat_raw_mussel %>% 
+      filter(MYEAR %in% current_year & !is.na(Value)) %>% 
+      mutate(STATION_CODE = ifelse(STATION_CODE == "36A1", "36A", STATION_CODE))
+  )
+  
+} else {
+  
+  dat_last_list <- list(
+    dat_last_codeider)
+  
+  dat_raw_list <- list(
+    dat_raw_codeider %>% 
+      filter(MYEAR %in% current_year & !is.na(Value))
+  )
+  
+  speciesgroups <- 1
+  
+  
+}
 
 
 
@@ -551,6 +601,9 @@ for (speciesgroup in speciesgroups){
       EQS_tooltip = paste0(
         "Conc.: ", Value, "\n",
         "Ratio: ", round(EQS_ratio, 3)),
+      FLAG1 = case_when(
+        PARAM %in% c('SCCP eksl. LOQ', 'MCCP eksl. LOQ') & Value == 0 ~ "<",
+        TRUE ~ FLAG1)
     ) %>%
     # Add Station
     left_join(
@@ -592,14 +645,14 @@ if (params$eqsplot == TRUE){
     
     # Set plot title (mercury in cod+birds is treated as a special case)
     if (params$param %in% "HG" & speciesgroup == 1 & params$basis_medians == "WW"){
-      plot_title <- paste0("EQS ratio, ", params$param, " (not length-adjusted) in ", speciesgroup_txt_proref[[speciesgroup]])
+      plot_title <- paste0("EQS ratio, ", dat_medians$Parameter.Name[1], " (not length-adjusted) in ", speciesgroup_txt[[speciesgroup]])
     } else if (params$param %in% "HG" & speciesgroup == 1 & params$basis_medians == "WWa"){
-      plot_title <- paste0("EQS ratio, ", params$param, " (length-adjusted) in ", speciesgroup_txt_proref[[speciesgroup]])
+      plot_title <- paste0("EQS ratio, ", dat_medians$Parameter.Name[1], " (length-adjusted) in ", speciesgroup_txt[[speciesgroup]])
     } else {
-      plot_title <- paste0("EQS ratio, ", params$param, " in ", speciesgroup_txt_proref[[speciesgroup]])
+      plot_title <- paste0("EQS ratio, ", dat_medians$Parameter.Name[1], " in ", speciesgroup_txt[[speciesgroup]])
     }
     
-    if (params$ratioplot_trend == "TRUE"){
+    if (params$include_trend == "TRUE"){
       
       gg <- ggplot(data_proref_medians, 
                    aes(Station, EQS_ratio)) +
@@ -619,7 +672,7 @@ if (params$eqsplot == TRUE){
              y = "Concentration/EQS") +
         theme_bw() +
         theme(legend.title = element_blank()) +
-        ggeasy::easy_rotate_x_labels(angle = -45) 
+        ggeasy::easy_rotate_x_labels(angle = -45)
       
     } else {
       
@@ -638,16 +691,23 @@ if (params$eqsplot == TRUE){
              y = "Concentration/EQS") +
         theme_bw() +
         theme(legend.title = element_blank()) +
-        ggeasy::easy_rotate_x_labels(angle = -45) 
+        ggeasy::easy_rotate_x_labels(angle = -45) +
+        theme(plot.margin = margin(12, 60, 4, 24))      # need extra right margin because there is no legend 
       
     }
     
+    
     # Add proref line on EQS plot
+    
+    if (!params$param %in% c("SCCP eksl. LOQ", "MCCP eksl. LOQ")){
+    
     proref <- data_proref_medians$Proref_line
     proref <- proref[!is.na(proref)][1]   # the first non-negative value
     gg <- gg +
       geom_hline(yintercept = proref, color = "blue2", linetype = "dashed") +
       annotate("text", x = -1.7, y = proref, label = "PROREF", color = "blue2", hjust = 0, vjust = -0.3)
+    
+    }
     
     # Set name of figure file (mercury in cod+birds is treated as a special case)
     if (params$basis_medians != params$basis_trends & speciesgroup == 1){
@@ -662,8 +722,20 @@ if (params$eqsplot == TRUE){
     
     # Save again, but this time on log scale  
     filename <- sub("eqsratio_ord", "eqsratio_log", filename, fixed = TRUE)
-    ggsave(filename, gg + scale_y_log10(), 
-           width = 9, height = 6, dpi = 200)
+    
+    if (!params$param %in% c("SCCP eksl. LOQ", "MCCP eksl. LOQ")){
+      gg2 <- gg + scale_y_log10()
+    } else {
+      tr <- scales::trans_new("", transform = function(x) log(x + 0.001), inverse = function(x) exp(x)- 0.001)
+      gg2 <- gg + 
+        scale_y_continuous(trans = tr, 
+                           breaks = c(0, 0.001, 0.01, 0.1, 1),
+                           labels = function(lab) round(lab, 3)
+        )
+    }
+    
+    ggsave(filename, gg2, width = 9, height = 6, dpi = 200)
+      
     
     plot_eqsratio_list[[speciesgroup]] <- gg
     
@@ -719,11 +791,11 @@ for (speciesgroup in speciesgroups){
 
   # Set plot title (mercury in cod+birds is treated as a special case)
   if (params$param %in% "HG" & speciesgroup == 1 & params$basis_medians == "WW"){
-    plot_title <- paste0("Proref ratio, ", params$param, " (not length-adjusted) in ", speciesgroup_txt_proref[[speciesgroup]])
+    plot_title <- paste0("Proref ratio, ", dat_medians$Parameter.Name[1], " (not length-adjusted) in ", speciesgroup_txt_proref[[speciesgroup]])
   } else if (params$param %in% "HG" & speciesgroup == 1 & params$basis_medians == "WWa"){
-    plot_title <- paste0("Proref ratio, ", params$param, " (length-adjusted) in ", speciesgroup_txt_proref[[speciesgroup]])
+    plot_title <- paste0("Proref ratio, ", dat_medians$Parameter.Name[1], " (length-adjusted) in ", speciesgroup_txt_proref[[speciesgroup]])
   } else {
-    plot_title <- paste0("Proref ratio, ", params$param, " in ", speciesgroup_txt_proref[[speciesgroup]])
+    plot_title <- paste0("Proref ratio, ", dat_medians$Parameter.Name[1], " in ", speciesgroup_txt_proref[[speciesgroup]])
   }
   
   gg <- ggplot(data_proref_medians, 

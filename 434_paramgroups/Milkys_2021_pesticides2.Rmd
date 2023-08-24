@@ -311,7 +311,7 @@ plot_title <- "DDE(pp)"
 lookup_ref_value <- tribble(
   ~LATIN_NAME,          ~Ref_value1, ~Basis1, ~Ref_value2, ~Basis2,   ~Perc_dry_weight,   
   "Gadus morhua",           160.75,        "ww",     610,        "ww",                NA,
-  "Mytilus edulis",           0.24,        "ww",     610,        "ww",                NA,
+  "Mytilus edulis",          0.224,        "ww",     610,        "ww",                NA,
 )
 
 ref_type1 <- "PROREF"

@@ -1,0 +1,585 @@
+---
+title: "512_Hvaler_fucus_bluemussel"
+output: html_document
+---
+
+
+
+## Common code (as 511)
+
+### Packages
+```{r, message=FALSE, warning=FALSE, results='hide'}
+
+# 
+library(readxl)
+library(tidyr)
+library(dplyr, warn.conflicts = FALSE)
+library(purrr)
+library(lubridate)
+library(mgcv)
+library(AICcmodavg)   # AICc()
+library(ggplot2)
+library(safejoin)     # installed from https://github.com/moodymudskipper/safejoin   
+
+source("001_Add_trends_functions.R")  # Copied from '16_Trend_functions.R' in Milkys_2018
+source("002_Utility_functions.R")
+source("110_Medians_and_PROREF_functions.R")
+source("510_Industry_data_functions.R")
+source("401 Plot time series functions.R", encoding = "UTF-8")
+
+last_year <- 2021
+
+
+#
+# Define a couple of extra functions for shortening code
+#
+get_stats <- function(df){
+  calc_models_one_station2(df, gam = TRUE, log = TRUE)$statistics_for_file
+}
+
+model_from_medians_stat <- function(...)
+  model_from_medians(...)$statistics
+
+```
+
+### Parameter and species names for graphs
+Used in 'plot_single_series_medians_data' (see '_functions' file)  
+```{r}
+
+df_paramnames <- readxl::read_excel(
+  "Input_data/Lookup table - parameter names for plots.xlsx")
+
+df_speciesnames <- tibble(
+  LATIN_NAME = c("Gadus morhua", "Mytilus edulis", "Nucella lapillus"),
+  Species_name = c("Cod", "Blue mussel", "Dog whelk")
+  )
+
+```
+
+
+### PROREF values  
+```{r}
+
+df_proref <- get_proref(folder = "Input_data")
+
+```
+
+### Get EQS limits  
+```{r}
+
+df_EQS <- read_excel("Input_data/EQS_limits.xlsx", "EQS")[1:8] %>%
+  filter(!is.na(PARAM)) %>%
+  as.data.frame()
+df_EQS <- fact2char_df(df_EQS)  # changes all factor variables to character variables
+df_EQS$Limit <- as.numeric(df_EQS$`Grense brukt`)
+
+df_EQS <- df_EQS %>%
+  select(PARAM, Limit) %>% 
+  filter(!is.na(PARAM))
+
+```
+
+## Fucus (blæretang)  
+* bladder wrack *Fucus vesicolus*   
+
+### Data   
+* Copied from DHJs pc: Data/Seksjon 212/Glomma-estuary-metals
+* Made using code from that project (script 01), also see github NIVANorge 'Glomma-estuary-metals'
+```{r}
+
+dat1 <- read.csv("Input_data/510_Industry_data/data_glomma_estuary_rockweed_ts.csv",
+                 row.names = "X") %>%
+  filter(!is.na(Value))
+
+# check that encoding works  
+# table(dat1$Station_name)
+
+```
+
+### Check data  
+```{r}
+
+xtabs(~PARAM, dat1)
+
+```
+
+### Fix names  
+```{r}
+
+names(dat1)
+
+dat2 <- dat1 %>%
+  rename(
+    MYEAR = Year,
+    Median = Value) %>%
+  mutate(
+    N_median = 3,
+    Over_LOQ = 3
+  ) 
+
+# names(data_med)
+#  [1] "STATION_CODE"  "LATIN_NAME"    "TISSUE_NAME"   "PARAM"         "UNIT"          "MYEAR"         "N_median"      "Median"        "Over_LOQ"     
+# [10] "Min"           "Max"           "Basis"         "NAME"          "STATION_NAME"  "Stations"      "N_stations"    "Proref_median" "Q95"
+
+```
+
+
+### Make data_med      
+```{r}
+
+data_med <- dat2 %>%
+  mutate(
+    LATIN_NAME = "blæretang",
+    TISSUE_NAME = "skudd",
+    STATION_CODE = Station_name,
+    Basis = "WW",
+    UNIT = "MG_P_KG"
+  ) #%>%
+  #left_join(df_proref %>% select(-N) %>% rename(Proref_median = Median), 
+  #          by = c("LATIN_NAME", "TISSUE_NAME", "PARAM", "Basis"))
+
+# data_med %>% filter(PARAM == "BAP" & STATION_CODE == "B2") %>% View()
+
+```
+
+
+
+### Select series (parameter + station) to plot   
+* Entire time series  
+* Since we haven't removed NAs, min_year is alwyas 1994.... but that's OK here  
+```{r}
+
+tab <- xtabs(~ PARAM + STATION_CODE, data_med)
+# tab
+
+df_series <- data_med %>%
+  # filter(!is.na(Q95)) %>%            # stations with at least 2 years of data, and existing PROREF
+  group_by(PARAM, STATION_CODE, LATIN_NAME, TISSUE_NAME, Basis) %>%
+  summarise(
+    n = n(),
+    min_year = min(MYEAR)
+  ) %>%
+  filter(n >= 2)     
+
+```
+### Test plot
+```{r}
+
+# debugonce(plot_medians_and_trends3)
+# debugonce(calc_models_gam)
+# debugonce(statistics_for_excel)
+
+i <- 12
+startyear <- df_series$min_year[i]
+test <-  plot_medians_and_trends3(c(df_series$PARAM[i], 
+                                    df_series$LATIN_NAME[i], df_series$TISSUE_NAME[i], 
+                                    df_series$STATION_CODE[i], df_series$Basis[i]), 
+                                  data_medians = data_med,
+                                  trend_years = startyear:2021, trend_vjust = 1.6, trend_hjust = 2.2) 
+
+test$gg
+test$fn
+
+# Manual ggplot
+# test2 <- select_data(c(df_series$PARAM[i], 
+#                                     df_series$LATIN_NAME[i], df_series$TISSUE_NAME[i], 
+#                                     df_series$STATION_CODE[i], df_series$Basis[i]), 
+#                                   data_medians = data_med)
+# gg <- ggplot(test2, aes(MYEAR))
+# gg <- gg + geom_smooth(aes(y = Median), method = "lm")
+# gg 
+
+#  annotate("text", x = Inf, y = Inf, label = "\u25CB", size = rel(13))
+
+```
+
+### Plot entire time series (using defaults) 
+
+```{r}
+
+folder <- "Input_data/510_Industry_data/Plots_Glomma_estuary/tang"
+# dir.create(folder)
+
+for (i in seq_len(nrow(df_series))){
+
+  # For testing (make only plots 1 to 4), comment out the line above and uncomment the next line:
+  # for (i in 1:10){
+  # i <- 1
+
+  startyear <- df_series$min_year[i]
+  
+  debugonce(plot_medians_and_trends2)
+  # debug(calc_models_one_station2)
+  # debug(add_model_fits)
+  X <-  plot_medians_and_trends3(c(df_series$PARAM[i], 
+                                    df_series$LATIN_NAME[i], df_series$TISSUE_NAME[i], 
+                                    df_series$STATION_CODE[i], df_series$Basis[i]), 
+                                  data_medians = data_med,
+                                  trend_years = startyear:2021, trend_vjust = 1.6, trend_hjust = 2.2) 
+
+  # Fix x and y labels
+  X$gg <- X$gg + 
+    labs(x = "År", y = "Konsentrasjon")
+  
+  # X$gg
+  ggsave("Input_data/510_Industry_data/Plots_Glomma_estuary/CR_test.png", X$gg)
+  
+  if (class(X) != "try-error"){
+    save_trendplot(X, folder, suffix = "_allyears")
+  }
+  
+}   
+
+```
+
+
+
+
+## Blue mussel
+
+### Data   
+* Copied from DHJs pc: Data/Seksjon 212/Glomma-estuary-metals
+* Made using code from that project (script 01), also see github NIVANorge 'Glomma-estuary-metals'
+```{r}
+
+dat1 <- read.csv("Input_data/510_Industry_data/data_glomma_estuary_bluemussel.csv", row.names = "X")
+
+```
+
+### Check data  
+```{r}
+
+xtabs(~PARAM, dat1)
+
+```
+
+### Fix names  
+```{r}
+
+names(dat1)
+
+dat2 <- dat1 %>%
+  rename(
+    MYEAR = Year,
+    Median = Value) %>%
+  mutate(
+    N_median = 3,
+    Over_LOQ = 3
+  ) 
+
+# names(data_med)
+#  [1] "STATION_CODE"  "LATIN_NAME"    "TISSUE_NAME"   "PARAM"         "UNIT"          "MYEAR"         "N_median"      "Median"        "Over_LOQ"     
+# [10] "Min"           "Max"           "Basis"         "NAME"          "STATION_NAME"  "Stations"      "N_stations"    "Proref_median" "Q95"
+
+```
+
+### Make data_med      
+```{r}
+
+data_med <- dat2 %>%
+  mutate(
+    LATIN_NAME = "blæretang",
+    TISSUE_NAME = "skudd",
+    STATION_CODE = Station_name,
+    Basis = "WW",
+    UNIT = "MG_P_KG"
+  ) #%>%
+  #left_join(df_proref %>% select(-N) %>% rename(Proref_median = Median), 
+  #          by = c("LATIN_NAME", "TISSUE_NAME", "PARAM", "Basis"))
+
+# data_med %>% filter(PARAM == "BAP" & STATION_CODE == "B2") %>% View()
+
+```
+
+
+
+
+### Select series (parameter + station) to plot   
+* Entire time series  
+* Since we haven't removed NAs, min_year is alwyas 1994.... but that's OK here  
+```{r}
+
+tab <- xtabs(~ PARAM + STATION_CODE, data_med)
+# tab
+
+df_series <- data_med %>%
+  # filter(!is.na(Q95)) %>%            # stations with at least 2 years of data, and existing PROREF
+  group_by(PARAM, STATION_CODE, LATIN_NAME, TISSUE_NAME, Basis) %>%
+  summarise(
+    n = n(),
+    min_year = min(MYEAR)
+  ) %>%
+  filter(n >= 2)     
+
+```
+### Test plot
+```{r}
+
+# debugonce(plot_medians_and_trends3)
+# debugonce(calc_models_gam)
+# debugonce(statistics_for_excel)
+
+i <- 1
+startyear <- df_series$min_year[i]
+test <-  plot_medians_and_trends3(c(df_series$PARAM[i], 
+                                    df_series$LATIN_NAME[i], df_series$TISSUE_NAME[i], 
+                                    df_series$STATION_CODE[i], df_series$Basis[i]), 
+                                  data_medians = data_med,
+                                  trend_years = startyear:2021, trend_vjust = 1.6, trend_hjust = 2.2) 
+
+test$gg
+test$fn
+
+# Manual ggplot
+# test2 <- select_data(c(df_series$PARAM[i], 
+#                                     df_series$LATIN_NAME[i], df_series$TISSUE_NAME[i], 
+#                                     df_series$STATION_CODE[i], df_series$Basis[i]), 
+#                                   data_medians = data_med)
+# gg <- ggplot(test2, aes(MYEAR))
+# gg <- gg + geom_smooth(aes(y = Median), method = "lm")
+# gg 
+
+#  annotate("text", x = Inf, y = Inf, label = "\u25CB", size = rel(13))
+
+```
+
+### Plot entire time series (using defaults) 
+
+```{r}
+
+folder <- "Input_data/510_Industry_data/Plots_Glomma_estuary/blaaskjell"
+# dir.create(folder)
+
+for (i in seq_len(nrow(df_series))){
+
+  # For testing (make only plots 1 to 4), comment out the line above and uncomment the next line:
+  # for (i in 1:10){
+  # i <- 1
+
+  startyear <- df_series$min_year[i]
+  
+  # debug(calc_models_one_station2)
+  # debug(add_model_fits)
+  X <-  plot_medians_and_trends3(c(df_series$PARAM[i], 
+                                    df_series$LATIN_NAME[i], df_series$TISSUE_NAME[i], 
+                                    df_series$STATION_CODE[i], df_series$Basis[i]), 
+                                  data_medians = data_med,
+                                  trend_years = startyear:2021, trend_vjust = 1.6, trend_hjust = 2.2) 
+  
+  # Fix x and y labels
+  X$gg <- X$gg + 
+    labs(x = "År", y = "Konsentrasjon")
+
+  # X$gg
+  ggsave("Input_data/510_Industry_data/Plots_Glomma_estuary/CR_test.png", X$gg)
+  
+  if (class(X) != "try-error"){
+    save_trendplot(X, folder, suffix = "_allyears")
+  }
+  
+}   
+
+```
+
+
+```{r}
+
+folder
+dir(folder, full.names = TRUE)
+setwd(folder)
+setwd("home/jovyan/shared/DHJ")
+system("rm -r 00LOCK-ranger")
+To go back you have to setwd to home/jovyan/shared/DHJ/icpw-R
+
+system("tar -czvf ranger.tar.gz ../../../../../opt/R/ranger")
+system("tar -czvf Input_data/510_Industry_data/Plots_Glomma_estuary/tang/* Input_data/510_Industry_data/Plots_Glomma_estuary")
+
+```
+
+
+
+## Blue mussel using 'plot_medians_and_trends2'  
+
+* Kept for purely sentimental reasons  
+    - Contains Proref and EQS (dropped in plot_medians_and_trends3 as the data are on dry-weight)  
+    - English
+    - Two trend symbols when only one is needed 
+
+### Data   
+* Copied from DHJs pc: Data/Seksjon 212/Glomma-estuary-metals
+* Made using code from that project (script 01), also see github NIVANorge 'Glomma-estuary-metals'
+```{r}
+
+dat1 <- read.csv("Input_data/510_Industry_data/data_glomma_estuary_bluemussel.csv", row.names = "X")
+
+```
+
+### Check data  
+```{r}
+
+xtabs(~PARAM, dat1)
+
+```
+
+### Fix names  
+```{r}
+
+names(dat1)
+
+dat2 <- dat1 %>%
+  rename(
+    MYEAR = Year,
+    Median = Value) %>%
+  mutate(
+    N_median = 3,
+    Over_LOQ = 3
+  ) 
+
+# names(data_med)
+#  [1] "STATION_CODE"  "LATIN_NAME"    "TISSUE_NAME"   "PARAM"         "UNIT"          "MYEAR"         "N_median"      "Median"        "Over_LOQ"     
+# [10] "Min"           "Max"           "Basis"         "NAME"          "STATION_NAME"  "Stations"      "N_stations"    "Proref_median" "Q95"
+
+```
+
+
+### Add Proref values    
+```{r}
+
+data_med <- dat2 %>%
+  mutate(
+    LATIN_NAME = "Mytilus edulis",
+    TISSUE_NAME = "Whole soft body",
+    STATION_CODE = "Kirkøy",
+    Basis = "WW",
+    UNIT = "MG_P_KG"
+  ) #%>%
+  # left_join(df_proref %>% select(-N) %>% rename(Proref_median = Median), 
+  #          by = c("LATIN_NAME", "TISSUE_NAME", "PARAM", "Basis"))
+
+# data_med %>% filter(PARAM == "BAP" & STATION_CODE == "B2") %>% View()
+
+```
+
+### Station name file  
+* For printing in title  
+```{r}
+
+df_stationnames <- data.frame(
+  STATION_CODE = c("Kirkøy"),
+  Report_version_name = c("Kirkøy"),
+  stringsAsFactors = FALSE)
+
+```
+
+### Select series (parameter + station) to plot   
+* Entire time series  
+* Since we haven't removed NAs, min_year is alwyas 1994.... but that's OK here  
+```{r}
+
+tab <- xtabs(~ PARAM + STATION_CODE, data_med)
+# tab
+
+df_series <- data_med %>%
+  # filter(!is.na(Q95)) %>%            # stations with at least 2 years of data, and existing PROREF
+  group_by(PARAM, STATION_CODE) %>%
+  summarise(
+    n = n(),
+    min_year = min(MYEAR)
+  ) %>%
+  filter(n >= 2)     
+
+```
+### Plot entire time series (using defaults) 
+
+```{r}
+
+folder <- "Input_data/510_Industry_data/Plots_Glomma_estuary"
+# dir.create(folder)
+
+for (i in seq_len(nrow(df_series))){
+
+  # For testing (make only plots 1 to 4), comment out the line above and uncomment the next line:
+  # for (i in 1:10){
+  # i <- 4
+
+  startyear <- df_series$min_year[i]
+  
+  # debugonce(plot_medians_and_trends2)
+  X <- try(
+    plot_medians_and_trends2(c(df_series$PARAM[i], "Mytilus edulis", "Whole soft body", 
+                               df_series$STATION_CODE[i], "WW"), 
+                             eqs_type = "line", 
+                             trend_years = startyear:2021, xlim = c(startyear - 7,2022),   
+                             data_medians = data_med, data_proref = df_proref, 
+                             data_eqs = df_EQS, eqs_x = 2017,
+                             y_rel = 0.95, ymax_factor = 1.25,
+                             show_proref = NA)                     # no proref, since this is dry-weight values  
+  )
+  # X$gg
+  ggsave("Input_data/510_Industry_data/Plots_Glomma_estuary/CR_test.png", X$gg)
+  
+  if (class(X) != "try-error"){
+    save_trendplot(X, folder, suffix = "_allyears")
+  }
+  
+}
+
+```
+
+
+### Select series longer than 2004 for shorter plots   
+* Entire time series  
+* Since we haven't removed NAs, min_year is alwyas 1994.... but that's OK here  
+```{r}
+
+df_series2 <- data_med %>%
+  filter(!is.na(Median)) %>%            # CHANGED
+  group_by(PARAM, STATION_CODE) %>%
+  summarise(
+    n = n(),
+    min_year = min(MYEAR)
+  ) %>%
+  filter(n >= 2 & min_year < 2004)                 # CHANGED
+
+```
+
+
+### Plot time series 2004-2021   
+
+
+```{r}
+
+folder <- "Input_data/510_Industry_data/Plots_Glomma_estuary"
+# dir.create(folder)
+
+for (i in seq_len(nrow(df_series2))){
+
+  # For testing (make only plots 1 to 4), comment out the line above and uncomment the next line:
+  # for (i in 1:10){
+  # i <- 4
+
+  startyear <- df_series2$min_year[i]
+  
+  # debugonce(plot_medians_and_trends2)
+  X <- try(
+    plot_medians_and_trends2(c(df_series2$PARAM[i], "Mytilus edulis", "Whole soft body", 
+                               df_series2$STATION_CODE[i], "WW"), 
+                             eqs_type = "line", 
+                             trend_years = 2004:2021, xlim = c(1999, 2022),   
+                             data_medians = data_med %>% filter(MYEAR >= 2004), 
+                             data_proref = df_proref, 
+                             data_eqs = df_EQS, eqs_x = 2017,
+                             y_rel = 0.95, ymax_factor = 1.25,
+                             show_proref = NA)                     # no proref, since this is dry-weight values
+  )
+
+  if (class(X) != "try-error"){
+    save_trendplot(X, folder, suffix = "_2004-2021")
+  }
+  
+}
+
+```
+
+
+

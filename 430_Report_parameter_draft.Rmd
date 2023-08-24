@@ -555,10 +555,10 @@ gg + scale_y_log10()
 dat_raw_lastyear_01 <- dat_raw %>%
   filter(LATIN_NAME %in% species,
          TISSUE_NAME %in% tissue,
-         Basis %in% "WW",
+         Basis %in% "WW",              # NOTE: HARD-CODED 'Basis'
          MYEAR %in% current_year)
 
-# Add station name
+# Add station name  
 dat_raw_lastyear_02 <- dat_raw_lastyear_01 %>%
   left_join(
     dat_list$lookup_stations %>% 
@@ -569,8 +569,9 @@ dat_raw_lastyear_02 <- dat_raw_lastyear_01 %>%
   mutate(
     Station = factor(
       paste(STATION_CODE, Station_name),
-      levels = rev(station_order$Station))
+      levels = station_order$Station)
   )
+
 
 # Add Proref + EQS
 df_limits <- dat_medians %>%

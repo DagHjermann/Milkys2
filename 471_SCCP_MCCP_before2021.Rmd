@@ -1,0 +1,137 @@
+---
+title: "471_SCCP_MCCP_before_2021"
+author: "DHJ"
+date: "2022-11-25"
+output: html_document
+---
+
+
+
+## 1. Packages  
+```{r}
+
+library(dplyr)
+library(tidyr)
+library(purrr)
+library(readxl)
+library(ggplot2)
+source("002_Utility_functions.R")
+
+```
+
+
+## 2019  
+
+* Note: no eider duck data for CCPs  
+
+### SCCP  
+```{r}
+
+df_nivabase_2019 <- readRDS("Input_data/01_df_2019_notstandard_2020-08-05.rds")
+
+df_SCCP <- df_nivabase_2019 %>%
+  filter(grepl("SCCP", NAME)) %>%
+  select(STATION_CODE, TISSUE_NAME, SAMPLE_NO, NAME, VALUE) %>%
+  pivot_wider(names_from = NAME, values_from = VALUE) %>%
+  mutate(
+    `SCCP eksl. LOQ` = ifelse(is.na(`SCCP eksl. LOQ`), 0,  `SCCP eksl. LOQ`),
+    `SCCP inkl. LOQ` = ifelse(is.na(`SCCP inkl. LOQ`), 0,  `SCCP inkl. LOQ`)
+  ) 
+
+df_SCCP_med <- df_SCCP %>%
+  group_by(STATION_CODE, TISSUE_NAME) %>%
+  summarise(across(c(`SCCP eksl. LOQ`, `SCCP inkl. LOQ`), .fns = median),
+            .groups = "drop")
+  
+df_SCCP_med
+
+```
+
+### MCCP  
+```{r}
+
+df_nivabase_2019 <- readRDS("Input_data/01_df_2019_notstandard_2020-08-05.rds")
+
+df_MCCP <- df_nivabase_2019 %>%
+  filter(grepl("MCCP", NAME)) %>%
+  select(STATION_CODE, TISSUE_NAME, SAMPLE_NO, NAME, VALUE) %>%
+  pivot_wider(names_from = NAME, values_from = VALUE) %>%
+  mutate(
+    `MCCP eksl. LOQ` = ifelse(is.na(`MCCP eksl. LOQ`), 0,  `MCCP eksl. LOQ`),
+    `MCCP inkl. LOQ` = ifelse(is.na(`MCCP inkl. LOQ`), 0,  `MCCP inkl. LOQ`)
+  ) 
+
+df_MCCP_med <- df_MCCP %>%
+  group_by(STATION_CODE, TISSUE_NAME) %>%
+  summarise(across(c(`MCCP eksl. LOQ`, `MCCP inkl. LOQ`), .fns = median),
+            .groups = "drop")
+  
+df_MCCP_med
+
+```
+
+
+
+
+
+## 2020  
+
+* Note: eider duck data has NAME = "SCCP" and "MCCP"  
+
+### SCCP  
+```{r}
+
+df_nivabase_2020 <- readRDS("Input_data/01_df_2020_notstandard_2022-01-05.rds")
+
+df_SCCP <- df_nivabase_2020 %>%
+  filter(grepl("SCCP", NAME)) %>%
+  select(STATION_CODE, TISSUE_NAME, SAMPLE_NO, NAME, VALUE) %>%
+  pivot_wider(names_from = NAME, values_from = VALUE) %>%
+  mutate(
+    `SCCP eksl. LOQ` = ifelse(is.na(`SCCP eksl. LOQ`), 0,  `SCCP eksl. LOQ`),
+    `SCCP inkl. LOQ` = ifelse(is.na(`SCCP inkl. LOQ`), 0,  `SCCP inkl. LOQ`)
+  ) 
+
+df_SCCP_med <- df_SCCP %>%
+  group_by(STATION_CODE, TISSUE_NAME) %>%
+  summarise(across(c(`SCCP eksl. LOQ`, `SCCP inkl. LOQ`), .fns = median),
+            .groups = "drop")
+  
+df_SCCP_med
+
+```
+
+### MCCP  
+```{r}
+
+df_MCCP <- df_nivabase_2020 %>%
+  filter(grepl("MCCP", NAME)) %>%
+  select(STATION_CODE, TISSUE_NAME, SAMPLE_NO, NAME, VALUE) %>%
+  pivot_wider(names_from = NAME, values_from = VALUE) %>%
+  mutate(
+    `MCCP eksl. LOQ` = ifelse(is.na(`MCCP eksl. LOQ`), 0,  `MCCP eksl. LOQ`),
+    `MCCP inkl. LOQ` = ifelse(is.na(`MCCP inkl. LOQ`), 0,  `MCCP inkl. LOQ`)
+  ) 
+
+df_MCCP_med <- df_MCCP %>%
+  group_by(STATION_CODE, TISSUE_NAME) %>%
+  summarise(across(c(`MCCP eksl. LOQ`, `MCCP inkl. LOQ`), .fns = median),
+            .groups = "drop")
+  
+df_MCCP_med
+
+```
+
+
+### Eider duck    
+
+* Seems ok  
+
+```{r}
+
+df_nivabase_2020 %>%
+  filter(NAME %in% c("MCCP", "SCCP")) %>%
+  xtabs(~is.na(FLAG1) + NAME, .)
+
+```
+
