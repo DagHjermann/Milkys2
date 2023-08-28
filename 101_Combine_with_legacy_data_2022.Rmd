@@ -282,8 +282,10 @@ if (nrow(df_duplicates) > 0){
 }
 
 ```
+
 ### a8. For eider duck, change names of CCP  
 
+* NO EIDER DUCK THIS YEAR
 * Use "eksl. LOQ, that is most similar to cod/blue mussel usage 
 
 ```{r}
