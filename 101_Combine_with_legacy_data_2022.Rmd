@@ -2322,10 +2322,12 @@ if (sum(sel) > 0){
 # data_updated2_bk <- data_updated2
 # data_updated2 <- data_updated2_bk 
 
-for (i in seq_along(sum_parameters)){     # go through numbers 1 to 9
-  # We add new rows every time we go through the loop
-  data_updated2 <- add_sumparameter_exloq(i, sum_parameters, data_updated2)
-}
+# DROP THIS FOR NOW - leads to duplicates!  
+
+# for (i in seq_along(sum_parameters)){     # go through numbers 1 to 9
+#   # We add new rows every time we go through the loop
+#   data_updated2 <- add_sumparameter_exloq(i, sum_parameters, data_updated2)
+# }
 
 ```
 
