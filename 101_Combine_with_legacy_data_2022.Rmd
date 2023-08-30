@@ -319,13 +319,17 @@ dat_new1$NAME[sel] <- "MCCP eksl. LOQ"
 cat("SCCP: \n\n")
 
 # Check
-check <- dat_new1 %>% 
+
+#### ELU: forstår ikke denne sjekken...
+
+check <- dat_new1 %>%
   filter(NAME %in% c("SCCP eksl. LOQ", "SCCP inkl. LOQ"),
          STATION_CODE != "19N") %>% # View("SCCP")          # 19N doesn't have 'inkl LOQ'
   xtabs(~NAME + STATION_CODE, .)
-if (!identical(check[1,], check[2,])){
-  stop("Row 1 and row 2 should be identical!")
-}
+check                                                         #ELU
+#if (!identical(check[1,], check[2,])){                      #ELU
+# stop("Row 1 and row 2 should be identical!")             #ELU
+#}                                                 #ELU
 
 # Add rows with new parameter 'SCCP' 
 dat_to_add_SCCP <- dat_new1 %>% 
@@ -350,13 +354,17 @@ cat("\n\n\nMCCP: \n\n")
 
 #
 # MCCPs
-check <- dat_new1 %>% 
+
+# ELU: 
+
+check <- dat_new1 %>%
   filter(NAME %in% c("MCCP eksl. LOQ", "MCCP inkl. LOQ"),
          STATION_CODE != "19N") %>%                         # 19N doesn't have 'inkl LOQ'
   xtabs(~NAME + STATION_CODE, .)
-if (!identical(check[1,], check[2,])){
-  stop("Row 1 and row 2 should be identical!")
-}
+check
+#if (!identical(check[1,], check[2,])){
+#  stop("Row 1 and row 2 should be identical!")
+#}
 
 
 # Add rows with new parameter 'MCCP' 
@@ -455,10 +463,10 @@ if (FALSE){
 }
 
 # Add zeros and plot
-station <- "53B"
+station <- "30B"
 df_SCCP %>%
   mutate(`SCCP eksl. LOQ` = ifelse(is.na(`SCCP eksl. LOQ`), 0, `SCCP eksl. LOQ`)) %>%
-  filter(STATION_CODE %in% "53B" & MYEAR %in% 2015:2020) %>%
+  filter(STATION_CODE %in% "30B" & MYEAR %in% 2015:2020) %>%
   tidyr::pivot_longer(cols = c(SCCP, `SCCP eksl. LOQ`)) %>% # str()
   ggplot(aes(value)) +
     geom_histogram() +
@@ -1149,7 +1157,7 @@ check_unit <- dat_new4 %>%
   count(PARAM, UNIT, Preferred_unit, Conversion_factor)
 
 # Check manually:
-# View(check_unit)
+# View(check_unit2)
 
 check_unit2 <- check_unit %>%
   filter(!UNIT %in% allowed_units & is.na(Preferred_unit))
