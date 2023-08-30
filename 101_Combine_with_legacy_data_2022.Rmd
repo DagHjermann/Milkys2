@@ -679,6 +679,10 @@ df_MCCP %>%
 
 ```{r}
 
+if (FALSE){
+  
+  ### CHECK/FIX THIS LATER
+
 # data_legacy_back <- data_legacy
 # data_legacy <- data_legacy_back
 
@@ -741,6 +745,9 @@ df_to_add_MCCP$FLAG1 <- "<"
 nrow(data_legacy)
 data_legacy <- bind_rows(data_legacy, df_to_add_MCCP)
 nrow(data_legacy)
+
+}
+
 
 ```
 
@@ -851,6 +858,26 @@ if (nrow(df_duplicates) > 0){
 }
   
 
+
+```
+### b4. Fix some parameter names   
+
+- Some PFAS (following the OECD list of PFAS abbreviations)   
+- Must also be updated in the lookup tables for units   
+    - 'Lookup table - preferred parameter units.csv'  
+
+```{r}
+
+data_legacy <- data_legacy %>%
+  mutate(
+    PARAM = case_when(
+      PARAM %in% "PFDODA" ~ "PFDoDA",
+      PARAM %in% "Perfluorpentansyre (PFPeA)" ~ "PFPA",
+      PARAM %in% "PFPeA" ~ "PFPA",
+      PARAM %in% "PFUdA" ~ "PFUnDA",
+      TRUE ~ PARAM)
+  )
+
 ```
 
 ## 3. Reformat recent data to conform with legacy data  
@@ -895,7 +922,7 @@ dat_new2 <- dat_new2 %>%
       PARAM %in% "Kvikksølv" ~ "HG",
       PARAM %in% "Selen" ~ "SE",
       PARAM %in% "Pentaklorbenzen (QCB)" ~ "QCB",	
-      # the following names are not logical - but need to be like this in order to be conistent with old data.
+      # the following names are not logical - but need  to be like this in order to be conistent with old data.
       # Will be changed in 10.
       PARAM %in% "Dibutyltinn (DBT)" ~ "DBTIN",        
       PARAM %in% "Monobutyltinn (MBT)" ~ "MBTIN",
@@ -903,6 +930,9 @@ dat_new2 <- dat_new2 %>%
       PARAM %in% "1-OH-pyren" ~ "PYR1OH",
       PARAM %in% "1-OH-fenantren" ~ "PA1OH",
       PARAM %in% "3-OH-benzo[a]pyren" ~ "BAP3OH",
+      PARAM %in% "6:2 FTS" ~ "6:2 Fluortelomersulfonat (FTS, H4PFOS)",
+      PARAM %in% "PFHpS" ~ "Perfluorheptansulfonat (PFHpS)",
+      PARAM %in% "PFUdA" ~ "PFUnDA",
       grepl("oktametylsyklotetrasiloksan", PARAM) ~ "D4",
       grepl("dekametylsyklopentasiloksan", PARAM) ~ "D5",
       grepl("dodekametylsykloheksasiloksan", PARAM) ~ "D6",
