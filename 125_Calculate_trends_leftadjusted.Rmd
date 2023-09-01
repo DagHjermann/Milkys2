@@ -56,7 +56,7 @@ series_lastyear <- 2018   # The series must last at least until this year
 # folder_6: time trends of length-adjusted series, only HG so far  
 
 folder_results <- "Data/125_results_2021_05"          # Basis WW, all
-folder_results <- "Data/125_results_2021_06"        # Basis WWa (length-adjusted), HG only
+# folder_results <- "Data/125_results_2021_06"        # Basis WWa (length-adjusted), HG only
 # folder_results <- "Data/125_results_2021_07"        # combining folder 05 and 06, see APPENDIX 2 below
 
 folder_input <- paste0(folder_results, "_input")
@@ -78,12 +78,16 @@ if (!dir.exists(folder_input)){
 
 ```{r}
 
-# For runs up until folder_5:
 
-# value_column <- "VALUE_WW"
-# For folder_6:
-value_column <- "VALUE_WWa"
-
+if (folder_input == "Data/125_results_2021_05_input"){
+  # For runs up until folder_5:
+  value_column <- "VALUE_WW"
+} else if (folder_input == "Data/125_results_2021_05_input"){
+  # For folder_6:
+  value_column <- "VALUE_WWa"
+} else {
+  stop("Latest results are folder 5 or 6 - select one of these")
+}
 message("Selected value column: ", value_column)
 
 ```
