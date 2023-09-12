@@ -301,7 +301,7 @@ dat_new1$NAME[sel] <- "MCCP eksl. LOQ"
 ```
 
 
-### a9.1. Check SCCP and MCCP values  
+### a9. Check SCCP and MCCP values  
 
 - The data have not been corrected   
     - Milkys2_pc script 802 just gets data from Nivabase  
@@ -325,14 +325,16 @@ number_of_measurements <- dat_new1 %>%
   filter(NAME %in% c("SCCP eksl. LOQ", "SCCP inkl. LOQ"),
          STATION_CODE != "19N") %>% # View("SCCP")          # 19N doesn't have 'inkl LOQ'
   xtabs(~NAME + STATION_CODE, .)
-number_of_measurements                                             #ELU
+number_of_measurements       
 
 if (!identical(number_of_measurements[1,], number_of_measurements[2,])){                     
   cat("\n")
   warning("There are not equally many 'eksl. LOQ' and 'inkl. LOQ' values") 
   cat("\n")
-  cat("This will be fixed in the next chunk\n")
+  cat("See 2021 version of script for code for fixing\n")
   fix_SCCP <- TRUE
+} else {
+  message("There are equally many 'eksl. LOQ' and 'inkl. LOQ' values") 
 }
 
 
@@ -356,178 +358,17 @@ if (!identical(number_of_measurements[1,], number_of_measurements[2,])){
   cat("\n")
   warning("There are not equally many 'eksl. LOQ' and 'inkl. LOQ' values") 
   cat("\n")
-  cat("This will be fixed in the next chunk\n")
+  cat("See 2021 version of script for code for fixing\n")
   fix_MCCP <- TRUE
-}
-
-
-
-
-```
-
-### a9.2 Fix SCCP and MCCP  
-
-- Add the lacking 'SCCP eksl. LOQ' values by   
-    - select the rows with 'SCCP inkl. LOQ' for samples that lack eksl. LOQ rows
-    - copy those rows to a new data frame  
-    - change NAME from 'inkl.' to 'eksl.' and set FLAG1 to < (let VALUE be unchanged)    
-- Same for MCCP  
-
-```{r}
-
-#
-# SCCPs
-#
-
-cat("SCCP: \n")
-
-if (fix_SCCP){
-  
-  # Select data and count the number of SCCP values per sample (= n)
-  # If n = 2, it's OK (there are both 'inkl' and 'eksl' values for that sample)
-  # If n = 1, one of the values is lacking (and it's the 'eksl' value)
-  data_selected <- dat_new1 %>%
-    filter(NAME %in% c("SCCP eksl. LOQ", "SCCP inkl. LOQ"),
-           STATION_CODE != "19N") %>%          # 19N doesn't have 'inkl LOQ'
-    add_count(STATION_CODE, LATIN_NAME, TISSUE_NAME, SAMPLE_DATE, SAMPLE_NO)
-  
-  # 1. Make a copy of the data for samples which only have 'inkl' values
-  # 2. Change NAME and set FLAG1 to "<"
-  # 3. Add these to the original data  
-  
-  data_to_add <- data_selected %>%
-    # Pick the rows with n = 1 
-    filter(n == 1 & NAME %in% "SCCP inkl. LOQ") %>%
-    # Manipulate the values so this becomes the lacking 'eksl' measurement
-    mutate(
-      NAME = "SCCP eksl. LOQ",
-      FLAG1 = "<") %>%
-    # Remove n, we don't need it anymore
-    select(-n)
-  
-  # Add to the data
-  n1 <- nrow(dat_new1)
-  dat_new1 <- bind_rows(dat_new1, data_to_add)
-  n2 <- nrow(dat_new1)
-  
-  message(n2-n1, " 'SCCP eksl. LOQ' rows added to the data")
-  
-}
-
-#
-# MCCPs
-#
-
-cat("\n")
-cat("MCCP: \n")
-
-if (fix_MCCP){
-  
-  # Select data and count the number of MCCP values per sample (= n)
-  # If n = 2, it's OK (there are both 'inkl' and 'eksl' values for that sample)
-  # If n = 1, one of the values is lacking (and it's the 'eksl' value)
-  data_selected <- dat_new1 %>%
-    filter(NAME %in% c("MCCP eksl. LOQ", "MCCP inkl. LOQ"),
-           STATION_CODE != "19N") %>%          # 19N doesn't have 'inkl LOQ'
-    add_count(STATION_CODE, LATIN_NAME, TISSUE_NAME, SAMPLE_DATE, SAMPLE_NO)
-  
-  # 1. Make a copy of the data for samples which only have 'inkl' values
-  # 2. Change NAME and set FLAG1 to "<"
-  # 3. Add these to the original data  
-  
-  data_to_add <- data_selected %>%
-    # Pick the rows with n = 1 
-    filter(n == 1 & NAME %in% "MCCP inkl. LOQ") %>%
-    # Manipulate the values so this becomes the lacking 'eksl' measurement
-    mutate(
-      NAME = "MCCP eksl. LOQ",
-      FLAG1 = "<") %>%
-    # Remove n, we don't need it anymore
-    select(-n)
-  
-  # Add to the data
-  n1 <- nrow(dat_new1)
-  dat_new1 <- bind_rows(dat_new1, data_to_add)
-  n2 <- nrow(dat_new1)
-  
-  message(n2-n1, " 'MCCP eksl. LOQ' rows added to the data")
-  
-}
-
-
-
-
-```
-
-
-### a9.3. Check SCCP and MCCP values again  
-
-```{r}
-
-cat("\n===========================================\n")
-cat("Final check of SCCP: \n")
-cat("===========================================\n")
-
-# Check
-
-#### ELU: forstår ikke denne sjekken...
-#### DHJ: Den sjekker om det er like mange SCCP eksl. LOQ som SCCP inkl. LOQ
-
-number_of_measurements <- dat_new1 %>%
-  filter(NAME %in% c("SCCP eksl. LOQ", "SCCP inkl. LOQ"),
-         STATION_CODE != "19N") %>% # View("SCCP")          # 19N doesn't have 'inkl LOQ'
-  xtabs(~NAME + STATION_CODE, .)
-number_of_measurements
-
-cat("\n")
-if (!identical(number_of_measurements[1,], number_of_measurements[2,])){                     
-  stop("There are not equally many 'eksl. LOQ' and 'inkl. LOQ' values") 
 } else {
-  message("SCCP data are now OK\n")
+  message("There are equally many 'eksl. LOQ' and 'inkl. LOQ' values") 
 }
 
 
-cat("\n===========================================\n")
-cat("Final check of MCCP: \n")
-cat("===========================================\n")
-
-# Check 
-number_of_measurements <- dat_new1 %>%
-  filter(NAME %in% c("MCCP eksl. LOQ", "MCCP inkl. LOQ"),
-         STATION_CODE != "19N") %>% # View("MCCP")          # 19N doesn't have 'inkl LOQ'
-  xtabs(~NAME + STATION_CODE, .)
-number_of_measurements                                             #ELU
-
-cat("\n")
-if (!identical(number_of_measurements[1,], number_of_measurements[2,])){                     
-  stop("There are not equally many 'eksl. LOQ' and 'inkl. LOQ' values") 
-} else {
-  message("MCCP data are now OK\n")
-}
-
-#
-# MANUAL CHECK for the paranoid 
-#
-
-if (FALSE){
-  
-  check_MCCP <- dat_new1 %>%
-    filter(NAME %in% c("MCCP eksl. LOQ", "MCCP inkl. LOQ")) %>%
-    mutate(
-      VALUE_text = case_when(
-      FLAG1 %in% "<" ~ paste(FLAG1, VALUE),
-      is.na(FLAG1) ~ as.character(VALUE),
-      TRUE ~ "error")
-      ) %>%
-    select(STATION_CODE, LATIN_NAME, TISSUE_NAME, SAMPLE_DATE, SAMPLE_NO, NAME, VALUE_text) %>%
-    tidyr::pivot_wider(names_from = NAME, values_from = VALUE_text)
-
-  View(check_MCCP)
-  
-}
 
 
 ```
+
 
 ### b1. Read legacy data  
 The data go up to 2017 and combines data from the Access database (up to 2015) and NIVAbasen (2016-17). 
@@ -771,6 +612,10 @@ nrow(data_legacy)
 - Same for MCCP  
 
 ```{r}
+
+# DROP THIS FOR NOW
+if (FALSE){
+
 #
 # SCCPs
 #
@@ -837,6 +682,8 @@ data_legacy$VALUE[sel] <- 0
 data_legacy$FLAG1[sel] <- as.character(NA)
 cat(sum(sel), "'MCCP eksl. LOQ' rows: VALUE changed to zero \n")
 
+
+}
 
 ```
 
