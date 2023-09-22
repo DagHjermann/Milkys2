@@ -49,11 +49,12 @@ get_standard_parametername <- function(x, synonymfile){
 
 
 # 
-# Adds a sum parameter as new rows to the data
+# Adds a sum parameter as new rows to the data  
 #
 # Takes 'data' as input, calculates sum parameter number 'i' from 'pars_list', and returnes 'data' with new rows added to it
 #
 add_sumparameter <- function(i, pars_list, data){
+  
   # Add variable N_par, if it's not already there
   if (!"N_par" %in% colnames(data)){
     data$N_par <- 1
@@ -61,42 +62,54 @@ add_sumparameter <- function(i, pars_list, data){
   pars <- pars_list[[i]]
   cat("==================================================================\n", i, names(pars_list)[i], "\n")
   cat(pars, "\n")
+  # Group data by sample  
   df_grouped <- data %>%
     filter(PARAM %in% pars & !is.na(SAMPLE_NO2)) %>%                        # select records (only those with SAMPLE_NO2)
     group_by(STATION_CODE, LATIN_NAME, TISSUE_NAME, MYEAR, SAMPLE_NO2, BASIS, UNIT)  # not PARAM
   if (nrow(df_grouped) > 0){
+    # df1 computes the sum of VALUE for every sample   
     df1 <- df_grouped %>%
       summarise(VALUE = sum(VALUE, na.rm = TRUE), .groups = "drop_last") %>%      # sum of the measurements
       mutate(QUANTIFICATION_LIMIT = NA) %>%
       as.data.frame(stringsAsFactors = FALSE)
+    # df2 computes FLAG1: if FLAG1 is "<" for all congeners, it is set to "<"; otherwise it's set to NA
     df2 <- df_grouped %>%
       summarise(FLAG1 = ifelse(mean(!is.na(FLAG1))==1, "<", as.character(NA)), 
                 .groups = "drop_last") %>%       # If all FLAG1 are "<", FLAG1 = "<", otherwise FLAG1 = NA
       as.data.frame()
     df2$FLAG1[df2$FLAG1 %in% "NA"] <- NA
+    # df3 computes N_par, the number of measurements used (i.e., the number of congeners)   
     df3 <- df_grouped %>%
       summarise(N_par = n(), .groups = "drop_last") %>%    # number of measurements
       as.data.frame()
-    # Should be all 1
-    # check <- df1[,1:9] == df2[,1:9]
-    # cat("Test 1 (should be 1):", 
-    #     apply(check, 2, mean) %>% mean(na.rm = TRUE), "\n")
-    # 
-    # check <- df2[,1:9] == df3[,1:9]
-    # cat("Test 2 (should be 1):", 
-    #     apply(check, 2, mean) %>% mean(na.rm = TRUE), "\n")
-    
+    # Check that all "key columns" are identical in df1 and df2
+    check1a <- df1[,1:7] == df2[,1:7]
+    check1b <- apply(check1a, 2, mean) %>% mean(na.rm = TRUE)
+    # Check that all "key columns" are identical in df1 and df3
+    check2a <- df1[,1:7] == df3[,1:7]
+    check2b <- apply(check2a, 2, mean) %>% mean(na.rm = TRUE)
+    check <- check1b == 1 & check2b == 1
+    if (!check){
+      stop("df1, df2 and df3 does not contain the same values in the columns identifying the sample. ")
+    }
+
     # Change the parameter name
     df1$PARAM <- names(pars_list)[i]   
     
+    # df_to_add = df1, pluss FLAG1 from df2 and N_par from df3
     df_to_add <- data.frame(df1, FLAG1 = df2[,"FLAG1"], N_par = df3[,"N_par"], stringsAsFactors = FALSE)  # Make data to add
+    
+    # Add data to the original data
     data <- bind_rows(data, df_to_add)   # Add data for this parameter
+    
     cat("Number of rows added:", nrow(df_to_add), "; number of rows in data:", nrow(data), "\n")
   } else {
     cat("No rows added (found no data for these parameters)\n")
   }
   data
 }
+
+
 
 # In contrast to add_sumparameter (which is only for last year's data), this is for use on entire data series (dat_updated2) 
 # - for all columns VALUE_WW, VALUE_DW, VALUE_FB, VALUE_WWa, VALUE_DWa, VALUE_FBa
