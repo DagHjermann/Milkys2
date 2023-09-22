@@ -55,12 +55,26 @@ get_standard_parametername <- function(x, synonymfile){
 #
 add_sumparameter <- function(i, pars_list, data){
   
+  # Name of sum parameter (e.g., 'CB_S7')
+  sumparameter_name <- names(pars_list)[i]
+  
+  # Print to screen
+  cat("==================================================================\n", i, sumparameter_name, "\n")
+  
+  # Delete all rows that already have the sum parameter (if any)  
+  
+  sel <- data$PARAM %in% sumparameter_name
+  
+  if (sum(sel)>0){
+    data <- data[!sel,]
+    warning(sum(sel), " rows already had parameter ", sQuote(sumparameter_name), " and were deleted\n")
+  }
+  
   # Add variable N_par, if it's not already there
   if (!"N_par" %in% colnames(data)){
     data$N_par <- 1
   }
   pars <- pars_list[[i]]
-  cat("==================================================================\n", i, names(pars_list)[i], "\n")
   cat(pars, "\n")
   # Group data by sample  
   df_grouped <- data %>%
@@ -94,7 +108,7 @@ add_sumparameter <- function(i, pars_list, data){
     }
 
     # Change the parameter name
-    df1$PARAM <- names(pars_list)[i]   
+    df1$PARAM <- sumparameter_name   
     
     # df_to_add = df1, pluss FLAG1 from df2 and N_par from df3
     df_to_add <- data.frame(df1, FLAG1 = df2[,"FLAG1"], N_par = df3[,"N_par"], stringsAsFactors = FALSE)  # Make data to add
