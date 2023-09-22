@@ -53,10 +53,14 @@ get_standard_parametername <- function(x, synonymfile){
 #
 # Takes 'data' as input, calculates sum parameter number 'i' from 'pars_list', and returnes 'data' with new rows added to it
 #
-add_sumparameter <- function(i, pars_list, data){
+add_sumparameter <- function(i, pars_list, data, without_loq = FALSE){
   
-  # Name of sum parameter (e.g., 'CB_S7')
-  sumparameter_name <- names(pars_list)[i]
+  # Name of sum parameter (e.g., 'CB_S7' or 'CB_S7_exloq')
+  if (without_loq){
+    sumparameter_name <- paste0(names(pars_list)[i], "_exloq")
+  } else {
+    sumparameter_name <- names(pars_list)[i]
+  }
   
   # Print to screen
   cat("==================================================================\n", i, sumparameter_name, "\n")
@@ -74,28 +78,53 @@ add_sumparameter <- function(i, pars_list, data){
   if (!"N_par" %in% colnames(data)){
     data$N_par <- 1
   }
+  
+  # Parameters that should be summed (e.g., CB28, CB52, CB101, CB118, CB138, CB153, CB180)
   pars <- pars_list[[i]]
   cat(pars, "\n")
+  
   # Group data by sample  
   df_grouped <- data %>%
     filter(PARAM %in% pars & !is.na(SAMPLE_NO2)) %>%                        # select records (only those with SAMPLE_NO2)
     group_by(STATION_CODE, LATIN_NAME, TISSUE_NAME, MYEAR, SAMPLE_NO2, BASIS, UNIT)  # not PARAM
+  
   if (nrow(df_grouped) > 0){
+    
     # df1 computes the sum of VALUE for every sample   
+    
+    # If we are computing values without LOQ, set all values with FLAG1 = '<' to zero before summation  
+    if (without_loq){
+      df_grouped <- df_grouped %>%
+        mutate(
+          VALUE = case_when(
+            is.na(FLAG1) ~ VALUE,
+            FLAG1 %in% "<" ~ 0,
+            TRUE ~ VALUE))
+    }
     df1 <- df_grouped %>%
       summarise(VALUE = sum(VALUE, na.rm = TRUE), .groups = "drop_last") %>%      # sum of the measurements
       mutate(QUANTIFICATION_LIMIT = NA) %>%
       as.data.frame(stringsAsFactors = FALSE)
-    # df2 computes FLAG1: if FLAG1 is "<" for all congeners, it is set to "<"; otherwise it's set to NA
+    
+    # df2 computes FLAG1
+    if (without_loq){
+      df2 <- df_grouped %>%
+        # FLAG1 = NA, for all rows  
+        summarise(FLAG1 = as.character(NA), .groups = "drop_last")
+    } else {
     df2 <- df_grouped %>%
+      # if FLAG1 is "<" for all congeners, it is set to "<"; otherwise it's set to NA
       summarise(FLAG1 = ifelse(mean(!is.na(FLAG1))==1, "<", as.character(NA)), 
-                .groups = "drop_last") %>%       # If all FLAG1 are "<", FLAG1 = "<", otherwise FLAG1 = NA
-      as.data.frame()
+                .groups = "drop_last")
+    }
+    df2 <- as.data.frame(df2)
     df2$FLAG1[df2$FLAG1 %in% "NA"] <- NA
+    
     # df3 computes N_par, the number of measurements used (i.e., the number of congeners)   
     df3 <- df_grouped %>%
       summarise(N_par = n(), .groups = "drop_last") %>%    # number of measurements
       as.data.frame()
+    
     # Check that all "key columns" are identical in df1 and df2
     check1a <- df1[,1:7] == df2[,1:7]
     check1b <- apply(check1a, 2, mean) %>% mean(na.rm = TRUE)
