@@ -157,8 +157,11 @@ add_sumparameter <- function(i, pars_list, data, without_loq = FALSE){
 # In contrast to add_sumparameter (which is only for last year's data), this is for use on entire data series (dat_updated2) 
 # - for all columns VALUE_WW, VALUE_DW, VALUE_FB, VALUE_WWa, VALUE_DWa, VALUE_FBa
 # - extra columns DRYWT, FAT_PERC, LNMEA, STATION_NAME, SAMPLE_DATE (we drop UNCERTAINTY, QUANTIFICATION_LIMIT etc.)
+#
+# NOTE!
+# - used only in 2022 (when 2021 data were ingested), in order to update last year's data. Does usually not need to be run!
 
-add_sumparameter_exloq <- function(i, pars_list, data){
+add_sumparameter_exloq_allyears <- function(i, pars_list, data){
   # Add variable N_par, if it's not already there
   if (!"N_par" %in% colnames(data)){
     data$N_par <- 1
