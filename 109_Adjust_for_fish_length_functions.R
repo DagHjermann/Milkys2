@@ -46,6 +46,12 @@ adjust_selected <- function(data, selection, standard_length = 500, var = "VALUE
   # Less-thans (data under LOQ) are set to 1/2 of LOQ
   sel_flag <- !is.na(df$FLAG1)
   df$VALUE[sel_flag] <- df$VALUE[sel_flag]*0.5
+  # Set a (constant to add when calulating log conc.)
+  if (sum(df$VALUE == 0) == 0){
+    a <- 0
+  } else {
+    a <- 1
+  }
   # Doing the regression
   if (log){
     df$logVALUE <- log(df$VALUE + a)
