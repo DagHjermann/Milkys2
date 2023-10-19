@@ -20,6 +20,9 @@ library(svglite)
 source("../125_Calculate_trends_leftadjusted_functions.R")
 source("../402_Plot_time_series_functions.R")
 
+# Key variables (defines one time series) 
+indexvars <- c("PARAM", "STATION_CODE", "TISSUE_NAME", "LATIN_NAME", "Basis")
+
 # Lookup file for station names  
 lookup_stations <- read.csv("../Input_data/Lookup_tables/Lookup_stationorder.csv") %>%
   mutate(Station = paste(STATION_CODE, Station_name)) %>%
@@ -46,10 +49,23 @@ folder_input <- paste0(folder_results, "_input")
 folder_output <- paste0(folder_results, "_output")
 
 # Data
-dat_series_trend <- readRDS(paste0(folder_input, "/125_dat_series_trend.rds")) %>%
+# dat_series_trend <- readRDS(paste0(folder_input, "/125_dat_series_trend.rds")) %>%
+#   left_join(lookup_stations %>% select(STATION_CODE, Station), by = "STATION_CODE")
+# dat_all_prep3 <- readRDS(paste0(folder_input, "/125_dat_all_prep3.rds"))
+# df_trend <- readRDS(paste0(folder_output, "/126_df_trend_2021.rds"))
+
+dat_series_trend <- readRDS("Data2022/dat_trend.rds") %>%
   left_join(lookup_stations %>% select(STATION_CODE, Station), by = "STATION_CODE")
-dat_all_prep3 <- readRDS(paste0(folder_input, "/125_dat_all_prep3.rds"))
-df_trend <- readRDS(paste0(folder_output, "/126_df_trend_2021.rds"))
+dat_all_prep3 <- readRDS("Data2022/dat_raw5.rds") %>%
+  left_join(lookup_stations %>% select(STATION_CODE, Station), by = "STATION_CODE")
+
+# df_trend <- readRDS("Data2022/dat_trend.rds")
+result_list <- readRDS("Data2022/result_list.rds")
+
+result_list_series <- seq_along(result_list) %>% 
+  map(~as.data.frame(result_list[[.x]][indexvars])) %>%
+  list_rbind() %>%
+  left_join(lookup_stations %>% select(STATION_CODE, Station), by = "STATION_CODE")
 
 # Add 'Param_name' and 'Tissue_name' to data    
 dat_all_prep3 <- dat_all_prep3 %>%
@@ -156,36 +172,40 @@ server <- function(input, output) {
     } else {
       quantiles <- c(0.25, 0.75)
     }
-    if (input$tissue == "(automatic)"){
-      tsplot <- plot_timeseries(param = input$param, stationcode = stationcode, basis = input$basis, 
-                                y_scale = input$y_scale,
-                                ymax_perc = input$ymax_perc,
-                                xmin_rel = input$xmin_rel,
-                                xmax_rel = input$xmax_rel,
-                                eqs = input$eqs,
-                                proref = input$proref,
-                                folder = folder_results, 
-                                data = dat_all_prep3, 
-                                data_series = dat_series_trend, data_trend = df_trend, 
-                                quantiles = quantiles,
-                                medians = input$medians,
-                                allsamples = input$allsamples)
-    } else {
-      tsplot <- plot_timeseries(param = input$param, stationcode = stationcode, basis = input$basis, 
-                                y_scale = input$y_scale,
-                                ymax_perc = input$ymax_perc,
-                                xmin_rel = input$xmin_rel,
-                                xmax_rel = input$xmax_rel,
-                                eqs = input$eqs,
-                                proref = input$proref,
-                                folder = folder_results, 
-                                data = dat_all_prep3, 
-                                data_series = dat_series_trend, data_trend = df_trend, 
-                                quantiles = quantiles,
-                                medians = input$medians,
-                                allsamples = input$allsamples)
-      
-    }
+    # browser()
+    # if (input$tissue == "(automatic)"){
+      tsplot <- plot_timeseries2a(param = input$param, 
+                        stationcode = stationcode, 
+                        basis = input$basis, 
+                        y_scale = input$y_scale,
+                        ymax_perc = input$ymax_perc,
+                        xmin_rel = input$xmin_rel,
+                        xmax_rel = input$xmax_rel,
+                        eqs = input$eqs,
+                        proref = input$proref,
+                        data = dat_all_prep3,
+                        trend_results = result_list,
+                        trend_results_df = result_list_series,
+                        data_trend = dat_series_trend,
+                        quantiles = quantiles,
+                        medians = input$medians, 
+                        allsamples = input$allsamples)
+    # } else {
+    #   tsplot <- plot_timeseries(param = input$param, stationcode = stationcode, basis = input$basis, 
+    #                             y_scale = input$y_scale,
+    #                             ymax_perc = input$ymax_perc,
+    #                             xmin_rel = input$xmin_rel,
+    #                             xmax_rel = input$xmax_rel,
+    #                             eqs = input$eqs,
+    #                             proref = input$proref,
+    #                             folder = folder_results, 
+    #                             data = dat_all_prep3, 
+    #                             data_series = dat_series_trend, data_trend = df_trend, 
+    #                             quantiles = quantiles,
+    #                             medians = input$medians,
+    #                             allsamples = input$allsamples)
+    #   
+    # }
     tsplot
   })
   

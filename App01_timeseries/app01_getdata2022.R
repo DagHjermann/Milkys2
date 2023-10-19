@@ -23,6 +23,8 @@ indexvars <- c("PARAM", "STATION_CODE", "TISSUE_NAME", "LATIN_NAME", "Basis")
 #o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
 
 
+getwd()
+setwd("..")
 # Set where to find the targets data  
 targets::tar_config_set(store = "../Milkys3/_targets")
 targets::tar_config_get("store")
@@ -31,7 +33,7 @@ targets::tar_config_get("store")
 # . The raw data ----
 
 head(tar_read(data5_bro.fish1), 3)
-head(tar_read(data5_bro.fish1), 3)
+head(tar_read(data4_bro.fish1), 3)
 head(tar_read(data5_bro.fish1), 3)
 
 data2 <- list(
@@ -211,7 +213,7 @@ saveRDS(dat_raw2, "App01_timeseries/Data2022/dat_raw2.rds")
 
 
 dat_raw5 <- data5 %>%
-  map(~.x[c(indexvars, "x", "y", "VALUE", "Flag")]) %>%
+  map(~.x[c(indexvars, "x", "y", "UNIT", "VALUE", "threshold", "Flag")]) %>%
   list_rbind()
 
 ## . Save ---- 
@@ -289,13 +291,13 @@ sel_basis <- "WW"
 
 ### -- Select series  
 
-sel <- with(
+sel1 <- with(
   result_list_series,
   PARAM == sel_param & STATION_CODE == sel_station & Basis == sel_basis)
-if (sum(sel) > 1){
+if (sum(sel1) > 1){
   stop("More than one series series")
 }
-i <- which(sel) 
+i <- which(sel1) 
 
 ### -- Get trend line data    
 
@@ -325,6 +327,7 @@ sel3a <- with(
 sel3b <- with(
   dat_raw5,
   PARAM == sel_param & STATION_CODE == sel_station & Basis == sel_basis & !is.na(y))
+
 
 # data (log-transformed)  
 # dat_raw <- tar_read(data5_bro.fish1) %>% semi_join(df1)

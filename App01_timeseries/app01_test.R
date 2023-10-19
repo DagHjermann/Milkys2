@@ -11,7 +11,7 @@ load_data <- TRUE
 if (load_data){
   
   # From the top of App 01, so we need setwd() in the start AND at the end  
-  setwd("App01_timeseries/")
+  setwd("/home/jovyan/shared/common/DHJ/Milkys2/App01_timeseries/")
   
   
   # The rest is copied from the top of App 01 (28.10.2022)
@@ -28,6 +28,9 @@ if (load_data){
   # Functions  
   source("../125_Calculate_trends_leftadjusted_functions.R")
   source("../402_Plot_time_series_functions.R")
+  
+  # Key variables (defines one time series) 
+  indexvars <- c("PARAM", "STATION_CODE", "TISSUE_NAME", "LATIN_NAME", "Basis")
   
   # Lookup file for station names  
   lookup_stations <- read.csv("../Input_data/Lookup_tables/Lookup_stationorder.csv") %>%
@@ -59,6 +62,26 @@ if (load_data){
     left_join(lookup_stations %>% select(STATION_CODE, Station), by = "STATION_CODE")
   dat_all_prep3 <- readRDS(paste0(folder_input, "/125_dat_all_prep3.rds"))
   df_trend <- readRDS(paste0(folder_output, "/126_df_trend_2021.rds"))
+
+  
+  # Data
+  # dat_series_trend <- readRDS(paste0(folder_input, "/125_dat_series_trend.rds")) %>%
+  #   left_join(lookup_stations %>% select(STATION_CODE, Station), by = "STATION_CODE")
+  # dat_all_prep3 <- readRDS(paste0(folder_input, "/125_dat_all_prep3.rds"))
+  # df_trend <- readRDS(paste0(folder_output, "/126_df_trend_2021.rds"))
+  
+  dat_series_trend <- readRDS("Data2022/dat_trend.rds") %>%
+    left_join(lookup_stations %>% select(STATION_CODE, Station), by = "STATION_CODE")
+  dat_all_prep3 <- readRDS("Data2022/dat_raw5.rds") %>%
+    left_join(lookup_stations %>% select(STATION_CODE, Station), by = "STATION_CODE")
+  
+  # df_trend <- readRDS("Data2022/dat_trend.rds")
+  result_list <- readRDS("Data2022/result_list.rds")
+  
+  result_list_series <- seq_along(result_list) %>% 
+    map(~as.data.frame(result_list[[.x]][indexvars])) %>%
+    list_rbind() %>%
+    left_join(lookup_stations %>% select(STATION_CODE, Station), by = "STATION_CODE")
   
   # Add 'Param_name' and 'Tissue_name' to data    
   dat_all_prep3 <- dat_all_prep3 %>%
@@ -116,8 +139,10 @@ if (FALSE){
   input <- list()
   input$param <- "HG"
   input$param <- "VDSI"
-  stationcode <- "30B"
-  stationcode <- "36G"
+  input$param <- "CB153"
+  stationcode <- "11X"
+  # stationcode <- "30B"
+  # stationcode <- "36G"
   latinname = "Gadus morhua"
   latinname = "Nucella lapillus"
   
@@ -127,7 +152,7 @@ if (FALSE){
   input$eqs <- TRUE
   input$proref <- "1"
   input$medians <- TRUE
-  input$allsamples <- FALSE
+  input$allsamples <- TRUE
   input$ymax_perc <- 100
   input$xmin_rel <- 0
   input$xmax_rel <- 0
@@ -138,8 +163,26 @@ if (FALSE){
     quantiles <- c(0.25, 0.75)
   }
   
-  setwd("/home/jovyan/shared/DHJ/Milkys2/App01_timeseries")
+  setwd("/home/jovyan/shared/common/DHJ/Milkys2/App01_timeseries")
   
+  plot_timeseries2a(param = input$param, 
+                    stationcode = stationcode, 
+                    basis = input$basis, 
+                    y_scale = input$y_scale,
+                    ymax_perc = input$ymax_perc,
+                    xmin_rel = input$xmin_rel,
+                    xmax_rel = input$xmax_rel,
+                    eqs = input$eqs,
+                    proref = input$proref,
+                    data = dat_all_prep3,
+                    trend_results = result_list,
+                    trend_results_df = result_list_series,
+                    data_trend = dat_series_trend,
+                    quantiles = quantiles,
+                    medians = input$medians, 
+                    allsamples = input$allsamples)
+  
+
   # debugonce(plot_timeseries)
   # debugonce(plot_timeseries_seriesno)
   tsplot <- plot_timeseries(param = input$param, stationcode = stationcode, basis = input$basis, 
@@ -163,7 +206,7 @@ if (FALSE){
     mutate(Value2 = exp(Value)) %>%
     View()
   
-  setwd("/home/jovyan/shared/DHJ/Milkys2")
+  setwd("/home/jovyan/shared/common/DHJ/Milkys2")
   
   rm(list = c("input", stationcode, latinname, quantiles))
   
