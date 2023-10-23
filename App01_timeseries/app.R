@@ -48,12 +48,13 @@ folder_results <- "../Data/125_results_2021_07"
 folder_input <- paste0(folder_results, "_input")
 folder_output <- paste0(folder_results, "_output")
 
-# Data
+# Data OLD
 # dat_series_trend <- readRDS(paste0(folder_input, "/125_dat_series_trend.rds")) %>%
 #   left_join(lookup_stations %>% select(STATION_CODE, Station), by = "STATION_CODE")
 # dat_all_prep3 <- readRDS(paste0(folder_input, "/125_dat_all_prep3.rds"))
 # df_trend <- readRDS(paste0(folder_output, "/126_df_trend_2021.rds"))
 
+# Data NEW
 dat_series_trend <- readRDS("Data2022/dat_trend.rds") %>%
   left_join(lookup_stations %>% select(STATION_CODE, Station), by = "STATION_CODE")
 dat_all_prep3 <- readRDS("Data2022/dat_raw5.rds") %>%
@@ -89,13 +90,27 @@ dat_all_prep3 <- dat_all_prep3 %>%
   left_join(lookup_stations %>% select(STATION_CODE, Station_name, Region), by = "STATION_CODE")
 
 # Add EQS and Proref to data    
+lookup_no_eqs <- dat_all_prep3 %>%
+  distinct(PARAM) %>%
+  anti_join(lookup_eqs, by = "PARAM")
+lookup_eqs_nospecies <- lookup_eqs %>%
+  filter(is.na(LATIN_NAME))
+lookup_eqs_nospecies <- lookup_eqs %>%
+  filter(is.na(LATIN_NAME))
+overlap <- intersect(lookup_eqs_species$PARAM, lookup_eqs_nospecies$PARAM)
+if (length(overlap) > 0)
+  stop("In the EQS file, each parameter must have either LATIN_NAME empty, or LATIN_NAME for all rows")
+if (sum(is.na(lookup_eqs_species$Basis)) > 0)
+  stop("In the EQS file, all rows with LATIN_NAME must also have Basis given")
 dat_all_prep3 <- bind_rows(
+  dat_all_prep3 %>% 
+    filter(PARAM %in% lookup_no_eqs$PARAM),
+  dat_all_prep3 %>% 
+    filter(PARAM %in% lookup_eqs_nospecies$PARAM) %>%
+    left_join(lookup_eqs_nospecies %>% select(-LATIN_NAME, -Basis), by = c("PARAM")),
   dat_all_prep3 %>%
-    filter(PARAM != "CB118") %>%
-    left_join(lookup_eqs %>% filter(PARAM != "CB118") %>% select(-LATIN_NAME, -Basis), by = c("PARAM")),
-  dat_all_prep3 %>%
-    filter(PARAM == "CB118") %>%
-    left_join(lookup_eqs %>% filter(PARAM == "CB118"), by = c("PARAM", "Basis", "LATIN_NAME"))
+    filter(PARAM %in% lookup_eqs_species$PARAM) %>%
+    left_join(lookup_eqs_species, by = c("PARAM", "LATIN_NAME", "Basis")),
 ) %>%
   left_join(lookup_proref, by = c("PARAM", "LATIN_NAME", "TISSUE_NAME", "Basis"))
 
