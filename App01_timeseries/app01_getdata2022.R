@@ -1,7 +1,23 @@
 
+#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
 #
 # Get data from targets objects and save in this folder
 #
+#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
+
+#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
+#
+# Settings
+#
+#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
+
+save_files <- FALSE
+
+#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
+#
+# Packages and functions
+#
+#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
 
 ## Packages  
 
@@ -10,25 +26,30 @@ library(purrr)
 library(dplyr)
 library(ggplot2)
 
+#
+# Set work directory and where the targets store is
+#
+
+# getwd()
+setwd("/home/jovyan/shared/common/DHJ/Milkys2")
+# Set where to find the targets data  
+targets::tar_config_set(store = "../Milkys3/_targets")
+targets::tar_config_get("store")
+# test <- tar_read(series3_bro.fish1)
+
+# Functions
 source("../Milkys3/R/001_functions_trend.R")
 
 # Key variables (defines one time series) 
 indexvars <- c("PARAM", "STATION_CODE", "TISSUE_NAME", "LATIN_NAME", "Basis")
 
-
 #o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
 #
 ## Get targets data ---- 
 #
+# Directly from the targets store in Milkys3  
+#
 #o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
-
-
-getwd()
-setwd("..")
-# Set where to find the targets data  
-targets::tar_config_set(store = "../Milkys3/_targets")
-targets::tar_config_get("store")
-# test <- tar_read(series3_bro.fish1)
 
 # . The raw data ----
 
@@ -195,6 +216,9 @@ for (k in 1:N){
 #
 ## Make data frame, raw data ---- 
 #
+# -> dat_raw2
+# -> dat_raw5
+#
 #o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
 
 dat_raw2 <- data2 %>%
@@ -209,20 +233,44 @@ dat_raw2 <- data2 %>%
 
 ## . Save ---- 
 
-saveRDS(dat_raw2, "App01_timeseries/Data2022/dat_raw2.rds")
+if (save_files)
+  saveRDS(dat_raw2, "App01_timeseries/Data2022/dat_raw2.rds")
 
 
 dat_raw5 <- data5 %>%
   map(~.x[c(indexvars, "x", "y", "UNIT", "VALUE", "threshold", "Flag")]) %>%
   list_rbind()
 
+dat_raw5 <- dat_raw5 %>% 
+  mutate(
+    test_log0 = (log(VALUE)-y)/y,
+    test_log1 = (log(VALUE+1)-y)/y,
+    test_nolog = (VALUE-y)/y,
+    log0 = abs(test_log0) < 0.00000001,
+    log1 = abs(test_log1) < 0.00000001,
+    nolog = abs(test_nolog) < 0.00000001,
+    transform = case_when(
+      log0 ~ "log0",
+      log1 ~ "log1",
+      nolog ~ "nolog0"))
+# Check - all rows have just one TRUE among log0, log1, nolog, 
+#   and no rows have no TRUE   
+# xtabs(~log0 + log1 + nolog, dat_raw5)
+
+dat_raw5 <- dat_raw5 %>% 
+  select(-test_log0, -test_log1, -test_nolog,
+         -log0, -log1, -nolog)
+
 ## . Save ---- 
 
-saveRDS(dat_raw5, "App01_timeseries/Data2022/dat_raw5.rds")
+if (save_files)
+  saveRDS(dat_raw5, "App01_timeseries/Data2022/dat_raw5.rds")
 
 #o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
 #
 ## Make data frame, one row per trend result ---- 
+#
+# -> 'dat_trend'
 #
 #o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
 
@@ -238,12 +286,18 @@ dat_trend <- list_rbind(dat_trend_list)
 
 ## . Save ---- 
 
-saveRDS(dat_trend, "App01_timeseries/Data2022/dat_trend.rds")
+if (save_files)
+  saveRDS(dat_trend, "App01_timeseries/Data2022/dat_trend.rds")
 
+# Check one series
+# dat_trend <- readRDS("App01_timeseries/Data2022/dat_trend.rds")
+# dat_trend %>% filter(PARAM == "PFDcA" & STATION_CODE == "36B") %>% View("PFDcA på 36B")
 
 #o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
 #
 ## Extract plot data: trend lines ----
+#
+# -> 'result_list'  
 #
 #o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
 
@@ -266,7 +320,8 @@ length(result_list)
 
 ### . Save ---- 
 
-saveRDS(result_list, "App01_timeseries/Data2022/result_list.rds")
+if (save_files)
+  saveRDS(result_list, "App01_timeseries/Data2022/result_list.rds")
 
 
 #o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
@@ -285,9 +340,20 @@ result_list_series <- seq_along(result_list) %>%
 ### --- Select parameter and station  
 
 sel_param <- "CB153" 
+sel_param <- "PFDcA" 
+sel_param <- "PFOS" 
 sel_station <- "98B1" 
 sel_station <- "11X" 
+sel_station <- "36B" 
 sel_basis <- "WW" 
+
+### Check data from file 109  
+dat_109 <- readRDS("Data/109_adjusted_data_ELU2_2023-09-12.rds") %>%
+  filter(PARAM == sel_param & STATION_CODE == sel_station)
+if (FALSE){
+  ggplot(dat_109, aes(MYEAR, VALUE_WW, color = is.na(FLAG1))) +
+    geom_point()
+}
 
 ### -- Select series  
 
@@ -307,6 +373,21 @@ k_sel <- result_list[[i]]$k_sel
 df2 <- result_list[[i]]$plot_data[[k_sel]]
 result <- bind_cols(df1, df2)
 
+if (FALSE){
+  # Test plots, assuming log-transformed variable  
+  ggplot(result, aes(x = x)) +
+    geom_path(aes(y = y)) +
+    geom_path(aes(y = y_q2.5), linetype = "dashed") +
+    geom_path(aes(y = y_q97.5), linetype = "dashed") +
+    geom_point(data = dat_109, aes(x=MYEAR, y = VALUE_WW, color = is.na(FLAG1)))
+  ggplot(result, aes(x = x)) +
+    geom_path(aes(y = exp(y))) +
+    geom_path(aes(y = exp(y_q2.5)), linetype = "dashed") +
+    geom_path(aes(y = exp(y_q97.5)), linetype = "dashed") +
+    geom_point(data = dat_109, aes(x=MYEAR, y = VALUE_WW, color = is.na(FLAG1)))
+}
+
+
 ### -- Get regression result strings      
 
 sel2 <- with(
@@ -317,17 +398,20 @@ if (sum(sel2) > 2){
 }
 trendstring_short <- dat_trend[sel2 & dat_trend$Trend_type == "short",]$Trend_string
 trendstring_long <- dat_trend[sel2 & dat_trend$Trend_type == "long",]$Trend_string
+trendstring_short
+trendstring_long
 
 ### --- Get raw data  
 
+# for dat_raw2
 sel3a <- with(
   dat_raw2,
   PARAM == sel_param & STATION_CODE == sel_station & Basis == sel_basis & !is.na(VALUE))
 
+# for dat_raw5
 sel3b <- with(
   dat_raw5,
   PARAM == sel_param & STATION_CODE == sel_station & Basis == sel_basis & !is.na(y))
-
 
 # data (log-transformed)  
 # dat_raw <- tar_read(data5_bro.fish1) %>% semi_join(df1)
