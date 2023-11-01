@@ -12,7 +12,7 @@ output:
 ## Startup  
 ```{r 01_settings, include=FALSE}
 
-current_year <- 2021
+current_year <- 2022
 knitr::opts_chunk$set(echo = FALSE, results = 'hold')
 
 ```
@@ -20,7 +20,7 @@ knitr::opts_chunk$set(echo = FALSE, results = 'hold')
 ```{r 02_packages, include=FALSE}
 
 library(dplyr)
-# library(tidyr)
+library(tidyr)
 library(ggplot2)
 library(lubridate)
 library(flextable)
@@ -42,8 +42,11 @@ library(cowplot)
 
 ```{r 03_medians_data1}
 
-dat_raw <- readRDS("Data/109_adjusted_data_2022-09-23.rds")                              
-dat_medians <- readRDS("Data/110_mediandata_updated_2022-09-23.rds")
+dat_raw <- readRDS("Data/109_adjusted_data_ELU2_2023-09-12.rds") %>%
+  filter(!STATION_CODE %in% c("I965","I969"))
+
+dat_medians <- readRDS("Data/110_mediandata_updated_ELU_2023-09-12.rds") %>%
+  filter(!STATION_CODE %in% c("I965","I969"))
 
 # Stations - for corrrect ordering
 lookup_stations <- read.csv("Input_data/Lookup_tables/Lookup_stationorder.csv") # %>%
@@ -55,14 +58,32 @@ lookup_stations <- read.csv("Input_data/Lookup_tables/Lookup_stationorder.csv") 
 ## Median LOQ by year
 ```{r}
 
-params <- c("AG", "AS", "CD", "CO", "CR", "CU", "HG", "NI", "PB", "ZN", 
-  "BDE47", "BDE99", "BDE100", "BDE153", "HBCDA", "HCB", "CB118", "CB138",  "CB153", 
-  "PFOA", "PFOS", "PFOSA", "BAA", "BAP", "FLU", "PYR", "D5")
+# 2021:
+# params <- c("AG", "AS", "CD", "CO", "CR", "CU", "HG", "NI", "PB", "ZN", 
+#   "BDE47", "BDE99", "BDE100", "BDE153", "HBCDA", "HCB", "CB118", "CB138",  "CB153", 
+#   "PFOA", "PFOS", "PFOSA", "BAA", "BAP", "FLU", "PYR", "D5")
 
-# LOQ median values for all parameters
-dat_loq <-  dat_raw %>%
-  filter(PARAM %in% params) %>%
-  mutate(PARAM = factor(PARAM, levels = params)) %>%
+df_params <- read_excel("Input_data/Lookup_tables/Lookup_priority_for_timetrends.xlsx")
+params <- df_params %>%
+  filter(`Selected 2022[PARAM]` == 1) %>%
+  pull(PARAM)
+
+sel <- params %in% "SCCP eksl. LOQ"
+params[sel] <- "SCCP"
+sel <- params %in% "MCCP eksl. LOQ"
+params[sel] <- "MCCP"
+
+params1 <- params[!params %in% c("SCCP","MCCP")]
+params2 <- params[params %in% c("SCCP","MCCP")]
+
+```
+
+### LOQ for all parameters except SCCP, MCCP
+```{r}
+
+# LOQ median values for all parameters except SCCP, MCCP
+dat_loq1 <-  dat_raw %>%
+  filter(PARAM %in% params1) %>%
   group_by(PARAM, MYEAR) %>%
   summarise(
     medLOQ = median(VALUE_WW[!is.na(FLAG1)], na.rm = TRUE) %>% round(4),
@@ -70,6 +91,55 @@ dat_loq <-  dat_raw %>%
   ) 
 
 ```
+
+## LOQ for SCCP and MCCP  
+```{r}
+
+# SCCP
+df2a <- dat_raw %>%
+  filter(PARAM %in% c("SCCP inkl. LOQ", "SCCP eksl. LOQ")) %>%
+  select(MYEAR, STATION_CODE, TISSUE_NAME, SAMPLE_NO2, PARAM, VALUE_WW) %>%
+  pivot_wider(names_from = PARAM, values_from = VALUE_WW) 
+df2b <- df2a %>%
+  mutate(PARAM = "SCCP") %>%
+  group_by(PARAM, MYEAR) %>%
+  summarise(
+    medLOQ = median(`SCCP inkl. LOQ`[`SCCP eksl. LOQ` == 0], na.rm = TRUE) %>% round(4),
+    .groups = "drop"
+  ) 
+
+# MCCP
+df2c <- dat_raw %>%
+  filter(PARAM %in% c("MCCP inkl. LOQ", "MCCP eksl. LOQ")) %>%
+  select(MYEAR, STATION_CODE, TISSUE_NAME, SAMPLE_NO2, PARAM, VALUE_WW) %>%
+  pivot_wider(names_from = PARAM, values_from = VALUE_WW) 
+df2d <- df2c %>%
+  filter(`MCCP eksl. LOQ` == 0) %>%
+  mutate(PARAM = "MCCP") %>%
+  group_by(PARAM, MYEAR) %>%
+  summarise(
+    medLOQ = median(`MCCP inkl. LOQ`[`MCCP eksl. LOQ` == 0], na.rm = TRUE) %>% round(4),
+    .groups = "drop"
+  ) 
+
+# check SCCP 
+df2a %>%
+  mutate(ratio_excluding_including = `SCCP eksl. LOQ`/`SCCP inkl. LOQ`) %>%
+  ggplot() + 
+  geom_histogram(aes(x = ratio_excluding_including))
+
+dat_loq2 <- bind_rows(df2b, df2d)
+
+```
+
+### Combine 
+```{r}
+
+dat_loq <- bind_rows(dat_loq1, dat_loq2) %>%
+  mutate(PARAM = factor(PARAM, levels = params))
+
+```
+
 
 ### Tables  
 ```{r}
@@ -139,11 +209,11 @@ gg <- ggplot(dat_loq2, aes(MYEAR, PARAM, fill = loq_rel)) +
             aes(label = medLOQ_label), color = "black") +
   geom_text(data = subset(dat_loq2, loq_rel < white[1] | loq_rel > white[2]), 
             aes(label = medLOQ_label), color = "white") +
-  scale_x_continuous(breaks = seq(2002,2020,2)) +
+  scale_x_continuous(breaks = seq(2002,2022,2)) +
   theme(axis.title = element_blank())
   
 gg1 <- gg + coord_cartesian(xlim = c(2002,2012))
-gg2 <- gg + coord_cartesian(xlim = c(2012,2021))
+gg2 <- gg + coord_cartesian(xlim = c(2013,2022))
 
 ggsave("Figures/433_LOQ-median1.png", gg1, width = 10, height = 6.5, dpi = 200)
 ggsave("Figures/433_LOQ-median2.png", gg2, width = 10, height = 6.5, dpi = 200)
@@ -199,7 +269,7 @@ dat_detectplot1b <- dat_detectplot1 %>%
          Parameter = forcats::fct_rev(Parameter)
   )
 
-ggplot(dat_detectplot1b, aes(Parameter, Station, fill = Detected)) +
+gg <- ggplot(dat_detectplot1b, aes(Parameter, Station, fill = Detected)) +
   geom_tile() +
   geom_text(data = subset(dat_detectplot1, Detected > 35 & Detected < 65), 
             aes(label = Detected), size = 3) +
@@ -211,6 +281,10 @@ ggplot(dat_detectplot1b, aes(Parameter, Station, fill = Detected)) +
   ggeasy::easy_rotate_labels("x", angle = -45) +
   theme(axis.title = element_blank())
 
+ggsave(paste0("Figures/433_LOQ-median-", current_year, ".png"), gg, 
+       width = 10, height = 10, dpi = 200)
+
+gg
 
 ```
 
