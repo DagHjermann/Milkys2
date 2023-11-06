@@ -84,7 +84,7 @@ params2 <- params[params %in% c("SCCP","MCCP")]
 # LOQ median values for all parameters except SCCP, MCCP
 dat_loq1 <-  dat_raw %>%
   filter(PARAM %in% params1) %>%
-  group_by(PARAM, MYEAR) %>%
+  group_by(PARAM, MYEAR, UNIT) %>%
   summarise(
     medLOQ = median(VALUE_WW[!is.na(FLAG1)], na.rm = TRUE) %>% round(4),
     .groups = "drop"
@@ -98,11 +98,11 @@ dat_loq1 <-  dat_raw %>%
 # SCCP
 df2a <- dat_raw %>%
   filter(PARAM %in% c("SCCP inkl. LOQ", "SCCP eksl. LOQ")) %>%
-  select(MYEAR, STATION_CODE, TISSUE_NAME, SAMPLE_NO2, PARAM, VALUE_WW) %>%
+  select(MYEAR, STATION_CODE, TISSUE_NAME, SAMPLE_NO2, PARAM, VALUE_WW, UNIT) %>%
   pivot_wider(names_from = PARAM, values_from = VALUE_WW) 
 df2b <- df2a %>%
   mutate(PARAM = "SCCP") %>%
-  group_by(PARAM, MYEAR) %>%
+  group_by(PARAM, MYEAR, UNIT) %>%
   summarise(
     medLOQ = median(`SCCP inkl. LOQ`[`SCCP eksl. LOQ` == 0], na.rm = TRUE) %>% round(4),
     .groups = "drop"
@@ -111,12 +111,12 @@ df2b <- df2a %>%
 # MCCP
 df2c <- dat_raw %>%
   filter(PARAM %in% c("MCCP inkl. LOQ", "MCCP eksl. LOQ")) %>%
-  select(MYEAR, STATION_CODE, TISSUE_NAME, SAMPLE_NO2, PARAM, VALUE_WW) %>%
+  select(MYEAR, STATION_CODE, TISSUE_NAME, SAMPLE_NO2, PARAM, VALUE_WW, UNIT) %>%
   pivot_wider(names_from = PARAM, values_from = VALUE_WW) 
 df2d <- df2c %>%
   filter(`MCCP eksl. LOQ` == 0) %>%
   mutate(PARAM = "MCCP") %>%
-  group_by(PARAM, MYEAR) %>%
+  group_by(PARAM, MYEAR, UNIT) %>%
   summarise(
     medLOQ = median(`MCCP inkl. LOQ`[`MCCP eksl. LOQ` == 0], na.rm = TRUE) %>% round(4),
     .groups = "drop"
