@@ -223,6 +223,15 @@ gg2
 
 ```
 
+### Add a 2021 version for last plot   
+
+```{r}
+
+gg2b <- gg + coord_cartesian(xlim = c(2013,2021))
+ggsave("Figures/433_LOQ-median2_2021.png", gg2b, width = 10*9/10, height = 6.5, dpi = 200)
+
+```
+
 
 ## Detection frequency
 
