@@ -347,13 +347,22 @@ plot_timeseries2a <- function(param, stationcode,
   i <- which(sel1) 
   
   # 2. get resultlist  
-  trend_results_sel <- trend_results[[i]]
+  if (sum(sel1) %in% 1){
+    trend_results_sel <- trend_results[[i]]
+  } else if (sum(sel1) %in% 0){
+    trend_results_sel <- NULL
+  } else {
+    stop("Error in plot_timeseries2a - more than one trend line time series selected! ")
+  }
   
   # resultlist
   
+  # if (stationcode == "65A")
+  #  browser()
+  
   ### --- Get raw data  
   raw_data <- data %>%
-    filter(PARAM %in% param & STATION_CODE %in% stationcode & Basis %in% basis & !is.na(y))
+    filter(PARAM %in% param & STATION_CODE %in% stationcode & Basis %in% basis & !is.na(VALUE))
   if (!is.null(tissue))
     raw_data <- raw_data %>% filter(data_trend$TISSUE_NAME %in% tissue)
   if (!is.null(species))
@@ -400,7 +409,15 @@ plot_timeseries2b <- function(
   
   # debugonce(get_pointdata)
   df_points <- raw_data %>%
-    mutate(y_comb = ifelse(is.na(y), threshold, y))
+    mutate(y_comb = ifelse(is.na(y), threshold, y)) %>%
+    mutate(
+      VALUElog = case_when(
+        transform %in% "log1" ~ log(VALUE + 1),
+        TRUE ~ VALUElog)
+      )
+  
+  # if (df_points$PARAM[1] == "CB_S7_exloq")
+  # browser()
   
   # EQS and Proref
   include_eqs <- !is.na(df_points$EQS[1]) & eqs
@@ -424,10 +441,11 @@ plot_timeseries2b <- function(
       .groups = "drop") %>%
     mutate(overLOQ = n_overLOQ > (0.5*n))
   
+  # if ()
   # browser()
   titlestring <- paste0(df_points$Param_name[1], " in ", df_points$Species_name[1], " at ", df_points$Station_name[1])
-  subtitlestring <- paste0("Station code: ", resultlist$STATION_CODE, " (region: ", df_points$Region[1], "). ", 
-                           str_to_sentence(df_points$Tissue_name[1]), " (basis ", resultlist$Basis, "), ", resultlist$LATIN_NAME)
+  subtitlestring <- paste0("Station code: ", df_points$STATION_CODE, " (region: ", df_points$Region[1], "). ", 
+                           str_to_sentence(df_points$Tissue_name[1]), " (basis ", df_points$Basis, "), ", df_points$LATIN_NAME)
   
   # Some parameters (VDSI, sums with exloq, etc.) contain zeros and we used log(x+1) instead of log(x) fpr their analysis
   # See 125_extra1_2021.R
@@ -449,7 +467,7 @@ plot_timeseries2b <- function(
         ymax = backtrans(ymax))
     df_points <- df_points %>% 
       mutate(y = backtrans(y),
-             threshold = exp(threshold))
+             threshold = backtrans(threshold))
   }
   # else if (y_scale %in% c("ordinary", "log scale") & log_xplus_1){
   #   df_median <- df_median %>% 
@@ -483,19 +501,20 @@ plot_timeseries2b <- function(
     check_bug <- which(resultlist$k_values == resultlist$k_sel) == resultlist$k_sel
     # k_sel <- resultlist$k_sel               # old version - gives error, or (worse) picks the wrong model
     k_sel <- as.character(resultlist$k_sel)   # corrected version
-    if (y_scale %in% c("ordinary", "log scale") & !log_xplus_1){
+    if (y_scale %in% c("ordinary", "log scale")){
       resultlist$plot_data[[k_sel]] <- resultlist$plot_data[[k_sel]] %>% 
         mutate(
           y = exp(y),
-          y_q2.5 = exp(y_q2.5),
-          y_q97.5 = exp(y_q97.5))
-    } else if (y_scale %in% c("ordinary", "log scale") & log_xplus_1) {
-      resultlist$plot_data[[k_sel]] <- resultlist$plot_data[[k_sel]] %>% 
-        mutate(
-          y = exp(y)-1,
-          y_q2.5 = exp(y_q2.5)-1,
-          y_q97.5 = exp(y_q97.5)-1)
-    }
+          y_q2.5 = backtrans(y_q2.5),
+          y_q97.5 = backtrans(y_q97.5))
+    } 
+    # else if (y_scale %in% c("ordinary", "log scale") & log_xplus_1) {
+    #   resultlist$plot_data[[k_sel]] <- resultlist$plot_data[[k_sel]] %>% 
+    #     mutate(
+    #       y = backtrans(y)-1,
+    #       y_q2.5 = backtrans(y_q2.5)-1,
+    #       y_q97.5 = exp(y_q97.5)-1)
+    # }
     gg <- gg +
       geom_ribbon(data = resultlist$plot_data[[k_sel]], aes(ymin = y_q2.5, ymax = y_q97.5), fill = "grey70") +
       geom_line(data = resultlist$plot_data[[k_sel]])
@@ -537,6 +556,7 @@ plot_timeseries2b <- function(
              LATIN_NAME %in% resultlist$LATIN_NAME,
              Basis  %in% resultlist$Basis) %>%
       as.data.frame()
+    # browser()
     trendstring <- map_chr(c("long","short"), get_trendstring, trenddata = df_trend_sel)
     trendstring_comb <- paste0(                  # paste0(trendstring[1], "\n", trendstring[2])
       "Long-term: ", trendstring[1], "\n",
