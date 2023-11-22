@@ -142,6 +142,7 @@ plot_timeseries_seriesno <- function(seriesno,
   
   # Some parameters (VDSI, sums with exloq, etc.) contain zeros and we used log(x+1) instead of log(x) fpr their analysis
   # See 125_extra1_2021.R
+  # (the newer function plot_timeseries2b instead uses a column in the data)  
   log_xplus_1 <- grepl("VDSI", df_points$PARAM[1]) | grepl("_exloq", df_points$PARAM[1], fixed = TRUE)
 
   if (y_scale %in% c("ordinary", "log scale") & !log_xplus_1){
@@ -441,19 +442,22 @@ plot_timeseries2b <- function(
       .groups = "drop") %>%
     mutate(overLOQ = n_overLOQ > (0.5*n))
   
-  # if ()
-  # browser()
+  # Testing VDSI bug
+  # if (grepl("VDS", df_points$Param_name[1]))
+  #   browser()
+  
   titlestring <- paste0(df_points$Param_name[1], " in ", df_points$Species_name[1], " at ", df_points$Station_name[1])
   subtitlestring <- paste0("Station code: ", df_points$STATION_CODE, " (region: ", df_points$Region[1], "). ", 
                            str_to_sentence(df_points$Tissue_name[1]), " (basis ", df_points$Basis, "), ", df_points$LATIN_NAME)
   
   # Some parameters (VDSI, sums with exloq, etc.) contain zeros and we used log(x+1) instead of log(x) fpr their analysis
   # See 125_extra1_2021.R
-  log_xplus_1 <- grepl("VDSI", df_points$PARAM[1]) | grepl("_exloq", df_points$PARAM[1], fixed = TRUE)
+  # log_xplus_1 <- grepl("VDSI", df_points$PARAM[1]) | grepl("_exloq", df_points$PARAM[1], fixed = TRUE)
+  # Not used anymore! istead uses the 'transform' column in the data
   
   if (df_points$transform[1] %in% "log0"){
     backtrans <- function(x) exp(x)
-  } else if (df_points$transform[1] %in% "log0"){
+  } else if (df_points$transform[1] %in% "log1"){
     backtrans <- function(x) exp(x)-1
   } else if (df_points$transform[1] %in% "nolog"){
     backtrans <- function(x) x
@@ -504,7 +508,7 @@ plot_timeseries2b <- function(
     if (y_scale %in% c("ordinary", "log scale")){
       resultlist$plot_data[[k_sel]] <- resultlist$plot_data[[k_sel]] %>% 
         mutate(
-          y = exp(y),
+          y = backtrans(y),
           y_q2.5 = backtrans(y_q2.5),
           y_q97.5 = backtrans(y_q97.5))
     } 
