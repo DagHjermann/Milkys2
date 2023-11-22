@@ -20,6 +20,9 @@ library(svglite)
 source("../125_Calculate_trends_leftadjusted_functions.R")
 source("../402_Plot_time_series_functions.R")
 
+# Settings
+last_year <- 2022
+
 # Key variables (defines one time series) 
 indexvars <- c("PARAM", "STATION_CODE", "TISSUE_NAME", "LATIN_NAME", "Basis")
 
@@ -56,7 +59,14 @@ folder_output <- paste0(folder_results, "_output")
 
 # Data NEW
 dat_series_trend <- readRDS("Data2022/dat_trend.rds") %>%
-  left_join(lookup_stations %>% select(STATION_CODE, Station), by = "STATION_CODE")
+  left_join(lookup_stations %>% select(STATION_CODE, Station), by = "STATION_CODE") %>%
+  mutate(
+    Perc_change = round((exp(-y_mean)-1)*100, 1),
+    D_year = last_year - First_year,
+    Perc_annual = round((exp(-y_mean/D_year)-1)*100, 1),
+    Perc_annual_lo = round((exp(-y_q2.5/D_year)-1)*100, 1),
+    Perc_annual_hi = round((exp(-y_q97.5/D_year)-1)*100, 1)
+  )
 dat_all_prep3 <- readRDS("Data2022/dat_raw5.rds") %>%
   left_join(lookup_stations %>% select(STATION_CODE, Station), by = "STATION_CODE")
 
@@ -95,8 +105,8 @@ lookup_no_eqs <- dat_all_prep3 %>%
   anti_join(lookup_eqs, by = "PARAM")
 lookup_eqs_nospecies <- lookup_eqs %>%
   filter(is.na(LATIN_NAME))
-lookup_eqs_nospecies <- lookup_eqs %>%
-  filter(is.na(LATIN_NAME))
+lookup_eqs_species <- lookup_eqs %>%
+  filter(!is.na(LATIN_NAME))
 overlap <- intersect(lookup_eqs_species$PARAM, lookup_eqs_nospecies$PARAM)
 if (length(overlap) > 0)
   stop("In the EQS file, each parameter must have either LATIN_NAME empty, or LATIN_NAME for all rows")
@@ -133,6 +143,7 @@ if (!file_exists){
   close(zz)
 }
 
+# browser()
 
 # Define UI for application that draws a histogram
 ui <- fluidPage(
@@ -189,6 +200,8 @@ server <- function(input, output) {
     }
     # browser()
     # if (input$tissue == "(automatic)"){
+    # if (input$param == "VDSI")
+    #  browser()
       tsplot <- plot_timeseries2a(param = input$param, 
                         stationcode = stationcode, 
                         basis = input$basis, 
@@ -246,7 +259,7 @@ server <- function(input, output) {
     }
     # Save plot
     fn_base <- paste0(fn_base, input$filename_add)
-    save_plot(tsplot_r(), paste0("../Figures_402/Til 2021-rapporten/", fn_base, ".png"))
+    save_plot(tsplot_r(), paste0("../Figures_402/Til 2022-rapporten/", fn_base, ".png"))
     
     # Write metadata for saved plot
     fileconn <- file(savedplots_filename, "at")
