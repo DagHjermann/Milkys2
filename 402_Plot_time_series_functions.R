@@ -442,8 +442,8 @@ plot_timeseries2b <- function(
       .groups = "drop") %>%
     mutate(overLOQ = n_overLOQ > (0.5*n))
   
-  # Testing VDSI bug
-  # if (grepl("VDS", df_points$Param_name[1]))
+  # For checking VDSI bugs
+  # if (grepl("Intersex", df_points$Param_name[1]))
   #   browser()
   
   titlestring <- paste0(df_points$Param_name[1], " in ", df_points$Species_name[1], " at ", df_points$Station_name[1])
@@ -455,11 +455,14 @@ plot_timeseries2b <- function(
   # log_xplus_1 <- grepl("VDSI", df_points$PARAM[1]) | grepl("_exloq", df_points$PARAM[1], fixed = TRUE)
   # Not used anymore! istead uses the 'transform' column in the data
   
-  if (df_points$transform[1] %in% "log0"){
+  sel <- !is.na(df_points$transform)
+  transform <- df_points$transform[min(which(sel))]
+  
+  if (transform %in% "log0"){
     backtrans <- function(x) exp(x)
-  } else if (df_points$transform[1] %in% "log1"){
+  } else if (transform %in% "log1"){
     backtrans <- function(x) exp(x)-1
-  } else if (df_points$transform[1] %in% "nolog"){
+  } else if (transform %in% "nolog"){
     backtrans <- function(x) x
   }
 
