@@ -1,0 +1,2648 @@
+---
+title: "101 Combine with legacy data"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+editor_options: 
+  chunk_output_type: inline
+---
+
+**Combine legacy data (data until the year before last year) with new data (downloaded in script 100)**   
+
+**NOTE:** Before running this script, you must  
+* run script 802 on your own PC (downloads latest data from Nivabasen)  
+* this will create a file in the folder 'Files_to_Jupyterhub_2021' (if 2021 was the last year) named something like 
+    - '01_df_2021_notstandard_2022-06-02.rds' (the last part is the date of creation)    
+* copy the resulting file to Jupyterhub, folder 'Input_data'  
+   
+   
+**NOTE: Check the results of '12 Data changes since last year'**  
+  
+**Overview of this script**   
+1. Load libraries and functions which will be used   
+2. Data
+    - Last year's data (produced by script 802 on your PC)    
+    - 'Legacy data', i.e. the data we used last year  
+3. Reformat last year's data so they conform with the legacy data  
+    - Includes changing parameter names *  
+4. Pick last year's data  
+    - If year needs to be fixed, do it here     
+    - Also add data read from Excel sheets: NILU data and cod biol. effects  
+5. Fix units  
+6. Add parameter sums for PCBs, BDEs etc.  
+7. Add columns for dry weight and fat percentage (drawn from the data itself)   
+  
+* NOTE: When changing parameter names, remember that parameter names are found different places:   
+    - data_legacy - see part 3-d2 in this script (Triphenyl -> TPhT)   
+    - PROREF values - found in "Proref_report_2017.xlsx" and "Proref_paper.xlsx" (both in Input_data)   
+    - Possibly EQS - found in "Input_data/EQS_limits.xlsx"   
+    - Code in a few places (only script 210?)  
+    
+* The data is checked for duplicates repeatedly, in the following sections: 
+2a7, 3b3, 3g, 7, 8c, 10d, 11a   
+    - Errors often shows in these checks  
+    - These checks can be sped up using data.table (https://stackoverflow.com/a/7450633), 
+    or possibly dtplyr::lazy_dt 
+
+## 1. Load libraries and functions   
+```{r, results='hide', message=FALSE, warning=FALSE}
+
+library(dplyr)
+library(purrr)
+library(tidyr)
+library(ggplot2)
+library(lubridate)
+library(readxl)
+library(readr)
+
+# Load self-made functions
+source("002_Utility_functions.R")
+source("101_Combine_with_legacy_data_functions.R")
+
+```
+### Set year  
+Note: there are still some hard-coded "2019" given in the code  
+```{r}
+
+lastyear <- 2022
+
+```
+
+
+## 2. Data  
+
+### a1. Recently downloaded data  
+- Read and reformat data (by default, the most recent dataset made)        
+- In constrast to 2019 version, we use only data from NIVAbasen (2c in 2019 version)    
+- The file named '01_df_2019_notstandard_<date>' were made on DHJs PC using script 01 in project 'Milkys2_pc'  
+```{r, results='hold'}
+
+filepattern <- paste0("01_df_", lastyear, "_notstandard_")    # file name except date and extension
+filepattern_with_extension <- paste0(filepattern, ".+.rds")
+                  
+filenumber <- 1                                 # filenumber = 1 means "read the newest file"
+
+# Get available files, sorted from newest to oldest
+files <- dir("Input_data", pattern = filepattern_with_extension) %>% rev()
+
+if (length(files) == 0){
+  
+  stop("No files found for year ", lastyear)
+
+} else {
+  
+  # Info for user
+  cat("Reading file number ",  filenumber, ", sorted from newest to oldest files:", sep = "")
+  cat("\n", files[filenumber])
+  cat("\n\n")
+  cat("If you want to read a different file, replace 'filenumber <- 1' or 'filename' with the file you want")
+  cat("\n")
+  cat("For instance, set 'filenumber <- 2' to read the second newest file")
+  cat("\n")
+  
+  # Get filename and its date part 
+  filename <- files[filenumber]
+  file_date <- substr(filename, nchar(filepattern) + 1, nchar(filepattern) + 10) # pick date part
+  
+  # The date part of 'filename' (e.g., '2020-04-23')
+  # will be used in part 10, when we save the resulting file
+  
+  dat_new1 <- readRDS(paste0("Input_data/", filename))
+  
+}
+
+cat("\n")
+
+# If you want to remove VALUE = NA, change FALSE to TRUE in the next line  
+if (FALSE){
+  
+  n1 <- nrow(dat_new1)
+  dat_new1 <- dat_new1 %>%
+    filter(!is.na(VALUE))
+  n2 <- nrow(dat_new1)
+  
+  message("\n", n1-n2, " rows with no value of VALUE were removed")
+  
+} else {
+  
+  warning("There are ", sum(is.na(dat_new1$VALUE)), " rows with VALUE = NA. These have NOT been removed")
+  
+}
+
+
+```
+
+
+### a2. Check Fat and dry weight    
+Seems ok  
+```{r}
+
+dat_new1 %>%
+  filter(NAME %in% c("Fettinnhold", "Tørrstoff %")) %>%
+  xtabs(~year(SAMPLE_DATE) + NAME, .)
+
+```
+
+### a3. Check of TBT    
+* TBT given as 'Tributyltinn (TBT)' (ion weight) and 'Tributyltinn (TBT)-Sn' (tin weight)    
+
+**Explanation**  
+TBT is given by two measurements:  
+- ion weight of TBT, called:    
+    - 'TBT' in Access, 'Tributyltinn (TBT)' in Nivabasen, 'TBSN+' in ICES (current standard code)   
+- atom weight of tin in TBT, called:   
+    - 'TBTIN' in Access, 'Tributyltinn (TBT)-Sn' in Nivabasen, 'TBTIN' in ICES (marked as 'legacy code')   
+- [ion weight] = 2.44*[atom weight]   
+  
+As reference to the ICES codes, see    
+- https://vocab.ices.dk/?CodeID=33697  
+- http://vocab.ices.dk/?CodeID=78150   
+- See http://vocab.ices.dk/?ref=37 for vocabulary for DOME (version 3.2 Biota), record 10,parameter 'PARAM' 
+```{r}
+
+dat_new1 %>%
+  filter(grepl("Tributyltinn", NAME)) %>%
+  group_by(NAME, UNIT, TISSUE_NAME) %>%
+  summarise(Mean_value = mean(VALUE), N = n(), .groups = "drop")
+
+```
+
+### a4. SPECIAL CASE FOR 2020 (hopefully): adjusted metabolites have been mislabeled  
+
+- Could rename them, for 2020 data we just remove them
+
+```{r}
+
+#
+# SPECIAL CASE FOR 2020 (hopefully): adjusted metabolites have been mislabeled
+#
+
+sel <- dat_new1$NAME %in% c("PA1OH", "PYR1OH", "BAP3OH")
+
+if (sum(sel) == 0){
+  message("No mislabeled adjusted metabolites")
+} else {
+  stop("Seems to be some mislabeled adjusted metabolites. Consider to delete them.")
+}
+
+
+if (lastyear == 2020){
+  
+  dat_new1 <- dat_new1[!sel,]
+  cat("dat_new1:", sum(sel), "records with mislabeled adjusted PAHs removed \n")   
+  
+}
+
+```
+
+
+### a5. Check PAH metabolites in cod bile      
+- Unadjusted metabolites: "1-OH-fenantren", "1-OH-pyren", "3-OH-benzo[a]pyren" (used in 2020) are the same as PA1OH, PYR1OH, BAP3OH  
+- Adjusted metabolites (unadjusted divided by ABS 380): PA1O, PYR1O, BAP3O  
+```{r} 
+
+params <- c("PA1OH", "PYR1OH", "BAP3OH", 
+          "PA1O", "PYR1O", "BAP3O",
+          "1-OH-fenantren", "1-OH-pyren", "3-OH-benzo[a]pyren")
+
+#
+# Check whether we have synonymous parameters for the same station
+#
+dat_check <- dat_new1 %>%
+  filter(NAME %in% params) %>%
+  mutate(NAME = factor(NAME, levels = params))
+# View(dat_check)
+
+tab <- xtabs(~NAME + STATION_CODE, dat_check)
+
+tab1a <- tab[rownames(tab) %in% c("PYR1OH", "1-OH-pyren"),]
+tab1b <- apply(tab1a > 0, 2, sum)
+tab2a <- tab[rownames(tab) %in% c("PA1OH", "1-OH-fenantren"),]
+tab2b <- apply(tab2a > 0, 2, sum)
+tab3a <- tab[rownames(tab) %in% c("BAP3OH", "3-OH-benzo[a]pyren"),]
+tab3b <- apply(tab3a > 0, 2, sum)
+
+if (any(tab1b > 1) | any(tab2b > 1) | any(tab3b > 1)){
+  
+  stop("There are synonymous parameters for the same station! (section 2-a5) \nEach station should have either PYR1OH or 1-OH-pyren, not both. Same for the other pairs. \n\nMost likely explanation: adjusted 1-OH-pyren (PYR1O) has been mislabeled PYR1OH.  \n\nCheck tab1, tab2a, and tab3a. (Section 2-a5)") 
+  
+}
+
+dat_plot <- dat_new1 %>%
+  filter(NAME %in% params & !is.na(VALUE)) 
+
+if (nrow(dat_plot) > 0){
+  ggplot(dat_plot, aes(x = VALUE)) +
+    geom_histogram() +
+    facet_wrap(vars(NAME), scales = "free_x")
+  
+  # separate for "3-OH-benzo[a]pyren"
+  param_pick <- "1-OH-pyren"
+  param_pick <- "1-OH-fenantren"
+  param_pick <- "3-OH-benzo[a]pyren"
+  ggplot(dat_plot %>% filter(NAME == param_pick), # %>% View(), 
+         aes(x = VALUE)) +
+    geom_histogram(bins = 30) +
+    facet_wrap(vars(FLAG1), nrow = 1) +
+    ggtitle(param_pick)
+
+
+}
+
+  
+```
+
+
+### a6. Remove adjusted PAH metabolites (PYR1O, PA1O, BAP3O)  
+
+```{r}
+
+sel <- dat_new1$NAME %in% c("PA1O", "PYR1O", "BAP3O")
+
+dat_new1 <- dat_new1[!sel,]
+cat("dat_new1:", sum(sel), "records with adjusted PAHs removed\n")   
+
+```
+
+### a7. Check for duplicates  
+```{r}
+
+# Note NAME instead of PARAM (on contrast with checks further down)
+df_duplicates <- dat_new1 %>%
+  add_count(STATION_CODE, LATIN_NAME, TISSUE_NAME, SAMPLE_DATE, SAMPLE_NO, NAME) %>%
+  filter(n > 1)
+
+if (nrow(df_duplicates) > 0){
+  xtabs(~PARAM, df_duplicates) %>% print()
+  xtabs(~STATION_CODE, df_duplicates) %>% print()
+  stop("Duplicates in the data! Check 'df_duplicates'. (section 2-a7) \n")
+} else {
+  cat("No duplicates found in the data. \n")
+}
+
+```
+
+### a8. For eider duck, change names of CCP  
+
+* NO EIDER DUCK THIS YEAR
+* Use "eksl. LOQ, that is most similar to cod/blue mussel usage 
+
+```{r}
+
+sel <- with(dat_new1, STATION_CODE %in% "19N" & grepl("SCCP", NAME))
+# View(dat_new1[sel,])
+dat_new1$NAME[sel] <- "SCCP eksl. LOQ"
+
+sel <- with(dat_new1, STATION_CODE %in% "19N" & grepl("MCCP", NAME))
+# View(dat_new1[sel,])
+dat_new1$NAME[sel] <- "MCCP eksl. LOQ"
+
+```
+
+
+### a9. Change SCCP and MCCP values  
+
+- Have already added missing rows in Milkys2_pc script 802  
+- Change 'SCCP eksl. LOQ' by setting VALUE = 0 and FLAG = NA for data < LOQ  
+    - This is best for getting medians  
+- Add new parameter 'SCCP' which is just the same as the old 'SCCP eksl. LOQ' 
+    - I.e.: For less-than data, LOQ in VALUE column and FLAG1 = '<'    
+    - This is intended to be used for trends mainly  
+- Same for MCCP  
+
+```{r}
+#
+# SCCPs
+#
+
+cat("SCCP: \n\n")
+
+# Check
+
+#### ELU: forstår ikke denne sjekken...
+
+check <- dat_new1 %>%
+  filter(NAME %in% c("SCCP eksl. LOQ", "SCCP inkl. LOQ"),
+         STATION_CODE != "19N") %>% # View("SCCP")          # 19N doesn't have 'inkl LOQ'
+  xtabs(~NAME + STATION_CODE, .)
+check                                                         #ELU
+#if (!identical(check[1,], check[2,])){                      #ELU
+# stop("Row 1 and row 2 should be identical!")             #ELU
+#}                                                 #ELU
+
+# Add rows with new parameter 'SCCP' 
+dat_to_add_SCCP <- dat_new1 %>% 
+  filter(NAME %in% "SCCP eksl. LOQ") 
+dat_to_add_SCCP$NAME <- "SCCP"
+
+if (sum(dat_new1$NAME %in% "SCCP") == 0)
+  dat_new1 <- bind_rows(dat_new1, dat_to_add_SCCP)
+cat(nrow(dat_to_add_SCCP), "rows added to the data, NAME = SCCP")
+
+# Change existing 'SCCP eksl. LOQ'  
+sel <- with(dat_new1, NAME %in% "SCCP eksl. LOQ" & FLAG1 %in% "<") 
+dat_new1$VALUE[sel] <- 0
+dat_new1$FLAG1[sel] <- as.character(NA)
+cat(sum(sel), "'SCCP eksl. LOQ' rows: VALUE changed to zero \n")
+
+#
+# MCCPs
+#
+
+cat("\n\n\nMCCP: \n\n")
+
+#
+# MCCPs
+
+# ELU: 
+
+check <- dat_new1 %>%
+  filter(NAME %in% c("MCCP eksl. LOQ", "MCCP inkl. LOQ"),
+         STATION_CODE != "19N") %>%                         # 19N doesn't have 'inkl LOQ'
+  xtabs(~NAME + STATION_CODE, .)
+check
+#if (!identical(check[1,], check[2,])){
+#  stop("Row 1 and row 2 should be identical!")
+#}
+
+
+# Add rows with new parameter 'MCCP' 
+dat_to_add_MCCP <- dat_new1 %>% 
+  filter(NAME %in% "MCCP eksl. LOQ") 
+dat_to_add_MCCP$NAME <- "MCCP"
+
+if (sum(dat_new1$NAME %in% "MCCP") == 0)
+  dat_new1 <- bind_rows(dat_new1, dat_to_add_MCCP)
+cat(nrow(dat_to_add_MCCP), "rows added to the data, NAME = MCCP")
+
+# Change existing 'MCCP eksl. LOQ'  
+sel <- with(dat_new1, NAME %in% "MCCP eksl. LOQ" & FLAG1 %in% "<") 
+dat_new1$VALUE[sel] <- 0
+dat_new1$FLAG1[sel] <- as.character(NA)
+cat(sum(sel), "'MCCP eksl. LOQ' rows: VALUE changed to zero \n")
+
+
+```
+
+
+### b1. Read legacy data  
+The data go up to 2017 and combines data from the Access database (up to 2015) and NIVAbasen (2016-17). 
+```{r}
+
+# Files 
+files <- list_files("Data", pattern = "101_data_updated")
+files
+
+# HARD_CODED: pick most recent data from last year
+data_legacy <- readRDS("Data/101_data_updated_2022-09-23.rds") %>%
+  mutate(PARAM = case_when(
+    PARAM %in% "TTBTIN" ~ "TTBT",
+    TRUE ~ PARAM)
+  )
+
+cat("\n")
+cat("Lecacy data covers the years", min(data_legacy$MYEAR), "-", max(data_legacy$MYEAR), "\n")
+
+check <- lastyear - max(data_legacy$MYEAR)
+if (check <= 0){
+  stop("Some of the legacy data are from 'lastyear' and thus overlaps the new data! Pick an older file?")
+} else if (check >= 2){
+  stop("There are missing years between legacy data and 'lastyear'! Pick a newer file?")
+} else {
+  message("Legacy data years checked and found ok")
+}
+
+
+```
+
+### b2. Check MCCP/SCCP in legacy data   
+
+#### SCCP  
+
+*  Through 2014: Only 'SCCP' given  
+*  In 2015-2017, equal amount of 'SCCP' and 'SCCP eksl. LOQ', only lacking 'eksl. LOQ' for eider    
+    - See script 870 on Milkys2_pc: there was actually no lacking/zero data for 'SCCP eksl. LOQ' those years  
+*  In 2018-2020, zero data for 'SCCP eksl. LOQ' probably have not entered the database      
+
+```{r}
+#
+# SCCP
+#
+
+df_SCCP_tall <- data_legacy %>%
+  filter(grepl("SCCP", PARAM)) %>%
+  select(STATION_CODE, LATIN_NAME, TISSUE_NAME, MYEAR, SAMPLE_NO2, PARAM, VALUE_WW, FLAG1) 
+
+xtabs(~PARAM + MYEAR , df_SCCP_tall)
+
+df_SCCP <- data_legacy %>%
+  filter(grepl("SCCP", PARAM)) %>%
+  select(STATION_CODE, LATIN_NAME, TISSUE_NAME, MYEAR, SAMPLE_NO2, PARAM, VALUE_WW) %>%
+  tidyr::pivot_wider(names_from = PARAM, values_from = VALUE_WW)
+
+# df_SCCP %>%
+#   filter(is.na(`SCCP eksl. LOQ`)) %>% View()
+
+df_SCCP %>%
+  filter(is.na(`SCCP eksl. LOQ`)) %>%
+  xtabs(~STATION_CODE + MYEAR, .)
+
+```
+
+#### SCCP plot   
+
+- Add zeros for missing 'eksl. LOQ-rows', and plot for one station (2015-2020 only)
+
+```{r}
+
+if (FALSE){
+  xtabs(~is.na(SCCP) + is.na(`SCCP eksl. LOQ`) + MYEAR, df_SCCP %>% filter(MYEAR >= 2016))
+  xtabs(~MYEAR + is.na(`SCCP eksl. LOQ`), df_SCCP)
+  xtabs(~MYEAR + is.na(`SCCP eksl. LOQ`), df_SCCP)
+}
+
+# Add zeros and plot
+station <- "30B"
+df_SCCP %>%
+  mutate(`SCCP eksl. LOQ` = ifelse(is.na(`SCCP eksl. LOQ`), 0, `SCCP eksl. LOQ`)) %>%
+  filter(STATION_CODE %in% "30B" & MYEAR %in% 2015:2020) %>%
+  tidyr::pivot_longer(cols = c(SCCP, `SCCP eksl. LOQ`)) %>% # str()
+  ggplot(aes(value)) +
+    geom_histogram() +
+    facet_grid(rows = vars(MYEAR), cols = vars(name)) +
+  labs(title = station)
+
+```
+
+#### MCCP  
+
+*  Same concusions as for SCCP, see above        
+
+```{r}
+#
+# MCCP
+#
+
+df_MCCP_tall <- data_legacy %>%
+  filter(grepl("MCCP", PARAM)) %>%
+  select(STATION_CODE, LATIN_NAME, TISSUE_NAME, MYEAR, SAMPLE_NO2, PARAM, VALUE_WW, FLAG1) 
+
+xtabs(~PARAM + MYEAR , df_MCCP_tall)
+
+df_MCCP <- data_legacy %>%
+  filter(grepl("MCCP", PARAM)) %>%
+  select(STATION_CODE, LATIN_NAME, TISSUE_NAME, MYEAR, SAMPLE_NO2, PARAM, VALUE_WW) %>%
+  tidyr::pivot_wider(names_from = PARAM, values_from = VALUE_WW)
+
+# df_MCCP %>%
+#   filter(is.na(`MCCP eksl. LOQ`)) %>% View()
+
+df_MCCP %>%
+  filter(is.na(`MCCP eksl. LOQ`)) %>%
+  xtabs(~STATION_CODE + MYEAR, .)
+
+```
+
+#### MCCP plot 
+
+- Add zeros for missing 'eksl. LOQ-rows', and plot for one station (2015-2020 only)
+
+```{r}
+
+if (FALSE){
+  xtabs(~is.na(MCCP) + is.na(`MCCP eksl. LOQ`) + MYEAR, df_MCCP %>% filter(MYEAR >= 2016))
+  xtabs(~MYEAR + is.na(`MCCP eksl. LOQ`), df_MCCP)
+  xtabs(~MYEAR + is.na(`MCCP eksl. LOQ`), df_MCCP)
+}
+
+# Add zeros and plot for one station (2015-2020 only)  
+station <- "53B"
+df_MCCP %>%
+  mutate(`MCCP eksl. LOQ` = ifelse(is.na(`MCCP eksl. LOQ`), 0, `MCCP eksl. LOQ`)) %>%
+  filter(STATION_CODE %in% station & MYEAR %in% 2015:2020) %>%
+  tidyr::pivot_longer(cols = c(MCCP, `MCCP eksl. LOQ`)) %>% # str()
+  ggplot(aes(value)) +
+    geom_histogram() +
+    facet_grid(rows = vars(MYEAR), cols = vars(name)) +
+  labs(title = station)
+
+```
+
+#### Fix part 1, as done in Milkys2_pc script 802      
+
+* 2015-2017 - just change name of 'SCCP' and 'MCCP'   
+* 2018-2020 - add extra rows     
+
+```{r}
+
+# data_legacy_back <- data_legacy
+# data_legacy <- data_legacy_back
+
+########
+# SCCP
+########
+
+#
+# For all data 2015:2020      
+#
+sel <- with(data_legacy, PARAM %in% "SCCP" & MYEAR %in% 2015:2020); sum(sel)
+data_legacy$PARAM[sel] <- "SCCP inkl. LOQ"
+
+#
+# 2015-2020: need to add data for the empty rows  (almost only 2018-2020) 
+#
+df_lacking_SCCP <- df_SCCP %>%
+  filter(MYEAR %in% 2015:2020 & is.na(`SCCP eksl. LOQ`)) %>%
+  select(STATION_CODE, LATIN_NAME, TISSUE_NAME, MYEAR, SAMPLE_NO2) %>%
+  mutate(addSCCP = TRUE)
+
+df_to_add_SCCP <- data_legacy %>%
+  filter(PARAM %in% "SCCP inkl. LOQ") %>%
+  left_join(df_lacking_SCCP,  by = c("MYEAR", "STATION_CODE", "LATIN_NAME", "TISSUE_NAME", "SAMPLE_NO2")) %>%
+  filter(addSCCP) 
+df_to_add_SCCP$PARAM <- "SCCP eksl. LOQ"
+df_to_add_SCCP$FLAG1 <- "<"
+
+
+nrow(data_legacy)
+data_legacy <- bind_rows(data_legacy, df_to_add_SCCP)
+nrow(data_legacy)
+
+########
+# MCCP
+########
+
+#
+# For all data 2015:2020  (almost only 2018-2020)       
+#
+sel <- with(data_legacy, PARAM %in% "MCCP" & MYEAR %in% 2015:2020); sum(sel)
+data_legacy$PARAM[sel] <- "MCCP inkl. LOQ"
+
+#
+# 2015-2020: need to add data for the empty rows  
+#
+df_lacking_MCCP <- df_MCCP %>%
+  filter(MYEAR %in% 2015:2020 & is.na(`MCCP eksl. LOQ`)) %>%
+  select(STATION_CODE, LATIN_NAME, TISSUE_NAME, MYEAR, SAMPLE_NO2) %>%
+  mutate(addMCCP = TRUE)
+
+df_to_add_MCCP <- data_legacy %>%
+  filter(PARAM %in% "MCCP inkl. LOQ") %>%
+  left_join(df_lacking_MCCP,  by = c("MYEAR", "STATION_CODE", "LATIN_NAME", "TISSUE_NAME", "SAMPLE_NO2")) %>%
+  filter(addMCCP) 
+df_to_add_MCCP$PARAM <- "MCCP eksl. LOQ"
+df_to_add_MCCP$FLAG1 <- "<"
+
+
+nrow(data_legacy)
+data_legacy <- bind_rows(data_legacy, df_to_add_MCCP)
+nrow(data_legacy)
+
+```
+
+#### Fix art 2, as above  
+
+- But only for 2015-2020 data  
+
+- Change 'SCCP eksl. LOQ' by setting VALUE = 0 and FLAG = NA for data < LOQ  
+    - This is best for getting medians  
+- Add new parameter 'SCCP' which is just the same as the old 'SCCP eksl. LOQ'  
+    - This is intended to be used for trends mainly  
+    
+### a9. Change SCCP and MCCP values  
+
+- Have already added missing rows in Milkys2_pc script 802  
+- Change 'SCCP eksl. LOQ' by setting VALUE = 0 and FLAG = NA for data < LOQ  
+    - This is best for getting medians  
+- Add new parameter 'SCCP' which is just the same as the old 'SCCP eksl. LOQ' 
+    - I.e.: For less-than data, LOQ in VALUE column and FLAG1 = '<'    
+    - This is intended to be used for trends mainly  
+- Same for MCCP  
+
+```{r}
+#
+# SCCPs
+#
+
+cat("SCCP: \n\n")
+
+# Check
+check <- data_legacy %>% 
+  filter(PARAM %in% c("SCCP eksl. LOQ", "SCCP inkl. LOQ"),
+         STATION_CODE != "19N",
+         MYEAR %in% 2015:2020) %>% # View("SCCP")          # 19N doesn't have 'inkl LOQ'
+  xtabs(~PARAM + STATION_CODE, .)
+check2 <- check[1,] - check[2,]
+if (sum(check2) != 0){
+  warning("Row 1 and row 2 should be identical!")
+  # In this case they are different for I023 in 2015, nothing to do about that 
+}
+
+# Add rows with new parameter 'SCCP' 
+dat_to_add_SCCP <- data_legacy %>% 
+  filter(PARAM %in% "SCCP eksl. LOQ") 
+dat_to_add_SCCP$PARAM <- "SCCP"
+
+if (sum(data_legacy$PARAM %in% "SCCP") == 0)
+  data_legacy <- bind_rows(data_legacy, dat_to_add_SCCP)
+cat(nrow(dat_to_add_SCCP), "rows added to the data, PARAM = SCCP")
+
+# Change existing 'SCCP eksl. LOQ'  
+sel <- with(data_legacy, PARAM %in% "SCCP eksl. LOQ" & FLAG1 %in% "<") 
+data_legacy$VALUE[sel] <- 0
+data_legacy$FLAG1[sel] <- as.character(NA)
+cat(sum(sel), "'SCCP eksl. LOQ' rows: VALUE changed to zero \n")
+
+#
+# MCCPs
+#
+
+cat("\n\n\nMCCP: \n\n")
+
+#
+# MCCPs
+check <- data_legacy %>% 
+  filter(PARAM %in% c("MCCP eksl. LOQ", "MCCP inkl. LOQ"),
+         STATION_CODE != "19N",
+         MYEAR %in% 2015:2020) %>%                         # 19N doesn't have 'inkl LOQ'
+  xtabs(~PARAM + STATION_CODE, .)
+if (!identical(check[1,], check[2,])){
+  stop("Row 1 and row 2 should be identical!")
+}
+
+
+# Add rows with new parameter 'MCCP' 
+dat_to_add_MCCP <- data_legacy %>% 
+  filter(PARAM %in% "MCCP eksl. LOQ") 
+dat_to_add_MCCP$PARAM <- "MCCP"
+
+if (sum(data_legacy$PARAM %in% "MCCP") == 0)
+  data_legacy <- bind_rows(data_legacy, dat_to_add_MCCP)
+cat(nrow(dat_to_add_MCCP), "rows added to the data, PARAM = MCCP")
+
+# Change existing 'MCCP eksl. LOQ'  
+sel <- with(data_legacy, PARAM %in% "MCCP eksl. LOQ" & FLAG1 %in% "<") 
+data_legacy$VALUE[sel] <- 0
+data_legacy$FLAG1[sel] <- as.character(NA)
+cat(sum(sel), "'MCCP eksl. LOQ' rows: VALUE changed to zero \n")
+
+
+```
+
+### b3. Check legacy data for duplicates   
+(11-12 seconds)
+```{r}
+
+df_duplicates <- data_legacy %>%
+  add_count(STATION_CODE, LATIN_NAME, TISSUE_NAME, MYEAR, SAMPLE_NO2, PARAM) %>%
+  filter(n > 1)
+
+if (nrow(df_duplicates) > 0){
+  xtabs(~PARAM, df_duplicates) %>% print()
+  xtabs(~MYEAR, df_duplicates) %>% print()
+  xtabs(~MYEAR + PARAM, df_duplicates) %>% print()
+  stop("Duplicates in the data! Check 'df_duplicates'. (Section 2.b3)\n")
+} else {
+  cat("No duplicates found in the data. \n")
+}
+  
+
+```
+
+## 3. Reformat recent data to conform with legacy data  
+
+### a1. Create 'dat_new2'  
+```{r}
+
+dat_new2 <- dat_new1 %>%
+  mutate(MYEAR = lastyear,
+         SAMPLE_NO2 = SAMPLE_NO,
+         BASIS = "W")             # hard-coded
+
+```
+
+
+
+### b1. Fix parameter names     
+
+PAH metabolites in bile:  
+- "1-OH-fenantren", "1-OH-pyren", "3-OH-benzo[a]pyren" (used in 2020) are the same as PA1OH, PYR1OH, BAP3OH 
+```{r}
+
+# df_nivabase: Set standard parameter names (PARAM) based on NAME  
+cat("dat_new2: Set standard parameter names (PARAM) \n")  
+dat_new2$PARAM <- get_standard_parametername(
+  dat_new2$NAME, 
+  "Input_data/Lookup table - standard parameter names.csv"
+  )
+
+# Fix PBDE and PCB substances  
+dat_new2$PARAM <- sub("BDE-", "BDE", dat_new2$PARAM, fixed = TRUE)
+dat_new2$PARAM <- sub("PCB-", "CB", dat_new2$PARAM, fixed = TRUE)
+
+
+# Extra changes
+dat_new2 <- dat_new2 %>%
+  mutate(
+    PARAM = case_when(
+      PARAM %in% c("Ag", "As", "Cd", "Co", "Cr", "Cu", "Hg", "Ni", "Pb", "Sn", "Zn") ~ toupper(PARAM),
+      substr(PARAM,1,3) %in% "PCB" ~ sub("PCB ", "CB", PARAM, fixed = TRUE),
+      PARAM %in% "Sølv" ~ "AG",
+      PARAM %in% "Kvikksølv" ~ "HG",
+      PARAM %in% "Selen" ~ "SE",
+      PARAM %in% "Pentaklorbenzen (QCB)" ~ "QCB",	
+      # the following names are not logical - but need to be like this in order to be conistent with old data.
+      # Will be changed in 10.
+      PARAM %in% "Dibutyltinn (DBT)" ~ "DBTIN",        
+      PARAM %in% "Monobutyltinn (MBT)" ~ "MBTIN",
+      PARAM %in% "Tetrabutyltinn (TetraBT)" ~ "TTBT",
+      PARAM %in% "1-OH-pyren" ~ "PYR1OH",
+      PARAM %in% "1-OH-fenantren" ~ "PA1OH",
+      PARAM %in% "3-OH-benzo[a]pyren" ~ "BAP3OH",
+      grepl("oktametylsyklotetrasiloksan", PARAM) ~ "D4",
+      grepl("dekametylsyklopentasiloksan", PARAM) ~ "D5",
+      grepl("dodekametylsykloheksasiloksan", PARAM) ~ "D6",
+      grepl("Kortkjedede (SCCP)", PARAM, fixed = TRUE) ~ "SCCP inkl. LOQ",
+      grepl("Mellomkjedede (MCCP)", PARAM, fixed = TRUE) ~ "MCCP inkl. LOQ",
+      TRUE ~ PARAM)
+  )
+
+sel <- dat_new2$NAME %in% "Tørrstoff %"  
+dat_new2$PARAM[sel] <- "DRYWT%"
+cat("dat_new2: PARAM = DRYWT% set for", sum(sel), "records \n")  
+
+sel <- dat_new2$NAME %in% "Fettinnhold"  
+dat_new2$PARAM[sel] <- "Fett"
+cat("dat_new2: PARAM = Fett set for", sum(sel), "records \n")  
+
+```
+
+### b3. Check for duplicates  
+
+```{r}
+
+df_duplicates <- dat_new2 %>%
+  add_count(STATION_CODE, LATIN_NAME, TISSUE_NAME, MYEAR, SAMPLE_NO2, PARAM) %>%
+  filter(n > 1)
+
+if (nrow(df_duplicates) > 0){
+  xtabs(~PARAM, df_duplicates) %>% print()
+  xtabs(~STATION_CODE, df_duplicates) %>% print()
+  stop("Duplicates in the data! Check 'df_duplicates'. (section 3-b2) \n")
+} else {
+  cat("No duplicates found in the data. \n")
+}
+
+
+```
+### b4. Save data so far  
+```{r}
+
+
+
+```
+
+
+### c. Remove sums  
+```{r}
+
+# 1. Some specific names
+sel1 <- dat_new2$PARAM %in% c("Sum PCB(7) inkl. LOQ", 
+                             "Total 6 Ikke dioksinlike PCB inkl. LOQ", 
+                             "Sum PCB(7) eksl. LOQ", 
+                             "Total 6 Ikke dioksinlike PCB eksl. LOQ")
+
+# 2. All starting with "Sum " or "sum ":
+sel2 <- tolower(substr(dat_new2$PARAM, 1, 4)) == "sum "
+
+sel <- sel1 | sel2
+
+dat_new2 <- dat_new2[!sel,]
+cat("dat_new2:", sum(sel), "records with sums deleted (will be recalculated) \n")  
+
+```
+
+### d1. Check tins   
+
+**NOTE: see part 10 below**  
+
+By comparing with original report, we find that all tins in AqM, except TBT, are given as **tin (Sn) weight**. TBT is given as ion weight.  
+* See "K:\Prosjekter\Sjøvann\JAMP\2019\analyser\Analyserapporter\snegler\Analyserapport 925-7518 snegler.PDF"  
+- Exception: for the industry stations I965 and I969, it seems that tins are given as **ion weight** 
+(Original report for Milkys 2019 can be found at   
+`K:\Prosjekter\Sjøvann\JAMP\2019\analyser\Analyserapporter\snegler\Analyserapport 925-7518 snegler.PDF`)  
+  
+Previous years - overview of names used     
+
+Substance            | ION WEIGHT                        | TIN WEIGHT  
+---------------------|-----------------------------------|----------------------------------
+BUTYLTINS            |                                   |                              
+monobutyltin         | MBTIN, "monobutyltin (MBT)"       | Monobutyltinn (MBT)-Sn
+dibutyltin           | DBTIN                             | Dibutyltinn-Sn (DBT-Sn)
+tributyltin          | TBT                               | Tributyltinn (TBT)-Sn
+tetrabutyltin        | TTBT, "Tetrabutyltinn (TetraBT)"  | Tetrabutyltinn (TTBT)-Sn
+OCTYLTINS            |                                   |                              
+monooctyltin         | MOT                               | Monooktyltinn (MOT)-Sn
+dioctyltin           | DOT                               | Dioktyltinn-Sn (DOT-Sn)
+CYCLOHEXYLTINS       |                                   |                                   
+tricyclohexyltin     | TCHT                              |               
+PHENYLTINS           |                                   |                               
+Triphenyltin (TPhT)  | TPTIN - changed to TPhT in 2021 * | Trifenyltinn (TPhT)-Sn   
+
+* Not for legacy data in Nivadatabase, but in this procedure   
+  
+Some of these (e.g. DBTIN and TPTIN for ion weight) are illogical but need to be like this in 
+order to conform with legacy data (data_legacy)   
+  
+Examples from 11G in 2019:   
+* Tributyltinn   
+    - Report says Tributyltinn (TBT) = <1.9, Tributyltinn (TBT)-Sn = <0.77     
+    - Aquamonitor says TBT = <0.77   
+    - Nivabase says Tributyltinn (TBT) = <1.9, Tributyltinn (TBT)-Sn = <0.77   
+* Triphenyltin C18-H15-Sn, ion weight 350.0, Sn weight 118.71 = [ion weight]*0.339   
+    - Report says Trifenyltinn (TPhT) = <1.9, Trifenyltinn (TPhT)-Sn = <0.64    
+    - Aquamonitor says TPhT = <0.64   
+    - Nivabase says Trifenyltinn (TPhT) = <1.9, Trifenyltinn (TPhT)-Sn = <0.64
+    - For new data, 'Trifenyltinn (TPhT)' is translated to TPTIN (but see part 10)
+    
+```{r}
+
+# Check first station in report - AqM:  
+dat_new2 %>%
+  filter(STATION_CODE == "11G" & year(SAMPLE_DATE) == lastyear) %>%
+  select(STATION_CODE, SAMPLE_DATE, NAME, PARAM, UNIT, VALUE, FLAG1) %>%
+  arrange(NAME)
+
+if (TRUE){
+
+  # Check tetrabutyltin or triphenyltin in legacy daya
+  data_legacy %>% 
+    # filter(PARAM %in% c("TTBT", "TTBTIN")) %>%
+    filter(grepl("TPhT", PARAM, ignore.case = TRUE) | 
+             grepl("Trifenyltinn", PARAM, ignore.case = TRUE) |
+             grepl("TPTIN", PARAM, ignore.case = TRUE)) %>%
+    xtabs(~MYEAR + PARAM, .)
+ 
+}
+
+```
+### d2. Fix Triphenyltin in legacy data  
+```{r}
+
+# ONLY NEEDED TO DO ONCE
+# sel <- data_legacy$PARAM %in% "TPTIN"  
+# data_legacy$PARAM[sel] <- "TPhT"  
+# message("data_legacy - ",sum(sel), " records: TPhT changed to TPTIN")
+# saveRDS(data_legacy, "Data/101_data_updated_2020-08-05.rds")  
+
+```
+
+
+### e1. Check species names   
+```{r}
+
+table(addNA(dat_new2$LATIN_NAME))
+
+```
+
+### e2. Remove "unwanted species"   
+
+* Fucus vesiculosus = rockweed (measured on a Milkys station, but for a different project)  
+
+```{r}
+
+n1 <- nrow(dat_new2)
+dat_new2 <- dat_new2 %>%
+  filter(!LATIN_NAME %in% "Fucus vesiculosus")
+n2 <- nrow(dat_new2)
+
+cat("Number of rows before:", n1, "\n")
+cat("Number of rows after:", n2, "\n")
+cat("Difference:", n1-n2, "\n")
+
+```
+
+
+### f. Check units    
+- Will be fixed in section 4  
+```{r}
+
+table(addNA(dat_new2$UNIT))
+
+```
+
+### g. Check and fix uniqueness of samples   
+* Creating `dat_new3` 
+```{r}
+
+# Check uniqueness of fat and dry weight
+check1 <- dat_new2 %>%
+  filter(PARAM %in% c("DRYWT%", "Fett")) %>% # View()
+  group_by(MYEAR, STATION_CODE, LATIN_NAME, TISSUE_NAME, SAMPLE_NO2, PARAM) %>%
+  mutate(n = n()) %>%
+  filter(n > 1) %>%
+  arrange(SAMPLE_NO2, PARAM) %>%
+  select(LATIN_NAME, SAMPLE_NO2, SAMPLE_ID, PARAM, VALUE,  FLAG1, QUANTIFICATION_LIMIT) 
+
+cat("Duplicated data, fat and dry weight")
+table(check1$STATION_CODE)
+
+# USed below
+tab <- xtabs(~SAMPLE_NO2 + SAMPLE_ID + STATION_CODE, check1)
+
+# Check uniqueness of all variables
+check2 <- dat_new2 %>%
+  group_by(MYEAR, STATION_CODE, LATIN_NAME, TISSUE_NAME, SAMPLE_NO2, PARAM) %>%
+  mutate(n = n()) %>%
+  filter(n > 1) %>%
+  arrange(SAMPLE_NO2, PARAM)
+
+cat("Duplicated data, all parameters")
+table(check2$STATION_CODE)
+
+# Make Parameter x  SAMPLE_ID table
+check3 <- dat_new2 %>%
+  filter(STATION_CODE %in% "26A2") %>% 
+  select(SAMPLE_NO2, PARAM, SAMPLE_ID, VALUE) %>%
+  pivot_wider(names_from = SAMPLE_ID, values_from = VALUE) %>%
+  arrange(SAMPLE_NO2, PARAM)
+
+# View(check3)
+
+
+if (FALSE){
+  
+  # For checkin which SAMPLE_ID is the right ones
+  check4 <- dat_new2 %>%
+    filter(PARAM %in% c("HBCDA", "Fett")) %>% # View()
+    group_by(MYEAR, STATION_CODE, LATIN_NAME, TISSUE_NAME, SAMPLE_NO2, PARAM) %>%
+    mutate(n = n()) %>%
+    filter(n > 1) %>%
+    arrange(SAMPLE_NO2, PARAM) %>%
+    select(LATIN_NAME, SAMPLE_NO2, SAMPLE_ID, PARAM, VALUE,  FLAG1, QUANTIFICATION_LIMIT) 
+  
+  View(check4)
+  
+  # After comparing values with those found in PDF file 'Analyserapport 1055-9485 26A2.PDF' in
+  # K:\Prosjekter\Sjøvann\JAMP\2020\analyser\analyserapporter\blåskjell
+  # Sample 1 = SAMPLE_ID 245999 
+  # Sample 2 = SAMPLE_ID 246000 
+  # Sample 3 = SAMPLE_ID 246001 
+  
+}
+
+# 2021: Nothing is deleted
+ids <- colnames(tab)
+ids_to_delete <- ids[!ids %in% c("245999", "246000", "246001")]
+cat("ids_to_delete: \n")
+ids_to_delete
+
+dat_new3 <- dat_new2 %>%
+  filter(!SAMPLE_ID %in% ids_to_delete)  
+
+cat("Original data (dat_new2):", nrow(dat_new2), "\n")
+cat("New data (dat_new3):", nrow(dat_new3), "\n")
+cat("Difference:", nrow(dat_new2) - nrow(dat_new3), "\n")
+
+```
+
+### h. List variables in data sets  
+Just for help with writing the next section  
+```{r}
+
+if (FALSE){
+  
+  data_legacy %>% 
+    names() %>% paste(collapse = ", ") 
+
+  dat_new2 %>% 
+    names() %>% paste(collapse = ", ")
+  
+}
+
+```
+
+
+### i. Keep only rows with PARAM and remove the 'Substance' column (after possible check)    
+
+```{r}
+
+if (FALSE){
+  dat_new2 %>%
+    count(NAME, PARAM)
+  }
+
+n1 <- nrow(dat_new3)
+dat_new3 <- dat_new3 %>% 
+  filter(!is.na(PARAM)) %>%
+  select(-NAME)
+n2 <- nrow(dat_new3)
+
+cat("Number of rows before:", n1, "\n")
+cat("Number of rows after:", n2, "\n")
+cat("Difference:", n1-n2, "\n")
+
+```
+
+
+
+### j. Tables of last year's data  
+Note: the Somateria mollissima (eider duck) data (19N) are only 
+```{r}
+
+# Tissues
+cat("TISSUES \n")
+for (tissue in unique(dat_new3$TISSUE_NAME)){
+  cat(tissue, ": ")
+  stations <- dat_new3 %>% 
+    filter(TISSUE_NAME %in% tissue) %>%
+    pull(STATION_CODE) %>% unique()
+  cat(length(stations), "stations \n   ")
+  cat(paste(stations, collapse = ", "), "\n")
+}
+
+# Species
+cat("\n")
+cat("SPECIES \n")
+for (species in unique(dat_new3$LATIN_NAME)){
+  cat(species, ": ")
+  species_list <- dat_new3 %>% 
+    filter(LATIN_NAME %in% species) %>%
+    pull(STATION_CODE) %>% unique()
+  cat(length(species_list), "stations \n   ")
+  cat(paste(species_list, collapse = ", "), "\n")
+}
+
+```
+
+
+## 4. Check and fix units  
+
+### a. Fix Delta13C, Delta15N "unit"
+```{r}
+
+dat_new3 <- dat_new3 %>%
+  mutate(
+    UNIT = case_when(
+      PARAM %in% c("VDSI", "Intersex") ~ "Index",
+      is.na(UNIT) ~ "None",
+      UNIT == "NONE" ~ "None",
+      TRUE ~ UNIT
+    )
+  )
+
+# Check:
+if (FALSE){
+  table(addNA(dat_new3$UNIT))
+}
+
+```
+
+### b. Add preferred unit to data   
+* Creates data 'dat_new4'  
+```{r}
+
+preferred_units <- readr::read_csv("Input_data/Lookup table - preferred parameter units.csv", col_types = "c")
+unit_conversion <- readr::read_csv("Input_data/Lookup table - unit conversions.csv", col_types = "ccn")
+
+# Fix the spaces in 'UNIT' in unit_conversion:
+# find 'space_16bit' (non-breaking space) and replace with 'space_8bit' (ordinary space)    
+# see here: https://programmer.group/c2-a0-no-break-space-with-special-spaces-in-utf-8-encoding.html
+space_16bit <- charToRaw("\xc2\xa0") %>% rawToChar()
+space_8bit <- charToRaw("\x20") %>% rawToChar()   
+
+unit_conversion$UNIT <- gsub(space_16bit, space_8bit, unit_conversion$UNIT)
+
+check <- preferred_units %>%
+  count(PARAM) %>%
+  filter(n > 1) %>%
+  nrow()
+
+if (check == 0){
+  # Creates dat_new4 which has Preferred_unit and Conversion_factor added  
+  dat_new4 <- dat_new3 %>%
+    left_join(preferred_units, by = "PARAM") %>% 
+    left_join(unit_conversion, by = c("UNIT", "Preferred_unit")) %>%
+    mutate(Conversion_factor = ifelse(UNIT == "PERCENT", 1, Conversion_factor))
+  cat("Preferred_unit and Conversion_factor added to data using 'Parameter_units.xlsx' \n")
+  cat("Name of data set for last year: 'dat_new3' -> 'dat_new4' \n")
+} else {
+  cat("WARNING! Parameter_units.xlsx contains some PARAM with more than one preferred unit")
+  cat("\n")
+  cat("Fix Parameter_units.xlsx and repeat")
+  cat("\n")
+}  
+
+
+# For checking:
+if (FALSE){
+  dat_new4 %>%
+    filter(LATIN_NAME == "Somateria mollissima") %>%
+    select(PARAM, UNIT, Preferred_unit, Conversion_factor) 
+}
+
+
+```
+
+### c. Checks (if needed) - see code in 'Appendix'   
+
+### d. Check units that are different from preferred units   
+```{r}
+
+allowed_units <- table(preferred_units$Preferred_unit)
+
+check_unit <- dat_new4 %>%
+  filter(is.na(UNIT) | is.na(Preferred_unit) | UNIT != Preferred_unit) %>%
+  count(PARAM, UNIT, Preferred_unit, Conversion_factor)
+
+# Check manually:
+# View(check_unit2)
+
+check_unit2 <- check_unit %>%
+  filter(!UNIT %in% allowed_units & is.na(Preferred_unit))
+
+if (nrow(check_unit2) > 0){
+  stop(nrow(check_unit2), 
+       " param/units have forbidden units and no preferred unit!\n",
+       "Fix the csv table 'Lookup table - preferred parameter units.csv' (folder Input_data).\n",
+       "Note: this is also where you will notice if some parameter names ('PARAM') should change name,\n",
+       "  so you might go back to section 3.b1 to recode parameter names.\n",
+       "(This error happened in Section 4d)")
+} else {
+  message("Test 1 ok (no param/units have have forbidden units combined with no preferred unit)")
+}
+
+#
+# Code such as the following may be useful to run in R on your own computer, after running script 802
+#   to help updating 'preferred parameter units'. Can then copy/paste lots of new parameters to excel. 
+#   Example below copies the names of all PAH metabolites (which all have 'OH' in the name):
+#
+# df_data %>% filter(grepl("OH", NAME)) %>% count(NAME) %>% write.table("clipboard", sep = "\t") 
+#
+
+check_unit3 <- check_unit %>%
+  filter(is.na(Preferred_unit))
+
+if (nrow(check_unit3) > 0){
+  warning("Some param/units have no preferred unit, check that given UNIT in 'check_unit3' is OK.")
+} else {
+  message("Test 2 ok (All param/units have preferred unit)")
+}
+
+check_unit4a <- dat_new4 %>%
+  filter(UNIT != Preferred_unit & is.na(Conversion_factor)) %>% # View()
+  count(PARAM, UNIT, Preferred_unit, Conversion_factor)
+
+check_unit4b <- check_unit4a %>%
+  count(UNIT, Preferred_unit)
+
+if (nrow(check_unit4b) > 0){
+  stop(nrow(check_unit4b), 
+       " UNIT - preferred unit pairs lack conversion factor! Fix excel table 'preferred_units'.\n",
+       "Find the file 'Input_data/Lookup table - preferred parameter units.xlsx', download it to your pc,\n",
+       "add the conversion factors lacking (see check_unit4b), and upload it to Jupyterhub again.\n\n",
+       "(This is an error that occured in section 4d)")
+} else {
+  message("Test 3 ok (All pairs of UNIT - preferred unit have conversion factor)")
+}
+
+```
+
+### e. If OK, we convert units  
+```{r}
+
+cat("No preferred unit:", sum(is.na(dat_new4$Preferred_unit)), "cases \n")
+cat("UNIT == Preferred_unit:", sum(dat_new4$UNIT == dat_new4$Preferred_unit), "cases \n")
+cat("UNIT != Preferred_unit:", sum(dat_new4$UNIT != dat_new4$Preferred_unit), "cases \n")
+cat("UNIT != Preferred_unit and Conversion_factor = NA:", 
+    sum(dat_new4$UNIT != dat_new4$Preferred_unit & is.na(dat_new4$Conversion_factor)), "cases \n")
+
+dat_new5 <- dat_new4 %>%
+  mutate(
+    VALUE = case_when(
+      is.na(Preferred_unit) ~ VALUE,
+      UNIT == Preferred_unit ~ VALUE,
+      UNIT != Preferred_unit ~ VALUE*Conversion_factor),
+    UNIT = case_when(
+      is.na(Preferred_unit) ~ UNIT,
+      UNIT == Preferred_unit ~ UNIT,
+      UNIT != Preferred_unit ~ Preferred_unit)
+  ) %>%
+  filter(!is.na(VALUE))
+
+cat("Units converted. Parameters with no 'preferred unit' have just kept their original unit \n\n")
+cat("Original data (dat_new4):", nrow(dat_new4), "\n")
+cat("New data (dat_new5):", nrow(dat_new5), "\n")
+cat("Difference:", nrow(dat_new4) - nrow(dat_new5), "\n\n")
+cat("Name of data set for last year: 'dat_new4' -> 'dat_new5' \n")
+
+#
+# For checking result
+#
+if (FALSE){
+  xtabs(~ UNIT + is.na(Preferred_unit), dat_new5)
+  
+  sel <- with(dat_new4, is.na(Preferred_unit))
+  dat_new5[sel,] %>% select(PARAM, UNIT, VALUE)
+  dat_new5[sel,] %>% xtabs(~PARAM, .)
+  
+  sel <- with(dat_new4, UNIT != Preferred_unit)
+  dat_new4[sel,] %>% select(PARAM, UNIT, VALUE)
+  dat_new5[sel,] %>% select(PARAM, UNIT, VALUE)
+}
+
+```
+
+
+## 6. Add sums  
+
+### Add sum parameters (as extra rows)  
+Note that this also deletes some 'index' variables and reshuffles data  
+```{r}
+
+for (i in seq_along(sum_parameters)){     # go through numbers 1 to 9
+  # We add new rows every time we go through the loop
+  dat_new5 <- add_sumparameter(i, sum_parameters, dat_new5)
+  }
+
+```
+
+
+
+### Check 
+```{r}
+
+# Check all sum parameters - how many values have we got for each?  
+dat_new5 %>%
+  filter(PARAM %in% names(sum_parameters)) %>%
+  xtabs(~PARAM + is.na(VALUE), .)
+
+# Same, for ex. LOQ parameters  
+dat_new5 %>%
+  filter(PARAM %in% paste0(names(sum_parameters), "_exloq")) %>%
+  xtabs(~PARAM + is.na(VALUE), .)
+
+
+#
+# PLot one group parameter 
+#
+# Set i, e.g. 1 for sum parameter number 1 (i.e. CB_S7)
+
+names(sum_parameters)
+
+tissue <- "Whole soft body"
+i <- 3
+pars <- c(sum_parameters[[i]], 
+          names(sum_parameters)[i], 
+          paste0(names(sum_parameters)[i], "_exloq"))
+
+  
+dat_new5 %>%
+  filter(PARAM %in% pars) %>%
+  # filter(TISSUE_NAME %in% "Lever" & BASIS %in% "W") %>%
+  filter(TISSUE_NAME %in% tissue & BASIS %in% "W") %>%
+  group_by(STATION_CODE, MYEAR, PARAM) %>%
+  mutate(PARAM = factor(PARAM, levels = pars)) %>%
+  summarise(median = median(VALUE), .groups = "drop") %>%
+  ggplot(aes(PARAM, median, fill = PARAM)) +
+  geom_col() +
+  facet_wrap(vars(STATION_CODE)) +
+  theme(axis.text.x = element_text(angle = -45, hjust = 0))
+  
+
+if (FALSE){
+  
+  # Plot all sum parameters
+  
+  for (i in seq_along(sum_parameters)){
+    
+    
+    pars <- c(sum_parameters[[i]], names(sum_parameters)[i])
+    
+    data_sel <- dat_new5 %>%
+      filter(PARAM %in% pars) %>%
+      filter(TISSUE_NAME %in% "Lever" & BASIS %in% "W") %>%
+      group_by(STATION_CODE, MYEAR, PARAM) %>%
+      summarise(median = median(VALUE), .groups = "drop") %>%
+      mutate(PARAM = factor(PARAM, levels = pars))
+    
+    if (nrow(data_sel) > 0){
+      gg <- data_sel %>%
+        ggplot(aes(PARAM, median, fill = PARAM)) +
+        geom_col() +
+        facet_wrap(vars(STATION_CODE)) +
+        theme(axis.text.x = element_text(angle = -45, hjust = 0))
+      
+      print(gg)
+    }
+    
+  }
+  
+}  
+
+```
+
+
+
+## 7. Add columns for dry weight and fat (dat_new6)  
+DRYWT and FAT_PERC (dat_new6)   
+```{r}
+
+check1 <- dat_new5 %>%
+  filter(PARAM %in% c("DRYWT%", "Fett")) %>%
+  count(MYEAR, STATION_CODE, LATIN_NAME, TISSUE_NAME, SAMPLE_NO2, PARAM)
+check2 <- sum(check1$n > 1)
+
+if (check2 == 0){
+  
+  dat_columns_to_add <- dat_new5 %>%
+    filter(PARAM %in% c("DRYWT%", "Fett")) %>%
+    mutate(PARAM = case_when(
+      PARAM == "DRYWT%" ~ "DRYWT",
+      PARAM == "Fett"  ~ "FAT_PERC")
+    ) %>%
+    select(MYEAR, STATION_CODE, LATIN_NAME, TISSUE_NAME, SAMPLE_NO2, PARAM, VALUE) %>%
+    pivot_wider(names_from = PARAM, values_from = VALUE)
+  
+  dat_new6 <- dat_new5 %>%
+    left_join(dat_columns_to_add, by = c("MYEAR", "STATION_CODE", "LATIN_NAME", "SAMPLE_NO2", "TISSUE_NAME"))
+  
+  cat("dat_new6 created by adding DRYWT% + Fett to dat_new5. Number of rows should be the same. \n\n")
+
+  cat("Original data (dat_new5):", nrow(dat_new5), "\n")
+  cat("New data (dat_new6):", nrow(dat_new6), "\n")
+  cat("Difference:", nrow(dat_new5) - nrow(dat_new6), "\n")
+  
+} else {
+  
+  cat("Each line of data must have unique combination of MYEAR, STATION_CODE, LATIN_NAME, TISSUE_NAME, SAMPLE_NO2.")
+  cat("\n")
+  cat("Please check up the 'check1' data set to see where there are duplicates.")
+  cat("\n")
+  
+}
+
+```
+
+
+
+
+
+## 8. Calculate VALUE_WW, VALUE_DW and VALUE_FB   
+
+### a. Calculation
+```{r}
+
+dat_new6 <- dat_new6 %>%
+  mutate(
+    VALUE_WW = case_when(
+      BASIS == "W" ~ VALUE,
+      BASIS == "D" ~ VALUE*(DRYWT/100),
+      BASIS == "F" ~ VALUE*(FAT_PERC/100)),
+    VALUE_DW = case_when(
+      BASIS == "W" ~ VALUE/(DRYWT/100),
+      BASIS == "D" ~ VALUE,
+      BASIS == "F" ~ VALUE*(FAT_PERC/100)/(DRYWT/100)),
+    VALUE_FB = case_when(
+      BASIS == "W" ~ VALUE/(FAT_PERC/100),
+      BASIS == "D" ~ VALUE*(DRYWT/100)/(FAT_PERC/100),
+      BASIS == "F" ~ VALUE)
+    ) %>%
+  select(-c(BASIS, VALUE, Preferred_unit, Conversion_factor, N_par))
+    
+# Example
+# value_ww = 8, drywt = 50, fatperc = 10
+# value_dw = 16
+# value_fb = 80
+
+```
+
+### b. Tables dry-weight and fat basis, last year    
+Note: the Somateria mollissima (eider duck) data (19N) are only 
+```{r}
+
+#
+# Tabulate by tissue
+#
+print_station_summary <- function(table, name_of_variable){
+  stations_all_ok <- rownames(table)[table[,2] == 0]
+  stations_none_ok <- rownames(table)[table[,1] == 0]
+  stations_some_ok <- rownames(table)[table[,1] > 0 & table[,2] > 0]
+  stations_some_ok_table <- table[table[,1] > 0 & table[,2] > 0,]
+  if (length(stations_all_ok) > 0){
+    cat(name_of_variable, "existing for _all_ samples of the following stations: \n")
+    cat("  ")
+    cat(stations_all_ok, sep = ", ")
+    cat("\n")
+  }
+  if (length(stations_none_ok) > 0){
+    cat(name_of_variable, "existing for _no_ samples of the following stations: \n")
+    cat("  ")
+    cat(stations_none_ok, sep = ", ")
+    cat("\n")
+  }
+  if (length(stations_some_ok) > 0){ 
+    cat(name_of_variable, "lacking for lacking for some samples of the following stations: \n")
+    print(stations_some_ok)
+    print(stations_some_ok_table)
+    cat("\n")
+  }
+  cat("\n")
+}
+
+#
+# Tabulate by tissue
+#
+
+cat("DRY WEIGHT BASIS \n==================\n")
+for (tissue in unique(dat_new6$TISSUE_NAME)){
+  # tissue <- "Lever"
+  cat(toupper(tissue), ": \n")
+  df <- dat_new6 %>% 
+    filter(TISSUE_NAME %in% tissue & MYEAR == lastyear) %>%
+    mutate(Missing = factor(is.na(VALUE_DW), levels = c(FALSE, TRUE)))
+  tab <- xtabs(~STATION_CODE + Missing, df)
+  print_station_summary(tab, name_of_variable = "Dry weight")
+}
+
+
+cat("FAT BASIS \n==================\n")
+for (tissue in unique(subset(dat_new6, MYEAR == lastyear)$TISSUE_NAME)){
+  # tissue <- "Lever"
+  # tissue <- "Blod"
+  cat(toupper(tissue), ": \n")
+  df <- dat_new6 %>% 
+    filter(TISSUE_NAME %in% tissue & MYEAR == lastyear) %>%
+    mutate(Missing = factor(is.na(VALUE_FB), levels = c(FALSE, TRUE)))
+  tab <- xtabs(~STATION_CODE + Missing, df)
+  # debugonce(print_station_summary)
+  print_station_summary(tab, name_of_variable = "Fat percentage")
+}
+
+
+if (FALSE){
+  
+  # Check 30B liver
+  dat_new6 %>% 
+    filter(TISSUE_NAME %in% "Lever" & MYEAR == lastyear & STATION_CODE == "30B") %>%
+    summarize_samples_print()
+
+  # Check 30B muscle
+  df <- dat_new6 %>% 
+    filter(TISSUE_NAME %in% "Muskel" & MYEAR == lastyear & STATION_CODE == "30B")
+  summarize_samples_print(df)
+
+  }
+
+```
+
+###  c. Check duplicates again  
+```{r}
+
+df_duplicates <- dat_new6 %>%
+  add_count(STATION_CODE, LATIN_NAME, TISSUE_NAME, MYEAR, SAMPLE_NO2, PARAM) %>%
+  filter(n > 1)
+
+if (nrow(df_duplicates) > 0){
+  stop("Duplicates in the data! Check 'df_duplicates'. (Section 8) \n")
+  xtabs(~PARAM, df_duplicates) %>% print()
+  xtabs(~MYEAR, df_duplicates) %>% print()
+} else {
+  cat("No duplicates found in the data. \n")
+}
+  
+
+```
+## 9. Add the new data to the old data  
+
+The variables lacking in dat_new6 (length-adjusted data) are just added with NA values  
+
+```{r}
+
+# Check overlap of column names
+n1 <- names(data_legacy)
+n2 <- names(dat_new6)
+cat("Columns in data_legacy that are not in last year's data: \n")
+n1[!n1 %in% n2]
+cat("\n")
+
+cat("Columns in last year's data (dat_new6) that are not in data_legacy: \n")
+n2[!n2 %in% n1]
+# n2[!n2 %in% n1] %>% dput() 
+# n2[!n2 %in% n1] %>% paste(collapse = ", ")
+
+data_updated <- bind_rows(
+  data_legacy, 
+  dat_new6 %>% select(-c(SAMPLE_NO, REPNO, FLAG2, APPROVED, REMARK_sample, REMARK_chem, 
+                      STATION_ID, SAMPLE_ID, METHOD_ID, VALUE_ID,  
+                      TISSUE_ID, TAXONOMY_CODE_ID))
+  )
+
+cat("Data combined. \n\n")
+cat("Legacy data:", nrow(data_legacy), "rows \n")
+cat("Updated data:", nrow(data_updated), "rows \n")
+cat("That is", nrow(data_updated)-nrow(data_legacy), "rows more \n")
+
+
+```
+
+
+### Check sum data  
+```{r}
+
+data_updated %>%
+  filter(PARAM %in% "CB_S7" & TISSUE_NAME %in% "Lever" & !is.na(VALUE_WW) & MYEAR >= 2010) %>%
+  group_by(STATION_CODE) %>%
+  mutate(n_year = length(unique(MYEAR))) %>%
+  filter(n_year > 5 ) %>%
+  group_by(STATION_CODE, TISSUE_NAME, MYEAR) %>%
+  summarise(median = median(VALUE_WW), .groups = "drop") %>%
+  ggplot(aes(MYEAR, median, color = STATION_CODE)) +
+  geom_line() +
+  geom_point() + 
+  facet_wrap(vars(STATION_CODE))
+    
+```
+
+### Check C/N data  
+- C/N is in all data since 2012  
+- '% C' and '% N' is in all data since 2015  
+- Also checked just before saving  
+```{r}
+
+df <- data_updated %>%
+  filter(MYEAR >= 2008) %>% # xtabs(~PARAM, .)
+  filter(PARAM %in% c("C/N", "% C", "% N"))
+
+df %>% xtabs(~MYEAR + PARAM + is.na(VALUE_WW), .)
+
+```
+
+
+### Check LATIN_NAME  
+```{r}
+
+cat("Table of LATIN_NAME \n-------------------------------------------\n")
+xtabs(~addNA(LATIN_NAME), data_updated)
+
+cat("\n\nTable of LATIN_NAME by year \n-------------------------------------------\n")
+df <- data_updated %>%
+  filter(MYEAR >= 2008) # %>% # xtabs(~PARAM, .)
+xtabs(~MYEAR + addNA(LATIN_NAME), df)
+  
+if (FALSE){
+  df <- data_updated %>%
+    filter(MYEAR >= 2008) # %>% # xtabs(~PARAM, .)
+  xtabs(~MYEAR + addNA(LATIN_NAME), df)
+}
+
+```
+
+## 10. Corrections  
+
+### a. Check and change/remove duplicates with different PARAM values  
+
+#### PAH metabolites in bile  
+
+"1-OH-fenantren", "1-OH-pyren", "3-OH-benzo[a]pyren" are the same as PA1OH, PYR1OH, BAP3OH  
+- Example of "3-OH-benzo[a]pyren" vs BAP3OH shown below   
+```{r}
+
+# for testing (30B 2016 only)
+df <- data_updated %>%
+  filter(PARAM %in% c("3-OH-benzo[a]pyren", "BAP3O", "BAP3OH") & MYEAR == 2016 & STATION_CODE == "30B") %>% 
+  arrange(STATION_CODE, SAMPLE_NO2, PARAM) %>%
+  select(STATION_CODE, SAMPLE_NO2, PARAM, VALUE_WW) %>%
+  pivot_wider(names_from = PARAM, values_from = VALUE_WW)
+
+# head(df)
+
+check1 <- data_updated %>%
+  filter(PARAM %in% c("3-OH-benzo[a]pyren", "BAP3O", "BAP3OH")) %>% 
+  arrange(STATION_CODE, SAMPLE_NO2, PARAM, MYEAR) %>%
+  select(STATION_CODE, SAMPLE_NO2, PARAM, MYEAR, VALUE_WW) %>%
+  pivot_wider(names_from = PARAM, values_from = VALUE_WW)
+
+# Manual check (can also check values)
+# View(check1 %>% filter(!is.na(`1-OH-pyren`)))
+
+# Check if all records with 3-OH-benzo[a]pyren also have BAP3OH (i.e.,
+#   the former can be deleted)   
+
+if ("3-OH-benzo[a]pyren" %in% names(check1)){
+  
+  check2 <- check1 %>%
+    filter(!is.na(`3-OH-benzo[a]pyren`)) %>%
+    filter(is.na(BAP3OH))
+  
+  if (nrow(check2) > 0){
+    stop("NOTE: Some records have 3-OH-benzo[a]pyren but not BAP3OH. Do not delete all. (Section 10a) \n")
+  }
+  
+  
+  
+  # Check difference between duplicate values   
+  check3 <- check1 %>%
+    filter(!is.na(`3-OH-benzo[a]pyren`)) %>%
+    mutate(Difference_percent = (BAP3OH - `3-OH-benzo[a]pyren`)/BAP3OH*100)
+  
+  if (sum(abs(check3$Difference_percent) > 5) > 0){
+    stop("NOTE: The difference between 3-OH-benzo[a]pyren and BAP3OH exceeds 5%. Check before deletion. (Section 10a) \n")
+  }
+  
+} else {
+  
+  cat("No '3-OH-benzo[a]pyren' in the data\n")
+  
+}
+
+```
+
+#### Delete 3-OH-benzo[a]pyren  
+```{r}
+
+n1 <- nrow(data_updated)
+data_updated <- data_updated %>%
+  filter(!PARAM %in% "3-OH-benzo[a]pyren")
+n2 <- nrow(data_updated)
+
+cat(n1-n2, "rows deleted\n")
+                      
+```
+
+#### Same check for "1-OH-pyren" = PYR1OH
+```{r}
+
+# Only 30B 2016
+data_updated %>%
+  filter(PARAM %in% "1-OH-pyren") %>% 
+  xtabs(~STATION_CODE + MYEAR, .)
+
+# for testing (30B 2016 only)
+df <- data_updated %>%
+  filter(PARAM %in% c("1-OH-pyren", "PYR1O", "PYR1OH") & MYEAR == 2016 & STATION_CODE == "30B") %>% 
+  arrange(STATION_CODE, SAMPLE_NO2, PARAM) %>%
+  select(STATION_CODE, SAMPLE_NO2, PARAM, VALUE_WW) %>%
+  pivot_wider(names_from = PARAM, values_from = VALUE_WW)
+
+# head(df)
+
+check1 <- data_updated %>%
+  filter(PARAM %in% c("1-OH-pyren", "PYR1O", "PYR1OH")) %>% 
+  arrange(STATION_CODE, SAMPLE_NO2, PARAM, MYEAR) %>%
+  select(STATION_CODE, SAMPLE_NO2, PARAM, MYEAR, VALUE_WW) %>%
+  pivot_wider(names_from = PARAM, values_from = VALUE_WW, values_fn = length)
+
+# View(check1 %>% filter(!is.na(`1-OH-pyren`)))
+
+if ("1-OH-pyren" %in% names(check1)){
+  
+  # Check if all records with 3-OH-benzo[a]pyren also have BAP3OH (i.e.,
+  #   the former can be deleted)   
+  check2 <- check1 %>%
+    filter(!is.na(`1-OH-pyren`)) %>%
+    filter(is.na(PYR1OH))
+  
+  if (nrow(check2) > 0){
+    stop("NOTE: Some records have 1-OH-pyren but not PYR1OH. Do not delete all. (Section 10a) \n")
+  }
+  
+  # Check difference between duplicate values   
+  check3 <- check1 %>%
+    filter(!is.na(`1-OH-pyren`)) %>%
+    mutate(Difference_percent = (PYR1OH - `1-OH-pyren`)/PYR1OH*100)
+  
+  if (sum(abs(check3$Difference_percent) > 5) > 0){
+    stop("NOTE: The difference between 1-OH-pyren and PYR1OH exceeds 5%. Check before deletion. (Section 10a) \n")
+  }
+  
+} else {
+  
+  cat("No '1-OH-pyren' in the data\n")
+  
+}
+
+```
+
+#### Delete '1-OH-pyren'    
+```{r}
+
+n1 <- nrow(data_updated)
+data_updated <- data_updated %>%
+  filter(!PARAM %in% "1-OH-pyren")
+n2 <- nrow(data_updated)
+
+cat(n1-n2, "rows deleted\n")
+  
+                      
+```
+
+### b. Tins 
+
+#### Checks  
+```{r}
+
+if (FALSE){
+  data_updated %>% 
+    filter(grepl("TPhT", PARAM, ignore.case = TRUE) | 
+             grepl("Trifenyltinn", PARAM, ignore.case = TRUE) |
+             grepl("TPTIN", PARAM, ignore.case = TRUE) |
+             grepl("TPT", PARAM, ignore.case = TRUE)) %>%
+    xtabs(~MYEAR + PARAM, .)
+  
+    data_updated %>% 
+    filter(STATION_CODE == "11G") %>%
+    xtabs(~MYEAR + PARAM, .)
+
+}
+
+```
+
+
+#### Change parameter names  
+data_updated2  
+
+```{r}
+
+# OLD "system"
+# ------------------
+#                      Ion weight                        Tin weight
+#------------------------------------------------------------------------------------
+# BUTYLTINS       
+# monobutyltin         MBTIN, "monobutyltin (MBT)"       Monobutyltinn (MBT)-Sn
+# dibutyltin           DBTIN                             Dibutyltinn-Sn (DBT-Sn)
+# tributyltin          TBT                               Tributyltinn (TBT)-Sn  
+# tetrabutyltin        TTBT, "Tetrabutyltinn (TetraBT)"  Tetrabutyltinn (TTBT)-Sn
+# OCTYLTINS                                                 
+# monooctyltin         MOT                               Monooktyltinn (MOT)-Sn
+# dioctyltin           DOT                               Dioktyltinn-Sn (DOT-Sn)
+# CYCLOHEXYLTINS                                         
+# tricyclohexyltin     TCHT                             
+# PHENYLTINS                                             
+# Triphenyltin (TPhT)  TPTIN                             Trifenyltinn (TPhT)-Sn
+
+# NEW "system"
+# ------------------
+#                      Ion weight      Tin weight
+#------------------------------------------------------------------------------------
+# BUTYLTINS              
+# monobutyltin         MBT             MBT-Sn
+# dibutyltin           DBT             DBT-Sn
+# tributyltin          TBT             TBTIN (for historic reasons?) or TBT-Sn  
+# tetrabutyltin        TTBT            TTBT-Sn
+# OCTYLTINS                                                        
+# monooctyltin         MOT             MOT-Sn
+# dioctyltin           DOT             DOT-Sn
+# CYCLOHEXYLTINS                       
+# tricyclohexyltin     TCHT            TCHT-Sn   
+# PHENYLTINS                           
+# Triphenyltin (TPhT)  TPhT             TPhT-Sn
+
+
+data_updated2 <- data_updated %>%
+  mutate(
+    PARAM = case_when(
+      PARAM == "MBTIN" ~ "MBT",
+      PARAM == "Monobutyltinn (MBT)-Sn" ~ "MBT-Sn",
+      PARAM == "DBTIN" ~ "DBT",
+      PARAM == "Dibutyltinn-Sn (DBT-Sn)" ~ "DBT-Sn",
+      PARAM == "Tributyltinn (TBT)-Sn" ~ "TBTIN",
+      PARAM == "Tetrabutyltinn (TetraBT)" ~ "TTBT",
+      PARAM == "Tetrabutyltinn (TTBT)-Sn" ~ "TTBT-Sn",
+      PARAM == "Monooktyltinn (MOT)-Sn" ~ "MOT-Sn",
+      PARAM == "Dioktyltinn-Sn (DOT-Sn)" ~ "DOT-Sn",
+      PARAM == "TPT" ~ "TPhT",
+      PARAM == "TPTIN" ~ "TPhT",
+      PARAM == "Trisykloheksyltinn (TCHT)-Sn" ~ "TCHT-Sn",
+      PARAM %in% c("Difenyltinn (DPhT)","DPHT") ~ "DPhT",
+      PARAM %in% c("Monofenyltinn (MPhT)", "MPHT") ~ "MPhT",
+      PARAM %in% c("Trifenyltinn (TPhT)", "TPHT") ~ "TPhT",
+      PARAM %in% c("Trifenyltinn (TPhT)-Sn") ~ "TPhT-Sn",
+      TRUE ~ PARAM
+    )
+  )
+
+df <- data_updated2 %>%
+  filter(grepl("MBT", PARAM, ignore.case = TRUE) | 
+           grepl("DBT", PARAM, ignore.case = TRUE) |
+           grepl("TBT", PARAM, ignore.case = TRUE) |
+           grepl("TTBT", PARAM, ignore.case = TRUE) |
+           grepl("MOT", PARAM, ignore.case = TRUE) |
+           grepl("DOT", PARAM, ignore.case = TRUE) |
+           grepl("TPT", PARAM, ignore.case = TRUE) |
+           grepl("MBT", PARAM, ignore.case = TRUE) |
+           grepl("PhT", PARAM)) %>%
+  count(PARAM, MYEAR, STATION_CODE) %>%
+  mutate(tin_weight = grepl("Sn", PARAM))
+
+cat("\n------------------ \nYears 2010-2019: \n------------------\n")  
+cat("Number of stations, ion-weight data: \n")  
+xtabs(~PARAM + MYEAR, df %>% filter(MYEAR >= 2010 & !tin_weight))
+cat("\n")  
+cat("Number of stations, tin-weight data: \n")  
+xtabs(~PARAM + MYEAR, df %>% filter(MYEAR >= 2010 & tin_weight))  
+
+```
+
+#### Check for duplicates  
+```{r}
+
+df_duplicates <- data_updated2 %>%
+  filter(grepl("MBT", PARAM, ignore.case = TRUE) | 
+           grepl("DBT", PARAM, ignore.case = TRUE) |
+           grepl("TBT", PARAM, ignore.case = TRUE) |
+           grepl("TTBT", PARAM, ignore.case = TRUE) |
+           grepl("MOT", PARAM, ignore.case = TRUE) |
+           grepl("DOT", PARAM, ignore.case = TRUE) |
+           grepl("TPhT", PARAM, ignore.case = TRUE) |
+           grepl("MBT", PARAM, ignore.case = TRUE) |
+           grepl("PhT", PARAM)) %>%
+  count(STATION_CODE, LATIN_NAME, TISSUE_NAME, MYEAR, SAMPLE_NO2, PARAM) %>%
+  filter(n > 1)
+
+if (nrow(df_duplicates) > 0){
+  cat("WARNING! Duplicates in the data! Check 'df_duplicates'. \n")
+  xtabs(~PARAM, df_duplicates) %>% print()
+  xtabs(~MYEAR, df_duplicates) %>% print()
+} else {
+  cat("No duplicates found in the data. \n")
+}
+ 
+```
+
+#### Check tins, last year      
+```{r}
+#
+# Last year:
+cat("\n------------------ Last year only: ------------------\n")  
+#
+# Loop through parameters:
+params <- c("DBT-Sn", "DPhT", "TBTIN")
+for (param in params){
+  cat(param, ": \n")
+  xtabs(~STATION_CODE, df %>% filter(MYEAR == lastyear & PARAM == param)) %>% print()
+  cat("\n")  
+}
+
+# Manually made conclusion :)
+cat("Conclusion (NOTE: MANUALLY MADE):\n")
+cat("-", params[1], ": All stations \n")
+cat("-", params[2], ": None \n")
+cat("-", params[3], ": All stations \n")
+cat("No tins in I965, I969 \n")
+
+```
+
+#### Check tins, relationship between ion weight and tin weight      
+- TBT: all ok   
+- Mono-, di-, tetrabutyltin: errors for I965 and I969 in 2019:   
+    - what is given as ion weights are actually tin weights   
+- Octyltins, Trisykloheksyltinn: errors for all stations in 2019:   
+    - what is given as ion weights (MOT,DOT,TPTIN and TCHT) are actually tin weights   
+- Triphenyltin (TPhT) now seems ok  
+```{r}
+
+# tin atom weight = 118.710
+
+# First = ion weight, second = tin weight
+pairs <- list(
+  c("MBT", "MBT-Sn"),
+  c("DBT", "DBT-Sn"),
+  c("TBT", "TBTIN"),
+  c("TTBT", "TTBT-Sn"),
+  c("MOT", "MOT-Sn"),      # ion weight 233.95 g/mol, one Sn atom 
+  c("DOT", "DOT-Sn"),     # ion weight 345.2 g/mol, one Sn atom
+  c("TPhT", "TPhT-Sn"),    # ion weight 350 g/mol, one Sn atom 
+  c("TCHT", "TCHT-Sn")  # ion weight 736.3g/mol, two Sn atoms 
+)
+
+cat("\n\nDubious stations: \n")
+for (pair in pairs){
+  # pair <- pairs[[1]]
+  df2 <- data_updated2 %>%
+    filter(PARAM %in% pair & MYEAR >= 2014) %>% 
+    mutate(PARAM = factor(PARAM, levels = pair)) %>%
+    select(MYEAR, STATION_CODE, SAMPLE_NO2, PARAM, VALUE_WW) %>%
+    pivot_wider(names_from = "PARAM", values_from = "VALUE_WW", names_sort = TRUE)
+  if (ncol(df2) == 5){
+    df2$Rat1 = df2[[5]]/df2[[4]]
+    df2$Rat2 = df2[[4]]/df2[[5]]  
+    dubious_stations <- df2 %>% filter(Rat2 > 0.95 & Rat2 < 1.05) %>% pull(STATION_CODE) %>% unique()
+    cat(paste(pair, collapse = " + "), ": ", paste(dubious_stations, collapse = ", "), "\n")
+    gg <- ggplot(df2, aes(MYEAR, Rat2, color = STATION_CODE)) + 
+      geom_point() +
+      labs(title = paste(pair, collapse = " + "))
+    print(gg)  
+  } else {
+    cat(paste(pair, collapse = " + "), ": only ion or tin weights \n")
+  }
+}
+
+
+```
+
+### c. Change some other parameter names  
+
+#### QCB
+```{r}
+
+cat("Parameter names used: \n")
+data_updated2$PARAM %>% unique() %>% grep("QCB", ., value = TRUE)
+cat("\n")
+
+sel <- grepl("QCB", data_updated2$PARAM)
+
+# For checking:
+df_duplicates <- data_updated2[sel,] %>%
+  group_by(STATION_CODE, LATIN_NAME, TISSUE_NAME, MYEAR, SAMPLE_NO2) %>%
+  mutate(n = n()) %>%
+  filter(n > 1)
+
+if (nrow(df_duplicates) > 0){
+  cat("WARNING! Change of parameter names will create duplicates. Check 'df_duplicates' (code below) \n")
+  cat("Parameter names not changed. \n")
+  df_duplicates %>%
+    select(STATION_CODE, LATIN_NAME, TISSUE_NAME, MYEAR, SAMPLE_NO2, VALUE_WW)
+} else {
+  data_updated2$PARAM[sel] <- "QCB"
+  cat("Parameter names changed to 'QCB' for", sum(sel), "records. \n")
+}
+
+```
+
+#### OCS
+```{r}
+
+cat("Parameter names used: \n")
+data_updated2$PARAM %>% unique() %>% grep("OCS", ., value = TRUE)
+cat("\n")
+
+sel <- grepl("OCS", data_updated2$PARAM)
+
+# For checking:
+df_duplicates <- data_updated2[sel,] %>%
+  group_by(STATION_CODE, LATIN_NAME, TISSUE_NAME, MYEAR, SAMPLE_NO2) %>%
+  mutate(n = n()) %>%
+  filter(n > 1)
+
+if (nrow(df_duplicates) > 0){
+  cat("WARNING! Change of parameter names will create duplicates. Check 'df_duplicates' (code below) \n")
+  cat("Parameter names not changed. \n")
+  df_duplicates %>%
+    select(STATION_CODE, LATIN_NAME, TISSUE_NAME, MYEAR, SAMPLE_NO2, VALUE_WW)
+} else {
+  data_updated2$PARAM[sel] <- "OCS"
+  cat("Parameter names changed to 'OCS' for", sum(sel), "records. \n")
+}
+
+```
+
+#### Tables of TISSUE_NAME  
+```{r}
+
+cat("Table of TISSUE_NAME \n-------------------------------------------\n")
+xtabs(~TISSUE_NAME, data_updated)
+
+cat("\n\nTable of TISSUE_NAME by year \n-------------------------------------------\n")
+df <- data_updated %>%
+  filter(MYEAR >= 2008) # %>% # xtabs(~PARAM, .)
+xtabs(~MYEAR + TISSUE_NAME, df)
+  
+if (FALSE){
+  df <- data_updated %>%
+    filter(MYEAR >= 2008) # %>% # xtabs(~PARAM, .)
+  xtabs(~MYEAR + TISSUE_NAME, df)
+}
+
+```
+
+### d. Final checks
+
+#### Check all data for duplicates   
+(11-12 seconds)
+```{r}
+
+# if (!exists("df_duplicates_all")){    # recalculate only if it doesn't exist (for testing)
+
+df_duplicates_all <- data_updated2 %>%
+  add_count(STATION_CODE, LATIN_NAME, TISSUE_NAME, MYEAR, SAMPLE_NO2, PARAM) %>%
+  filter(n > 1)
+
+#}
+
+if (nrow(df_duplicates_all) > 0){
+  xtabs(~PARAM, df_duplicates_all) %>% print()
+  xtabs(~MYEAR, df_duplicates_all) %>% print()
+  xtabs(~MYEAR + PARAM, df_duplicates_all) %>% print()
+  stop("Duplicates in the data! Check 'df_duplicates_all'. (Section 10d)\n")
+} else {
+  cat("No duplicates found in the data. \n")
+}
+  
+
+```
+
+#### Check of ZN in one station   
+- Can't remember why I did this 
+```{r}
+df <- data_updated2 %>%
+  filter(STATION_CODE == "98B1" & MYEAR == lastyear & TISSUE_NAME == "Lever" & 
+           PARAM == "ZN" & UNIT == "MG_P_KG")
+
+cat("Existing values (sorted): \n")
+df %>%
+ mutate(VALUE_str = ifelse(     # make string with "<" sign if necessary 
+   is.na(FLAG1), 
+   as.character(VALUE_WW), 
+   paste("<", VALUE_WW))
+   ) %>%
+ arrange(VALUE_WW) %>%
+ pull(VALUE_str)
+
+```
+
+### e. Adding data for VDSI in 36G in 2019 
+```{r}
+
+message("Number of rows: ", nrow(data_updated2))
+
+check <- data_updated2 %>%
+  filter(STATION_CODE == "36G" & PARAM == "VDSI")
+# View(check)
+
+
+if (!2019 %in% check$MYEAR){
+  
+  # Pick 2020 data
+  data_to_add <- check %>% filter(MYEAR == 2020) %>% as.data.frame()
+  # Manipulate them to 2019 data (NOTE: VALUE is 0 also in 2019)
+  data_to_add$DRYWT <- NA
+  data_to_add$VALUE_ID <- NA
+  data_to_add$MYEAR <- 2019
+  
+  data_updated2 <- bind_rows(data_updated2, data_to_add)
+  
+  message("VDSI for 36G 2019 added to data")
+  
+}
+  
+message("Number of rows: ", nrow(data_updated2))
+
+
+```
+
+### f. Fix EROD and PROTV tissue   
+- Change 2021 to "Lever" - not strictly correct but follows previous years  
+- Something strange in 2020, seem to be duplicates for the data ("Lever" + "Liver - microsome")  
+```{r}
+
+if (FALSE){
+  check <- data_updated2 %>%
+    filter(PARAM %in% c("EROD","PROTV"))
+  
+  xtabs(~MYEAR + TISSUE_NAME, check)
+}
+
+# BACKUP <- data_updated2
+
+sel <- with(data_updated2, PARAM %in% c("EROD", "PROTV") & !TISSUE_NAME %in% "Lever" & MYEAR == 2021)
+data_updated2$TISSUE_NAME[sel] <- "Lever"
+message("TISSUE_NAME set to 'Lever' for ", sum(sel), " EROD + PROTV records in 2021")
+
+```
+
+### g. Fix "liver" for the snail station!
+```{r}
+
+sel <- with(data_updated2, 
+            LATIN_NAME %in% c("Nucella lapillus", "Littorina littorea") & !TISSUE_NAME %in% c("Whole soft body", "SH", "WO"))
+
+if (sum(sel) > 0){
+  
+  xtabs(~TISSUE_NAME + STATION_CODE, data_updated2[sel,])
+  
+  data_updated2$TISSUE_NAME[sel] <- "Whole soft body"
+  
+  cat(sum(sel), "TISSUE_NAME changed for snails")
+  
+}
+
+
+
+```
+### h. Add sum excl. LOQ for entire time series    
+
+- denoted "_exloq"  
+- use new function 'add_sumparameter_exloq'  
+
+```{r}
+
+# names(data_updated2)
+
+# pars <- paste0(names(sum_parameters), "_exloq")
+# nrow(data_updated2)
+# data_updated2 <- data_updated2 %>% filter(!PARAM %in% pars)
+# nrow(data_updated2)
+
+# For back up (debugging)
+# data_updated2_bk <- data_updated2
+# data_updated2 <- data_updated2_bk 
+
+for (i in seq_along(sum_parameters)){     # go through numbers 1 to 9
+  # We add new rows every time we go through the loop
+  data_updated2 <- add_sumparameter_exloq(i, sum_parameters, data_updated2)
+}
+
+```
+
+#### . - check result of sum data    
+```{r}
+
+#
+# All sum parameters
+#
+pars <- c(names(sum_parameters), paste0(names(sum_parameters), "_exloq"))
+
+data_updated2 %>%
+  filter(MYEAR > 2010, PARAM %in% pars, !is.na(VALUE_WW)) %>%
+  xtabs(~PARAM + MYEAR, .)
+
+# 
+# One selected sum parameter pair
+#
+i <- 3
+pars <- c(names(sum_parameters)[i], paste0(names(sum_parameters)[i], "_exloq"))
+
+data_updated2 %>%
+  filter(MYEAR > 2010, PARAM %in% pars,
+         LATIN_NAME == "Mytilus edulis") %>%
+  group_by(PARAM, STATION_CODE) %>%
+  # Keep only thise with 5 years
+  mutate(n_years = length(unique(MYEAR))) %>%
+  filter(n_years >= 5) %>%
+  group_by(PARAM, STATION_CODE, MYEAR) %>%
+  summarise(VALUE_WW = median(VALUE_WW)) %>%
+  ggplot(aes(MYEAR, VALUE_WW, color = PARAM)) +
+  geom_line() +
+  facet_wrap(vars(STATION_CODE))
+
+
+
+```
+
+### i. Fix tin in Eider duck   
+
+- Eider duck data 2021 given as SE (selenium) should be SN (tin)
+
+```{r}
+
+data_updated2 %>%
+  filter(MYEAR >= 2010,
+         STATION_CODE == "19N",
+         nchar(PARAM) == 2) %>%
+  xtabs(~MYEAR + PARAM, .)
+
+sel <- with(data_updated2, MYEAR >= 2021 & STATION_CODE == "19N" & PARAM %in% "SE")
+sum(sel)
+# View(data_updated2[sel,])
+
+data_updated2$PARAM[sel] <- "SN"
+
+```
+
+
+### j. Fix HG value in Eider duck (instead of fixing theunit)   
+
+- Eider duck data 2021 given as SE (selenium) should be SN (tin)
+
+```{r}
+
+# Check
+data_updated2 %>%
+  filter(MYEAR >= 2010,
+         STATION_CODE == "19N",
+         PARAM == "HG") %>%
+  group_by(MYEAR, TISSUE_NAME) %>%
+  summarise(across(c(VALUE_WW, VALUE_DW, VALUE_FB), ~round(median(.x),3)))
+
+sel <- with(data_updated2, MYEAR >= 2021 & STATION_CODE == "19N" & PARAM %in% "HG")
+# sum(sel)
+
+if (mean(data_updated2$VALUE_WW[sel]) > 10){
+  data_updated2$VALUE_WW[sel] <- data_updated2$VALUE_WW[sel]/1000
+  data_updated2$VALUE_FB[sel] <- data_updated2$VALUE_FB[sel]/1000
+}
+
+# Check again
+data_updated2 %>%
+  filter(MYEAR >= 2010,
+         STATION_CODE == "19N",
+         PARAM == "HG") %>%
+  group_by(MYEAR, TISSUE_NAME) %>%
+  summarise(across(c(VALUE_WW, VALUE_DW, VALUE_FB), ~round(median(.x),3)))
+
+```
+
+
+### l. Add SCCP and MCCP without LOQ for eider duck (S. mollissima)
+
+```{r}
+# 
+# data_updated2_backup <- data_updated2
+# 
+# data_updated2 %>%
+#   filter(grepl("SCCP", PARAM),
+#          LATIN_NAME %in% "Somateria mollissima") %>%
+#   xtabs(~MYEAR + PARAM, .)
+# 
+# # Get existing rows for eider duck
+# sel1 <- grepl("SCCP", data_updated2$PARAM) & data_updated2$LATIN_NAME %in% "Somateria mollissima"
+# sel2 <- grepl("MCCP", data_updated2$PARAM) & data_updated2$LATIN_NAME %in% "Somateria mollissima"
+# sel <- sel1 | sel2
+# cat(sum(sel), "eider duck rows selected")
+# 
+# dat_to_add <- dat_orig <- data_updated2[sel,]
+# 
+# # Pick LOQ rows
+# sel_loq <- dat_orig$FLAG1 %in% "<"
+# cat(sum(sel_loq), "rows <LOQ selected")
+# 
+# # For the new data with <LOQ, set value to 0 and set FLAG1 to NA
+# dat_to_add$VALUE_WW[sel_loq] <- 0
+# dat_to_add$VALUE_DW[sel_loq] <- 0
+# dat_to_add$VALUE_FB[sel_loq] <- 0
+# dat_to_add$FLAG1[sel_loq] <- as.character(NA)
+# # For ALL the new data (regardless of <LOQ), change PARAM to "SCCP eksl. LOQ" / "MCCP eksl. LOQ"
+# dat_to_add$PARAM <- sub("inkl", "eksl", dat_to_add$PARAM)
+# 
+# # Check
+# if (FALSE){
+#   bind_cols(
+#     dat_orig %>% select(LATIN_NAME, PARAM, VALUE_WW, FLAG1),
+#     dat_to_add %>% select(LATIN_NAME, PARAM, VALUE_WW, FLAG1)
+#   ) %>% View()
+# }
+# 
+# # Add to data  
+# n1 <- nrow(data_updated2)
+# 
+# # Check if it already has been added
+# check <- grepl("SCCP eksl", data_updated2$PARAM) & data_updated2$LATIN_NAME %in% "Somateria mollissima"
+# 
+# 
+# # Add only if the "eksl. LOQ" data are NOT there
+# if (sum(check) == 0){
+#   data_updated2 <- bind_rows(data_updated2, dat_to_add)
+# }
+# n2 <- nrow(data_updated2)
+# 
+# cat(n2-n1, "rows of 'eksl. LOQ' data for eider duck added to data set \n")
+
+```
+#### . - check again
+```{r}
+
+data_updated2 %>%
+  filter((grepl("SCCP", PARAM) | grepl("MCCP", PARAM)),
+         LATIN_NAME %in% "Somateria mollissima") %>%
+  xtabs(~MYEAR + PARAM, .)  
+
+```
+
+
+## 11. Save the data for later use    
+- We use the date the data was downloaded (in script 101) in the filename   
+- Used in script 109 (and downstream in 110, 111, 120, 201)  
+- Also downloaded to `C:\Data\seksjon 212\Milkys2_pc\Files_from_Jupyterhub_2020\Raw_data` and used for ICES submission  
+```{r}
+
+# We make a file name using 'file_date' extracted from the original file (see part 2a)
+filename <- paste0("Data/101_data_updated_", file_date, ".rds")
+
+# Save in R format
+saveRDS(data_updated2, filename)
+
+# To read this data, we use a sentence such as 
+#   data_updated2 <- readRDS(filename)    
+
+
+cat("Updated and standardized data saved as:")
+cat("\n", filename)
+
+
+# Note: There is an alternative way of saving in R format, which you may be more familiar with:
+#   save(data_updated2, file = filename)
+# For data saved using save(), you read the data using the sentence
+#   load(filename)
+# In these scripts we instead use 
+#   saveRDS()   (for saving data)
+#   readRDS()   (for reading data)
+# A main difference between the two methods is that save() also stores the name given to the data set,
+# in this case 'data_updated2'. When the file is read, the data are automatically given the name 'data_updated2'. 
+# If a data set with that name already exists, it will be overwritten (with no notice/warning). 
+# Therefore, using save() + load() is a bit dangerous, so we instead use saveRDS() + readRDS(),
+#   where you have to explicitly give a name to the data when you read it.
+
+```
+
+### a. Final check for duplicates   
+
+(11-12 seconds)
+
+```{r}
+
+# if (!exists("df_duplicates_all")){    # recalculate only if it doesn't exist (for testing)
+
+df_duplicates <- data_updated2 %>%
+  add_count(STATION_CODE, LATIN_NAME, TISSUE_NAME, MYEAR, SAMPLE_NO2, PARAM) %>%
+  filter(n > 1)
+
+#}
+
+if (nrow(df_duplicates) > 0){
+  xtabs(~PARAM, df_duplicates) %>% print()
+  xtabs(~MYEAR, df_duplicates) %>% print()
+  xtabs(~MYEAR + PARAM, df_duplicates) %>% print()
+  stop("Duplicates in the data! Check 'df_duplicates'. (Section 11a)\n")
+} else {
+  cat("No duplicates found in the data. \n")
+}
+  
+
+```
+
+
+### b. Save data from 2015 until now in Excel format
+Change TISSUE_NAME before output:   
+- Muskel til Muscle,  
+- Lever til Liver,   
+- Blod til Blood,   
+- Galle til Bile  
+```{r}
+
+# Save data since 2015 in Excel format
+filename_xl <- paste0("Data/101_data_2015-", lastyear, ".xlsx")
+
+data_updated2_for_excel <- data_updated2 %>%
+  filter(MYEAR %in% 2015:lastyear) %>%
+  mutate(TISSUE_NAME = case_when(
+    TISSUE_NAME %in% "Muskel" ~ "Muscle",  
+    TISSUE_NAME %in% "Lever" ~ "Liver",   
+    TISSUE_NAME %in% "Blod" ~ "Blood",
+    TISSUE_NAME %in% "Galle" ~ "Bile",
+    TRUE ~ TISSUE_NAME)
+  )
+
+writexl::write_xlsx(data_updated2_for_excel, filename_xl)
+cat("Raw data since 2015 written to", sQuote(filename_xl), "\n\n")
+
+cat("Table of TISSUE_NAME by year \n-------------------------------------------\n")
+xtabs(~MYEAR + TISSUE_NAME, data_updated2_for_excel)
+
+
+```
+
+
+### c. Check TISSUE_NAME  
+```{r}
+
+cat("Table of TISSUE_NAME \n-------------------------------------------\n")
+xtabs(~TISSUE_NAME, data_updated)
+
+  
+if (FALSE){
+  df <- data_updated %>%
+    filter(MYEAR >= 2008) # %>% # xtabs(~PARAM, .)
+  xtabs(~MYEAR + TISSUE_NAME, df)
+}
+
+```
+
+### d. Also save ´dat_new6´   
+Contains date, for instance  
+```{r}
+
+# Make file name
+filename <- paste0("Data/101_dat_new_", file_date, ".rds")
+
+# Save in R format
+saveRDS(dat_new6, filename)
+
+```
+
+## 12. Data changes since last year  
+
+### Stations 'gained' and 'lost' during last year  
+```{r}
+
+# If you want to check older data:
+# data_updated2 <- readRDS("Data/101_data_updated_2021-09-30.rds")
+
+# Define names of variables (if 2020 is last year, 'n2019' and 'n2020')
+var1 <- paste0("n", lastyear-1)
+var2 <- paste0("n", lastyear)
+  
+check1 <- data_updated2 %>% 
+  filter(MYEAR >= (lastyear-1)) %>%
+  count(STATION_CODE, LATIN_NAME, MYEAR) %>%
+  pivot_wider(names_from = "MYEAR", values_from = "n", 
+              names_prefix = "n", values_fill = 0) 
+
+stations_lost <- check1[check1[[var1]] > 0 & check1[[var2]] == 0,]
+stations_gain <- check1[check1[[var1]] == 0 & check1[[var2]] > 0,]
+
+cat(nrow(stations_lost), "stations lost \n")
+cat(nrow(stations_gain), "stations gained \n")
+
+```
+
+### Tissues 'gained' and 'lost' during last year  
+```{r}
+
+check2 <- data_updated2 %>% 
+  filter(MYEAR >= (lastyear-1)) %>%
+  filter(!STATION_CODE %in% c(stations_lost$STATION_CODE, stations_gain$STATION_CODE)) %>%
+  count(STATION_CODE, LATIN_NAME, TISSUE_NAME, MYEAR) %>%
+  pivot_wider(names_from = "MYEAR", values_from = "n", 
+              names_prefix = "n", values_fill = 0) %>%
+  mutate(Station_tissue = paste(STATION_CODE, TISSUE_NAME)) 
+
+data_updated2 %>% 
+  filter(PARAM == "EROD" & MYEAR > 2010) %>%
+  count(PARAM, TISSUE_NAME)
+
+data_updated2 %>% 
+  filter(TISSUE_NAME == "Liver - microsome" & MYEAR > 2010) %>%
+  count(MYEAR, PARAM, TISSUE_NAME)
+
+tissues_lost <- check2[check2[[var1]] > 0 & check2[[var2]] == 0,]
+tissues_gain <- check2[check2[[var1]] == 0 & check2[[var2]] > 0,]
+
+cat(nrow(tissues_lost), "tissues lost (when station was not lost) \n")
+cat(nrow(tissues_gain), "tissues gained (when station was not gained) \n")
+
+
+```
+
+
+### Parameters 'gained' and 'lost' during last year   
+```{r}
+
+check3 <- data_updated2 %>% 
+  filter(MYEAR >= (lastyear-1)) %>%
+  filter(!STATION_CODE %in% c(stations_lost$STATION_CODE, stations_gain$STATION_CODE)) %>%
+  mutate(Station_tissue = paste(STATION_CODE, TISSUE_NAME)) %>%
+  filter(!Station_tissue %in% c(tissues_lost$Station_tissue, tissues_gain$Station_tissue)) %>%
+  count(STATION_CODE, LATIN_NAME, TISSUE_NAME, PARAM, MYEAR) %>%
+  pivot_wider(names_from = "MYEAR", values_from = "n", 
+              names_prefix = "n", values_fill = 0) 
+
+params_lost <- check3[check3[[var1]] > 0 & check3[[var2]] == 0,]
+params_gain <- check3[check3[[var1]] == 0 & check3[[var2]] > 0,]
+
+cat(nrow(params_lost), "parameters lost (when station/tissue was not lost) \n")
+cat(nrow(params_gain), "parameters gained (when station/tissue was not gained) \n")
+
+
+```
+
+## 13. Other checks  
+
+```{r}
+data_updated <- data_updated2
+```
+
+### Stations used at least once last three years
+```{r}
+
+df <- data_updated %>%
+  group_by(STATION_CODE) %>%
+  mutate(Last_year = max(MYEAR)) %>%
+  filter(Last_year >= 2017 & MYEAR >= 2010) %>%
+  mutate(Group = case_when(
+    grepl("B", STATION_CODE) ~ "Cod",
+    grepl("A", STATION_CODE) ~ "Blue mussel",
+    grepl("I", STATION_CODE) ~ "Blue mussel",
+    grepl("X", STATION_CODE) ~ "Blue mussel",
+    grepl("F", STATION_CODE) ~ "Flatfish",
+    grepl("G", STATION_CODE) ~ "Snail",
+    TRUE ~ "Others")
+  )
+for (gr in c("Cod", "Blue mussel", "Flatfish", "Snail", "Others")){
+  cat("=======================================================================\n", gr, "\n")
+  cat("-----------------------------------------------------------------------\n")
+  xtabs(~STATION_CODE + MYEAR, df %>% filter(Group == gr)) %>% print()
+  cat("\n")
+}
+
+```
+
+
+### Quick visual check of times series  
+All time series for a station/tissue  
+```{r, fig.width=9, fig.height=6.5}
+
+# Set 'station' to one of the stations with new data (see table in part 4 above)
+station <- "15B"
+tissue <- "Lever"
+
+if (FALSE){
+  station <- "19N"
+  tissue <- "Blod"
+  tissue <- c("Egg", "Egg homogenate of yolk and albumin")
+
+  station <- "53B"
+  tissue <- "Galle"
+}
+
+# Get all parameters for the given tissue with 2019 data from this station  
+pars <- data_updated2 %>%
+  filter(STATION_CODE %in% station & TISSUE_NAME %in% tissue & MYEAR == 2019) %>%
+  xtabs(~PARAM, .) %>% names()
+
+# For those parameters, we filter the data set for the data we want...
+gg <- data_updated2 %>%
+  filter(STATION_CODE %in% station & TISSUE_NAME %in% tissue & MYEAR >= 2000 & PARAM %in% pars) %>%
+  # ...extract the median value for every PARAM and MYEAR...
+  group_by(MYEAR, PARAM) %>%
+  summarise(Median_concentration = median(VALUE_WW), .groups = "drop") %>%
+  # ...and we feed the result into ggplot for plotting time series:
+  ggplot(aes(MYEAR, Median_concentration)) + 
+  geom_point() + geom_line() +
+  scale_y_log10() +
+  facet_wrap(vars(PARAM), scales = "free_y") +    # 'facet_wrap' means 'make one graph for each PARAM'
+                                                # 'free_y' means 'let the y scale differ between plots'
+  labs(title = paste0(station, ", ", tissue))
+
+gg
+
+
+```
+
+## Appendix  
+
+### Checks used in 'Units part' (section 4) before  
+```{r}
+#
+# OLD CHECKS
+#
+
+if (FALSE){
+  
+  test1 <- dat_new4 %>%
+    filter(is.na(Preferred_unit))
+  
+  test2 <- dat_new4 %>%
+    filter(UNIT != Preferred_unit & is.na(Conversion_factor))
+  
+  cat("\n")
+  if (nrow(test1) > 0){
+    cat("WARNING! Preferred_unit not found for", 
+        nrow(test1), "records of the following parameters: \n")
+    test1 %>%
+      pull(PARAM) %>%
+      unique() %>%
+      print()
+  } else {
+    cat("Preferred_unit found for all parameters. \n")
+  }
+  
+  cat("\n")
+  if (nrow(test2) > 0){
+    cat("WARNING! Conversion_factor not found for", 
+        nrow(test2), "records of the following parameters: \n")
+    test2 %>%
+      pull(PARAM) %>%
+      unique() %>%
+      print()
+    cat("\n")
+    cat("You must either change the preferred unit or add the lacking conversion factors. \n")
+    test3 <- test2 %>%
+      distinct(PARAM, UNIT, Preferred_unit) %>%
+      count(UNIT, Preferred_unit)
+    for (i in nrow(test3))
+      cat("Cannot convert from", test3$UNIT[i], "to", test3$Preferred_unit[i], "for", test3$n[i], "parameters \n")
+    
+    cat("\n")
+    cat("Table of existing units ('UNIT' in table below) and preferred units: \n")
+    xtabs(~PARAM + Preferred_unit + UNIT,  test2)  
+    
+  } else {
+    cat(" Conversion_factor found for all parameters. \n")
+  }
+  
+  if (nrow(test1) > 0 | nrow(test2) > 0){
+    cat("\n")
+    cat("------------------------------------------------------------ \n")
+    cat("Please edit 'Lookup table - preferred parameter units.xlsx'  \n")
+    cat("(Folder 'Input_data') \n")
+    cat("Download the file to your PC, edit it, and   \n")
+    cat("   upload it back to the 'Input_data' folder.  \n")
+    cat("------------------------------------------------------------ \n")
+  }
+  
+}
+
+
+```

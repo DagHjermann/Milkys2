@@ -1,0 +1,495 @@
+---
+title: "105_Add_uncertainty"
+author: "DHJ"
+date: '2022-09-07'
+output: html_document
+---
+
+For now, we assume that uncertainty is the same for all years (sounds worse than it is?)
+
+## 0. Settings  
+```{r}
+
+selected_year <- 2022
+
+```
+
+
+## 1. Packages  
+```{r}
+
+library(dplyr)
+library(purrr)
+library(readxl)
+library(ggplot2)
+source("002_Utility_functions.R")
+
+```
+
+
+## 2. Get data  
+
+### a. Main data  
+Read and reformat the most recent data (by default)  
+```{r}
+
+# Files 
+files <- list_files("Data", pattern = "101_data_updated")
+
+# Pick file
+filename <- files[1]
+cat("\nLast file:", filename, "\n")
+cat("Time since this file was modified: \n")
+Sys.time() - file.info(paste0("Data/", filename))$mtime 
+
+# Info
+cat("\nIf you want to read a different file, input a different name for 'filename' \n")
+
+# Read data
+dat_all <- readRDS(paste0("Data/", filename))
+
+# We save the date part of the text (e.g., '2020-04-23')
+# This will be used in part 10, when we save the resulting file
+file_date <- substr(filename, 18, 27)    # pick out the part of the text from character no. 17 to no. 26
+
+```
+
+### b. Add parameter (substance) groups  
+```{r}
+
+df_paramgroups <- read.csv("Input_data/Lookup_tables/Lookup table - substance groups.csv")  
+
+sel <- !subset(dat_all, MYEAR == selected_year)$PARAM %in% df_paramgroups$PARAM
+
+if (sum(sel) > 0){
+  # Should be 'stop'? set this as warning for now 
+  warning("Not found:", 
+      #unique(dat_all$PARAM[sel]) %>% paste(collapse = "; "), "\n")      #ELU: denne er rettet til den under
+      unique(subset(dat_all, MYEAR == selected_year)$PARAM[sel]) %>% paste(collapse = "; "), "\n")
+} else {
+  cat("All parameters (PARAM) found in file for parameter (substance) groups \n")
+}
+
+n1 <- nrow(dat_all)
+dat_all <- dat_all %>%
+  left_join(df_paramgroups %>% select(PARAM, Substance.Group))
+n2 <- nrow(dat_all)
+
+if (n2 > n1){
+  stop("PARAM in 'df_paramgroups' not unique! Fix, and recreate dat_all.")
+}
+
+cat("\n\n")
+
+check <- dat_all %>%
+  filter(is.na(Substance.Group)) %>%
+  count(PARAM)
+
+if (nrow(check) > 0){
+  # Should be 'stop'? set this as warning for now 
+  warning("Some values of 'Substance.Group' in 'df_paramgroups' lacks data! Fix, and recreate dat_all.")
+}
+
+cat("\n\n")
+cat("'Substance.Group' added to data\n")
+
+# For copying to clipboard -> paste to excel
+# dat_all[!sel,] %>% count(PARAM) %>% write.table("clipboard", sep= "\t")
+
+# Table example
+# dat_allyears %>% filter(grepl("OP", PARAM)) %>% xtabs(~MYEAR + PARAM, .)
+
+```
+### c. Fix PFDcA and PFUdA in cod liver    
+- Set values under 0.5 to "< 0.5"  
+- selected_year only
+```{r}
+
+sel <- with(dat_all, 
+            LATIN_NAME == "Gadus morhua" & PARAM == "PFDcA" & MYEAR == selected_year & VALUE_WW < 0.5)
+sum(sel)
+table(addNA(dat_all$FLAG1[sel]))  
+
+sel2 <- with(dat_all, is.na(FLAG1))
+sum(sel & sel2)
+
+sel3 <- sel & sel2
+dat_all[sel3,]
+
+# We let this one be
+# message("Change ", sum(sel), " PFDcA records")
+# dat_all$VALUE_WW[sel] <- 0.5 
+# dat_all$FLAG1[sel] <- "<" 
+# dat_all$VALUE_DW[sel] <- NA 
+# dat_all$VALUE_FB[sel] <- NA 
+
+# PLot again
+# plot_raw_data_liver_highlight("PFDcA") # strange values  
+
+```
+
+
+
+### d. Fix concentrations below zero  
+```{r}
+
+if (FALSE){
+  
+  dat_all %>%
+    filter() %>%
+    xtabs(~LATIN_NAME + PARAM + MYEAR, .)
+  
+}
+
+sel <- with(
+  dat_all, 
+  VALUE_WW < 0 & !PARAM %in% c("Delta13C") & LATIN_NAME == "Somateria mollissima")
+message("Fix ", sum(sel, na.rm = TRUE), " eider duck PCBs with conc. < 0, these are below LOQ")
+
+if (sum(sel, na.rm = TRUE) > 0){
+  dat_all$VALUE_WW[sel] <- -dat_all$VALUE_WW[sel]
+  dat_all$VALUE_DW[sel] <- -dat_all$VALUE_DW[sel]
+  dat_all$VALUE_FB[sel] <- -dat_all$VALUE_WW[sel]
+  dat_all$FLAG1[sel] <- "<"
+}
+
+```
+
+
+
+
+## 3a. Uncertainty data   
+
+### Check existing uncertainty by year      
+```{r}
+
+for (yr in c(2021, 2020, 2019, 2018)){
+cat("==========================================\n", yr, "\n==========================================\n")
+
+dat_all %>%
+  filter(MYEAR == yr) %>%
+  xtabs(~ is.na(UNCERTAINTY), .) %>% print()
+
+dat_all %>%
+  filter(MYEAR == yr) %>%
+  xtabs(~ (UNCERTAINTY>0), .) %>% print()
+}
+
+
+```
+### Check 2020-2021 data  (1)                       ELU: legger til 2022
+```{r}
+
+df1 <- dat_all %>%
+  mutate(
+    Uncert_group = case_when(
+      is.na(UNCERTAINTY) ~ "NA",
+      UNCERTAINTY == 0 ~ "=0",
+      UNCERTAINTY > 0 ~ ">0")
+    )
+
+df2020 <- df1 %>%
+  filter(MYEAR == 2020 & LATIN_NAME %in% c("Gadus morhua", "Mytilus edulis"))
+df2021 <- df1 %>%
+  filter(MYEAR == 2021 & LATIN_NAME %in% c("Gadus morhua", "Mytilus edulis"))
+df2022 <- df1 %>%                                                                          #ELU: legger til 2022
+  filter(MYEAR == 2022 & LATIN_NAME %in% c("Gadus morhua", "Mytilus edulis"))   
+
+
+df2020 %>%
+  count(Substance.Group, Uncert_group) %>%
+  tidyr::pivot_wider(c(Substance.Group), values_from = n, names_from = Uncert_group)
+
+df2021 %>%
+  count(Substance.Group, Uncert_group) %>%
+  tidyr::pivot_wider(c(Substance.Group), values_from = n, names_from = Uncert_group)
+
+df2022 %>%                                                                                #ELU: legger til 2022
+  count(Substance.Group, Uncert_group) %>%
+  tidyr::pivot_wider(c(Substance.Group), values_from = n, names_from = Uncert_group)
+
+
+```
+
+### Check 2020 data (2)   
+- Compare with data set made in 'Uncertainty, combined', below   
+- Largely comparable  
+```{r}
+if (FALSE){
+
+df2020 %>%
+  filter(Uncert_group == ">0") %>%
+  group_by(Substance.Group) %>%
+  summarize(
+    Uncertainty = range(UNCERTAINTY) %>% unique() %>% as.character() %>% paste(collapse = "-") 
+  ) %>% View("Uncert 2020")
+
+}
+
+```
+
+
+### Add 'Lab¨' to data  
+
+* Source: Tender. Table 7 in '3-3. Dokumentasjon for Løsningsforslag (MILKYS 2021-2025).docx', see folder 'Input_files_2021\Uncertainty'
+
+* Blåskjell; blandprøver av bløtdelene	
+    - NIVA:	PFAS, fettprosent
+    - Eurofins:	Metaller, Hg, PAH, PCB7, DDT, klororganiske forbindelser, PBDE, HBCDD, klorerte parafiner (SCCP/MCCP), Organotinn, tørrvekt
+    - IFE:	SIA  
+* Fisk; Lever, muskel, blod, galle 	
+    - NIVA:	PFAS, EROD/CYP1A (lever); ALA-D (blod); OH-pyren (galle)   
+    - Eurofins	Hg (muskel); Metaller, PCB7, DDT, klororganiske forbindelser, PBDE, HBCDD, klorerte parafiner (SCCP/MCCP), fettprosent (lever)
+    - NILU:	Siloksaner (lever)  
+    - IFE:	SIA (muskel)  
+* Purpursnegl (strandsnegl); bløtdel	 
+    - NIVA:	VDSI (utregnes fra enkeltindivider) (ISI utregnes fra enkeltindivider for strandsnegl)   
+    - Eurofins:	Organotinn forbindelser (blandprøver)
+* Ærfugl; egg og blod	  
+    - NIVA:	PFAS   
+    - NILU:	Metaller, Hg, PCB7, PBDE, HBCDD, klorerte parafiner (SCCP/MCCP), siloksaner, fettprosent   
+    - IFE:	SIA
+
+```{r}
+
+# dat_all %>%
+#   count(Substance.Group, PARAM)  
+
+dat_all %>%
+  count(LATIN_NAME)  
+
+dat_all <- dat_all %>%
+  mutate(Lab = case_when(
+    Substance.Group %in% "Organofluorines" ~ "NIVA",
+    PARAM %in% "Fett" & LATIN_NAME %in% "Mytilus edulis" ~ "NIVA",
+    Substance.Group %in% c("Biological effects: molecular/biochemical/cellular/assays", "Biomarkers") ~ "NIVA",
+    Substance.Group %in% "Siloxans" ~ "NILU",
+    Substance.Group %in% "Isotopes" ~ "IFE",  
+    LATIN_NAME %in% "Somateria mollissima" ~ "NILU",  
+    TRUE ~ "Eurofins")
+  )
+
+```
+
+### Uncertainty, Eurofins   
+- NOTE: Uncertainty given in data sheet is 2*SE ("expanded uncertainty")   
+- Use uncertainty by substance group  
+```{r}
+
+# Sjekk hvordadn dette så ut i 2021:
+fn_2021 <- "Input_data/Uncertainty/til2021-data/2021-2022_MILKYS_QAdata_Eurofins.xlsx"
+df_uncert_eurofins_2021 <- read_excel(fn_2021, sheet = "Uncertainty by group")
+colnames(df_uncert_eurofins_2021)
+
+# Uncertainty data  
+fn <- "Input_data/Uncertainty/2022-2023_MILKYS_QAdata_Eurofins.xlsx"
+# excel_sheets(fn)
+excel_sheets(fn)
+df_uncert_eurofins1 <- read_excel(fn, sheet = "Uncertainty by group")   #ELU:fikk feil, manglet sheet. tester nå med ny sheet 
+colnames(df_uncert_eurofins1)                              #DHJ: må sjekke og fikse excelark (skal ha samme for) 
+
+table(df_uncert_eurofins1$Uncertainty)
+
+xtabs(~Substance.Group + addNA(Uncertainty), df_uncert_eurofins1)
+
+df_uncert_eurofins2 <- df_uncert_eurofins1 %>%
+  filter(!is.na(Uncertainty)) %>%
+  filter(!Uncertainty %in% "-")
+
+xtabs(~Substance.Group + addNA(Uncertainty), df_uncert_eurofins2)
+
+df_uncert_eurofins <- df_uncert_eurofins2 %>%
+  distinct(Substance.Group, Uncertainty) %>%
+  mutate(Uncertainty = as.numeric(Uncertainty))
+
+```
+
+### Uncertainty, NILU     
+- NOTE: Uncertainty given in data sheet is 2*SE ("expanded uncertainty")   
+- Use uncertainty by substance group  
+```{r}
+
+# Uncertainty data  
+fn <- "Input_data/Uncertainty/NILU_2022.xlsx"                 #ELU: bytter til 2022-fil
+# excel_sheets(fn)
+df_uncert_nilu <- read_excel(fn, sheet = "Uncertainty by group") %>%
+  select(Substance.Group, Uncertainty) %>%
+  # Percentage formatting in Excel file, so most values are 0-1 - but some are in the 0-100 range 
+  mutate(Uncertainty = case_when(
+    Uncertainty < 2 ~ Uncertainty,
+    Uncertainty > 2 ~ Uncertainty/100)
+    )
+
+```
+
+### Uncertainty, NIVA       
+- See table 18 in the tender  
+    - '3-3. Dokumentasjon for Løsningsforslag (MILKYS 2021-2025).docx', in folder 'Input_files_2021\Uncertainty'
+```{r}
+
+df_uncert_niva <- tibble::tribble(
+  ~Substance.Group, ~Uncertainty,
+  "Organofluorines", 0.25,                                   #ELU: uendret fra 2021
+  "Fett", 0.15)                                              #ELU: uendret fra 2021
+
+```
+
+### Uncertainty, combined  
+- Metals at NILU - assumed the same as Eurofins  
+- 'Organo-metallic compounds' + Pesticides at Eurofins - from tender  
+- The rest - guessed  
+```{r}
+
+df_uncert <- bind_rows(
+  df_uncert_eurofins %>% mutate(Lab = "Eurofins"),
+  df_uncert_nilu %>% mutate(Lab = "NILU"),
+  df_uncert_niva %>% mutate(Lab = "NIVA"),
+  tibble::tribble(
+    ~Substance.Group, ~Uncertainty, ~Lab,
+    "Metals and metalloids", 0.20, "NILU",
+    "Organo-metallic compounds", 0.30, "Eurofins",
+                         #"Pesticides", 0.30, "Eurofins",                       #ELU testing: utelater denne pga. dubletter i neste chunk
+    "Others", 0.30, "Eurofins",    # also largely pesticides/herbicides
+    "Biological effects: molecular/biochemical/cellular/assays", 0.40, "NIVA",
+    "Biomarkers", 0.15, "NIVA",
+    "Isotopes", 0.35, "IFE"
+    )
+)
+
+```
+
+### Uncertainty, add to data    
+```{r}
+
+# Split data set
+
+uncert_group <- dat_all %>%
+  mutate(
+    Uncert_group = case_when(
+      is.na(UNCERTAINTY) ~ "NA",
+      UNCERTAINTY == 0 ~ "=0",
+      UNCERTAINTY > 0 ~ ">0")
+    ) %>%
+  pull(Uncert_group)
+
+# 1. Data which already have uncertainty given (2020 only)  
+dat_updated1 <- dat_all[uncert_group %in% ">0",] %>%
+  mutate(Uncertainty = UNCERTAINTY/100) %>%
+  mutate(UNCRT = UNCERTAINTY) %>%
+  mutate(METCU = "%")
+  
+# 2. Data which not not have uncertainty given   
+dat_updated2 <- dat_all[uncert_group %in% c("NA", "=0"),] %>%
+  left_join(df_uncert, by = c("Substance.Group", "Lab")) %>%
+  mutate(
+    Uncertainty = case_when(
+      Substance.Group %in% "Fat and dry weight" ~ 0.15,
+      Substance.Group %in% "Percentage C and N" ~ 0.20,
+      TRUE ~ Uncertainty)
+  ) %>%
+  mutate(UNCRT = 100*Uncertainty) %>%
+  mutate(METCU = "%")
+
+dat_updated <- bind_rows(dat_updated1, dat_updated2)
+
+#ELU testing start
+#filename_xl <- paste0("Data/test_dat_updated2_", selected_year, ".xlsx")
+#writexl::write_xlsx(dat_updated2, filename_xl)
+#ELU testing stop
+
+if (nrow(dat_updated) != nrow(dat_all)){
+  stop("Number of rows increased - make sure Substance.Group and Lab are unique")
+} else {
+  cat("Uncertainty added to data \n")
+}
+
+```
+### Check 1
+
+```{r}
+
+df1 <- dat_updated %>%
+  mutate(
+    Uncert_group = case_when(
+      is.na(Uncertainty) ~ "NA",
+      Uncertainty == 0 ~ "=0",
+      Uncertainty > 0 ~ ">0")
+    )
+
+xtabs(~MYEAR + Uncert_group, df1 %>% filter(MYEAR >= 2000))
+
+```
+
+### Check  
+```{r}
+
+check <- dat_updated %>%
+  filter(is.na(Uncertainty))
+
+if (nrow(check) == 0){
+  cat("Uncertainty added to all data")
+} else {
+  warning("Still some substances / labs lacking uncertainty - check tables below")
+}
+
+if (FALSE){
+  
+  check %>% count(Substance.Group, Lab)
+  check %>% count(Substance.Group, PARAM, Lab)
+  
+}
+
+```
+
+
+
+### Show raw data  
+- jjust picks selected columns 
+```{r}
+#
+# data set with selected columns, just for View
+#
+dat_updated_view <- dat_updated %>% 
+  select(
+    STATION_CODE, STATION_NAME, SAMPLE_DATE, LATIN_NAME, TISSUE_NAME, PARAM, MYEAR, 
+    SAMPLE_NO2, VALUE_WW, FLAG1, Lab,   
+    UNCRT, METCU
+  )
+
+if (FALSE){
+  
+  View(dat_updated_view %>% 
+         filter(LATIN_NAME == "Gadus morhua" & PARAM == "CB180") %>% 
+         arrange(VALUE_WW), title = "CB180")
+  View(dat_updated_view %>% 
+         filter(LATIN_NAME == "Gadus morhua" & PARAM == "PFUdA") %>% 
+         arrange(VALUE_WW), title = "PFUdA")
+  View(dat_updated_view %>% 
+         filter(LATIN_NAME == "Gadus morhua" & PARAM == "PFDcA") %>% 
+         arrange(VALUE_WW), title = "PFDcA")
+  View(dat_updated_view %>% 
+         filter(LATIN_NAME == "Gadus morhua" & PARAM == "PFOS") %>% 
+         arrange(VALUE_WW), title = "PFOS")
+}
+
+```
+
+
+## 4. Save  
+
+### a. R data file    
+```{r}
+
+filename <- paste0("Data/105_data_with_uncertainty_", file_date, ".rds")             #ELU: har ikke laget fil ennå
+saveRDS(dat_updated, filename)
+
+cat("Data on sample level, with uncertainty, saved as: \n")
+cat(" ", filename, "\n")
+
+if (FALSE){
+  # For reading the file instead 
+  dat_all <- readRDS(filename)
+}
+
+```
+
