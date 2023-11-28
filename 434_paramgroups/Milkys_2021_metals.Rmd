@@ -64,8 +64,12 @@ for (param in param_values){
     prorefplot = "TRUE",
     include_trend = "TRUE",
     serieslastuntil = 2021,
-    called_from_mother = "TRUE"
+    called_from_mother = "TRUE",
+    species3 = "Mytilus edulis"
   )
+  
+  
+  dump("params", "434_metals_test.txt", append = TRUE)
   
   res <- knitr::knit_child('../434_Report_parameter_interactive_nochunklabels.Rmd', quiet = TRUE)
   cat(res, sep = '\n')
