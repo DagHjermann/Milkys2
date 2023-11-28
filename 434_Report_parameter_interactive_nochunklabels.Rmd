@@ -3,12 +3,12 @@ title: "Report for parameter (431)"
 author: "DHJ"
 date: "04.10.2022"
 params:
-  param: "CHR"
+  param: "AG"
   basis_medians: "WW"
   basis_trends: "WW"
   eqsplot: "FALSE"
-  prorefplot: "FALSE"
-  include_trend: "FALSE"
+  prorefplot: "TRUE"
+  include_trend: "TRUE"
   serieslastuntil: 2021
   called_from_mother: "FALSE"
   species3: "Mytilus edulis"
@@ -29,8 +29,26 @@ output:
 #  = "ordinary" or "TRUE" for ordinary y scale (TRUE is included for backwards compability)
 #  = "log" for log y scale (with y labels showing true values)
 
+# Data sources:
+#   (functions are in script '431_Report_parameter_functions.R')
+# Medians: Given by 'folder_110' and 'filename_110' in function 'get_data_medians'
+#   default values are "Data" and "110_mediandata_updated_2022-09-23.rds"
+# Trends: Given by 'filename_trends' in 'get_data_trends'   
+#   default value is "Data/125_results_2021_07_output/126_df_trend_2021.rds"
+# Raw data: Given by 'filename_109' in 'get_data_raw'  
+#   default value is "Data/109_adjusted_data_2022-09-23.rds"
+
 dat_groups <- read.csv("Input_data/Lookup_tables/Lookup table - substance groups.csv")  
 header_param <- subset(dat_groups, PARAM %in% params$param, select = Parameter.Name)[1,1]
+
+if (FALSE){   # set to TRUE for running interactively, otherwise FALSE
+  
+  # Note that 'called_from_mother' = "NA" (see chunk 15)
+  params <- list(param = "AG", basis_medians = "WW", basis_trends = "WW", 
+                 eqsplot = "FALSE", prorefplot = "TRUE", include_trend = "TRUE", 
+                 serieslastuntil = 2021, called_from_mother = "NA", 
+                 species3 = "Mytilus edulis")
+}
 
 ```
 
@@ -101,22 +119,28 @@ library(dplyr)    # need to load dplyr AFTER ggiraph fro some reason, otherwise 
 species3 <- strsplit(params$species3, split = ",")[[1]]
 
 # debugonce(get_data_medians)
+
+# For server part in Shiny
 dat_temporary <- list(
-  get_data_medians(param = params$param, 
+  # Cod
+  get_data_medians(param = params$param,     # In Shiny: input$param
                    species = "Gadus morhua",
                    tissue = ifelse(params$param %in% "HG", "Muskel", "Lever"),
                    basis = params$basis_medians, 
                    include_year = params$serieslastuntil),
+  # Eider duck
   get_data_medians(param = params$param, 
                    species = "Somateria mollissima",
                    tissue = "Blod",
                    basis = "WW", 
                    include_year = params$serieslastuntil),
+  # Eider duck
   get_data_medians(param = params$param, 
                    species = "Somateria mollissima",
                    tissue = "Egg",
                    basis = "WW", 
                    include_year = params$serieslastuntil),
+  # Blue mussel  
   get_data_medians(param = params$param, 
                    species = species3,
                    tissue = "Whole soft body",
@@ -546,16 +570,18 @@ if (params$eqsplot %in% c("log", "ordinary", "TRUE") | params$prorefplot == "TRU
       text = c( 
         '## Concentrations in the last year'),
       envir=environment() , quiet=TRUE)
-  } else {
+    cat(unlist(heading), sep = "\n")
+    cat("    \n")
+  } else if (params$called_from_mother == "FALSE"){
     # If this is just knitted on its own  
     heading <- knitr::knit_child(
       text = c( 
         '## Concentrations in the last year'),
       quiet=TRUE)
+    cat(unlist(heading), sep = "\n")
+    cat("    \n")
   }
   
-  cat(unlist(heading), sep = "\n")
-  cat("    \n")
 }
 
 ```
@@ -973,17 +999,19 @@ if (params$prorefplot == "TRUE"){
         '### PROREF ratio', 
         '**Concentration / PROREF threshold**'),
       envir=environment() , quiet=TRUE)
-  } else {
+    cat(unlist(heading), sep = "\n")
+    cat("    \n")
+  } else if (params$called_from_mother == "TRUE"){
     # If this is just knitted on its own  
     heading <- knitr::knit_child(
       text = c( 
         '### PROREF ratio', 
         '**Concentration / PROREF threshold**'),
       quiet=TRUE)
+    cat(unlist(heading), sep = "\n")
+    cat("    \n")
   }
   
-  cat(unlist(heading), sep = "\n")
-  cat("    \n")
 }
 
 ```
