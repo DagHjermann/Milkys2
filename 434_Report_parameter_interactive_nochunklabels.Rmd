@@ -1097,7 +1097,7 @@ if (params$prorefplot == "TRUE"){
     
     # Set name of figure file (mercury in cod+birds is treated as a special case)
     if (params$basis_medians != params$basis_trends & speciesgroup == 1){
-      filename <- glue::glue("Figures/431/{params$param}-{params$basis_medians}-{params$basis_trend}_prorefratio_ord_{speciesgroup}.png")
+      filename <- glue::glue("Figures/431/{params$param}-{params$basis_medians}-{params$basis_trends}_prorefratio_ord_{speciesgroup}.png")
     } else {
       filename <- glue::glue("Figures/431/{params$param}_prorefratio_ord_{speciesgroup}.png")
     }
