@@ -8,7 +8,7 @@ params:
   eqsplot: "FALSE"
   prorefplot: "TRUE"
   include_trend: "TRUE"
-  serieslastuntil: 2022
+  current_year: 2022
   called_from_mother: "FALSE"
   species3: "Mytilus edulis"
 output: 
@@ -57,7 +57,7 @@ if (run_interactively){   # set to TRUE for running interactively, otherwise FAL
   # Note that 'called_from_mother' = "NA" (see chunk 15)
   params <- list(param = "AG", basis_medians = "WW", basis_trends = "WW", 
                  eqsplot = "FALSE", prorefplot = "TRUE", include_trend = "TRUE", 
-                 serieslastuntil = 2021, called_from_mother = "NA", 
+                 current_year = 2021, called_from_mother = "NA", 
                  species3 = "Mytilus edulis")
 }
 
@@ -70,7 +70,7 @@ if (run_interactively){   # set to TRUE for running interactively, otherwise FAL
 
 # 01_settings
 
-current_year <- 2022
+current_year <- params$current_year
 knitr::opts_chunk$set(echo = FALSE, results = 'hold', warning = FALSE)
 
 ```
@@ -138,28 +138,28 @@ dat_temporary <- list(
                    species = "Gadus morhua",
                    tissue = ifelse(params$param %in% "HG", "Muskel", "Lever"),
                    basis = params$basis_medians, 
-                   include_year = params$serieslastuntil,
+                   include_year = params$current_year,
                    filename_110 = filename_110),
   # Eider duck
   get_data_medians(param = params$param, 
                    species = "Somateria mollissima",
                    tissue = "Blod",
                    basis = "WW", 
-                   include_year = params$serieslastuntil,
+                   include_year = params$current_year,
                    filename_110 = filename_110),
   # Eider duck
   get_data_medians(param = params$param, 
                    species = "Somateria mollissima",
                    tissue = "Egg",
                    basis = "WW", 
-                   include_year = params$serieslastuntil,
+                   include_year = params$current_year,
                    filename_110 = filename_110),
   # Blue mussel  
   get_data_medians(param = params$param, 
                    species = species3,
                    tissue = "Whole soft body",
                    basis = "WW", 
-                   include_year = params$serieslastuntil,
+                   include_year = params$current_year,
                    filename_110 = filename_110)
 )
 
