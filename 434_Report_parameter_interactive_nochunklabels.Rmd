@@ -1,15 +1,14 @@
 ---
 title: "Report for parameter (431)"
-author: "DHJ"
-date: "04.10.2022"
+author: "NIVA"
 params:
-  param: "AG"
+  param: "CD"
   basis_medians: "WW"
   basis_trends: "WW"
   eqsplot: "FALSE"
   prorefplot: "TRUE"
   include_trend: "TRUE"
-  serieslastuntil: 2021
+  serieslastuntil: 2022
   called_from_mother: "FALSE"
   species3: "Mytilus edulis"
 output: 
@@ -21,8 +20,13 @@ output:
 ```{r, include=FALSE}
 
 #
-# NOTE: This file is run by knitting one of the .Rmd files in '434_paramgroups'
-#
+# This file is run in three ways
+#   1. (the intended way) by knitting one of the .Rmd files in '434_paramgroups' (called_from_mother: "TRUE")  
+#   2. (for testing) by knitting this file itself (called_from_mother: "FALSE")  
+#   3. (for testing) by running interactively, e.g. "Run all" (run_interactively = TRUE)  
+
+run_interactively <- TRUE  
+run_interactively <- FALSE  
 
 # Parameters:
 # 'eqsplot' 
@@ -31,17 +35,24 @@ output:
 
 # Data sources:
 #   (functions are in script '431_Report_parameter_functions.R')
-# Medians: Given by 'folder_110' and 'filename_110' in function 'get_data_medians'
+# Medians: 
+#  Given by 'folder_110' and 'filename_110' in function 'get_data_medians'
 #   default values are "Data" and "110_mediandata_updated_2022-09-23.rds"
-# Trends: Given by 'filename_trends' in 'get_data_trends'   
+# Trends: 
+#   Given by 'filename_trends' in 'get_data_trends'   
 #   default value is "Data/125_results_2021_07_output/126_df_trend_2021.rds"
-# Raw data: Given by 'filename_109' in 'get_data_raw'  
+# Raw data: 
+#   Given by 'filename_109' in 'get_data_raw'  
 #   default value is "Data/109_adjusted_data_2022-09-23.rds"
+
+filename_109 <- "Data/109_adjusted_data_ELU2_2023-09-12.rds"
+filename_110 <- "110_mediandata_updated_ELU_2023-09-12.rds"
+filename_trends <- "App01_timeseries/Data2022/dat_trend.rds"
 
 dat_groups <- read.csv("Input_data/Lookup_tables/Lookup table - substance groups.csv")  
 header_param <- subset(dat_groups, PARAM %in% params$param, select = Parameter.Name)[1,1]
 
-if (FALSE){   # set to TRUE for running interactively, otherwise FALSE
+if (run_interactively){   # set to TRUE for running interactively, otherwise FALSE
   
   # Note that 'called_from_mother' = "NA" (see chunk 15)
   params <- list(param = "AG", basis_medians = "WW", basis_trends = "WW", 
@@ -59,7 +70,7 @@ if (FALSE){   # set to TRUE for running interactively, otherwise FALSE
 
 # 01_settings
 
-current_year <- 2021
+current_year <- 2022
 knitr::opts_chunk$set(echo = FALSE, results = 'hold', warning = FALSE)
 
 ```
@@ -127,25 +138,29 @@ dat_temporary <- list(
                    species = "Gadus morhua",
                    tissue = ifelse(params$param %in% "HG", "Muskel", "Lever"),
                    basis = params$basis_medians, 
-                   include_year = params$serieslastuntil),
+                   include_year = params$serieslastuntil,
+                   filename_110 = filename_110),
   # Eider duck
   get_data_medians(param = params$param, 
                    species = "Somateria mollissima",
                    tissue = "Blod",
                    basis = "WW", 
-                   include_year = params$serieslastuntil),
+                   include_year = params$serieslastuntil,
+                   filename_110 = filename_110),
   # Eider duck
   get_data_medians(param = params$param, 
                    species = "Somateria mollissima",
                    tissue = "Egg",
                    basis = "WW", 
-                   include_year = params$serieslastuntil),
+                   include_year = params$serieslastuntil,
+                   filename_110 = filename_110),
   # Blue mussel  
   get_data_medians(param = params$param, 
                    species = species3,
                    tissue = "Whole soft body",
                    basis = "WW", 
-                   include_year = params$serieslastuntil)
+                   include_year = params$serieslastuntil,
+                   filename_110 = filename_110)
 )
 
 
@@ -337,6 +352,8 @@ dat_trends_plot_list <- purrr::map(
   dat_medians_list, 
   get_data_trends, basis = params$basis_trends, include_year = current_year
 )
+
+
 
 # debugonce(get_data_trends)
 # chck <- get_data_trends(dat_medians_list[[1]],  basis = "WWa", include_year = current_year)
@@ -603,7 +620,8 @@ if (params$param %in% "HG"){
 } else {
   fish_tissue <- "Lever"
 }
-dat_raw1 <- get_data_raw(params$param, "Gadus morhua", fish_tissue, params$basis_medians, include_year=current_year)  
+df1 <- dat_raw1 <- get_data_raw(params$param, "Gadus morhua", fish_tissue, params$basis_medians, 
+                                include_year=current_year, filename_109 = filename_109)  
 dat_raw2 <- get_data_raw(params$param, "Somateria mollissima", "Blod", "WW", include_year=current_year)
 dat_raw3 <- get_data_raw(params$param, "Somateria mollissima", "Egg", "WW", include_year=current_year)  
 
@@ -647,7 +665,8 @@ if (!identical(st1,st2)){
 #
 
 # debugonce(get_data_raw)  
-dat_raw_mussel <- get_data_raw(params$param, "Mytilus edulis", "Whole soft body", "WW", current_year)  
+dat_raw_mussel <- get_data_raw(params$param, "Mytilus edulis", "Whole soft body", "WW", 
+                               current_year, filename_109 = filename_109)  
 
 if (nrow(dat_raw_mussel) > 0){
   

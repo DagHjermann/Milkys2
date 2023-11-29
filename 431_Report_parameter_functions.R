@@ -19,7 +19,7 @@ get_data_medians <- function(param, species, tissue, basis, include_year,
   
   indexvars <- c("PARAM", "STATION_CODE", "TISSUE_NAME", "LATIN_NAME", "Basis")
   
-  check_latest(filename_110, folder_110, "110_mediandata_updated_", reaction = if_not_latest)
+  # check_latest(filename_110, folder_110, "110_mediandata_updated_", reaction = if_not_latest)
   
   filename_110_full <- paste0(folder_110, "/", filename_110)
   
@@ -451,6 +451,13 @@ get_data_trends <- function(data_medians,
         TISSUE_NAME %in% unique(data_medians$TISSUE_NAME),
         STATION_CODE %in% unique(data_medians$STATION_CODE),
         Basis %in% basis
+      ) %>%
+      mutate(
+        Perc_change = round((exp(-y_mean)-1)*100, 1),
+        D_year = last_year - First_year,
+        Perc_annual = round((exp(-y_mean/D_year)-1)*100, 1),
+        Perc_annual_lo = round((exp(-y_q2.5/D_year)-1)*100, 1),
+        Perc_annual_hi = round((exp(-y_q97.5/D_year)-1)*100, 1)
       )
   }
   

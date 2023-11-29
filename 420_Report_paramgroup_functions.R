@@ -286,7 +286,7 @@ get_parametervalues_singlegroup <- function(paramgroup, return_group_names = FAL
   #
   # Parameter groups
   #
-  lookup_paramgroup <- readxl::read_excel("Input_data/Lookup table - substance groups.xlsx")
+  lookup_paramgroup <- read.csv("Input_data/Lookup_tables/Lookup table - substance groups.csv")
   group_names <- unique(lookup_paramgroup$Substance.Group)
   
   if (return_group_names){
@@ -424,7 +424,7 @@ get_data <- function(paramgroup, param = NULL, speciesgroup, min_obs = 100){
   }
   
   X$lookup_stations <- X$lookup_stations %>%
-    arrange(Station_order) %>%
+    arrange(Order) %>%
     mutate(
       Station = paste(STATION_CODE, Station_short),        # This will be shown in graphs - make changes here
       Station2 = substr(Station, 1, 15),                   # This will be shown in graphs - make changes here
