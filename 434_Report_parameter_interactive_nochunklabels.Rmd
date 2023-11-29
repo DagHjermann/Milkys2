@@ -2,7 +2,7 @@
 title: "Report for parameter (431)"
 author: "NIVA"
 params:
-  param: "CD"
+  param: "AG"
   basis_medians: "WW"
   basis_trends: "WW"
   eqsplot: "FALSE"
@@ -15,6 +15,8 @@ output:
   html_document:
     toc: true
     toc_float: true
+editor_options: 
+  chunk_output_type: console
 ---
 
 ```{r, include=FALSE}
@@ -25,7 +27,7 @@ output:
 #   2. (for testing) by knitting this file itself (called_from_mother: "FALSE")  
 #   3. (for testing) by running interactively, e.g. "Run all" (run_interactively = TRUE)  
 
-# run_interactively <- TRUE  
+run_interactively <- TRUE  
 run_interactively <- FALSE  
 
 # Parameters:
@@ -368,6 +370,18 @@ dat_trends_plot_list <- purrr::map(
 # Check number of rows for cod/birds and blue mussel:
 # map(dat_trends_plot_list, nrow)
 
+# Series where QA shows that the trend is suspect, and alternative method has been used, 
+#   namely cencorreg() in package NADA2, see script 451_cencorreg.qmd  
+# Revised trend (text): Trend.QA
+dat_trends_manual <- read.csv("Data/434_manual_trends/100_dat_trend 19oktober2023.txt") %>%
+  filter(QA.different %in% "yes") %>%
+  select(PARAM, STATION_CODE, TISSUE_NAME, LATIN_NAME, Basis, Trend_type, QA.different, Trend.QA) %>%
+  mutate(Trend.QA = paste(Trend.QA, "*"))
+
+# For explanatory text below plot (shown only if there are suspect trends)
+text_trends_manual <- list(NA, NA)
+
+
 ```
 
 ```{r}
@@ -393,6 +407,7 @@ if (params$include_trend == "TRUE"){
 # - when we didn't do this, the label of plot no. 1 was ok after making plot.no. 1, but
 #   moved as we made plots no. 2,3,4.... :-o
 #
+
 
 y_ran <- list(list(), list())
 
@@ -440,6 +455,20 @@ for (speciesgroup in speciesgroups){
     data_for_plot <- dat_trends_plot_list[[speciesgroup]] %>% 
       filter(Trend_type %in% type) %>%
       mutate(Station = factor(Station, levels = station_levels))
+    # For series where QA shows suspect trends and alternative method shows different result 
+    #   (QA.different = 'yes'), clear data for trend estimates (Perc_annual etc.) and
+    #   change Trend_text to Trend.QA 
+    data_for_plot <- data_for_plot %>%
+      left_join(dat_trends_manual, 
+                by = join_by(PARAM, STATION_CODE, LATIN_NAME, TISSUE_NAME, Trend_type, Basis),
+                relationship = "many-to-one")
+    sel <- !is.na(data_for_plot$QA.different)
+    if (sum(sel) > 0){
+      for (colname in c("Perc_annual", "Perc_annual_lo", "Perc_annual_hi")){
+        data_for_plot[[colname]][sel] <- NA  }
+      data_for_plot[["Trend_text"]][sel] <- data_for_plot[["Trend.QA"]][sel]
+      text_trends_manual[[speciesgroup]] <- "Asterisk (*) after trend text: Time trend test was performed with alternative trend method"
+    }
     gg_trends_list[[speciesgroup]][[type]] <- ggplot(
       data_for_plot, aes(x = Station, y = Perc_annual)) +
       geom_linerange(aes(ymin = Perc_annual_lo, ymax = Perc_annual_hi, colour = Trend_color), size = 1) +
@@ -547,6 +576,31 @@ if (!is.null(ggcomb_list[[1]])){
 ```
 
 
+```{r, results='asis'}
+
+  # Showing explanatory text below plot (shown only if there are suspect trends)
+
+  i <- 1
+
+  if (!is.na(text_trends_manual[[i]]) & params$called_from_mother %in% c("TRUE","FALSE")){
+    
+    # If this is called from e.g. Milkys_2021_metals.Rmd, include 'envir=environment()'  
+    if (params$called_from_mother == "TRUE"){
+      envir <- environment() 
+    } else if (params$called_from_mother == "FALSE"){
+      envir <- globalenv() 
+    } 
+    heading <- knitr::knit_child(
+      text = text_trends_manual[[i]],
+      envir = envir, quiet=TRUE)
+    cat(unlist(heading), sep = "\n")
+    cat("\n\n\n")
+  }
+
+```
+
+
+
 ```{r}
 
 if (!is.null(ggcomb_list[[2]])){
@@ -557,12 +611,38 @@ if (!is.null(ggcomb_list[[2]])){
 
 ```
 
+
+```{r, results='asis'}
+
+  # Showing explanatory text below plot (shown only if there are suspect trends)
+
+  i <- 2
+
+  if (!is.na(text_trends_manual[[i]]) & params$called_from_mother %in% c("TRUE","FALSE")){
+    
+    # If this is called from e.g. Milkys_2021_metals.Rmd, include 'envir=environment()'  
+    if (params$called_from_mother == "TRUE"){
+      envir <- environment() 
+    } else if (params$called_from_mother == "FALSE"){
+      envir <- globalenv() 
+    } 
+    heading <- knitr::knit_child(
+      text = text_trends_manual[[i]],
+      envir = envir, quiet=TRUE)
+    cat(unlist(heading), sep = "\n")
+    cat("\n\n\n")
+  }
+
+```
+
+
 ```{r}
 # 05_trend_plot_legend 
 
 # ggdraw(ggcomb_legend)
 
 ```
+
 
 
 
