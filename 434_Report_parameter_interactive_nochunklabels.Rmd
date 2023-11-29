@@ -25,7 +25,7 @@ output:
 #   2. (for testing) by knitting this file itself (called_from_mother: "FALSE")  
 #   3. (for testing) by running interactively, e.g. "Run all" (run_interactively = TRUE)  
 
-run_interactively <- TRUE  
+# run_interactively <- TRUE  
 run_interactively <- FALSE  
 
 # Parameters:
@@ -91,7 +91,7 @@ library(ggiraph)
 
 ```
 
-```{r, include=FALSE, cache=TRUE}
+```{r, include=FALSE}
 
 # 02_packages
 
