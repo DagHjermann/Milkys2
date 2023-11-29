@@ -344,18 +344,20 @@ trend_fill <- c("red2", "green2", "grey20") %>% setNames(colour_order)
 
 ```
 
+
+
 ```{r}
 
 # 05_trends_data
 
+# debugonce(get_data_trends)
+
 dat_trends_plot_list <- purrr::map(
   dat_medians_list, 
-  get_data_trends, basis = params$basis_trends, include_year = current_year
+  get_data_trends, basis = params$basis_trends, include_year = current_year,
+  filename_trends = filename_trends
 )
 
-
-
-# debugonce(get_data_trends)
 # chck <- get_data_trends(dat_medians_list[[1]],  basis = "WWa", include_year = current_year)
 # chck <- get_data_trends(dat_medians_list[[2]],  include_year = current_year)
 
