@@ -1,0 +1,88 @@
+---
+title: "Fact sheet - metals"
+author: "NIVA"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+
+---
+
+
+```{r, include=FALSE}
+
+source("../431_Report_parameter_functions.R")
+source("../002_Utility_functions.R")
+
+lookup_eqs <- subset(
+  read.csv("../Input_data/Lookup_tables/Lookup_EQS_limits.csv"),
+  Basis == "WW")
+
+if (FALSE){
+  # Code for getting parameters for 'param_values' below 
+  library(dplyr)
+  # dat_raw <- readRDS("../Data/109_adjusted_data_2022-09-23.rds")  
+  dat_med <- readRDS("../Data/110_mediandata_updated_2022-09-23.rds")  
+  dat_groups <- read.csv("../Input_data/Lookup_tables/Lookup table - substance groups.csv")
+  dat_med2 <- dplyr::left_join(dat_med, subset(dat_groups, select = c(PARAM, MGR.Group)))
+  xtabs(~MGR.Group, dat_med2 %>% filter(MYEAR == 2021))
+  tab <- xtabs(~PARAM, dat_med2 %>% filter(MYEAR == 2021 & grepl("TBT", MGR.Group)))
+  tab
+  # param_values %in% unique(dat_med2$PARAM)
+  # df1 <- readRDS("../Data/110_mediandata_updated_ELU_2023-09-12.rds") 
+  # param_values %in% unique(df1$PARAM)
+  dput(names(tab))
+}
+
+```
+
+
+
+```{r, echo=FALSE, results='asis', warning=FALSE, message=FALSE}
+
+# References:
+# https://bookdown.org/yihui/rmarkdown-cookbook/child-document.html#child-document
+# and
+# https://stackoverflow.com/a/69392658/1734247 
+
+param_values <- c("AG", "AS", "CD", "CO", "CR", "CU", "HG", "NI", "PB", "ZN")
+# param_values <- c("HG", "AG")
+# param_values <- c("CD")
+
+# Note: the child document must have no chunk labels, otherwise it will stop in the start of he second round
+#   because chunk labels are 'duplicated'
+
+for (param in param_values){
+  
+  if (param == "HG"){
+    basis_trends <- "WWa"
+  } else {
+    basis_trends <- "WW"
+  }
+  
+  eqsplot <- as.character(param %in% lookup_eqs$PARAM)
+
+  params <- list(
+    param = param,
+    basis_medians = "WW",
+    basis_trends = basis_trends,
+    eqsplot = eqsplot,
+    prorefplot = "TRUE",
+    include_trend = "TRUE",
+    current_year = 2022,
+    called_from_mother = "TRUE",
+    species3 = "Mytilus edulis"
+  )
+  
+  res <- knitr::knit_child('../434_Report_parameter_interactive_nochunklabels.Rmd', quiet = TRUE)
+  # res <- knitr::knit_child('../434_test1.Rmd', quiet = FALSE)
+  cat(res, sep = '\n')
+  
+}
+
+# Alternative:
+# ```{r call_child, child = '434_Report_parameter_interactive.Rmd'}
+# ```
+
+```
+
