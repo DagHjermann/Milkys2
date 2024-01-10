@@ -1,0 +1,202 @@
+---
+title: "513_Industry_projects_2022"
+format: html
+---
+
+
+From: Sigurd Øxnevad <sigurd.oxnevad@niva.no> 
+Sent: Monday, January 8, 2024 11:00 AM
+To: Dag Øystein Hjermann <Dag.Hjermann@niva.no>
+Subject: SV: App for industridata
+
+Håper du kan ordne med å oppdatere «trendfigur-appen» slik at jeg kan lage nye trendfigurer for blåskjellstasjoner i noen industriprosjekter igjen:
+-	Ranfjorden (O-230141)
+-	Vefsnfjorden (O-220278)
+-	Kristiansandsfjorden (O-230185)
+-	Årdalsfjorden (O-240013) (Har kommet litt vel sent i gang. Skal leveres inn til analyse nå)
+
+
+
+### Packages and functions  
+```{r}
+
+library_q <- function(...) suppressPackageStartupMessages(library(...))
+
+devtools::install("../niRvana", upgrade = "never", quiet = TRUE)
+library(niRvana)
+library_q(dplyr)
+library_q(purrr)
+library_q(lubridate)
+library_q(readxl)
+library_q(ggplot2)
+library_q(tidyr)
+library_q(knitr)     # for kable
+# library(fuzzyjoin)   # regex_full_join
+
+source("../Vannmiljo-R/010_functions.R")
+
+knitr::opts_chunk$set(results = 'hold')
+
+```
+
+
+### Set up connection to Nivabasen on Oracle   
+
+```{r}
+
+con <- DBI::dbConnect(odbc::odbc(),
+                      Driver = "/opt/conda/orahome/libsqora.so.12.1",
+                      DBQ = "dbora-niva-prod01.niva.corp:1555/NIVABPRD",
+                      UID = rstudioapi::showPrompt("Connect to Nivabasen", "Database username"),
+                      PWD = rstudioapi::askForPassword("Nivabasen password"))
+
+
+# Tell niRvana that it should use this connection  
+options(use_existing_connection = TRUE)
+
+```
+
+
+### Station IDs from O-numbers 
+```{r}
+
+# df_projects1 <- get_project_from_onumber(230141)  # Ranfjord   
+# df_projects2 <- get_project_from_onumber(220278)  # Vefsn
+# df_projects3 <- get_project_from_onumber(230185)  # Kristiansand
+# df_projects4 <- get_project_from_onumber(240013)  # Årdal
+
+df_projects <- map_dfr(c(230141, 220278, 230185, 240013),
+                       get_project_from_onumber)
+
+```
+
+### Check old data  
+
+- used in the app  
+
+```{r}
+
+check <- readRDS("App02_Industry_data/data_chem_industry_ranfjord_elkem_ind_2022.rds")
+xtabs(~MYEAR + STATION_CODE, check)
+
+```
+
+
+
+### Stations from O-number  
+
+```{r}
+
+df_stations <- get_nivabase_selection(
+  "PROJECT_ID, STATION_ID, STATION_CODE, STATION_NAME",
+  "PROJECTS_STATIONS",
+  "PROJECT_ID",
+  df_projects$PROJECT_ID) %>%
+  left_join(
+    df_projects, by = "PROJECT_ID"
+  )
+
+df_stations_summ <- df_stations %>%
+  group_by(STATION_ID) %>%
+  summarise(
+    across(c(PROJECT_ID, O_NUMBER, STATION_CODE, STATION_NAME), 
+           .fn = ~ paste(unique(.x), collapse = ","))
+  ) %>%
+  arrange(STATION_CODE)
+
+df_stations_summ
+
+df_stations_summ2 <- df_stations_summ
+
+
+
+```
+
+
+### Specimens     
+```{r}
+
+df_specimens_1 <- get_specimens_from_stationdata(
+  df_stations_summ2, 
+  years = 2023)
+
+df_specimens <- df_specimens_1 %>%
+  left_join(df_stations_summ2, by = "STATION_ID")
+
+```
+
+
+### Samples and chemistry values  
+
+```{r}
+
+# debugonce(get_biota_chemistry)
+df_chem1 <- get_biota_chemistry(years = 2023, months_second_year = NA, 
+                               specimendata = df_specimens, 
+                               stationdata = df_stations_summ2)
+
+# mean(is.na(df_chem1))
+mean(is.na(df_chem1$SAMPLE_DATE))
+mean(is.na(df_specimens$DATE_CAUGHT))
+
+df_specsamp <- get_nivabase_selection(
+  "SAMPLE_ID, SPECIMEN_ID",
+  "BIOTA_SAMPLES_SPECIMENS",
+  "SAMPLE_ID",
+  unique(df_chem1$SAMPLE_ID)
+)
+
+df_specimens_year <- df_specimens %>%
+  group_by(SPECIMEN_ID) %>%
+  summarise(MYEAR = mean(Year), Year_range = diff(range(Year, na.rm = TRUE)))
+
+# check
+if (max(df_specimens_year$Year_range) > 0){
+  stop("More than one year for the same specimen!")
+} else {
+  df_specimens_year$Year_range <- NULL
+}
+
+df_specsamp_year <- df_specsamp %>%
+  left_join(df_specimens_year) %>%
+  group_by(SAMPLE_ID) %>%
+  summarise(MYEAR = mean(MYEAR), Year_range = diff(range(MYEAR, na.rm = TRUE)))
+  
+# check
+if (max(df_specsamp_year$Year_range) > 0){
+  stop("More than one year for the same sample!")
+} else {
+  df_specsamp_year$Year_range <- NULL
+}
+
+
+df_chem2a <- df_chem1 %>%
+  left_join(df_specsamp_year, by = "SAMPLE_ID")
+
+
+```
+
+### Station vs year tables   
+
+```{r}
+
+df_specimens %>%
+  distinct(Year, DATE_CAUGHT, STATION_CODE, STATION_NAME) %>%
+  arrange(Year) %>%
+  xtabs(~Year + STATION_CODE, .)
+
+df_specimens %>%
+  distinct(DATE_CAUGHT, STATION_ID, STATION_NAME) %>%
+  xtabs(~DATE_CAUGHT + STATION_ID, .)
+
+
+```
+### Parameter vs year tables   
+
+```{r}
+
+df_chem2a %>%
+  distinct(MYEAR, NAME, STATION_CODE) %>%
+  xtabs(~NAME + MYEAR, .)
+
+```
