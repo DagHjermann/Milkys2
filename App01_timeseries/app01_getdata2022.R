@@ -38,7 +38,7 @@ targets::tar_config_get("store")
 # test <- tar_read(series3_bro.fish1)
 
 # Functions
-source("../Milkys3/R/001_functions_trend.R")
+source("../Milkys3/R/functions_trend.R")
 
 # Key variables (defines one time series) 
 indexvars <- c("PARAM", "STATION_CODE", "TISSUE_NAME", "LATIN_NAME", "Basis")
@@ -86,7 +86,7 @@ data2 <- list(
 )
 
 
-data5 <- list(
+data5_1 <- list(
   tar_read(data5_bro.fish1),
   tar_read(data5_bro.fish2),
   tar_read(data5_bro.fish3),
@@ -113,6 +113,12 @@ data5 <- list(
   tar_read(data5_rem2.snai),
   tar_read(data5_HGa.fish)      # Hg length-adjusted (basis = WWa) - MUST BE THE LAST ONE
 )
+
+length(data5_1)
+data5 <- c(data5_1, 
+           list(readRDS("Data/173_PYR1OH_15B_data5.rds")))
+length(data5)
+
 
 # . The time series ----   
 series3 <- list(
@@ -240,6 +246,8 @@ if (save_files)
 dat_raw5 <- data5 %>%
   map(~.x[c(indexvars, "x", "y", "UNIT", "VALUE", "threshold", "Flag")]) %>%
   list_rbind()
+
+
 
 dat_raw5 <- dat_raw5 %>% 
   mutate(
