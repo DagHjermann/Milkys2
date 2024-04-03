@@ -25,18 +25,23 @@ source("../125_Calculate_trends_leftadjusted_functions.R")
 # source("../402_Plot_time_series_functions.R")
 source("app_functions.R")
 
-
-
 # startup: lookup files ----  
 
 # Lookup file for station names  
-lookup_stations <- read.csv("../Input_data/Lookup_tables/Lookup_stationorder.csv") %>%
-  mutate(Station = paste(STATION_CODE, Station_name)) %>%
-  select(STATION_CODE, Station_name, Station, Region)
-
-lookup_stations <- readRDS("data_chem_industry_ranfjord_elkem_ind_2022.rds") %>%
+lookup_stations1 <- readRDS("data_chem_industry_ranfjord_elkem_ind_2022_OLD2.rds") %>%
   rename(Station_name = STATION_NAME) %>%
-  distinct(STATION_CODE, Station_name) %>% 
+  distinct(STATION_CODE, Station_name) %>%
+  filter(!STATION_CODE %in% c("I964/I964b", "I965", "I969"))
+
+lookup_stations2 <- tibble::tribble(
+  ~STATION_CODE, ~Station_name,
+  "I964/I964b", "Toraneskaia",
+  "I965", "Moholmen",
+  "I969", "Bjørnbærviken"
+)
+
+lookup_stations <- bind_rows(
+  lookup_stations1, lookup_stations2) %>%
   mutate(Station = paste(STATION_CODE, Station_name))
 
 # Lookup files for EQS and Proref   
@@ -68,20 +73,28 @@ folder_output <- paste0(folder_results, "_output")
 # in folder/project "Milkys"
 # 
 
-dataset1 <- readRDS("data_chem_industry_ranfjord_elkem_ind_2022.rds")
-dataset2 <- readRDS("data_chem_industry_kristiansand_glencore_ind_2022.rds")
+# dataset1 <- readRDS("data_chem_industry_ranfjord_elkem_ind_2022.rds")
+# dataset2 <- readRDS("data_chem_industry_kristiansand_glencore_ind_2022.rds")
 
-dat_all_prep3 <- bind_rows(dataset1, dataset2) %>%
+dataset_all <- readRDS("data_chem_industry_ind_2023.rds")
+
+# dat_all_prep3 <- bind_rows(dataset1, dataset2) %>%
+dat_all_prep3 <- dataset_all %>%
   mutate(
     Basis = case_when(
       BASIS %in% "W" ~ "WW",
       BASIS %in% "D" ~ "DW"),
+    VALUE = case_when(
+      VALUE == 0 & PARAM %in% "Sum 16 EPA-PAH ekskl. LOQ" ~ 0.05,
+      TRUE ~ VALUE),
     Station = case_when(
       is.na(STATION_CODE) ~ STATION_NAME,
       STATION_CODE %in% "" ~ STATION_NAME,
       TRUE ~ paste(STATION_CODE, STATION_NAME))
   ) %>%
   filter(!is.na(VALUE))
+
+
 
 # Add 'Param_name' and 'Tissue_name' to data    
 dat_all_prep3 <- dat_all_prep3 %>%
@@ -188,6 +201,8 @@ server <- function(input, output) {
   
   data_sel <- reactive({
     #if (input$param == "CO" & input$station == "Dvergsøya (referansestasjon)")
+    #if (input$param == "BAP" & input$station == "B2 Alterneset")
+    #if (input$param == "Sum 16 EPA-PAH ekskl. LOQ" & input$station == "B2 Alterneset")
     #  browser()
     dat_all_prep3 %>%
       filter(PARAM %in% input$param & Station %in% input$station & Basis %in% input$basis) %>%

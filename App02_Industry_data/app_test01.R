@@ -15,7 +15,7 @@
 # . set work directory ----
 #
 #o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
-setwd("/home/jovyan/shared/DHJ/Milkys2/App02_Industry_data")
+setwd("/home/jovyan/shared/common/DHJ/Milkys2/App02_Industry_data")
 
 
 dir("App02_Industry_data/")
@@ -41,13 +41,20 @@ source("app_functions.R")
 # startup: lookup files ----  
 
 # Lookup file for station names  
-lookup_stations <- read.csv("../Input_data/Lookup_tables/Lookup_stationorder.csv") %>%
-  mutate(Station = paste(STATION_CODE, Station_name)) %>%
-  select(STATION_CODE, Station_name, Station, Region)
-
-lookup_stations <- readRDS("data_chem_industry_ranfjord_elkem_ind_2022.rds") %>%
+lookup_stations1 <- readRDS("data_chem_industry_ranfjord_elkem_ind_2022_OLD2.rds") %>%
   rename(Station_name = STATION_NAME) %>%
-  distinct(STATION_CODE, Station_name) %>% 
+  distinct(STATION_CODE, Station_name) %>%
+  filter(!STATION_CODE %in% c("I964/I964b", "I965", "I969"))
+
+lookup_stations2 <- tibble::tribble(
+  ~STATION_CODE, ~Station_name,
+  "I964/I964b", "Toraneskaia",
+  "I965", "Moholmen",
+  "I969", "Bjørnbærviken"
+)
+
+lookup_stations <- bind_rows(
+  lookup_stations1, lookup_stations2) %>%
   mutate(Station = paste(STATION_CODE, Station_name))
 
 # Lookup files for EQS and Proref   
@@ -79,10 +86,11 @@ folder_output <- paste0(folder_results, "_output")
 # in folder/project "Milkys"
 # 
 
-dataset1 <- readRDS("data_chem_industry_ranfjord_elkem_ind_2022.rds")
-dataset2 <- readRDS("data_chem_industry_kristiansand_glencore_ind_2022.rds")
+# dataset1 <- readRDS("data_chem_industry_ranfjord_elkem_ind_2022.rds")
+# dataset2 <- readRDS("data_chem_industry_kristiansand_glencore_ind_2022.rds")
+dataset_all <- readRDS("data_chem_industry_ind_2023.rds")
 
-dat_all_prep3 <- bind_rows(dataset1, dataset2) %>%
+dat_all_prep3 <- dataset_all %>%
   mutate(
     Basis = case_when(
       BASIS %in% "W" ~ "WW",
@@ -156,7 +164,7 @@ if (!file_exists){
 #
 #o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
 
-setwd("/home/jovyan/shared/DHJ/Milkys2")
+setwd("/home/jovyan/shared/common/DHJ/Milkys2")
 
 
 
@@ -170,6 +178,7 @@ setwd("/home/jovyan/shared/DHJ/Milkys2")
 if (F){
   
   table(dataset2$MYEAR)
+  table(dat_all_prep3$Station)
   
 }
 
@@ -182,7 +191,9 @@ if (FALSE){
   param <- "NI"
   param <- "PYR1O"
   param <- "PYR1OH"
+  param <- "BAP"
   param <-  "Dioksiner og dioksinliknende PCB"
+  param <- "Sum 16 EPA-PAH ekskl. LOQ"
   stcode <- "St. 1"
   stcode <- "I965"
   stcode <- "15B"
@@ -192,11 +203,14 @@ if (FALSE){
   #st <- "Hanneviksbukta"
   st <- "Glencore kai"
   st <- "Dvergsøya (referansestasjon)"
-
+  st <- "B2 Alterneset"
+  st <- "St. 1 Lumber"
+  
   # table(dat_all_prep3$STATION_CODE) 
   # table(dat_all_prep3$Station) %>% names()
   
   if (FALSE){ 
+    dat_all_prep3 %>% filter(Station %in% st) %>% xtabs(~PARAM, .)
     dat_all_prep3 %>% filter(PARAM %in% input$param & Station %in% input$station & Basis %in% input$basis) %>% nrow()
     dat_all_prep3 %>% filter(PARAM %in% input$param & Station %in% input$station) %>% nrow()
     dat_all_prep3 %>% filter(PARAM %in% input$param) %>% nrow()
