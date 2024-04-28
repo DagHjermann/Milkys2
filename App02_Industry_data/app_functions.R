@@ -684,10 +684,11 @@ plot_timeseries_trend <- function(data_medians = NULL,
     annotate("text", x = trendtext_x, y = Inf, label = trendtext, hjust = 1, vjust = 1.2, size = trendtext_size, colour = "blue3")
 
   # Optionally: control steps of the x axis
-  if (x_step %in% 0)
+  if (is.null(x_step)){
     x_step <- round(diff(x_limits)/5, 0)
-  if (is.null(x_step))
+  } else if (x_step %in% 0){
     x_step <- round(diff(x_limits)/5, 0)
+  }
   if (x_step > 0)
     gg <- gg +
     scale_x_continuous(breaks = seq(x_limits[1], x_limits[2], by = x_step))
