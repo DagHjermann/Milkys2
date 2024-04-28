@@ -89,6 +89,13 @@ folder_output <- paste0(folder_results, "_output")
 # dataset1 <- readRDS("data_chem_industry_ranfjord_elkem_ind_2022.rds")
 # dataset2 <- readRDS("data_chem_industry_kristiansand_glencore_ind_2022.rds")
 dataset_all <- readRDS("data_chem_industry_ind_2023.rds")
+dataset_extra <- readRDS("data_chem_industry_ind_2023_ElkemREC_autumn.rds")
+# dataset_test <- readRDS("data_chem_industry_ranfjord_elkem_ind_2022_OLD1.rds")
+
+# Replace original "all year" Elkem - REC data with autumn-only data  
+dataset_all <- dataset_all %>%
+  filter(!STATION_CODE %in% c("St. 1", "St. 2", "St. 3", "St. 4", "St. 5")) %>%
+  rbind(dataset_extra)
 
 dat_all_prep3 <- dataset_all %>%
   mutate(
@@ -195,9 +202,9 @@ if (FALSE){
   param <-  "Dioksiner og dioksinliknende PCB"
   param <- "Sum 16 EPA-PAH ekskl. LOQ"
   stcode <- "St. 1"
-  stcode <- "I965"
-  stcode <- "15B"
-  stcode <- "15B"
+  #stcode <- "I965"
+  #stcode <- "15B"
+  #stcode <- "15B"
   # stcode <- "I969"
   #st <- "St. 1 Lumber"
   #st <- "Hanneviksbukta"
