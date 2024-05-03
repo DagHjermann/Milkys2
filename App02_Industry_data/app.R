@@ -191,6 +191,7 @@ ui <- fluidPage(
                              selected = years_all)
         )
       ),
+      br(), br(),
       shiny::selectInput(inputId = "y_scale", label = "Y-scale", choices = c("ordinary", "log numbers", "log scale"), 
                          selected = "ordinary"),
       shiny::checkboxInput("eqs", "Include EQS line", value = TRUE),
