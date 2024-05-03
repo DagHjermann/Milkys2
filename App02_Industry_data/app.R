@@ -228,9 +228,10 @@ server <- function(input, output) {
     #if (input$param == "CO" & input$station == "Dvergsøya (referansestasjon)")
     #if (input$param == "BAP" & input$station == "B2 Alterneset")
     #if (input$param == "Sum 16 EPA-PAH ekskl. LOQ" & input$station == "B2 Alterneset")
-    #  browser()
+    # browser()
     dat_all_prep3 %>%
-      filter(PARAM %in% input$param & Station %in% input$station & Basis %in% input$basis) %>%
+      filter(PARAM %in% input$param & Station %in% input$station & Basis %in% input$basis &
+               MYEAR %in% as.numeric(input$selected_years)) %>%
       rename(x = MYEAR) %>%
       mutate(
         y = log(VALUE),
