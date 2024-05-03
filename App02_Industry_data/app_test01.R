@@ -148,6 +148,8 @@ stations <- unique(dat_all_prep3$Station) %>% sort()
 tissues <- unique(dat_all_prep3$TISSUE_NAME) %>% sort()
 tissues <- c("(automatic)", tissues)
 basises <- unique(dat_all_prep3$Basis) %>% sort()
+years_all <- unique(dat_all_prep3$MYEAR) %>% sort()
+names(years_all) <- years_all
 
 # Folder for saving plots
 folder <- "../Figures_402/Til 2021-rapporten/"

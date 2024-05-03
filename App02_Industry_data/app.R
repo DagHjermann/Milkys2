@@ -100,8 +100,6 @@ dat_all_prep3 <- dataset_all %>%
   ) %>%
   filter(!is.na(VALUE))
 
-
-
 # Add 'Param_name' and 'Tissue_name' to data    
 dat_all_prep3 <- dat_all_prep3 %>%
   left_join(lookup_paramnames, by = "PARAM") %>%
@@ -141,6 +139,8 @@ stations <- unique(dat_all_prep3$Station) %>% sort()
 tissues <- unique(dat_all_prep3$TISSUE_NAME) %>% sort()
 tissues <- c("(automatic)", tissues)
 basises <- unique(dat_all_prep3$Basis) %>% sort()
+years_all <- unique(dat_all_prep3$MYEAR) %>% sort()
+names(years_all) <- years_all
 
 # Folder for saving plots
 folder <- "../Figures_402/Til 2021-rapporten/"
@@ -162,6 +162,8 @@ if (!file_exists){
 # Define UI for application that draws a histogram
 ui <- fluidPage(
   
+  shinyjs::useShinyjs(),
+  
   # Application title
   titlePanel("Industry data"),
   
@@ -172,6 +174,23 @@ ui <- fluidPage(
       shiny::selectInput(inputId = "station", label = "Station", choices = stations, selected = "St. 2 Fiskå"),
       shiny::selectInput(inputId = "tissue", label = "Tissue", choices = tissues, selected = "(automatic)"),  
       shiny::selectInput(inputId = "basis", label = "Basis", choices = basises, selected = "WW"),
+      # Make button for showing hidden settings
+      # Code from Albert Rapp, https://gist.github.com/AlbertRapp/ed866ecaf6c245519cd6d6fca55b56f1  
+      actionLink(
+        'show_hidden_settings', 
+        'Show/hide selected years', 
+        icon = icon('caret-right')
+      ),
+      # The secret settings
+      shinyjs::hidden(
+        div(
+          id = 'hidden_stuff',
+          checkboxGroupInput("selected_years",
+                             "Selected years:",
+                             years_all,
+                             selected = years_all)
+        )
+      ),
       shiny::selectInput(inputId = "y_scale", label = "Y-scale", choices = c("ordinary", "log numbers", "log scale"), 
                          selected = "ordinary"),
       shiny::checkboxInput("eqs", "Include EQS line", value = TRUE),
@@ -362,6 +381,23 @@ server <- function(input, output) {
 
   })
   
+  #
+  # Show secret settings on click ----
+  #
+  observe({
+    shinyjs::toggle(
+      id = 'hidden_stuff',
+      anim = TRUE
+    )
+    updateActionLink(
+      inputId = 'show_hidden_settings',
+      icon = if (input$show_hidden_settings %% 2 == 0) {
+        icon('caret-right')
+      } else {
+        icon('caret-down')
+      }
+    )
+  }) |> bindEvent(input$show_hidden_settings)
   
 }
 
