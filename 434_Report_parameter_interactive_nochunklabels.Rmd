@@ -2,15 +2,15 @@
 title: "Report for parameter (431)"
 author: "NIVA"
 params:
-  param: "AG"
+  param: "HG"
   basis_medians: "WW"
-  basis_trends: "WW"
+  basis_trends: "WWa"
   eqsplot: "FALSE"
   prorefplot: "TRUE"
   include_trend: "TRUE"
   current_year: 2022
   called_from_mother: "FALSE"
-  species3: "Mytilus edulis"
+  species3: "Gadsus morhua"
 output: 
   html_document:
     toc: true
@@ -35,8 +35,20 @@ run_interactively <- FALSE
 #  = "ordinary" or "TRUE" for ordinary y scale (TRUE is included for backwards compability)
 #  = "log" for log y scale (with y labels showing true values)
 
-# Data sources:
-#   (functions are in script '431_Report_parameter_functions.R')
+# Chunks (nov. 2023):
+#  1 -  3: Set up
+#  4 -  6: Make tile plot of median concentrations (by stations x years)  
+#  7 -  9: Make point/range plot of trends (2 plots for long and short term, by stations)  
+# 10 - 15: Combine tile plot and point/range plot  
+# 16 - 19: Get raw concentrations and ratios (EQS and proref) for last year    
+# 20 - 23: EQS plots (by station)  
+# 24 - 27: Proref plots (by station)  
+
+#
+# Data sources
+#
+# (functions referred to below are in script '431_Report_parameter_functions.R')
+#
 # Medians: 
 #  Given by 'folder_110' and 'filename_110' in function 'get_data_medians'
 #   default values are "Data" and "110_mediandata_updated_2022-09-23.rds"
@@ -57,7 +69,7 @@ header_param <- subset(dat_groups, PARAM %in% params$param, select = Parameter.N
 if (run_interactively){   # set to TRUE for running interactively, otherwise FALSE
   
   # Note that 'called_from_mother' = "NA" (see chunk 15)
-  params <- list(param = "AG", basis_medians = "WW", basis_trends = "WW", 
+  params <- list(param = "SCCP", basis_medians = "WW", basis_trends = "WW", 
                  eqsplot = "FALSE", prorefplot = "TRUE", include_trend = "TRUE", 
                  current_year = 2021, called_from_mother = "NA", 
                  species3 = "Mytilus edulis")
@@ -86,16 +98,11 @@ div.main-container {
 </style>
 
 
-```{r}
-
-library(ggiraph)
-# cat("stuff \n")
-
-```
-
 ```{r, include=FALSE}
 
 # 02_packages
+
+library(ggiraph)
 
 # library(tidyr)
 library(ggplot2)
@@ -352,7 +359,6 @@ trend_fill <- c("red2", "green2", "grey20") %>% setNames(colour_order)
 
 # 05_trends_data
 
-# debugonce(get_data_trends)
 
 dat_trends_plot_list <- purrr::map(
   dat_medians_list, 
@@ -360,8 +366,11 @@ dat_trends_plot_list <- purrr::map(
   filename_trends = filename_trends
 )
 
-# chck <- get_data_trends(dat_medians_list[[1]],  basis = "WWa", include_year = current_year)
-# chck <- get_data_trends(dat_medians_list[[2]],  include_year = current_year)
+# debugonce(get_data_trends)
+chck <- get_data_trends(dat_medians_list[[1]],  basis = "WW",
+                        include_year = current_year, filename_trends = filename_trends)
+# chck <- get_data_trends(dat_medians_list[[2]],  basis = "WW", 
+#                         include_year = current_year, filename_trends = filename_trends)
 
 # table(addNA(dat_trends_plot_list[[1]]$Station))
 # levels(dat_trends_plot_list[[1]]$Station)
@@ -642,10 +651,6 @@ if (!is.null(ggcomb_list[[2]])){
 # ggdraw(ggcomb_legend)
 
 ```
-
-
-
-
 
 
 ```{r, results='asis'}
