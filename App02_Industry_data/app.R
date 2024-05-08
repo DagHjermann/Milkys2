@@ -90,6 +90,9 @@ dat_all_prep3 <- dataset_all %>%
     Basis = case_when(
       BASIS %in% "W" ~ "WW",
       BASIS %in% "D" ~ "DW"),
+    UNIT = case_when(
+      UNIT %in% "NG_P_G" ~ "UG_P_KG",
+      TRUE ~ UNIT),
     VALUE = case_when(
       VALUE == 0 & PARAM %in% "Sum 16 EPA-PAH ekskl. LOQ" ~ 0.05,
       TRUE ~ VALUE),
@@ -298,7 +301,9 @@ server <- function(input, output) {
   output$timeseries_plot <- renderPlot({
   
     data_sel <- data_sel() 
-    # browser()
+    
+    # if (tail(data_sel$PARAM, 1) == "BAP")
+    #   browser()
     
     unit_print <- get_unit_text(
       tail(data_sel$UNIT, 1), 
