@@ -88,14 +88,37 @@ folder_output <- paste0(folder_results, "_output")
 
 # dataset1 <- readRDS("data_chem_industry_ranfjord_elkem_ind_2022.rds")
 # dataset2 <- readRDS("data_chem_industry_kristiansand_glencore_ind_2022.rds")
-dataset_all <- readRDS("data_chem_industry_ind_2023.rds")
+dataset_all_01 <- readRDS("data_chem_industry_ind_2023.rds")
 dataset_extra <- readRDS("data_chem_industry_ind_2023_ElkemREC_autumn.rds")
+dataset_extra2 <- readxl::read_excel(
+  "Vannmiljo St. 4 Svensholmen metals 2010-2014.xlsx", sheet = "nivabasen_fixed") %>%
+  mutate(
+    MYEAR = as.numeric(MYEAR),
+    Month = as.numeric(Month)
+  ) %>%
+  filter(Month >= 9)
+
+
+
 # dataset_test <- readRDS("data_chem_industry_ranfjord_elkem_ind_2022_OLD1.rds")
 
+
 # Replace original "all year" Elkem - REC data with autumn-only data  
-dataset_all <- dataset_all %>%
+dataset_all_02 <- dataset_all_01 %>%
   filter(!STATION_CODE %in% c("St. 1", "St. 2", "St. 3", "St. 4", "St. 5")) %>%
   rbind(dataset_extra)
+
+# Replace original 2010-2013 data with data from Vannmiljø    
+params_metals <- c("AS", "PB", "CD", "CU", "CR", "HG", "NI", "ZN")
+dataset_all <- dataset_all_02 %>%
+  filter(!(STATION_CODE %in% "St. 4" & 
+             MYEAR %in% 2010:2013 & PARAM %in% params_metals)) %>%
+  bind_rows(dataset_extra2)
+
+
+# dataset_all %>%
+#   filter(substr(STATION_CODE,1,2) == "St") %>%
+#   xtabs(~MYEAR + STATION_CODE, .)
 
 dat_all_prep3 <- dataset_all %>%
   mutate(
@@ -201,6 +224,8 @@ if (F){
 
 if (FALSE){
   
+  # . select PARAM, Station -------------
+  
   param <- "PB"
   param <- "HG"
   param <- "NI"
@@ -209,7 +234,7 @@ if (FALSE){
   param <- "BAP"
   param <-  "Dioksiner og dioksinliknende PCB"
   param <- "Sum 16 EPA-PAH ekskl. LOQ"
-  stcode <- "St. 1"
+  stcode <- "St. 4"
   #stcode <- "I965"
   #stcode <- "15B"
   #stcode <- "15B"
@@ -220,16 +245,25 @@ if (FALSE){
   st <- "Dvergsøya (referansestasjon)"
   st <- "B2 Alterneset"
   st <- "St. 1 Lumber"
+  st <- "St. 4 Svensholmen"
+  
+  # Table Station 1-5  
+  dat_all_prep3 %>%
+    filter(substr(Station,1,2) == "St") %>%
+    xtabs(~MYEAR + Station, .)
   
   # table(dat_all_prep3$STATION_CODE) 
   # table(dat_all_prep3$Station) %>% names()
   
   if (FALSE){ 
+    # # some tables  
     dat_all_prep3 %>% filter(Station %in% st) %>% xtabs(~PARAM, .)
     dat_all_prep3 %>% filter(PARAM %in% input$param & Station %in% input$station & Basis %in% input$basis) %>% nrow()
     dat_all_prep3 %>% filter(PARAM %in% input$param & Station %in% input$station) %>% nrow()
     dat_all_prep3 %>% filter(PARAM %in% input$param) %>% nrow()
   }
+  
+  # . select data_sel ------------------------------------
   
   data_sel <- dat_all_prep3 %>%
     filter(PARAM %in% param) %>%
@@ -244,28 +278,39 @@ if (FALSE){
     ) %>% filter(x >= 2001)
   
   # debugonce(get_median_data)
+  
+  # . compute medians --------------------------
   data_sel_medians <- get_median_data(data_sel)
   
+  # . test plot 
+  ggplot(data_sel_medians, aes(x,y)) + geom_ribbon(aes(ymin = ymin, ymax = ymax), fill = "grey70") + geom_point() 
+  
+  
+  # . get trend data --------------------------------------
   # debugonce(get_gam_data)
   data_sel_trend <- get_gam_data(data_sel_medians) %>%
     rename(ymin = y_lo, ymax = y_hi)
   
+  # . test trend data  
   ggplot(data_sel_trend, aes(x,y)) + geom_ribbon(aes(ymin = ymin, ymax = ymax), fill = "grey70") + geom_point() 
   
+  # . get trend string ------------------------------------
   # debugonce(get_change_from_gamdata)
   chg <- get_change_from_gamdata(data_sel_trend, "x", "y")
-  
   get_trendstring(chg)
   
   # debugonce(get_trendstring_comb)
   # debugonce(get_change_from_gamdata)
   get_trendstring_comb(data_sel_trend)
   
+  # . get EQS and PROREF ---------------------------------------------
   eqs <- get_eqs(param, "Mytilus edulis", "WW", eqsdata = lookup_eqs)
   proref <- get_proref(param, "Mytilus edulis", basis = "WW", prorefdata = lookup_proref)
   
+  # . get title string --------------------------------
   titlestring <- paste0(data_sel$PARAM[1], " in ", data_sel$LATIN_NAME[1], " at ", data_sel$Station[1])
 
+  # . make main plot ----------------------------------
   # debugonce(plot_timeseries_trend)
   plot_timeseries_trend(data_medians = data_sel_medians, 
                         data_raw = data_sel, 
@@ -288,4 +333,96 @@ if (FALSE){
   
   
 }
+
+if (FALSE){
+  
+  # Test data for metals 2010-2014 
+  
+  # dataset_all_01 %>%
+  # dataset_all_02 %>%
+  dataset_all %>%
+    filter(STATION_CODE == "St. 4" & PARAM %in% c("AS", "PB", "CD", "CU")) %>%
+    ggplot(aes(MYEAR, VALUE, color = FLAG1)) +
+    geom_jitter(width = 0.1) +
+    facet_wrap(vars(PARAM), scales = "free_y")
+
+}
+
+
+if (FALSE){
+  
+  # . data directly from Vannmiljø------  
+  
+  dataset_extra2_raw <- readxl::read_excel(
+    "Vannmiljo St. 4 Svensholmen metals 2010-2014.xlsx", sheet = 1)
+  
+  # Lookup table for parameter names from Vannmiljø
+  # NOTE: specially made for this Vannmiljø file, i.e. has metals only
+  lookup_params_vannmiljo <- data.frame(
+    Parameter = c("Arsen", "Bly", "Kadmium", "Kobber", "Krom", "Kvikksølv", 
+                  "Nikkel", "Sink"),
+    PARAM = c("AS", "PB", "CD", "CU", "CR", "HG",
+              "NI", "ZN")
+  )
+  
+  table(dataset_extra2_raw$Parameter)
+  # Prepare data set from Vannmiljø
+  dataset_extra2 <- dataset_extra2_raw %>%
+    mutate(
+      STATION_CODE = case_when(
+        grepl("Svensholmen", Navn) ~ "St. 4"),
+      STATION_NAME = case_when(
+        grepl("Svensholmen", Navn) ~ "Svensholmen"),
+      MYEAR = as.numeric(substr(Prøvedato, 1, 4)),
+      Month = as.numeric(substr(Prøvedato, 6, 7)),
+      UNIT = case_when(
+        Enhet %in% "mg/kg v.v." ~ "MG_P_KG"),
+      BASIS = case_when(
+        Enhet %in% "mg/kg v.v." ~ "W"),
+      TISSUE_NAME = case_when(
+        Navn %in% "Mytilus edulis" ~ "Whole soft body"),
+      FLAG1 = case_when(
+        Operator %in% "<" ~ "<",
+        Operator %in% "=" ~ as.character(NA))
+    ) %>%
+    rename(
+      LATIN_NAME = Art,
+      VALUE = Verdi) %>%
+    filter(
+      Month >= 8) %>%
+    left_join(
+      lookup_params_vannmiljo, by = "Parameter") %>%
+    select(-c(VannlokalitetID, Navn, Aktivitet, Oppdragsgiver, Oppdragstaker, Parameter, Medium, Prøvedato, Operator, Enhet, `Sist endret`))
+  
+  
+}
+
+if (FALSE) {
+  
+  # . data directly from Vannmiljø, tables------  
+  
+  table(dataset_all$PARAM)
+  table(subset(dataset_all, UNIT %in% "MG_P_KG")$PARAM)
+  table(dataset_all$UNIT)
+  table(dataset_all$BASIS)
+  table(dataset_all$LATIN_NAME)
+  table(dataset_all$TISSUE_NAME)
+  table(dataset_all$STATION_CODE)
+  table(dataset_all$STATION_NAME)
+  table(dataset_all$MYEAR)
+  table(dataset_all$Month)
+  
+  table(dataset_extra2$Navn)
+  table(dataset_extra2$Enhet)
+  str(dataset_extra2$Verdi)
+  table(addNAdataset_extra2$Operator)
+  table(dataset_extra2$Art)
+  table(dataset_extra2$Prøvedato)
+  str(dataset_extra2$Prøvedato)
+  tr(dataset_extra2$Prøvedato)
+  table(dataset_extra2$Parameter) %>% names() %>% dput()
+  table(substr(dataset_extra2$Prøvedato,6,7))
+  
+}
+
 
