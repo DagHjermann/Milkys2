@@ -10,7 +10,9 @@ load_data <- TRUE
 
 if (load_data){
   
-  # From the top of App 01, so we need setwd() in the start AND at the end  
+  # This code is from the "top" of App 01
+  
+  # We need setwd() in the start AND at the end  
   setwd("/home/jovyan/shared/common/DHJ/Milkys2/App01_timeseries/")
   
   
@@ -28,6 +30,9 @@ if (load_data){
   # Functions  
   source("../125_Calculate_trends_leftadjusted_functions.R")
   source("../402_Plot_time_series_functions.R")
+  
+  # Settings
+  last_year <- 2022
   
   # Key variables (defines one time series) 
   indexvars <- c("PARAM", "STATION_CODE", "TISSUE_NAME", "LATIN_NAME", "Basis")
@@ -62,16 +67,26 @@ if (load_data){
   #   left_join(lookup_stations %>% select(STATION_CODE, Station), by = "STATION_CODE")
   # dat_all_prep3 <- readRDS(paste0(folder_input, "/125_dat_all_prep3.rds"))
   # df_trend <- readRDS(paste0(folder_output, "/126_df_trend_2021.rds"))
-
+  
   # Data NEW
   dat_series_trend <- readRDS("Data2022/dat_trend.rds") %>%
-    left_join(lookup_stations %>% select(STATION_CODE, Station), by = "STATION_CODE")
+    left_join(lookup_stations %>% select(STATION_CODE, Station), by = "STATION_CODE") %>%
+    mutate(
+      Perc_change = round((exp(-y_mean)-1)*100, 1),
+      D_year = last_year - First_year,
+      Perc_annual = round((exp(-y_mean/D_year)-1)*100, 1),
+      Perc_annual_lo = round((exp(-y_q2.5/D_year)-1)*100, 1),
+      Perc_annual_hi = round((exp(-y_q97.5/D_year)-1)*100, 1)
+    )
   dat_all_prep3 <- readRDS("Data2022/dat_raw5.rds") %>%
     left_join(lookup_stations %>% select(STATION_CODE, Station), by = "STATION_CODE")
   
-  # df_trend <- readRDS("Data2022/dat_trend.rds")
+  # Get list (length 1628) of trend results  
+  # Each list item is the result for one time series, including the data for plotting the trend  
   result_list <- readRDS("Data2022/result_list.rds")
   
+  # Get data frame (1628 rows) with index variables (PARAM, STATION_CODE, ....) 
+  # Is used to find out from which 'result_list' one should get the data for plotting the trend 
   result_list_series <- seq_along(result_list) %>% 
     map(~as.data.frame(result_list[[.x]][indexvars])) %>%
     list_rbind() %>%
@@ -104,8 +119,8 @@ if (load_data){
     anti_join(lookup_eqs, by = "PARAM")
   lookup_eqs_nospecies <- lookup_eqs %>%
     filter(is.na(LATIN_NAME))
-  lookup_eqs_nospecies <- lookup_eqs %>%
-    filter(is.na(LATIN_NAME))
+  lookup_eqs_species <- lookup_eqs %>%
+    filter(!is.na(LATIN_NAME))
   overlap <- intersect(lookup_eqs_species$PARAM, lookup_eqs_nospecies$PARAM)
   if (length(overlap) > 0)
     stop("In the EQS file, each parameter must have either LATIN_NAME empty, or LATIN_NAME for all rows")
@@ -133,6 +148,15 @@ if (load_data){
   # Folder for saving plots
   folder <- "../Figures_402/Til 2021-rapporten/"
   
+  # Save metadata for saved plots
+  savedplots_filename <- paste0(folder, "_saved_plots.csv")  
+  file_exists <- file.exists(savedplots_filename)
+  if (!file_exists){
+    zz <- file(savedplots_filename, "w")  # open an output file connection
+    cat("Filename, Time_GMT, PARAM, STATION_CODE, TISSUE_NAME, Basis, y_scale, ymax_perc, xmin_rel, xmax_rel, eqs, proref\n", file = zz)
+    close(zz)
+  }
+  
   # ALSO RUN THIS!  
   setwd("/home/jovyan/shared/common/DHJ/Milkys2/")
 
@@ -147,11 +171,14 @@ if (FALSE){
   input$param <- "HG"
   input$param <- "VDSI"
   input$param <- "CB153"
-  stationcode <- "11X"
-  # stationcode <- "30B"
-  # stationcode <- "36G"
+  input$param <- "CD"
+  input$stationcode <- "28A2"
+  # stationcode <- "30A"
+  input$stationcode <- "30B"
+  input$stationcode <- "36G"
   latinname = "Gadus morhua"
   latinname = "Nucella lapillus"
+  latinname = "Mytilus edulis"
   
   input$tissue <- "(automatic)"  
   input$basis <- "WW"  
@@ -160,6 +187,7 @@ if (FALSE){
   input$proref <- "1"
   input$medians <- TRUE
   input$allsamples <- TRUE
+  input$allsamples <- FALSE
   input$ymax_perc <- 100
   input$xmin_rel <- 0
   input$xmax_rel <- 0
@@ -172,8 +200,9 @@ if (FALSE){
   
   setwd("/home/jovyan/shared/common/DHJ/Milkys2/App01_timeseries")
   
+  # debugonce(plot_timeseries2a)
   plot_timeseries2a(param = input$param, 
-                    stationcode = stationcode, 
+                    stationcode = input$stationcode, 
                     basis = input$basis, 
                     y_scale = input$y_scale,
                     ymax_perc = input$ymax_perc,

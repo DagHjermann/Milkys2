@@ -2,15 +2,15 @@
 title: "Report for parameter (431)"
 author: "NIVA"
 params:
-  param: "HG"
+  param: "CD"
   basis_medians: "WW"
-  basis_trends: "WWa"
+  basis_trends: "WW"
   eqsplot: "FALSE"
   prorefplot: "TRUE"
   include_trend: "TRUE"
   current_year: 2022
   called_from_mother: "FALSE"
-  species3: "Gadsus morhua"
+  species3: "Gadus morhua"
 output: 
   html_document:
     toc: true
@@ -31,6 +31,7 @@ run_interactively <- TRUE
 run_interactively <- FALSE  
 
 # Parameters:
+
 # 'eqsplot' 
 #  = "ordinary" or "TRUE" for ordinary y scale (TRUE is included for backwards compability)
 #  = "log" for log y scale (with y labels showing true values)
@@ -520,24 +521,54 @@ if (FALSE){
 
 ggcomb_list <- list(NULL, NULL)
 
+if (params$param == "HG"){
+  space_bottom <- c(0.2, 0)
+} else {
+  space_bottom <- c(0, 0)
+}
+
+
+# if (params$basis_trends == "WWa"){
 for (speciesgroup in speciesgroups){
   
   if (params$include_trend == "TRUE"){
+    
+    plotlist <- list(
+      gg_tile_list[[speciesgroup]] + theme(legend.position = "none"), 
+      gg_trends_list[[speciesgroup]][[1]] +
+        # labs(caption = "") +
+        theme(axis.title.y = element_blank(),
+              axis.text.y = element_blank(),
+              legend.position = "none"), 
+      gg_trends_list[[speciesgroup]][[2]] + 
+        # labs(caption = "test") +
+        theme(axis.title.y = element_blank(),
+              axis.text.y = element_blank()))
+    
+  if (space_bottom[speciesgroup] > 0){
+    nrow = 2
+    rel_heights <- c(3, space_bottom[speciesgroup])
+    plotlist <- c(plotlist, NA, NA, NA)
+  } else {
+    nrow = 1
+    rel_heights <- 3
+  }
+    
 
   ggcomb_list[[speciesgroup]] <- cowplot::plot_grid(
-    gg_tile_list[[speciesgroup]] + theme(legend.position = "none"), 
-    gg_trends_list[[speciesgroup]][[1]] + 
-      theme(axis.title.y = element_blank(),
-            axis.text.y = element_blank(),
-            legend.position = "none"), 
-    gg_trends_list[[speciesgroup]][[2]] + 
-      theme(axis.title.y = element_blank(),
-            axis.text.y = element_blank()), 
-    nrow = 1, ncol = 3,
-    rel_heights = 3,
+    plotlist = plotlist,
+    nrow = nrow, ncol = 3,
+    rel_heights = rel_heights, 
     rel_widths = c(2.7, 0.75, 1.25)
   )
   
+  # if (params$basis_trends == "WWa" & speciesgroup == 1){
+  if (params$param == "HG" & speciesgroup == 1){
+    ggcomb_list[[1]] <- ggdraw(ggcomb_list[[1]]) +
+      draw_label("* Trends are based on length-adjusted concentrations",
+                 x = 0.98, y = 0.02, size = 10, hjust = 1, vjust = 0)
+  }
+
   } else {
     
     ggcomb_list[[speciesgroup]] <- gg_tile_list[[speciesgroup]] + 
@@ -570,6 +601,8 @@ for (speciesgroup in speciesgroups){
 
 # ggcomb_list[[1]]
 # ggcomb_list[[2]]
+
+
 
 
 ```
