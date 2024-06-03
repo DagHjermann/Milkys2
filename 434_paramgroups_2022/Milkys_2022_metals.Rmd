@@ -8,6 +8,8 @@ output:
 
 ---
 
+In order to improve visibility of the majority of the time series, the trend plots don't show the entire confidence intervals (the outermost/largest confidence intervals are cropped)  
+
 
 ```{r, include=FALSE}
 
@@ -46,13 +48,15 @@ if (FALSE){
 # https://stackoverflow.com/a/69392658/1734247 
 
 param_values <- c("AG", "AS", "CD", "CO", "CR", "CU", "HG", "NI", "PB", "ZN")
-# param_values <- c("HG", "AG")
+# param_values <- c("HG", "CD")
 # param_values <- c("CD")
 
 # Note: the child document must have no chunk labels, otherwise it will stop in the start of he second round
 #   because chunk labels are 'duplicated'
 
 for (param in param_values){
+  
+  conc_unit <- "mg/kg wet weight"
   
   if (param == "HG"){
     basis_trends <- "WWa"
@@ -71,7 +75,8 @@ for (param in param_values){
     include_trend = "TRUE",
     current_year = 2022,
     called_from_mother = "TRUE",
-    species3 = "Mytilus edulis"
+    species3 = "Mytilus edulis",
+    conc_unit = conc_unit
   )
   
   res <- knitr::knit_child('../434_Report_parameter_interactive_nochunklabels.Rmd', quiet = TRUE)
