@@ -430,6 +430,7 @@ if (FALSE){
 get_data_trends <- function(data_medians,
                             filename_trends = "Data/125_results_2021_07_output/126_df_trend_2021.rds",
                             basis,
+                            last_year = 2022,
                             include_year){
   
   spp <- unique(data_medians$LATIN_NAME)
@@ -459,6 +460,13 @@ get_data_trends <- function(data_medians,
         Perc_annual_lo = round((exp(-y_q2.5/D_year)-1)*100, 1),
         Perc_annual_hi = round((exp(-y_q97.5/D_year)-1)*100, 1)
       )
+    
+    if (nrow(dat_trends_list[[species]]) == 0){
+      cat("PARAM:", paste(unique(data_medians$PARAM), collapse = ","), "\n")
+      cat("TISSUE_NAME:", paste(unique(data_medians$TISSUE_NAME), collapse = ","), "\n")
+      warning("[get_data_trends] No trend data found for species ", species)
+    }
+
   }
   
   dat_trends_all <- bind_rows(dat_trends_list)
