@@ -10,7 +10,8 @@ params:
   include_trend: "TRUE"
   current_year: 2022
   called_from_mother: "FALSE"
-  species3: "Gadus morhua"
+  species3: "Mytilus edulis"
+  conc_unit: "mg/kg wet weight"
 output: 
   html_document:
     toc: true
@@ -521,19 +522,17 @@ if (FALSE){
 
 ggcomb_list <- list(NULL, NULL)
 
-if (params$param == "HG"){
-  space_bottom <- c(0.2, 0)
-} else {
-  space_bottom <- c(0, 0)
-}
-
+# For extra text regarinf unit under plot
+# (and in case of Hg, note about 'length-adjusted concentrations')
+space_footnote <- 0.15
 
 # if (params$basis_trends == "WWa"){
 for (speciesgroup in speciesgroups){
   
-  if (params$include_trend == "TRUE"){
+  # if (params$include_trend == "TRUE"){
     
-    plotlist <- list(
+    # Top row: 3 plots (tile + two trend plots)
+    plotlist_row1 <- list(
       gg_tile_list[[speciesgroup]] + theme(legend.position = "none"), 
       gg_trends_list[[speciesgroup]][[1]] +
         # labs(caption = "") +
@@ -543,39 +542,42 @@ for (speciesgroup in speciesgroups){
       gg_trends_list[[speciesgroup]][[2]] + 
         # labs(caption = "test") +
         theme(axis.title.y = element_blank(),
-              axis.text.y = element_blank()))
+              axis.text.y = element_blank())
+      )
     
-  if (space_bottom[speciesgroup] > 0){
-    nrow = 2
-    rel_heights <- c(3, space_bottom[speciesgroup])
-    plotlist <- c(plotlist, NA, NA, NA)
-  } else {
-    nrow = 1
-    rel_heights <- 3
-  }
+    # Bottom row: 2 plots with text only (footnotes, one under the tile plot + one under the trend plots)
+    
+    trend_footnote <- ifelse(
+      params$param %in% "HG" & speciesgroup == 1,
+      "* Trends are based on length-adjusted concentrations",
+      ""
+    )
+    
+    plotlist_row2 <- list(
+      ggplot() + theme_nothing() + draw_label(glue::glue("Unit: {params$conc_unit}"), 
+                                              x = 0.99, y = 0.5, hjust = 1, size = 11),
+      ggplot() + theme_nothing() + draw_label(trend_footnote, 
+                                              x = 0.99, y = 0.5, hjust = 1, size = 11)
+      )
     
 
   ggcomb_list[[speciesgroup]] <- cowplot::plot_grid(
-    plotlist = plotlist,
-    nrow = nrow, ncol = 3,
-    rel_heights = rel_heights, 
-    rel_widths = c(2.7, 0.75, 1.25)
+    # Top row plots (actual plots)
+    cowplot::plot_grid(
+      plotlist = plotlist_row1,
+      nrow = 1, ncol = 3,
+      rel_widths = c(2.7, 0.75, 1.25)
+    ),
+    # Bottom row plots (footnotes)
+    cowplot::plot_grid(
+      plotlist = plotlist_row2,
+      nrow = 1, ncol = 2,
+      rel_widths = c(2.7, 0.75 + 1.25)
+    ),
+    ncol = 1, nrow = 2, 
+    rel_heights = c(3, space_footnote)
   )
-  
-  # if (params$basis_trends == "WWa" & speciesgroup == 1){
-  if (params$param == "HG" & speciesgroup == 1){
-    ggcomb_list[[1]] <- ggdraw(ggcomb_list[[1]]) +
-      draw_label("* Trends are based on length-adjusted concentrations",
-                 x = 0.98, y = 0.02, size = 10, hjust = 1, vjust = 0)
-  }
-
-  } else {
     
-    ggcomb_list[[speciesgroup]] <- gg_tile_list[[speciesgroup]] + 
-      theme(legend.position = "none")
-    
-  }
-  
   ggcomb_legend <- cowplot::get_legend(gg_tile_list[[speciesgroup]])
   
   # Set name of figure file (mercury in cod+birds is treated as a special case)
