@@ -479,7 +479,7 @@ for (speciesgroup in speciesgroups){
       data_for_plot[["Trend_text"]][sel] <- data_for_plot[["Trend.QA"]][sel]
       text_trends_manual[[speciesgroup]] <- "Asterisk (*) after trend text: Time trend test was performed with alternative trend method"
     }
-    trendtitle_asterisk <- ifelse(params$basis_medians == "WW" & params$basis_trends == "WWa", "*", "")
+    trendtitle_asterisk <- ifelse(params$basis_medians == "WW" & params$basis_trends == "WWa" & speciesgroup == 1, "*", "")
     gg_trends_list[[speciesgroup]][[type]] <- ggplot(
       data_for_plot, aes(x = Station, y = Perc_annual)) +
       geom_linerange(aes(ymin = Perc_annual_lo, ymax = Perc_annual_hi, colour = Trend_color), size = 1) +
@@ -644,27 +644,6 @@ if (!is.null(ggcomb_list[[1]])){
     cat("\n\n\n")
   }
 
-
-
-  # Showing explanatory text below plot (shown only if there are suspect trends)
-
-  i <- 1
-
-  if (!is.na(text_trends_manual[[i]]) & params$called_from_mother %in% c("TRUE","FALSE")){
-    
-    # If this is called from e.g. Milkys_2021_metals.Rmd, include 'envir=environment()'  
-    if (params$called_from_mother == "TRUE"){
-      envir <- environment() 
-    } else if (params$called_from_mother == "FALSE"){
-      envir <- globalenv() 
-    } 
-    heading <- knitr::knit_child(
-      text = text_trends_manual[[i]],
-      envir = envir, quiet=TRUE)
-    cat(unlist(heading), sep = "\n")
-    cat("\n\n\n")
-  }
-  
 
 ```
 
