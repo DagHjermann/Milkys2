@@ -462,8 +462,8 @@ get_data_trends <- function(data_medians,
       )
     
     if (nrow(dat_trends_list[[species]]) == 0){
-      cat("PARAM:", paste(unique(data_medians$PARAM), collapse = ","), "\n")
-      cat("TISSUE_NAME:", paste(unique(data_medians$TISSUE_NAME), collapse = ","), "\n")
+      #cat("PARAM:", paste(unique(data_medians$PARAM), collapse = ","), "\n")
+      #cat("TISSUE_NAME:", paste(unique(data_medians$TISSUE_NAME), collapse = ","), "\n")
       warning("[get_data_trends] No trend data found for species ", species)
     }
 
