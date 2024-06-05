@@ -149,28 +149,28 @@ dat_temporary <- list(
                    species = "Gadus morhua",
                    tissue = ifelse(params$param %in% "HG", "Muskel", "Lever"),
                    basis = params$basis_medians, 
-                   include_year = params$current_year,
+                   include_year = params$current_year-1,
                    filename_110 = filename_110),
   # Eider duck
   get_data_medians(param = params$param, 
                    species = "Somateria mollissima",
                    tissue = "Blod",
                    basis = "WW", 
-                   include_year = params$current_year,
+                   include_year = params$current_year-1,
                    filename_110 = filename_110),
   # Eider duck
   get_data_medians(param = params$param, 
                    species = "Somateria mollissima",
                    tissue = "Egg",
                    basis = "WW", 
-                   include_year = params$current_year,
+                   include_year = params$current_year-1,
                    filename_110 = filename_110),
   # Blue mussel  
   get_data_medians(param = params$param, 
                    species = species3,
                    tissue = "Whole soft body",
                    basis = "WW", 
-                   include_year = params$current_year,
+                   include_year = params$current_year-1,
                    filename_110 = filename_110)
 )
 
@@ -364,7 +364,7 @@ trend_fill <- c("red2", "green2", "grey20") %>% setNames(colour_order)
 
 dat_trends_plot_list <- purrr::map(
   dat_medians_list, 
-  get_data_trends, basis = params$basis_trends, include_year = current_year,
+  get_data_trends, basis = params$basis_trends, include_year = current_year-1,
   filename_trends = filename_trends
 )
 
