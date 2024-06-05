@@ -486,9 +486,11 @@ for (speciesgroup in speciesgroups){
       geom_linerange(aes(ymin = Perc_annual_lo, ymax = Perc_annual_hi, colour = Trend_color), size = 1) +
       geom_point_interactive(aes(fill = Trend_color, shape = Trend_color, tooltip = Tooltip_txt), 
                              colour = "black", size = 3) +
-      scale_colour_manual(values = trend_colours, drop = FALSE) +
-      scale_fill_manual(values = trend_colours, drop = FALSE) +
-      scale_shape_manual(values = trend_shapes, drop = FALSE) +
+      # drop = FALSE: unused factor levels are not omitted from the scale
+      # na.translate = FALSE: NAs are not shown in plot or leend 
+      scale_colour_manual(values = trend_colours, drop = FALSE, na.translate = FALSE) +
+      scale_fill_manual(values = trend_colours, drop = FALSE, na.translate = FALSE) +
+      scale_shape_manual(values = trend_shapes, drop = FALSE, na.translate = FALSE) +
       geom_hline(yintercept = 0, color = "grey30") +
       geom_label(aes(y = label_coor, 
                      label = Trend_text), fill = "white", color = "blue3", 
