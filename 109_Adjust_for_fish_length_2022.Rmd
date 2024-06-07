@@ -57,7 +57,7 @@ source("109_Adjust_for_fish_length_functions.R")
 ### Year  
 ```{r}
 
-selected_year <- 2021
+selected_year <- 2022
 
 ```
 
@@ -127,7 +127,7 @@ if (nrow(df_duplicates_all) > 0){
 ```{r}
 
 # Data on length  
-filename <- paste0("Data/150_Fish_individual_data_", selected_year, ".rds")  
+filename <- paste0("Data/150_Fish_individual_data_ELU_", selected_year, ".rds")  #ELU endret
 
 if (!file.exists(filename)){
   stop("The file ", filename, " wasn't found. This file must be created from script 150.")
@@ -235,7 +235,7 @@ if (FALSE){
 ### c2. Example of number/tissue confusion   
 ```{r}
 
-if (FALSE){
+if (TRUE){
   
   df_fishsamples %>% 
     filter(AQUAMONITOR_CODE %in% "43B2") %>%
@@ -406,7 +406,7 @@ Data with mean length per sample
 ```{r}
 
 
-# DROPPED FOR NOW  
+# DROPPED FOR NOW                                                                     #ELU kjører ikke denne
 
 if (FALSE){
   
@@ -478,7 +478,7 @@ cat("\n")
 message("Number of rows in 'df_fishsamples1': ", nrow(df_fishsamples1))   # 1710
 message("Number of rows in 'df_fishsamples2': ", nrow(df_fishsamples2))   # 1710
 
-if (FALSE){
+if (TRUE){
  
   # Show example of a pooled fish sample 
   sel <- grepl(",", df_fishsamples1$X_BULK_BIO, fixed = TRUE)
@@ -672,11 +672,11 @@ if (nrow(tab2) > 0 & nrow(tab2) <= row_limit){
 if (FALSE){
   
   data_lastyear %>% 
-    filter(STATION_CODE == "30B" & TISSUE_NAME == "Galle") %>% 
+    filter(STATION_CODE == "23B" & TISSUE_NAME == "Galle") %>% 
     select(MYEAR, STATION_CODE, TISSUE_NAME, SAMPLE_NO2, PARAM, LNMEA)
   
   data_lastyear %>% 
-    filter(STATION_CODE == "15B" & TISSUE_NAME == "Lever" & SAMPLE_NO2 == 8) %>% 
+    filter(STATION_CODE == "30B" & TISSUE_NAME == "Lever" & SAMPLE_NO2 == 8) %>% 
     select(MYEAR, STATION_CODE, TISSUE_NAME, SAMPLE_NO2, PARAM, LNMEA)
   
   # data_ind2_old
@@ -795,20 +795,21 @@ tab2
 # Percent at or below zero
 percent_zero <- 100*tab2[2,]/tab2[1,]
 
-# If <1% is at/below zero, we delete the zeros
-param_delete_zeros <- names(percent_zero)[percent_zero < 1]
+# OLD: If <1% is at/below zero, we delete the zeros
+# param_delete_zeros <- names(percent_zero)[percent_zero < 1]
+# NEW: we don't delete any values that are zero
 
 # Show them
-cat("\n")
-cat("param_delete_zeros: \n")
-param_delete_zeros
+# cat("\n")
+# cat("param_delete_zeros: \n")
+# param_delete_zeros
 
 # Delete those
-sel <- with(data_all2, !is.na(VALUE_WW) & VALUE_WW <= 0 & PARAM %in% param_delete_zeros); sum(sel)  # 0
-data_all2 <- data_all2[!sel,]
+# sel <- with(data_all2, !is.na(VALUE_WW) & VALUE_WW <= 0 & PARAM %in% param_delete_zeros); sum(sel)  # 0
+# data_all2 <- data_all2[!sel,]
 
 # For the rest, we don't log values before regression
-param_incl_zero <- names(percent_zero)[percent_zero >= 1]
+param_incl_zero <- names(percent_zero)[percent_zero > 0]
 
 # Show them
 cat("\n")
@@ -846,7 +847,7 @@ if (nrow(check2) > 0)
 ### Select data  
 ```{r}
 
-station <- "30B"
+station <- "30B"                                                  #ELU kjører ikke
 par <- "HG"
 
 cat("Chosen", par, "at", station, "\n\n")
@@ -870,9 +871,9 @@ cat(nrow(df), "rows selected from data_all \n")
 ```
 
 ### Show data by year and length    
-```{r, fig.width = 9, fig.height=3}
+```{r, fig.width = 9, fig.height=3}                                    
 
-gg1 <- df %>%
+gg1 <- df %>%                                                                          #ELU kjører ikke
   mutate(Above_LOQ = is.na(FLAG1)) %>%
   ggplot(aes(MYEAR, VALUE_WW, color = Above_LOQ)) +
   geom_point() +
@@ -906,9 +907,9 @@ cat("'a' (constant that will be used in log-transformation) set to", a)
 ### Perform test adjustment
 ```{r, fig.width = 9, fig.height=3}
 
-debugonce(adjust_selected)
+#debugonce(adjust_selected)                                                                         #ELU kjører ikke
 
-result <- try(adjust_selected(data_all2, sel, var = "VALUE_WW", a = a))        # adjust_selected()
+result <- try(adjust_selected(data_all2, sel, var = "VALUE_WW"))        # adjust_selected()
 if (class(result) != "try-error"){
   data_all2$VALUE_WWa[sel] <- result$value
   data_lengthreg[i, col_ww] <- result$summary[1:5]
@@ -978,22 +979,26 @@ i_max <- nrow(data_lengthreg)
 
 for (i in 1:i_max){
 
-  # Printout for every 100 lines  
-  if (i %% 100 == 0)
+  # for test
+  # i <- 131
+
+  # Printout for every 250 lines  
+  if (i %% 250 == 0){
+    cat("==========================================================================\n")
     cat(i, "\n")
-  
-  # Printout for all lines  
+    # cat("==========================================================================\n")
+  }
+  # 
+  # # Printout for all lines
+  # cat(i, "\n")
+  # i <- 1
   # with(data_lengthreg, cat(i, PARAM[i], LATIN_NAME[i], TISSUE_NAME[i], STATION_CODE[i], "\n"))
   
   #
   # Set 'a' (constant that will be used in log-transformation) 
+  # NEW: IS SET INSIDE adjust_selected() INSTEAD 
   #
-  if (data_lengthreg$PARAM[i] %in% param_incl_zero){
-    a <- 1                        # if the parameter includes zero, we add 1 before log
-  } else {
-    a <- 0
-  }
-  
+
   #
   # Set log_transform (true/false)
   #
@@ -1019,7 +1024,7 @@ for (i in 1:i_max){
   #
   enough_data <- length(unique(data_all2$MYEAR[sel])) > 1
   if (enough_data)
-    result <- try(adjust_selected(data_all2, sel, var = "VALUE_WW", a = a, log = log_transform))        # adjust_selected()
+    result <- try(adjust_selected(data_all2, sel, var = "VALUE_WW", log = log_transform))        # adjust_selected()
   if (class(result) != "try-error"  & enough_data){
     data_all2$VALUE_WWa[sel] <- result$value
     data_lengthreg[i, col_ww] <- result$summary[1:5]   # number 6 is "a"
@@ -1038,9 +1043,10 @@ for (i in 1:i_max){
   #
   # Perform regression
   #
+  # debugonce(adjust_selected)
   enough_data <- length(unique(data_all2$MYEAR[sel])) > 1
   if (enough_data)
-    result <- try(adjust_selected(data_all2, sel, var = "VALUE_DW", a = a, log = log_transform))        # adjust_selected()
+    result <- try(adjust_selected(data_all2, sel, var = "VALUE_DW", log = log_transform))        # adjust_selected()
   if (class(result) != "try-error" & enough_data){
     data_all2$VALUE_DWa[sel] <- result$value
     data_lengthreg[i, col_dw] <- result$summary[1:5]   # number 6 is "a"
@@ -1060,7 +1066,7 @@ for (i in 1:i_max){
   #
   enough_data <- length(unique(data_all2$MYEAR[sel])) > 1
   if (enough_data)
-    result <- try(adjust_selected(data_all2, sel, var = "VALUE_FB", a = a, log = log_transform))        # adjust_selected()
+    result <- try(adjust_selected(data_all2, sel, var = "VALUE_FB", log = log_transform))        # adjust_selected()
   if (class(result) != "try-error" & enough_data){
     data_all2$VALUE_FBa[sel] <- result$value
     data_lengthreg[i, col_fb] <- result$summary[1:5]   # number 6 is "a"
@@ -1083,17 +1089,17 @@ param <- "HG"
 
 # How many have length?
 data_all2 %>%
-  filter(PARAM == param & TISSUE_NAME == "Lever" & MYEAR >= 2013)  %>%
+  filter(PARAM == param & TISSUE_NAME == "Muskel" & MYEAR >= 2018)  %>%
   group_by(STATION_CODE, MYEAR) %>%
-  summarize(Prop_length = mean(!is.na(LNMEA)), .groups = "drop") %>%
+  summarize(Prop_length = mean(!is.na(VALUE_WWa)), .groups = "drop") %>%                                       #ELU test
   tidyr::pivot_wider(names_from = "MYEAR", values_from = Prop_length)
 
 # Of those data that have length, how many have length-addjusted CB118?
-df %>%
-  filter(PARAM == param & TISSUE_NAME == "Lever" & MYEAR >= 2013 & !is.na(LNMEA))  %>%
-  group_by(STATION_CODE, MYEAR) %>%
-  summarize(Prop_adjusted = sum(!is.na(VALUE_WWa))/sum(!is.na(VALUE_WW)), .groups = "drop") %>%
-  tidyr::pivot_wider(names_from = "MYEAR", values_from = Prop_adjusted)
+# df %>%
+#   filter(PARAM == "CB118" & TISSUE_NAME == "Lever" & MYEAR >= 2013 & !is.na(LNMEA))  %>%
+#   group_by(STATION_CODE, MYEAR) %>%
+#   summarize(Prop_adjusted = sum(!is.na(VALUE_WWa))/sum(!is.na(VALUE_WW)), .groups = "drop") %>%
+#   tidyr::pivot_wider(names_from = "MYEAR", values_from = Prop_adjusted)
 
 ```
 
@@ -1120,6 +1126,7 @@ data_all2 %>%
   summarize(Percent_adjusted = 100*mean(Prop_adjusted), .groups = "drop") %>%
   ggplot(aes(Percent_adjusted)) +
   geom_histogram()
+
 
 ```
 
@@ -1286,7 +1293,7 @@ data_all2$MYEAR[sel]
 
 ```{r}
 
-filename <- paste0("Data/109_adjusted_data_", file_date, ".rds")
+filename <- paste0("Data/109_adjusted_data_ELU2_", file_date, ".rds")                   #ELU-version
 
 # Backup
 if (file.exists(filename)){
@@ -1315,7 +1322,7 @@ if (FALSE){
 ### e. csv file
 ```{r}
 
-fn <- paste0("Data/109_adjusted_data_", file_date, ".csv")
+fn <- paste0("Data/109_adjusted_data_ELU2_", file_date, ".csv")                          #ELU-version
 readr::write_excel_csv(data_all2, fn, na = "")
 
 ```
@@ -1325,7 +1332,7 @@ Needed by Norman and Anders
 
 #### f1. Pick years  
 ```{r}
-from_year <- max(data_all2$MYEAR) - 4
+from_year <- max(data_all2$MYEAR) - 4                                             #ELU: kjører denne
 to_year <- max(data_all2$MYEAR)
 
 data_export <- data_all2 %>%
@@ -1338,13 +1345,13 @@ cat("'data_export':", nrow(data_export), "rows")
 
 #### f2. Add trophic level data  
 ```{r}
-data_trophiclevel <- readRDS("Input_data/104_dat3.rds") 
+data_trophiclevel <- readRDS("Input_data/104_dat3.rds")                          
 
 cat("'data_trophiclevel' contains muscle only: \n")
 xtabs(~is.na(TL) + TISSUE_NAME, data_trophiclevel)
 
 data_export <- data_export %>%
-  safe_left_join(data_trophiclevel %>%
+  safe_left_join(data_trophiclevel %>%                                                          #ELU: kjører denne
                    rename(Fish_number = SAMPLE_NO2) %>%
                    select(MYEAR, STATION_CODE, Fish_number, Delta15N, TL),
                  by = c("MYEAR", "STATION_CODE", "Fish_number"),
@@ -1360,7 +1367,7 @@ xtabs(~is.na(TL) + TISSUE_NAME, data_export %>% filter(MYEAR >= from_year))
 #### f3. Change tissue names  
 ```{r}
 
-if (FALSE){
+if (FALSE){   #ELU: har ikke kjørt denne                                                                     
   
   # Check SH and WO parameters
 
@@ -1394,7 +1401,7 @@ if (FALSE){
 
 # - delete "sample" and "TISSUE_NAME == 'WO' and 'SH'"
 # - change TISSUE_NAME into English versions for the rest
-data_export <- data_export %>%
+data_export <- data_export %>%                            #ELU: har kjørt denne
   filter(!PARAM %in% "Sample") %>%
   filter(!TISSUE_NAME %in% c('SH', 'WO')) %>%
   mutate(TISSUE_NAME = case_when(
@@ -1418,7 +1425,7 @@ data_last_years <- data_export %>%
   select(-c(VALUE_DW, VALUE_FB, VALUE_WWa, VALUE_DWa, VALUE_FBa)) 
 
 fn <- paste0(
-  "Data/Milkys_raw_data_", 
+  "Data/Milkys_raw_data_ELU2_",                                                    #ELU-version
   from_year, "-", substr(to_year, 3, 4),
   " (script 109).xlsx")
 
