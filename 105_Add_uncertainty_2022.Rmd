@@ -10,7 +10,7 @@ For now, we assume that uncertainty is the same for all years (sounds worse than
 ## 0. Settings  
 ```{r}
 
-selected_year <- 2021
+selected_year <- 2022
 
 ```
 
@@ -64,9 +64,10 @@ sel <- !subset(dat_all, MYEAR == selected_year)$PARAM %in% df_paramgroups$PARAM
 if (sum(sel) > 0){
   # Should be 'stop'? set this as warning for now 
   warning("Not found:", 
-      unique(dat_all$PARAM[sel]) %>% paste(collapse = "; "), "\n")
+      #unique(dat_all$PARAM[sel]) %>% paste(collapse = "; "), "\n")      #ELU: denne er rettet til den under
+      unique(subset(dat_all, MYEAR == selected_year)$PARAM[sel]) %>% paste(collapse = "; "), "\n")
 } else {
-  cat("All parameters (PARAM) found in file for parameter (substancroups \n")
+  cat("All parameters (PARAM) found in file for parameter (substance) groups \n")
 }
 
 n1 <- nrow(dat_all)
@@ -176,7 +177,7 @@ dat_all %>%
 
 
 ```
-### Check 2020-2021 data  (1)
+### Check 2020-2021 data  (1)                       ELU: legger til 2022
 ```{r}
 
 df1 <- dat_all %>%
@@ -191,6 +192,9 @@ df2020 <- df1 %>%
   filter(MYEAR == 2020 & LATIN_NAME %in% c("Gadus morhua", "Mytilus edulis"))
 df2021 <- df1 %>%
   filter(MYEAR == 2021 & LATIN_NAME %in% c("Gadus morhua", "Mytilus edulis"))
+df2022 <- df1 %>%                                                                          #ELU: legger til 2022
+  filter(MYEAR == 2022 & LATIN_NAME %in% c("Gadus morhua", "Mytilus edulis"))   
+
 
 df2020 %>%
   count(Substance.Group, Uncert_group) %>%
@@ -199,6 +203,12 @@ df2020 %>%
 df2021 %>%
   count(Substance.Group, Uncert_group) %>%
   tidyr::pivot_wider(c(Substance.Group), values_from = n, names_from = Uncert_group)
+
+df2022 %>%                                                                                #ELU: legger til 2022
+  count(Substance.Group, Uncert_group) %>%
+  tidyr::pivot_wider(c(Substance.Group), values_from = n, names_from = Uncert_group)
+
+
 ```
 
 ### Check 2020 data (2)   
@@ -266,10 +276,17 @@ dat_all <- dat_all %>%
 - Use uncertainty by substance group  
 ```{r}
 
+# Sjekk hvordadn dette så ut i 2021:
+fn_2021 <- "Input_data/Uncertainty/til2021-data/2021-2022_MILKYS_QAdata_Eurofins.xlsx"
+df_uncert_eurofins_2021 <- read_excel(fn_2021, sheet = "Uncertainty by group")
+colnames(df_uncert_eurofins_2021)
+
 # Uncertainty data  
-fn <- "Input_data/Uncertainty/til2021-data/2021-2022_MILKYS_QAdata_Eurofins.xlsx"
+fn <- "Input_data/Uncertainty/2022-2023_MILKYS_QAdata_Eurofins.xlsx"
 # excel_sheets(fn)
-df_uncert_eurofins1 <- read_excel(fn, sheet = "Uncertainty by group")
+excel_sheets(fn)
+df_uncert_eurofins1 <- read_excel(fn, sheet = "Uncertainty by group")   #ELU:fikk feil, manglet sheet. tester nå med ny sheet 
+colnames(df_uncert_eurofins1)                              #DHJ: må sjekke og fikse excelark (skal ha samme for) 
 
 table(df_uncert_eurofins1$Uncertainty)
 
@@ -293,7 +310,7 @@ df_uncert_eurofins <- df_uncert_eurofins2 %>%
 ```{r}
 
 # Uncertainty data  
-fn <- "Input_data/Uncertainty/til2021-data/NILU_2021.xlsx"
+fn <- "Input_data/Uncertainty/NILU_2022.xlsx"                 #ELU: bytter til 2022-fil
 # excel_sheets(fn)
 df_uncert_nilu <- read_excel(fn, sheet = "Uncertainty by group") %>%
   select(Substance.Group, Uncertainty) %>%
@@ -312,8 +329,8 @@ df_uncert_nilu <- read_excel(fn, sheet = "Uncertainty by group") %>%
 
 df_uncert_niva <- tibble::tribble(
   ~Substance.Group, ~Uncertainty,
-  "Organofluorines", 0.25,
-  "Fett", 0.15)
+  "Organofluorines", 0.25,                                   #ELU: uendret fra 2021
+  "Fett", 0.15)                                              #ELU: uendret fra 2021
 
 ```
 
@@ -331,7 +348,7 @@ df_uncert <- bind_rows(
     ~Substance.Group, ~Uncertainty, ~Lab,
     "Metals and metalloids", 0.20, "NILU",
     "Organo-metallic compounds", 0.30, "Eurofins",
-    "Pesticides", 0.30, "Eurofins",
+                         #"Pesticides", 0.30, "Eurofins",                       #ELU testing: utelater denne pga. dubletter i neste chunk
     "Others", 0.30, "Eurofins",    # also largely pesticides/herbicides
     "Biological effects: molecular/biochemical/cellular/assays", 0.40, "NIVA",
     "Biomarkers", 0.15, "NIVA",
@@ -374,6 +391,11 @@ dat_updated2 <- dat_all[uncert_group %in% c("NA", "=0"),] %>%
   mutate(METCU = "%")
 
 dat_updated <- bind_rows(dat_updated1, dat_updated2)
+
+#ELU testing start
+#filename_xl <- paste0("Data/test_dat_updated2_", selected_year, ".xlsx")
+#writexl::write_xlsx(dat_updated2, filename_xl)
+#ELU testing stop
 
 if (nrow(dat_updated) != nrow(dat_all)){
   stop("Number of rows increased - make sure Substance.Group and Lab are unique")
@@ -458,8 +480,7 @@ if (FALSE){
 ### a. R data file    
 ```{r}
 
-filename <- paste0("Data/105_data_with_uncertainty_", file_date, ".rds")
-
+filename <- paste0("Data/105_data_with_uncertainty_", file_date, ".rds")             #ELU: har ikke laget fil ennå
 saveRDS(dat_updated, filename)
 
 cat("Data on sample level, with uncertainty, saved as: \n")
