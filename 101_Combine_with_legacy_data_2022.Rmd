@@ -48,15 +48,15 @@ editor_options:
 ## 1. Load libraries and functions   
 ```{r, results='hide', message=FALSE, warning=FALSE}
 
-library(dplyr)       # mutate, group_by, summarize, case_when, etc....
-# library(purrr)
-library(tidyr)       # for pivot_wider() and pivot_longer()
-library(ggplot2)     # plotting
-library(lubridate)   # date/time functions (here, 'year()')
-library(readr)       # function read_csv() (improved version of read.csv)
-library(knitr)       # function 'kable()' (for printing tables)
+library(dplyr)
+library(purrr)
+library(tidyr)
+library(ggplot2)
+library(lubridate)
+library(readxl)
+library(readr)
 
-# Load selfmade functions
+# Load self-made functions
 source("002_Utility_functions.R")
 source("101_Combine_with_legacy_data_functions.R")
 
@@ -301,12 +301,15 @@ dat_new1$NAME[sel] <- "MCCP eksl. LOQ"
 ```
 
 
-### a9. Check SCCP and MCCP values  
+### a9. Change SCCP and MCCP values  
 
-- The data have not been corrected   
-    - Milkys2_pc script 802 just gets data from Nivabase  
-    - But Appendix 3 in that script shows that 'inkl' values are always numeric and therefore transferred to Nivabase    
-- This chunk just confirms that  
+- Have already added missing rows in Milkys2_pc script 802  
+- Change 'SCCP eksl. LOQ' by setting VALUE = 0 and FLAG = NA for data < LOQ  
+    - This is best for getting medians  
+- Add new parameter 'SCCP' which is just the same as the old 'SCCP eksl. LOQ' 
+    - I.e.: For less-than data, LOQ in VALUE column and FLAG1 = '<'    
+    - This is intended to be used for trends mainly  
+- Same for MCCP  
 
 ```{r}
 #
@@ -314,57 +317,70 @@ dat_new1$NAME[sel] <- "MCCP eksl. LOQ"
 #
 
 cat("SCCP: \n\n")
-fix_SCCP <- FALSE
 
 # Check
 
 #### ELU: forstår ikke denne sjekken...
-#### DHJ: Den sjekker om det er like mange SCCP eksl. LOQ som SCCP inkl. LOQ
 
-number_of_measurements <- dat_new1 %>%
+check <- dat_new1 %>%
   filter(NAME %in% c("SCCP eksl. LOQ", "SCCP inkl. LOQ"),
          STATION_CODE != "19N") %>% # View("SCCP")          # 19N doesn't have 'inkl LOQ'
   xtabs(~NAME + STATION_CODE, .)
-number_of_measurements       
+check                                                         #ELU
+#if (!identical(check[1,], check[2,])){                      #ELU
+# stop("Row 1 and row 2 should be identical!")             #ELU
+#}                                                 #ELU
 
-if (!identical(number_of_measurements[1,], number_of_measurements[2,])){                     
-  cat("\n")
-  warning("There are not equally many 'eksl. LOQ' and 'inkl. LOQ' values") 
-  cat("\n")
-  cat("See 2021 version of script for code for fixing\n")
-  fix_SCCP <- TRUE
-} else {
-  message("There are equally many 'eksl. LOQ' and 'inkl. LOQ' values") 
-}
+# Add rows with new parameter 'SCCP' 
+dat_to_add_SCCP <- dat_new1 %>% 
+  filter(NAME %in% "SCCP eksl. LOQ") 
+dat_to_add_SCCP$NAME <- "SCCP"
 
+if (sum(dat_new1$NAME %in% "SCCP") == 0)
+  dat_new1 <- bind_rows(dat_new1, dat_to_add_SCCP)
+cat(nrow(dat_to_add_SCCP), "rows added to the data, NAME = SCCP")
+
+# Change existing 'SCCP eksl. LOQ'  
+sel <- with(dat_new1, NAME %in% "SCCP eksl. LOQ" & FLAG1 %in% "<") 
+dat_new1$VALUE[sel] <- 0
+dat_new1$FLAG1[sel] <- as.character(NA)
+cat(sum(sel), "'SCCP eksl. LOQ' rows: VALUE changed to zero \n")
 
 #
 # MCCPs
 #
 
-cat("\n\n===========================================\n")
-cat("MCCP: \n\n")
-fix_MCCP <- FALSE
+cat("\n\n\nMCCP: \n\n")
 
-# Check 
+#
+# MCCPs
 
-number_of_measurements <- dat_new1 %>%
+# ELU: 
+
+check <- dat_new1 %>%
   filter(NAME %in% c("MCCP eksl. LOQ", "MCCP inkl. LOQ"),
-         STATION_CODE != "19N") %>% # View("MCCP")          # 19N doesn't have 'inkl LOQ'
+         STATION_CODE != "19N") %>%                         # 19N doesn't have 'inkl LOQ'
   xtabs(~NAME + STATION_CODE, .)
-number_of_measurements                                             #ELU
-
-if (!identical(number_of_measurements[1,], number_of_measurements[2,])){                     
-  cat("\n")
-  warning("There are not equally many 'eksl. LOQ' and 'inkl. LOQ' values") 
-  cat("\n")
-  cat("See 2021 version of script for code for fixing\n")
-  fix_MCCP <- TRUE
-} else {
-  message("There are equally many 'eksl. LOQ' and 'inkl. LOQ' values") 
-}
+check
+#if (!identical(check[1,], check[2,])){
+#  stop("Row 1 and row 2 should be identical!")
+#}
 
 
+# Add rows with new parameter 'MCCP' 
+dat_to_add_MCCP <- dat_new1 %>% 
+  filter(NAME %in% "MCCP eksl. LOQ") 
+dat_to_add_MCCP$NAME <- "MCCP"
+
+if (sum(dat_new1$NAME %in% "MCCP") == 0)
+  dat_new1 <- bind_rows(dat_new1, dat_to_add_MCCP)
+cat(nrow(dat_to_add_MCCP), "rows added to the data, NAME = MCCP")
+
+# Change existing 'MCCP eksl. LOQ'  
+sel <- with(dat_new1, NAME %in% "MCCP eksl. LOQ" & FLAG1 %in% "<") 
+dat_new1$VALUE[sel] <- 0
+dat_new1$FLAG1[sel] <- as.character(NA)
+cat(sum(sel), "'MCCP eksl. LOQ' rows: VALUE changed to zero \n")
 
 
 ```
@@ -520,10 +536,6 @@ df_MCCP %>%
 
 ```{r}
 
-if (FALSE){
-  
-  ### CHECK/FIX THIS LATER
-
 # data_legacy_back <- data_legacy
 # data_legacy <- data_legacy_back
 
@@ -587,9 +599,6 @@ nrow(data_legacy)
 data_legacy <- bind_rows(data_legacy, df_to_add_MCCP)
 nrow(data_legacy)
 
-}
-
-
 ```
 
 #### Fix art 2, as above  
@@ -612,10 +621,6 @@ nrow(data_legacy)
 - Same for MCCP  
 
 ```{r}
-
-# DROP THIS FOR NOW
-if (FALSE){
-
 #
 # SCCPs
 #
@@ -683,8 +688,6 @@ data_legacy$FLAG1[sel] <- as.character(NA)
 cat(sum(sel), "'MCCP eksl. LOQ' rows: VALUE changed to zero \n")
 
 
-}
-
 ```
 
 ### b3. Check legacy data for duplicates   
@@ -704,26 +707,6 @@ if (nrow(df_duplicates) > 0){
   cat("No duplicates found in the data. \n")
 }
   
-
-
-```
-### b4. Fix some parameter names   
-
-- Some PFAS (following the OECD list of PFAS abbreviations)   
-- Must also be updated in the lookup tables for units   
-    - 'Lookup table - preferred parameter units.csv'  
-
-```{r}
-
-data_legacy <- data_legacy %>%
-  mutate(
-    PARAM = case_when(
-      PARAM %in% "PFDODA" ~ "PFDoDA",
-      PARAM %in% "Perfluorpentansyre (PFPeA)" ~ "PFPA",
-      PARAM %in% "PFPeA" ~ "PFPA",
-      PARAM %in% "PFUdA" ~ "PFUnDA",
-      TRUE ~ PARAM)
-  )
 
 ```
 
@@ -769,7 +752,7 @@ dat_new2 <- dat_new2 %>%
       PARAM %in% "Kvikksølv" ~ "HG",
       PARAM %in% "Selen" ~ "SE",
       PARAM %in% "Pentaklorbenzen (QCB)" ~ "QCB",	
-      # the following names are not logical - but need  to be like this in order to be conistent with old data.
+      # the following names are not logical - but need to be like this in order to be conistent with old data.
       # Will be changed in 10.
       PARAM %in% "Dibutyltinn (DBT)" ~ "DBTIN",        
       PARAM %in% "Monobutyltinn (MBT)" ~ "MBTIN",
@@ -777,9 +760,6 @@ dat_new2 <- dat_new2 %>%
       PARAM %in% "1-OH-pyren" ~ "PYR1OH",
       PARAM %in% "1-OH-fenantren" ~ "PA1OH",
       PARAM %in% "3-OH-benzo[a]pyren" ~ "BAP3OH",
-      PARAM %in% "6:2 FTS" ~ "6:2 Fluortelomersulfonat (FTS, H4PFOS)",
-      PARAM %in% "PFHpS" ~ "Perfluorheptansulfonat (PFHpS)",
-      PARAM %in% "PFUdA" ~ "PFUnDA",
       grepl("oktametylsyklotetrasiloksan", PARAM) ~ "D4",
       grepl("dekametylsyklopentasiloksan", PARAM) ~ "D5",
       grepl("dodekametylsykloheksasiloksan", PARAM) ~ "D6",
@@ -1281,16 +1261,9 @@ if (FALSE){
 Note that this also deletes some 'index' variables and reshuffles data  
 ```{r}
 
-# Compute sum parameters (including LOQ values)
 for (i in seq_along(sum_parameters)){     # go through numbers 1 to 9
   # We add new rows every time we go through the loop
   dat_new5 <- add_sumparameter(i, sum_parameters, dat_new5)
-  }
-
-# Compute sum parameters excluding values below LOQ (without_loq = TRUE)  
-for (i in seq_along(sum_parameters)){     # go through numbers 1 to 9
-  # We add new rows every time we go through the loop
-  dat_new5 <- add_sumparameter(i, sum_parameters, dat_new5, without_loq = TRUE)
   }
 
 ```
@@ -1300,13 +1273,16 @@ for (i in seq_along(sum_parameters)){     # go through numbers 1 to 9
 ### Check 
 ```{r}
 
-# Count sum parameters - how many values have we got for each?  
+# Check all sum parameters - how many values have we got for each?  
 dat_new5 %>%
-  filter(PARAM %in% c(names(sum_parameters), 
-                      paste0(names(sum_parameters), "_exloq"))
-  ) %>%
-  count(PARAM) %>%
-  kable()
+  filter(PARAM %in% names(sum_parameters)) %>%
+  xtabs(~PARAM + is.na(VALUE), .)
+
+# Same, for ex. LOQ parameters  
+dat_new5 %>%
+  filter(PARAM %in% paste0(names(sum_parameters), "_exloq")) %>%
+  xtabs(~PARAM + is.na(VALUE), .)
+
 
 #
 # PLot one group parameter 
@@ -1334,14 +1310,6 @@ dat_new5 %>%
   facet_wrap(vars(STATION_CODE)) +
   theme(axis.text.x = element_text(angle = -45, hjust = 0))
   
-dat_new5 %>%
-  filter(TISSUE_NAME %in% tissue & BASIS %in% "W",
-         PARAM %in% c("BDE6S", "BDE6S_exloq")) %>%
-  # group_by(STATION_CODE) %>%
-  # mutate(Sample = as.numeric(factor(SAMPLE_NO2))) %>% # select(PARAM, STATION_CODE, SAMPLE_NO2, Sample)
-  ggplot(aes(STATION_CODE, VALUE, color = PARAM)) +
-  geom_jitter(width = 0.4)
-
 
 if (FALSE){
   
@@ -1630,23 +1598,6 @@ if (FALSE){
 }
 
 ```
-
-
-### Sum parameters without LOQ  
-
-```{r}
-
-# Same, for ex. LOQ parameters  
-data_updated %>%
-  filter(PARAM %in% paste0(names(sum_parameters), "_exloq")) %>%
-  xtabs(~PARAM + is.na(VALUE_WW), .)
-
-data_updated %>%
-  filter(PARAM %in% paste0(names(sum_parameters), "_exloq")) %>%
-  xtabs(~MYEAR + PARAM, .)
-
-```
-
 
 ## 10. Corrections  
 
@@ -2198,12 +2149,10 @@ if (sum(sel) > 0){
 # data_updated2_bk <- data_updated2
 # data_updated2 <- data_updated2_bk 
 
-# DROP THIS FOR NOW - leads to duplicates!  
-
-# for (i in seq_along(sum_parameters)){     # go through numbers 1 to 9
-#   # We add new rows every time we go through the loop
-#   data_updated2 <- add_sumparameter_exloq(i, sum_parameters, data_updated2)
-# }
+for (i in seq_along(sum_parameters)){     # go through numbers 1 to 9
+  # We add new rows every time we go through the loop
+  data_updated2 <- add_sumparameter_exloq(i, sum_parameters, data_updated2)
+}
 
 ```
 
