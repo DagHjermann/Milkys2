@@ -66,7 +66,7 @@ if (sum(sel) > 0){
   warning("Not found:", 
       unique(dat_all$PARAM[sel]) %>% paste(collapse = "; "), "\n")
 } else {
-  cat("All parameters (PARAM) found in file for parameter (substance) groups \n")
+  cat("All parameters (PARAM) found in file for parameter (substancroups \n")
 }
 
 n1 <- nrow(dat_all)
@@ -267,7 +267,7 @@ dat_all <- dat_all %>%
 ```{r}
 
 # Uncertainty data  
-fn <- "Input_data/Uncertainty/2021-2022_MILKYS_QAdata_Eurofins.xlsx"
+fn <- "Input_data/Uncertainty/til2021-data/2021-2022_MILKYS_QAdata_Eurofins.xlsx"
 # excel_sheets(fn)
 df_uncert_eurofins1 <- read_excel(fn, sheet = "Uncertainty by group")
 
@@ -293,7 +293,7 @@ df_uncert_eurofins <- df_uncert_eurofins2 %>%
 ```{r}
 
 # Uncertainty data  
-fn <- "Input_data/Uncertainty/NILU_2021.xlsx"
+fn <- "Input_data/Uncertainty/til2021-data/NILU_2021.xlsx"
 # excel_sheets(fn)
 df_uncert_nilu <- read_excel(fn, sheet = "Uncertainty by group") %>%
   select(Substance.Group, Uncertainty) %>%
