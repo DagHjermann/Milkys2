@@ -50,8 +50,8 @@ help(package = "dbplyr")
 
 measurement_year <- 2023
 
-# Set to TRUE if you 
-download_and_save <- FALSE
+# Set to TRUE if you want to download the data (ca. 6 minutes)
+download_and_save <- TRUE
 
 ```
 
@@ -190,8 +190,8 @@ dat_2 <- dat_1 %>%
     NAME, VALUE, FLAG1, UNIT, 
     # extra time info
     # DATE_CAUGHT, YEAR, MONTH,
-    # extra sample info
-    LABWARE_TEXT_ID, REMARK_sample, 
+    # extra sample info (note: LABWARE_TEXT_ID not included as there can be two or more TEXT_ID for a single sample)
+    REMARK_sample, 
     # extra chemical methiod info
     LABORATORY, METHOD_REF, DETECTION_LIMIT, UNCERTAINTY, QUANTIFICATION_LIMIT, 
     # IDs
@@ -203,26 +203,46 @@ dat_2 <- dat_1 %>%
 
 ### Download  
 
-* Download takes 3-4 minutes  
+* Download takes ca. 6 minutes  
 
 ```{r}
 
-dat_last_year_1 <- dat_2 %>%
-  filter(MYEAR == measurement_year) 
-
-dat_last_year_pooled <- dat_1 %>%
-  filter(MYEAR == measurement_year) %>%
-  count(SAMPLE_ID, name = "Pooled_n") 
-
 if (download_and_save){
   
-  dat_last_year <- dat_last_year_1 %>%
-    left_join(dat_last_year_pooled, by = "SAMPLE_ID") %>%
+  t0 <- now()
+  
+  dat_last_year_1 <- dat_2 %>%
+    filter(MYEAR == measurement_year) %>%
     collect()
+  
+  dat_last_year_pooled <- dat_1 %>%
+    filter(MYEAR == measurement_year) %>%
+    distinct(STATION_CODE, MYEAR, TISSUE_NAME, SAMPLE_ID, SPECIMEN_ID, SPECIMEN_NO, LABWARE_TEXT_ID) %>%
+    collect() %>%
+    arrange(STATION_CODE, MYEAR, TISSUE_NAME, SAMPLE_ID, SPECIMEN_NO, LABWARE_TEXT_ID) %>%
+    group_by(STATION_CODE, MYEAR, TISSUE_NAME, SAMPLE_ID) %>%
+    summarise(
+      Pooled_n = n(),
+      LABWARE_TEXT_ID = stringr::str_flatten(unique(LABWARE_TEXT_ID), collapse = ", "),
+      SPECIMEN_ID = stringr::str_flatten(unique(SPECIMEN_ID), collapse = ", "),
+      SPECIMEN_NO = stringr::str_flatten(unique(SPECIMEN_NO), collapse = ", "),
+      .groups = "drop"
+    ) 
+  
+  # how long time took the download?  
+  t1 <- now()
+  cat("Time used for download:  "); print(t1-t0)
+  
+  dat_last_year <- dat_last_year_1 %>%
+    left_join(
+      dat_last_year_pooled %>% select(SAMPLE_ID, Pooled_n, LABWARE_TEXT_ID, SPECIMEN_ID, SPECIMEN_NO), 
+      by = "SAMPLE_ID")
+  
+  # make timestamp to use in file name (NOTE: UTC = Greenwich mean time used, not local time)
   now <- lubridate::now()
   timestring <- paste0(substr(now, 1, 10), "_", substr(now, 12, 13), "h", substr(now, 15, 16), "m")  
   
-  message(nrow(dat_last_year), "rows of data downloaded")
+  message(nrow(dat_last_year), " rows of data downloaded")
   
 } else {
   
@@ -244,7 +264,7 @@ if (download_and_save){
   saveRDS(dat_last_year, paste0("Input_data/", fn_rds))
   readr::write_csv(dat_last_year, paste0("Input_data/", fn_csv))
   
-  message("Data saved as", sQuote(fn_csv), "(and corresponding .rds file)")
+  message("Data saved to 'Input_data' as ", sQuote(fn_csv), " (and as a corresponding .rds file)")
   
 } else {
   
