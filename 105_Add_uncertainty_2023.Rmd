@@ -1,7 +1,7 @@
 ---
 title: "105_Add_uncertainty"
 author: "DHJ"
-date: '2022-09-07'
+date: '2023-07-03'
 output: html_document
 ---
 
@@ -10,7 +10,7 @@ For now, we assume that uncertainty is the same for all years (sounds worse than
 ## 0. Settings  
 ```{r}
 
-selected_year <- 2022
+selected_year <- 2023
 
 ```
 
@@ -101,22 +101,40 @@ cat("'Substance.Group' added to data\n")
 
 ```
 ### c. Fix PFDcA and PFUdA in cod liver    
-- Set values under 0.5 to "< 0.5"  
-- selected_year only
+
+- Set values under 0.5 to "< 0.5" (need to uncomment code)   
+- 2023: NO values under LOQ for ANY PFAS parameter!  
+
 ```{r}
 
 sel <- with(dat_all, 
             LATIN_NAME == "Gadus morhua" & PARAM == "PFDcA" & MYEAR == selected_year & VALUE_WW < 0.5)
 sum(sel)
-table(addNA(dat_all$FLAG1[sel]))  
+dat_all[sel, ] %>% 
+  mutate(Existing_value = paste(ifelse(is.na(FLAG1), "=", "<"), VALUE_WW)) %>%
+  count(PARAM, MYEAR, Existing_value)
 
-sel2 <- with(dat_all, is.na(FLAG1))
-sum(sel & sel2)
+if (FALSE) {
+  
+  # All PFAS
+  # NO values under LOQ for ANY parameter
+  
+  sel2 <- with(dat_all, 
+               LATIN_NAME == "Gadus morhua" & grepl("^PF", PARAM) & MYEAR == c(2022, selected_year) & VALUE_WW < 0.5)
+  # xtabs(~PARAM + is.na(FLAG1), dat_all[sel2,] )
+  
+  dat_all[sel2, ] %>%
+    group_by(PARAM, MYEAR) %>%
+    summarize(
+      Percent_over_LOQ = 100*mean(is.na(FLAG1)),
+      Min_value_over_LOQ = min(VALUE_WW[is.na(FLAG1)], na.rm = TRUE)
+    ) %>%
+    tidyr::pivot_wider(names_from = MYEAR, values_from = c(Percent_over_LOQ, Min_value_over_LOQ))
+  
+}
 
-sel3 <- sel & sel2
-dat_all[sel3,]
 
-# We let this one be
+# Uncomment to change values to "< 0.5":
 # message("Change ", sum(sel), " PFDcA records")
 # dat_all$VALUE_WW[sel] <- 0.5 
 # dat_all$FLAG1[sel] <- "<" 
@@ -177,7 +195,8 @@ dat_all %>%
 
 
 ```
-### Check 2020-2021 data  (1)                       ELU: legger til 2022
+
+### Check 2020-2023 data  (1)                       ELU: legger til 2022
 ```{r}
 
 df1 <- dat_all %>%
@@ -194,20 +213,25 @@ df2021 <- df1 %>%
   filter(MYEAR == 2021 & LATIN_NAME %in% c("Gadus morhua", "Mytilus edulis"))
 df2022 <- df1 %>%                                                                          #ELU: legger til 2022
   filter(MYEAR == 2022 & LATIN_NAME %in% c("Gadus morhua", "Mytilus edulis"))   
+df2023 <- df1 %>%                                                                          #DHJ: legger til 2023
+  filter(MYEAR == 2023 & LATIN_NAME %in% c("Gadus morhua", "Mytilus edulis"))   
 
 
 df2020 %>%
   count(Substance.Group, Uncert_group) %>%
-  tidyr::pivot_wider(c(Substance.Group), values_from = n, names_from = Uncert_group)
+  tidyr::pivot_wider(id_cols = c(Substance.Group), values_from = n, names_from = Uncert_group)
 
 df2021 %>%
   count(Substance.Group, Uncert_group) %>%
-  tidyr::pivot_wider(c(Substance.Group), values_from = n, names_from = Uncert_group)
+  tidyr::pivot_wider(id_cols = c(Substance.Group), values_from = n, names_from = Uncert_group)
 
 df2022 %>%                                                                                #ELU: legger til 2022
   count(Substance.Group, Uncert_group) %>%
-  tidyr::pivot_wider(c(Substance.Group), values_from = n, names_from = Uncert_group)
+  tidyr::pivot_wider(id_cols = c(Substance.Group), values_from = n, names_from = Uncert_group)
 
+df2023 %>%                                                                                #DHJ: legger til 2023
+  count(Substance.Group, Uncert_group) %>%
+  tidyr::pivot_wider(id_cols = c(Substance.Group), values_from = n, names_from = Uncert_group)
 
 ```
 
@@ -277,27 +301,28 @@ dat_all <- dat_all %>%
 ```{r}
 
 # Sjekk hvordadn dette så ut i 2021:
-fn_2021 <- "Input_data/Uncertainty/til2021-data/2021-2022_MILKYS_QAdata_Eurofins.xlsx"
-df_uncert_eurofins_2021 <- read_excel(fn_2021, sheet = "Uncertainty by group")
-colnames(df_uncert_eurofins_2021)
+# fn_2021 <- "Input_data/Uncertainty/til2021-data/2021-2022_MILKYS_QAdata_Eurofins.xlsx"
+# df_uncert_eurofins_2021 <- read_excel(fn_2021, sheet = "Uncertainty by group")
+# colnames(df_uncert_eurofins_2021)
 
 # Uncertainty data  
 fn <- "Input_data/Uncertainty/2022-2023_MILKYS_QAdata_Eurofins.xlsx"
 # excel_sheets(fn)
-excel_sheets(fn)
+# excel_sheets(fn)
 df_uncert_eurofins1 <- read_excel(fn, sheet = "Uncertainty by group")   #ELU:fikk feil, manglet sheet. tester nå med ny sheet 
-colnames(df_uncert_eurofins1)                              #DHJ: må sjekke og fikse excelark (skal ha samme for) 
+# colnames(df_uncert_eurofins1)                                         #DHJ: må sjekke og fikse excelark (skal ha samme for) 
 
-table(df_uncert_eurofins1$Uncertainty)
-
-xtabs(~Substance.Group + addNA(Uncertainty), df_uncert_eurofins1)
+# table(df_uncert_eurofins1$Uncertainty)
+# xtabs(~Substance.Group + addNA(Uncertainty), df_uncert_eurofins1)
 
 df_uncert_eurofins2 <- df_uncert_eurofins1 %>%
   filter(!is.na(Uncertainty)) %>%
   filter(!Uncertainty %in% "-")
 
+cat("Number of substances by Uncertainty and substance group:\n")
 xtabs(~Substance.Group + addNA(Uncertainty), df_uncert_eurofins2)
 
+# Since uncertainty doesn't vary within substance group, we can summarise bu substance group  
 df_uncert_eurofins <- df_uncert_eurofins2 %>%
   distinct(Substance.Group, Uncertainty) %>%
   mutate(Uncertainty = as.numeric(Uncertainty))
