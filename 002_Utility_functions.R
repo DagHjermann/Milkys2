@@ -380,7 +380,59 @@ update_part <- function(df_in, df_out, var_list, func, add = TRUE){
   # NOT WRITTEN YET
 }
 
+# Returns string with "unoccupied" filen name for backup. See examples below
+get_backup_filename <- function(folder, filename_without_extension, extension = "xlsx", backup_prefix = "_OLD"){
+  string_for_pattern <- paste0(filename_without_extension, backup_prefix, ".*.", extension)
+  fns <- dir(folder, pattern = string_for_pattern) 
+  if (length(fns) == 0){
+    fn_back <- paste0(folder, "/", filename_without_extension, backup_prefix, "1.", extension)
+  } else {
+    string_for_extract <- paste0("(?<=", backup_prefix, ")[^", backup_prefix, "]+(?=\\.)")
+    version_no <- as.integer(stringr::str_extract(fns, "(?<=_OLD)[^_OLD]+(?=\\.)"))
+    version_no_new <- max(version_no, na.rm = TRUE) + 1
+    fn_back <- paste0("Lookup table - preferred parameter units_OLD", version_no_new, ".xlsx")
+    fn_back <- paste0(folder, "/", filename_without_extension, backup_prefix, version_no_new, ".", extension)
+  }
+  fn_back
+}
+# Examples:
+# get_backup_filename("Input_data", "Lookup table - preferred parameter units")
+# - if 'Lookup table - preferred parameter units_OLD6.xlsx' exists, this should return 
+#   'Lookup table - preferred parameter units_OLD7.xlsx'
+# - if no files marked 'OLD' exists, this should return 
+#   'Lookup table - preferred parameter units_OLD1.xlsx'
+# get_backup_filename("Input_data", "Lookup table - preferred parameter units", extension = "csv")
 
+write_csv_with_backup <- function(data, folder, filename_without_extension, extension = "csv", backup_prefix = "_OLD"){
+  fn <- paste0(folder, "/", filename_without_extension, ".csv")
+  fn_back <- get_backup_filename(
+    folder = folder, 
+    filename_without_extension = filename_without_extension,
+    extension = extension,
+    backup_prefix = backup_prefix)
+  if (!file.exists(fn_back)){
+    file.copy(fn, fn_back)
+    write_csv(data, fn)
+  } else {
+    stop(fn_back, " exists!")  # this shouldn't theoretically happen
+  }
+}
+# Example:
+#   write_csv_with_backup(data, "Input_data", "Lookup table - preferred parameter units", extension = "csv")
+# Takes a backup of "Lookup table - preferred parameter units.csv" with an unocccupied (numbered) backup name,
+#   e.g. "Lookup table - preferred parameter units_OLD4.csv"
+# Then overwrites "Lookup table - preferred parameter units.csv" with the data 
+  
+fns <- dir(folder, pattern = "Lookup table - preferred parameter units_OLD.*xlsx") 
+if (length(fns) == 0){
+    fn_back <- "Lookup table - preferred parameter units_OLD1.xlsx"
+  } else {
+    version_no <- as.integer(stringr::str_extract(fns, "(?<=_OLD)[^_OLD]+(?=\\.)"))
+    version_no_new <- max(version_no, na.rm = TRUE) + 1
+    fn_back <- paste0("Lookup table - preferred parameter units_OLD", version_no_new, ".xlsx")
+    fn_back
+    
+}
 
 #o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
 #
