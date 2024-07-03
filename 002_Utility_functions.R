@@ -423,16 +423,6 @@ write_csv_with_backup <- function(data, folder, filename_without_extension, exte
 #   e.g. "Lookup table - preferred parameter units_OLD4.csv"
 # Then overwrites "Lookup table - preferred parameter units.csv" with the data 
   
-fns <- dir(folder, pattern = "Lookup table - preferred parameter units_OLD.*xlsx") 
-if (length(fns) == 0){
-    fn_back <- "Lookup table - preferred parameter units_OLD1.xlsx"
-  } else {
-    version_no <- as.integer(stringr::str_extract(fns, "(?<=_OLD)[^_OLD]+(?=\\.)"))
-    version_no_new <- max(version_no, na.rm = TRUE) + 1
-    fn_back <- paste0("Lookup table - preferred parameter units_OLD", version_no_new, ".xlsx")
-    fn_back
-    
-}
 
 #o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
 #
