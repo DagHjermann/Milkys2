@@ -597,3 +597,221 @@ xml_to_dataframe <- function(url){
 }
 
 
+#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
+#
+# Functions for creating SQL code ----
+#
+#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
+
+
+make_sql_single_specimen <- function(i, data){
+  
+  df <- as.data.frame(data)
+  
+  original_options <- options(useFancyQuotes = FALSE)
+  txt <- paste0("insert into NIVADATABASE.BIOTA_SINGLE_SPECIMENS ",
+                "(DATE_CAUGHT, STATION_ID, TAXONOMY_CODE_ID, SPECIMEN_NO)\n",  # \n for line shift
+                "values (",
+                "TO_DATE(", sQuote(df[i, 'DATE_CAUGHT']), ", 'YYYY-MM-DD'), ",
+                df[i, 'STATION_ID'], ", ",
+                df[i, 'TAXONOMY_CODE_ID'], ", ",
+                df[i, 'SPECIMEN_NO'],
+                ")"
+  )
+  options(original_options)
+  txt
+}
+
+# make_sql_single_specimen(1, biota_single_specimens_eider)
+# make_sql_single_specimen(2, biota_single_specimens_eider)
+
+
+
+make_sql_sample <- function(i, data){
+  
+  df <- as.data.frame(data)
+  
+  original_options <- options(useFancyQuotes = FALSE)
+  txt <- paste0("insert into NIVADATABASE.BIOTA_SAMPLES ",
+                "(STATION_ID, TISSUE_ID, REPNO, TAXONOMY_CODE_ID, SAMPLE_DATE, SAMPLE_NO)\n",  # \n for line shift
+                "values (",
+                df[i, 'STATION_ID'], ", ",
+                df[i, 'TISSUE_ID'], ", ",
+                df[i, 'REPNO'], ", ",
+                df[i, 'TAXONOMY_CODE_ID'], ", ",
+                "TO_DATE(", sQuote(df[i, 'SAMPLE_DATE']), ", 'YYYY-MM-DD'), ",
+                df[i, 'SAMPLE_NO'],
+                ")"
+  )
+  options(original_options)
+  txt
+}
+
+
+make_sql_samples_specimens <- function(i, data){
+  
+  df <- as.data.frame(data)
+  
+  original_options <- options(useFancyQuotes = FALSE)
+  txt <- paste0("insert into NIVADATABASE.BIOTA_SAMPLES_SPECIMENS ",
+                "(SAMPLE_ID, SPECIMEN_ID)\n",  # \n for line shift
+                "values (",
+                df[i, 'SAMPLE_ID'], ", ",
+                df[i, 'SPECIMEN_ID'],
+                ")"
+  )
+  options(original_options)
+  txt
+}
+
+# Test
+# make_sql_samples_specimens(1, biota_sample_specimens_eider)
+
+
+#
+# BIOTA_CHEMISTRY_VALUES
+#
+
+# "VALUE_ID"              - Let the database decide
+# "SAMPLE_ID"             - From the database, after BIOTA_SAMPLES have been inserted
+# "METHOD_ID"             - Lookup based on NAME and UNIT
+# "VALUE"                 - From data
+# "FLAG1"                 - From data
+# "FLAG2"                 - NA
+# "ENTERED_BY"            - DHJ
+# "ENTERED_DATE"          - date, see above
+# "REMARK"                - NA
+# "DETECTION_LIMIT"       - NA
+# "UNCERTAINTY"           - NA
+# "QUANTIFICATION_LIMIT"  - NA
+# "APPROVED"              - NA?
+
+
+make_sql_chemistry_values <- function(i, data){
+  
+  df <- as.data.frame(data)
+  
+  original_options <- options(useFancyQuotes = FALSE)
+  
+  flag <- df[i, 'FLAG1']
+  txt <- paste0("insert into NIVADATABASE.BIOTA_CHEMISTRY_VALUES ",
+                "(SAMPLE_ID, METHOD_ID, VALUE, FLAG1, APPROVED)\n",  # \n for line shift
+                "values (",
+                df[i, 'SAMPLE_ID'], ", ",
+                df[i, 'METHOD_ID'], ", ",
+                round(df[i, 'VALUE'], 6), ", ",
+                ifelse(is.na(flag), "NULL", sQuote(flag)), ", ",
+                1,
+                ")"
+  )
+  options(original_options)
+  txt
+}
+# Test
+# make_sql_chemistry_values(1, biota_chemistry_values_eider)
+
+#
+# For "select all" - NOT FINISHED!
+#
+# make_sql_chemistry_values_intoall <- function(lines, data){
+#   
+#   df <- as.data.frame(data)
+#   data_section <- make_sql_chemistry_values_single <- function( data)
+#   
+#   original_options <- options(useFancyQuotes = FALSE)
+#   txt <- paste0("insert all\n",
+#                 data_section,
+#                 "select 1 from dual"
+#   )
+#   options(original_options)
+#   txt
+# }
+
+#
+# For "select all" - NOT FINISHED!
+#
+
+# make_sql_chemistry_values_single <- function(i, data){
+#   
+#   df <- as.data.frame(data)
+#   
+#   original_options <- options(useFancyQuotes = FALSE)
+#   
+#   flag <- round(df[i, 'FLAG1'], 6)
+#   txt <- paste0("    into NIVADATABASE.BIOTA_CHEMISTRY_VALUES ",
+#                 "    (SAMPLE_ID, METHOD_ID, VALUE, FLAG1,APPROVED)\n",  # \n for line shift
+#                 "    values (",
+#                 df[i, 'SAMPLE_ID'], ", ",
+#                 df[i, 'METHOD_ID'], ", ",
+#                 round(df[i, 'VALUE'], 6), ", ",
+#                 ifelse(is.na(flag), "NULL", sQuote(flag)),
+#                 1,
+#                 ")"
+#   )
+#   options(original_options)
+#   txt
+# }
+
+
+
+make_sql_methods <- function(i, data){
+  
+  df <- as.data.frame(data)
+  
+  original_options <- options(useFancyQuotes = FALSE)
+  
+  name <- df[i, 'NAME']
+  unit <- df[i, 'UNIT']
+  lab <- df[i, 'LABORATORY']
+  method_ref <- df[i, 'METHOD_REF']
+  matrix <- df[i, 'MATRIX']
+  cas <- df[i, 'CAS']
+  txt <- paste0(
+    "insert into NIVADATABASE.METHOD_DEFINITIONS ",
+    "(NAME, UNIT, LABORATORY, METHOD_REF, MATRIX, CAS, MATRIX_ID)\n",  # \n for line shift
+    "values (",
+    ifelse(is.na(name), "NULL", sQuote(name)), ", ",
+    ifelse(is.na(unit), "NULL", sQuote(unit)), ", ",
+    ifelse(is.na(lab), "NULL", sQuote(lab)), ", ",
+    ifelse(is.na(method_ref), "NULL", sQuote(method_ref)), ", ",
+    ifelse(is.na(matrix), "NULL", sQuote(matrix)), ", ",
+    ifelse(is.na(cas), "NULL", sQuote(cas)), ", ",
+    df[i, 'MATRIX_ID'],
+    ")"
+  )
+  options(original_options)
+  txt
+}
+
+# See script 75:
+# make_sql_methods(1, new_methods)
+
+
+#
+# Helper functions for making SQL parts
+#
+# Takes the unique values of a variable and puts them in a bracket (sql style)
+# 
+#
+
+make_sql_ids <- function(data, variable){
+  values <- data[[variable]] %>% unique()
+  if (class(data[[variable]]) == "character"){
+    original_options <- options(useFancyQuotes = FALSE)
+    values <- sQuote(values)
+    options(original_options)
+  }
+  paste0("(",
+         values %>% paste(collapse = ","),
+         ")")
+}
+
+# make_sql_ids(biota_samples, "STATION_ID")      
+# "(46980,47221,50478,67807,69711)"
+#
+# make_sql_ids(biota_chemistry_values, "FLAG1")
+# "('<','NA')"
+
+
+
+
