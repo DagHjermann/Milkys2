@@ -1,0 +1,326 @@
+---
+title: "50_Add_cod_biol_effects"
+author: "DHJ"
+date: "2024-09-01"
+output: 
+  html_document:
+    keep_md: true
+    toc: true  
+    toc_float: true
+params:
+  oracleuser: 
+    label: "NIVA initials (3 capital letters)"
+    value: "DHJ"
+    input: text
+  oraclepass: 
+    label: "Oracle password"
+    value: ""
+    input: password
+---
+
+
+*NOTE: To be able to do this, you need write access to Nivabasen and SQL Developer (or something similar).*
+The way this script works, is that it is used to create SQL for inserting rows into Nivabasen, 
+which then are copy-pasted into SQL Developer.  
+
+## 1. Libraries and functions
+```{r}
+#| results: false
+#| warnings: false        
+#|
+
+# For loading libraries without startup messages
+library2 <- function(...) suppressPackageStartupMessages(library(...))
+
+library2(dplyr)
+library2(dbplyr)
+library2(purrr)
+library2(lubridate)
+library2(stringr)
+library2(tidyr)
+library2(ggplot2)
+# library(safejoin)   # https://github.com/moodymudskipper/safejoin
+library2(readxl)
+
+source("002_Utility_functions.R")
+
+```
+
+
+## 2. Settings  
+```{r}
+
+measurement_year <- 2023
+
+```
+
+
+## 3. Set up Oracle connection   
+
+- This part of the script will ask you about your user name and password to Nivabasen  
+
+```{r}
+
+# if the script is run interactively
+if (interactive()){
+  
+  con <- DBI::dbConnect(odbc::odbc(),
+                      Driver = "/opt/conda/orahome/libsqora.so.12.1",
+                      DBQ = "dbora-niva-prod01.niva.corp:1555/NIVABPRD",
+                      UID = rstudioapi::askForPassword("Database username (NIVA initials, 3 capital letters)"),
+                      PWD = rstudioapi::askForPassword("Nivabasen password")
+  )
+  
+} else {
+# if the script is knitted
+  
+  # If params$oraclepass is just an empty string, you have probably just clicked the Knit button  
+  if (params$oraclepass == ""){
+    stop("Password = ''. You must use 'Knit with Parameters...' from the menu (pull-down menu from the Knit button), and enter you password in the dialog")
+  }
+  
+  con <- DBI::dbConnect(odbc::odbc(),
+                        Driver = "/opt/conda/orahome/libsqora.so.12.1",
+                        DBQ = "dbora-niva-prod01.niva.corp:1555/NIVABPRD",
+                        UID = params$oracleuser,
+                        PWD = params$oraclepass
+  )
+  
+}
+
+test_connection <- DBI::dbGetQuery(con, "select * from NIVADATABASE.PROJECTS where rownum < 4")
+if ("test_connection" %in% ls()){
+  if (nrow(test_connection) == 3)
+    cat("Connection to Nivadatabase set up and tested")
+}
+
+rm(test_connection)
+
+```
+
+### Get pointers to Nivabase tables  
+
+* Note that when dbplyr joins tables, it will try to join using all fields (columns) that have the same name in the two tables  
+    - therefore, fields with the same column names but that cannot be used for joining (such as ENTERED_BY, ENTERED_DATE) must either be removed or renamed   
+    - if not, no rows will be joined (probably)  
+* Columns that are actually used for joins should of couse not be removed (e.g., STATION_ID, SAMPLE_ID)   
+
+```{r}
+
+# Remove ENTERED_BY and ENTERED_DATE from all tables because they mess up the joins
+
+methods <- tbl(con, in_schema("NIVADATABASE", "METHOD_DEFINITIONS")) %>%
+  select(METHOD_ID, NAME, UNIT, LABORATORY, METHOD_REF, MATRIX_ID)
+measurements <- tbl(con, in_schema("NIVADATABASE", "BIOTA_CHEMISTRY_VALUES")) %>%
+  select(SAMPLE_ID, METHOD_ID, VALUE_ID, VALUE, FLAG1, 
+         DETECTION_LIMIT, UNCERTAINTY, QUANTIFICATION_LIMIT)
+# drop STATION_ID, TAXONOMY_CODE_ID from samples
+samples <- tbl(con, in_schema("NIVADATABASE", "BIOTA_SAMPLES")) %>%
+  select(SAMPLE_ID, TISSUE_ID, SAMPLE_NO, REPNO, REMARK) %>%
+  rename(REMARK_sample = REMARK)
+samples_specimens <- tbl(con, in_schema("NIVADATABASE", "BIOTA_SAMPLES_SPECIMENS")) %>%
+  select(SPECIMEN_ID, SAMPLE_ID)
+specimens <- tbl(con, in_schema("NIVADATABASE", "BIOTA_SINGLE_SPECIMENS")) %>%
+  select(STATION_ID, SPECIMEN_ID, SPECIMEN_NO, DATE_CAUGHT, TAXONOMY_CODE_ID, REMARK) %>%
+  rename(REMARK_specimen = REMARK)
+project_stations <- tbl(con, in_schema("NIVADATABASE", "PROJECTS_STATIONS")) %>%
+  select(STATION_ID, STATION_CODE, STATION_NAME, PROJECT_ID )
+projects <- tbl(con, in_schema("NIVADATABASE", "PROJECTS")) %>%
+  select(PROJECT_ID, PROJECT_NAME, PROJECT_DESCRIPTION)
+
+# Labware sample table  
+labware_checksample <- tbl(con, in_schema("NIVADATABASE", "LABWARE_CHECK_SAMPLE")) %>%
+  select(PROSJEKT, SAMPLED_DATE, DESCRIPTION, AQUAMONITOR_CODE, TISSUE, X_BULK_BIO)
+
+# Lookup tables  
+taxonomy_codes <- tbl(con, in_schema("NIVADATABASE", "TAXONOMY_CODES")) %>%
+  select(TAXONOMY_CODE_ID, CODE, NIVA_TAXON_ID)
+taxonomy <- tbl(con, in_schema("NIVADATABASE", "TAXONOMY")) %>%
+  select(NIVA_TAXON_ID, LATIN_NAME)
+tissue <- tbl(con, in_schema("NIVADATABASE", "BIOTA_TISSUE_TYPES")) %>%
+  select(TISSUE_ID, TISSUE_NAME)
+lims_id <- tbl(con, in_schema("NIVADATABASE", "LABWARE_BSID")) %>%
+  select(BIOTA_SAMPLE_ID, LABWARE_TEXT_ID)
+
+# Not really necessary here:
+# matrix <- tbl(con, in_schema("NIVADATABASE", "MATRIX_DEFINITIONS")) %>%
+#   select(MATRIX_ID, MATRIX_NAME)
+# collect(matrix)
+
+```
+
+## 4. Read data 
+
+### Excel data that shall be imported to Nivadatabase    
+
+```{r}
+
+df_raw <- read_excel("Input_data/Biological_effects_cod/BEM-JAMP_2023_ARU.xls", sheet = 1)
+
+dat_alad_erod <- df_raw %>%
+  filter(!(is.na(ALAD) & is.na(EROD))) %>%
+  mutate(
+    STATION_CODE = paste0(stasjon, Fisk),
+    SPECIMEN_NO = nummer
+  ) %>%
+  select(
+    STATION_CODE, SPECIMEN_NO, ALAD, EROD 
+  ) %>%
+  pivot_longer(
+    cols = c(ALAD, EROD), names_to = "NAME", values_to = "VALUE" 
+  )
+
+xtabs(~SPECIMEN_NO + STATION_CODE, dat_alad_erod)
+
+```
+
+
+### Nivabasen data 
+
+Most recent data
+
+```{r}
+
+# Get available files, sorted from newest to oldest
+# filenumber <- 1                                 # filenumber = 1 means "read the newest file"
+# filepattern <- paste0("80_df_", lastyear, "_notstandard_")    # file name except date and extension
+# filepattern_with_extension <- paste0(filepattern, ".+.rds")
+# files <- dir("Input_data", pattern = filepattern_with_extension) %>% rev()
+# filename <- files[filenumber]
+
+filename <- '80_df_2023_notstandard_2024-08-31_07h42m.rds'
+
+# Read data
+message("Reading file ",  filename)
+dat_new1 <- readRDS(paste0("Input_data/", filename))
+message(nrow(dat_new1), " rows of data read from file")
+
+
+```
+
+## 5. Add ALAD and EROD (1) 
+
+### Do all specimens exist in Nivabasen?  
+```{r}
+
+stations <- unique(dat_alad_erod$STATION_CODE)
+# stations
+
+df_specimens_excel <- dat_alad_erod %>%
+  distinct(STATION_CODE, SPECIMEN_NO)
+
+df_specimens_nivabasen <- dat_new1 %>%
+  filter(STATION_CODE %in% stations) %>%
+  distinct(STATION_CODE, STATION_ID, SPECIMEN_NO, SPECIMEN_ID) %>%
+  rename(SPECIMEN_NO_text = SPECIMEN_NO) %>%
+  mutate(SPECIMEN_NO = as.numeric(SPECIMEN_NO_text))
+
+
+for (station in stations){
+  message("Station ", station)
+  cat("Specimen numbers in excel data:\n")
+  specimens1 <- df_specimens_excel %>%
+    filter(STATION_CODE %in% station) %>%
+    pull(SPECIMEN_NO)
+  print(specimens1)
+  cat("Specimen numbers in Nivabasen data:\n")
+  specimens2_char <- df_specimens_nivabasen %>%
+    filter(STATION_CODE %in% station) %>%
+    pull(SPECIMEN_NO)
+  sel <- !grepl(",", specimens2_char)
+  specimens2 <- as.numeric(specimens2_char[sel])
+  print(sort(specimens2))
+  cat("Specimens lacking in Nivabasen data:\n")
+  lacking <- setdiff(specimens1, specimens2)
+  if (length(lacking) > 0){
+    print(lacking)
+    warning("These specimens must be added to Nivabasen\n")
+  } else {
+    cat("None lacking\n")
+  }
+  cat("\n")
+}
+
+
+```
+
+## 6. Add specimens to Nivabasen  
+
+**Note: run (6) only if specimens must be added to Nivabasen!**  
+Otherwise skip to 7  
+
+### Find out which specimens to add   
+```{r}
+
+df_stationid <- df_specimens_nivabasen %>%
+  distinct(STATION_CODE, STATION_ID)
+
+biota_specimens_to_add <- df_specimens_excel %>%
+  anti_join(df_specimens_nivabasen, by = join_by(STATION_CODE, SPECIMEN_NO)) %>%  # keep only 'excle' rows not in nivabase
+  left_join(df_stationid, by = join_by(STATION_CODE))                             # add STATION_ID
+
+nrow(biota_specimens_to_add) %>% cat(); 
+cat(" specimen records must be added to BIOTA_SINGLE_SPECIMENS using SQL")
+
+```
+
+### Add date and species code   
+to `existing_singlespec_date` 
+- NOT NEEDED zero specimen records will be added!    
+```{r}
+
+specimen_ids <- df_specimens_nivabasen %>%
+  filter(!grepl(",", SPECIMEN_ID)) %>%
+  pull(SPECIMEN_ID) %>%
+  as.numeric()
+
+station_ids <- unique(biota_specimens_to_add$STATION_ID)
+
+df2_specimen_metadata <- specimens %>% 
+  filter(SPECIMEN_ID %in% specimen_ids) %>% 
+  distinct(STATION_ID, DATE_CAUGHT, TAXONOMY_CODE_ID) %>%
+  collect() %>%
+  filter(STATION_ID %in% station_ids)
+
+if (nrow(df2_specimen_metadata) > length(station_ids)){
+  warning("df2_specimen_metadata should have length ", length(station_ids), " More >1 date per station?")
+  stop("Before you continue, remove unwanted rows in 'df2_specimen_metadata'")
+} else if (nrow(df2_specimen_metadata) < length(station_ids)){
+  warning("df2_specimen_metadata should have length ", length(station_ids), " More >1 date per station?")
+  stop("Lacking some stations from 'df2_specimen_metadata'")
+}
+
+biota_specimens_to_add <- biota_specimens_to_add %>%
+  left_join(df2_specimen_metadata, by = "STATION_ID")
+
+```
+
+### Make SQLs  
+PASTE INTO SQL DEVELOPER TO ADD THE RECORDS   
+Note to DHJ: use "SQL developer (latest version)" from desktop. Don't use the start menu.  
+- remember `commit;` after running the insert sentences  
+- NOT NEEDED if zero specimen records will be added!    
+```{r}
+# Test functions
+# make_sql_single_specimen(1, biota_single_specimens_eider)
+# make_sql_single_specimen(2, biota_single_specimens_eider)
+
+sql_list <- 1:nrow(biota_specimens_to_add) %>% 
+  map_chr(make_sql_single_specimen, data = biota_specimens_to_add)
+sql <- paste(sql_list, collapse = ";\n")
+sql <- paste0(sql, ";\n")  
+
+# Windows only:
+# writeLines(sql, "clipboard")  # copies SQLs to clipboard - go to SQL Developer and paste
+# On Jupyterhub:
+fn <- paste0("Input_data/Biological_effects_cod/sql_alad_erod_spec_", measurement_year, ".txt")
+writeLines(sql, fn)  # copies SQLs to clipboard - go to SQL Developer and paste
+
+cat("Number of SQLs: \n")
+length(sql_list)  # 9
+
+
+cat("\nSQLs: \n")
+sql_list
+
+```
