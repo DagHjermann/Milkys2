@@ -24,9 +24,9 @@ params:
     - "Lazy" means that the data are not actually downloaded until you use 'collect()'  
     - So, if you wait using collect() until you have done the filtering, you avoid downloading unnecessary data  
 
-* This script can be run in two ways:  
-    - Interactively - run chunk by chunk (by clicking the little arrow in the corner of the chunk, or Shift+Ctrl+Enter and Shift-Alt-N)  
-    - Or by using "Knit with Parameters..." from the menu (pull-down menu from the Knit button)  
+* This script accesses Nivabasen on Oracle and therefore needs your Oracle user name (your initials) and password. It can be run in two ways:  
+    - Interactively - run chunk by chunk (by clicking the little arrow in the corner of the chunk, or Shift+Ctrl+Enter and Shift-Alt-N) - enter username and password when you are asked for it 
+    - Or by using "Knit with Parameters..." from the menu (pull-down menu from the Knit button) - enter username and password, then click 'Knit'  
 
 ## 1. Libraries
 
@@ -41,7 +41,7 @@ library2(lubridate)
 library2(ggplot2)
 library2(stringr)
 
-help(package = "dbplyr")
+# help(package = "dbplyr")
 
 ```
 
