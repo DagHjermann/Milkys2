@@ -23,6 +23,11 @@ params:
 The way this script works, is that it is used to create SQL for inserting rows into Nivabasen, 
 which then are copy-pasted into SQL Developer.  
 
+* Imposex and intersex files were copied from Project Portal (210200 - Miljøgifter i kystområdene 2021-2025):  
+    - 2023 / Opparbeiding / Snegler  
+    - saved to Input_data/opparbeiding_biota/Snegl_2023  
+    
+
 ## 1. Libraries and functions
 ```{r}
 #| results: false
@@ -160,49 +165,200 @@ lims_id <- tbl(con, in_schema("NIVADATABASE", "LABWARE_BSID")) %>%
 
 ## 4. Read data 
 
-### Excel data that shall be imported to Nivadatabase    
+### Create data that shall be added to NIVAbase   
+
+#### Imposex: file names and station codes  
 
 ```{r}
 
-df_raw <- read_excel("Input_data/Biological_effects_cod/BEM-JAMP_2023_ARU.xls", sheet = 1)
+# folder_vdsi <- "K:/Prosjekter/Sjøvann/JAMP/2021/opparbeiding/Snegl"
+folder_vdsi <- paste0("Input_data/opparbeiding_biota/Snegl_", measurement_year, "/")
 
-dat_alad_erod1 <- df_raw %>%
-  filter(!(is.na(ALAD) & is.na(EROD))) %>%
+# Get all file names
+fn <- dir(folder_vdsi, pattern = ".xlsx")
+# Remove some file names
+fn <- fn[!grepl("imposex_mal", fn)]       # mal (template file)
+fn <- fn[!grepl("intersex", fn)]          # skip intersex for now (dealt with further down)
+fn <- fn[!grepl("~", fn, fixed = TRUE)]   # names with "~" are usually temporary files
+
+# Set names of 'fn'
+# Should be equal to station code 
+# We find this by extracting all characters to the left of the first underscore  
+names(fn) <- stringr::str_extract(fn, "[^_]+")
+
+# Manual fix: 227G changed to 227G2
+names(fn)[names(fn) == "227G"] <- "227G2"
+
+# Check that the stations codes are correct:
+
+message("Check station codes!")
+fn
+message("If not, you can correct like in the example given in the end of this code chunk")
+
+# If not, you can correct like in the example below
+# names(fn)[names(fn) == "131"] <- "131G"
+# fn
+
+
+```
+#### Imposex: read files  
+
+```{r}
+# Function for reading one file (with file name 'fn')  
+read_excel_imposex <- function(fn){
+  df <- readxl::read_excel(paste0(folder_vdsi, "/", fn), skip = 6)
+  df <- df[1:6]
+  df <- df[!is.na(df$`Analysert av`),]
+  df
+}
+
+dat_vdsi_list <- fn %>% map(read_excel_imposex)
+
+# If there are errors, you may use 'safely', in that case the output is a list of lists 
+#   and must be treated a bit differently. Run ?safely to read the documentation
+# read_excel_imposex_s <- safely(read_excel_imposex)
+# dat_vdsi_list <- fn %>% map(read_excel_imposex_s)
+
+cat("\n\nData stored in 'dat_vdsi_list', a list of length", length(dat_vdsi_list))
+
+```
+#### Imposex: check number of rows - should be 50  
+```{r}
+
+#  unless oherwise noted in sheet (15G "Fant ikke flere snegl i år, men det er over 15 hunner.")
+dat_vdsi_list %>% map_int(nrow)
+
+```
+#### Imposex: manually look at data, if needed  
+```{r}
+
+if (FALSE){
+  dat_vdsi_list[["15G"]] %>% View()
+  dat_vdsi_list[["36G"]] %>% View()
+  
+  # exampple of fixing:
+  # dat_vdsi_list[["15G"]] <- dat_vdsi_list[["15G"]][1:50,]  # delete last line
+}
+
+```
+
+#### Imposex: create data frame 'dat_vdsi'  
+
+* combines list items to one data frame  
+* pick only number, sex and Imposex  
+* ...we will deal with length and penis length later  
+
+```{r, message=FALSE}
+
+dat_vdsi <- dat_vdsi_list %>% 
+  map(~.[c(1,3,5)]) %>%
+  bind_rows(.id = "STATION_CODE") %>%
+  rename(VALUE_WW = VDSI, 
+         Sex = `Kj<U+00F8>nn`) %>%
+  mutate(PARAM = "VDSI",
+         UNIT = "idx",
+         LATIN_NAME = "Nucella lapillus",
+         Sex = tolower(Sex))
+
+# View(dat_vdsi)
+
+cat("\n------------------------------------------\n")
+cat("Imposex data: \n------------------------------------------\n")
+xtabs(~is.na(VALUE_WW) + addNA(Sex), dat_vdsi)
+
+```
+
+#### Intersex: find files 
+
+```{r}
+
+# Get all file names
+fn <- dir(folder_vdsi, pattern = ".xlsx")
+fn <- fn[grepl("intersex", fn)]          # keep only intersex for now
+
+names(fn) <- stringr::str_extract(fn, "[^_]+")
+
+# Check that the stations codes are correct:
+message("Check station codes!")
+fn
+message("If not, you can correct like in the example given in the end of this code chunk")
+
+
+```
+
+#### Intersex: read files  
+
+```{r}
+
+# function for reading one file
+read_excel_intersex <- function(fn){
+  df <- readxl::read_excel(paste0(folder_vdsi, fn), range = "A3:G53")
+  df %>%
+    filter(F == 1) %>%              # read only females
+    mutate(STATION_CODE = "71G", 
+           Sex = "f",
+           PARAM = "Intersex",
+           UNIT = "PERCENT",
+           LATIN_NAME = "Littorina littorea") %>%
+    mutate(VALUE_WW = `ISI   (intersex-stadie)`*100) %>%
+    select(STATION_CODE, Sex, VALUE_WW, PARAM, LATIN_NAME)
+}
+
+dat_intersex_list <- fn %>% map(read_excel_intersex)
+
+# If there are errors, you may use 'safely', in that case the output is a list of lists 
+#   and must be treated a bit differently. Run ?safely to read the documentation
+# read_excel_imposex_s <- safely(read_excel_imposex)
+# dat_vdsi_list <- fn %>% map(read_excel_imposex_s)
+
+cat("\n\nData stored in 'dat_intersex_list', a list of length", length(dat_intersex_list))
+
+```
+#### Intersex: check number of rows - should be reasonable    
+```{r}
+
+#  unless otherwise noted in sheet (15G "Fant ikke flere snegl i år, men det er over 15 hunner.")
+dat_intersex_list %>% map_int(nrow)
+
+
+```
+
+#### Intersex: create data frame 'dat_intersex'  
+
+* combines list items to one data frame  
+
+```{r}
+
+dat_intersex <- dat_intersex_list %>% 
+  # map(~.[c(1,3,5)]) %>%
+  bind_rows(.id = "STATION_CODE")
+
+```
+
+
+#### Combine imposex and intersex  
+
+```{r}
+
+# check names - not completely equal, but the important ones are  
+# names(dat_vdsi)
+# names(dat_intersex)
+
+dat_1 <- bind_rows(dat_vdsi, dat_intersex) %>%
+  filter(
+    Sex == "f") %>%
+  group_by(
+    STATION_CODE, PARAM, LATIN_NAME) %>%
+  summarise(
+    VALUE = mean(VALUE_WW), .groups = "drop") %>%
   mutate(
-    STATION_CODE = paste0(stasjon, Fisk),
-    SPECIMEN_NO = nummer
-  ) %>%
-  select(
-    STATION_CODE, SPECIMEN_NO, ALAD, EROD 
-  ) %>%
-  pivot_longer(
-    cols = c(ALAD, EROD), names_to = "NAME", values_to = "VALUE" 
+    MYEAR = measurement_year,
+    TISSUE_NAME = "Whole soft body"
   )
 
-xtabs(~SPECIMEN_NO + STATION_CODE, dat_alad_erod1)
+cat("\n------------------------------------------\n")
+cat("Combined data: \n------------------------------------------\n")
+xtabs(~PARAM, dat )
 
 ```
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
-
-## R Markdown
-
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
-```
-
-## Including Plots
-
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
-```
-
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
