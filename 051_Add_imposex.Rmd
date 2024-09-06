@@ -395,7 +395,7 @@ message(nrow(dat_existing_nivabase), " rows of data read from file")
 ```{r}
 
 # Which station codes have ALAD/EROD data?
-stations <- unique(dat_alad_erod1$STATION_CODE)
+stations <- unique(dat_1$STATION_CODE)
 
 # Expecting only be one STATION_ID for each station
 lookup_stationid <- dat_existing_nivabase %>%
@@ -446,7 +446,7 @@ lookup_date_by_station <- df_specimens_nivabasen %>%
   distinct(STATION_ID, DATE_CAUGHT) %>%
   collect()
 
-dat_alad_erod2 <- dat_alad_erod1 %>%
+dat_2 <- dat_1 %>%
   mutate(
     TISSUE_NAME = case_when(
       NAME == "ALAD" ~ "Blod",                # must use exactly this name (from Nivabasen BIOTA_TISSUE_TYPES)
@@ -459,9 +459,9 @@ dat_alad_erod2 <- dat_alad_erod1 %>%
   left_join(lookup_date_by_specimen, by = c("STATION_ID", "SPECIMEN_NO"),              # add DATE_CAUGHT column
             relationship = "many-to-one")
 
-if (sum(is.na(dat_alad_erod2$DATE_CAUGHT)) > 0){
-  message(sum(is.na(dat_alad_erod2$DATE_CAUGHT)), "samples don't have a corresponding date")
-  message("Run 'subset(dat_alad_erod2, is.na(DATE_CAUGHT)' to see which SPECIMEN_NO that are lacking")
+if (sum(is.na(dat_2$DATE_CAUGHT)) > 0){
+  message(sum(is.na(dat_2$DATE_CAUGHT)), "samples don't have a corresponding date")
+  message("Run 'subset(dat_2, is.na(DATE_CAUGHT)' to see which SPECIMEN_NO that are lacking")
   message("Either you must add rows with the lacking SPECIMEN_NO to lookup_date_by_specimen, or use lookup_date_by_station instead")
 }
 
@@ -483,7 +483,7 @@ so these samples will not have been added to Nivabasen by LIMS
 
 ```{r}
 
-biota_samples_to_add <- dat_alad_erod2 %>%
+biota_samples_to_add <- dat_2 %>%
   distinct(
     STATION_CODE, STATION_ID, TISSUE_NAME, TISSUE_ID, SPECIMEN_NO, TAXONOMY_CODE_ID, DATE_CAUGHT) %>%
   rename(
@@ -551,7 +551,7 @@ sql_list[1:3]
 ```{r}
 
 # Station code and specimen number for the ALAD/EROD data
-df_specimens_excel <- dat_alad_erod2 %>%
+df_specimens_excel <- dat_2 %>%
   distinct(STATION_ID, SPECIMEN_NO, DATE_CAUGHT, TAXONOMY_CODE_ID)
 
 biota_specimens_to_add <- df_specimens_excel %>%
@@ -638,7 +638,7 @@ specimens_sel <- tbl(con, in_schema("NIVADATABASE", "BIOTA_SINGLE_SPECIMENS")) %
     year(DATE_CAUGHT) == 2023) %>%
   collect()
 
-biota_specimens_added <- dat_alad_erod2 %>%
+biota_specimens_added <- dat_2 %>%
   distinct(SPECIMEN_NO, STATION_ID, TAXONOMY_CODE_ID, DATE_CAUGHT) %>%
   left_join(
     specimens_sel,
@@ -705,9 +705,9 @@ Usually not needed
 
 ```{r}
 
-station_ids <- unique(dat_alad_erod2$STATION_ID)
-specimen_no <- unique(dat_alad_erod2$SPECIMEN_NO)
-tissue_ids <- unique(dat_alad_erod2$TISSUE_ID)
+station_ids <- unique(dat_2$STATION_ID)
+specimen_no <- unique(dat_2$SPECIMEN_NO)
+tissue_ids <- unique(dat_2$TISSUE_ID)
 
 # Read the biota samples we just added to the database  
 samples_sel <- tbl(con, in_schema("NIVADATABASE", "BIOTA_SAMPLES")) %>%
@@ -721,7 +721,7 @@ samples_sel <- tbl(con, in_schema("NIVADATABASE", "BIOTA_SAMPLES")) %>%
 
 
 #dat_alad_erod3
-dat_alad_erod3 <- dat_alad_erod2 %>%
+dat_alad_erod3 <- dat_2 %>%
   left_join(
     samples_sel,
     by = join_by(STATION_ID, 
