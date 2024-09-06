@@ -354,6 +354,9 @@ dat_1 <- bind_rows(dat_vdsi, dat_intersex) %>%
   mutate(
     MYEAR = measurement_year,
     TISSUE_NAME = "Whole soft body"
+  ) %>%
+  rename(
+    NAME = PARAM
   )
 
 cat("\n------------------------------------------\n")
@@ -431,7 +434,6 @@ df_specimens_nivabasen <- map_dfr(lookup_stationid$STATION_ID,
 
 lookup_tissues <- tissue %>% 
   collect()
-
 
 # Expecting only be one species for each station
 # - otherwise, left_join further down will warn you
