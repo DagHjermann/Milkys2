@@ -353,7 +353,8 @@ dat_1 <- bind_rows(dat_vdsi, dat_intersex) %>%
     VALUE = mean(VALUE_WW), .groups = "drop") %>%
   mutate(
     MYEAR = measurement_year,
-    TISSUE_NAME = "Whole soft body"
+    TISSUE_NAME = "Whole soft body",
+    SPECIMEN_NO = 1
   ) %>%
   rename(
     NAME = PARAM
