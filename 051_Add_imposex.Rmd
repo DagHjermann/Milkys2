@@ -1,0 +1,208 @@
+---
+title: "051_Add_imposex"
+author: "DHJ"
+date: "2024-09-06"
+output: 
+  html_document:
+    keep_md: true
+    toc: true  
+    toc_float: true
+params:
+  oracleuser: 
+    label: "NIVA initials (3 capital letters)"
+    value: "DHJ"
+    input: text
+  oraclepass: 
+    label: "Oracle password"
+    value: ""
+    input: password
+---
+
+
+*NOTE: To be able to do this, you need write access to Nivabasen and SQL Developer (or something similar).*
+The way this script works, is that it is used to create SQL for inserting rows into Nivabasen, 
+which then are copy-pasted into SQL Developer.  
+
+## 1. Libraries and functions
+```{r}
+#| results: false
+#| warnings: false        
+#|
+
+# For loading libraries without startup messages
+library2 <- function(...) suppressPackageStartupMessages(library(...))
+
+library2(dplyr)
+library2(dbplyr)
+library2(purrr)
+library2(lubridate)
+library2(stringr)
+library2(tidyr)
+library2(ggplot2)
+# library(safejoin)   # https://github.com/moodymudskipper/safejoin
+library2(readxl)
+
+source("002_Utility_functions.R")
+
+lookup_methods <- data.frame(
+  NAME = c("ALAD", "EROD", "PROTV", "AY380"),
+  METHOD_ID = c(28580, 28575, 28579, 28574)   
+)  
+
+```
+
+
+## 2. Settings  
+```{r}
+
+measurement_year <- 2023
+
+# 'write_sql_files' shall normally be TRUE  
+# can sometimes be useufle that it is FALSE (to avoid overwriting files that were OK already)
+write_sql_files <- TRUE
+
+```
+
+
+## 3. Set up Oracle connection   
+
+- This part of the script will ask you about your user name and password to Nivabasen  
+
+```{r}
+
+# if the script is run interactively
+if (interactive()){
+  
+  con <- DBI::dbConnect(odbc::odbc(),
+                      Driver = "/opt/conda/orahome/libsqora.so.12.1",
+                      DBQ = "dbora-niva-prod01.niva.corp:1555/NIVABPRD",
+                      UID = rstudioapi::askForPassword("Database username (NIVA initials, 3 capital letters)"),
+                      PWD = rstudioapi::askForPassword("Nivabasen password")
+  )
+  
+} else {
+# if the script is knitted
+  
+  # If params$oraclepass is just an empty string, you have probably just clicked the Knit button  
+  if (params$oraclepass == ""){
+    stop("Password = ''. You must use 'Knit with Parameters...' from the menu (pull-down menu from the Knit button), and enter you password in the dialog")
+  }
+  
+  con <- DBI::dbConnect(odbc::odbc(),
+                        Driver = "/opt/conda/orahome/libsqora.so.12.1",
+                        DBQ = "dbora-niva-prod01.niva.corp:1555/NIVABPRD",
+                        UID = params$oracleuser,
+                        PWD = params$oraclepass
+  )
+  
+}
+
+test_connection <- DBI::dbGetQuery(con, "select * from NIVADATABASE.PROJECTS where rownum < 4")
+if ("test_connection" %in% ls()){
+  if (nrow(test_connection) == 3)
+    cat("Connection to Nivadatabase set up and tested")
+}
+
+rm(test_connection)
+
+```
+
+### Get pointers to Nivabase tables  
+
+* Note that when dbplyr joins tables, it will try to join using all fields (columns) that have the same name in the two tables  
+    - therefore, fields with the same column names but that cannot be used for joining (such as ENTERED_BY, ENTERED_DATE) must either be removed or renamed   
+    - if not, no rows will be joined (probably)  
+* Columns that are actually used for joins should of couse not be removed (e.g., STATION_ID, SAMPLE_ID)   
+
+```{r}
+
+# Remove ENTERED_BY and ENTERED_DATE from all tables because they mess up the joins
+
+methods <- tbl(con, in_schema("NIVADATABASE", "METHOD_DEFINITIONS")) %>%
+  select(METHOD_ID, NAME, UNIT, LABORATORY, METHOD_REF, MATRIX_ID)
+measurements <- tbl(con, in_schema("NIVADATABASE", "BIOTA_CHEMISTRY_VALUES")) %>%
+  select(SAMPLE_ID, METHOD_ID, VALUE_ID, VALUE, FLAG1, 
+         DETECTION_LIMIT, UNCERTAINTY, QUANTIFICATION_LIMIT)
+# drop STATION_ID, TAXONOMY_CODE_ID from samples
+samples <- tbl(con, in_schema("NIVADATABASE", "BIOTA_SAMPLES")) %>%
+  select(STATION_ID, SAMPLE_ID, TISSUE_ID, SAMPLE_NO, REPNO, REMARK) %>%
+  rename(REMARK_sample = REMARK)
+samples_specimens <- tbl(con, in_schema("NIVADATABASE", "BIOTA_SAMPLES_SPECIMENS")) %>%
+  select(SPECIMEN_ID, SAMPLE_ID)
+specimens <- tbl(con, in_schema("NIVADATABASE", "BIOTA_SINGLE_SPECIMENS")) %>%
+  select(STATION_ID, SPECIMEN_ID, SPECIMEN_NO, DATE_CAUGHT, TAXONOMY_CODE_ID, REMARK) %>%
+  rename(REMARK_specimen = REMARK)
+project_stations <- tbl(con, in_schema("NIVADATABASE", "PROJECTS_STATIONS")) %>%
+  select(STATION_ID, STATION_CODE, STATION_NAME, PROJECT_ID )
+projects <- tbl(con, in_schema("NIVADATABASE", "PROJECTS")) %>%
+  select(PROJECT_ID, PROJECT_NAME, PROJECT_DESCRIPTION)
+
+# Labware sample table  
+labware_checksample <- tbl(con, in_schema("NIVADATABASE", "LABWARE_CHECK_SAMPLE")) %>%
+  select(PROSJEKT, SAMPLED_DATE, DESCRIPTION, AQUAMONITOR_CODE, TISSUE, X_BULK_BIO)
+
+# Lookup tables  
+taxonomy_codes <- tbl(con, in_schema("NIVADATABASE", "TAXONOMY_CODES")) %>%
+  select(TAXONOMY_CODE_ID, CODE, NIVA_TAXON_ID)
+taxonomy <- tbl(con, in_schema("NIVADATABASE", "TAXONOMY")) %>%
+  select(NIVA_TAXON_ID, LATIN_NAME)
+tissue <- tbl(con, in_schema("NIVADATABASE", "BIOTA_TISSUE_TYPES")) %>%
+  select(TISSUE_ID, TISSUE_NAME)
+lims_id <- tbl(con, in_schema("NIVADATABASE", "LABWARE_BSID")) %>%
+  select(BIOTA_SAMPLE_ID, LABWARE_TEXT_ID)
+
+# Not really necessary here:
+# matrix <- tbl(con, in_schema("NIVADATABASE", "MATRIX_DEFINITIONS")) %>%
+#   select(MATRIX_ID, MATRIX_NAME)
+# collect(matrix)
+
+```
+
+## 4. Read data 
+
+### Excel data that shall be imported to Nivadatabase    
+
+```{r}
+
+df_raw <- read_excel("Input_data/Biological_effects_cod/BEM-JAMP_2023_ARU.xls", sheet = 1)
+
+dat_alad_erod1 <- df_raw %>%
+  filter(!(is.na(ALAD) & is.na(EROD))) %>%
+  mutate(
+    STATION_CODE = paste0(stasjon, Fisk),
+    SPECIMEN_NO = nummer
+  ) %>%
+  select(
+    STATION_CODE, SPECIMEN_NO, ALAD, EROD 
+  ) %>%
+  pivot_longer(
+    cols = c(ALAD, EROD), names_to = "NAME", values_to = "VALUE" 
+  )
+
+xtabs(~SPECIMEN_NO + STATION_CODE, dat_alad_erod1)
+
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
