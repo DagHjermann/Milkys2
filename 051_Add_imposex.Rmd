@@ -438,7 +438,7 @@ lookup_tissues <- tissue %>%
 # Expecting only be one species for each station
 # - otherwise, left_join further down will warn you
 lookup_taxonomyid <- dat_existing_nivabase %>%
-  distinct(STATION_CODE, TAXONOMY_CODE_ID)
+  distinct(LATIN_NAME, TAXONOMY_CODE_ID)
 
 lookup_date_by_specimen <- df_specimens_nivabasen %>% 
   distinct(STATION_ID, SPECIMEN_NO, DATE_CAUGHT) %>%
@@ -457,7 +457,7 @@ dat_2 <- dat_1 %>%
   ) %>%
   left_join(lookup_tissues, by = "TISSUE_NAME", relationship = "many-to-one") %>%      # add TISSUE_ID column
   left_join(lookup_stationid, by = "STATION_CODE", relationship = "many-to-one") %>%   # add STATION_ID column
-  left_join(lookup_taxonomyid, by = "STATION_CODE", relationship = "many-to-one") %>%  # add TAXONOMY_CODE_ID column
+  left_join(lookup_taxonomyid, by = "LATIN_NAME", relationship = "many-to-one") %>%  # add TAXONOMY_CODE_ID column
   left_join(lookup_date_by_specimen, by = c("STATION_ID", "SPECIMEN_NO"),              # add DATE_CAUGHT column
             relationship = "many-to-one")
 
