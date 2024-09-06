@@ -380,8 +380,8 @@ filename <- '80_df_2023_notstandard_2024-08-31_07h42m.rds'
 
 # Read data
 message("Reading file ",  filename)
-dat_new1 <- readRDS(paste0("Input_data/", filename))
-message(nrow(dat_new1), " rows of data read from file")
+dat_existing_nivabase <- readRDS(paste0("Input_data/", filename))
+message(nrow(dat_existing_nivabase), " rows of data read from file")
 
 
 ```
@@ -398,7 +398,7 @@ message(nrow(dat_new1), " rows of data read from file")
 stations <- unique(dat_alad_erod1$STATION_CODE)
 
 # Expecting only be one STATION_ID for each station
-lookup_stationid <- dat_new1 %>%
+lookup_stationid <- dat_existing_nivabase %>%
   distinct(STATION_CODE, STATION_ID) %>%
   filter(STATION_CODE %in% stations)
 
@@ -435,7 +435,7 @@ lookup_tissues <- tissue %>%
 
 # Expecting only be one species for each station
 # - otherwise, left_join further down will warn you
-lookup_taxonomyid <- dat_new1 %>%
+lookup_taxonomyid <- dat_existing_nivabase %>%
   distinct(STATION_CODE, TAXONOMY_CODE_ID)
 
 lookup_date_by_specimen <- df_specimens_nivabasen %>% 
@@ -512,7 +512,7 @@ The script below creates a text file named e.g. 'milkys_2023_erod-alad_samples.s
 ```{r}
 
 # For info (if needed): check a random sample of BIOTA_SAMPLES records
-# x <- sample(dat_new1$SAMPLE_ID, 50)
+# x <- sample(dat_existing_nivabase$SAMPLE_ID, 50)
 # samples2 <- tbl(con, in_schema("NIVADATABASE", "BIOTA_SAMPLES")) %>%
 #   rename(REMARK_sample = REMARK)
 # samples2 %>%
