@@ -165,7 +165,7 @@ if (FALSE){
   
 } else {
   
-  warning("There are ", sum(is.na(dat_new1$VALUE)), " rows with VALUE = NA. These have NOT been removed")
+  warning("There are ", nrow(dat_new1_missing_value), " rows with VALUE = NA. These have NOT been removed")
   
 }
 
@@ -173,13 +173,23 @@ if (FALSE){
 ```
 
 
-### a1b. Change name of CAUGHT                        #ELU feil script til denne overskriften?
-Should be ca. 100-200 values for both liver and whole soft body    
+
+### a1b. Add eider duck data (19N) for the year before (2022)   
+
+* This is special for 2023!  
+
 ```{r}
 
-dat_new1 %>%
-  filter(NAME %in% c("Fettinnhold", "Tørrstoff %")) %>%
-  xtabs(~TISSUE_NAME + NAME, .)
+dat_eider_2022 <- read_csv(
+  "Input_data/80_df_2022_notstandard_2024-09-12_12h16m.csv", 
+  col_types = column_types) %>% 
+  filter(STATION_CODE == "19N")
+message(nrow(dat_eider_2022), " rows of data read from file")
+
+check <- dat_new1$MYEAR == 2022 & dat_new1$STATION_CODE == "19N"
+if (sum(check) == 0){
+  dat_new1 <- bind_rows(dat_new1, dat_eider_2022) 
+}
 
 ```
 
