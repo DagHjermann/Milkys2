@@ -79,7 +79,7 @@ lastyear <- 2023
 - The file named '01_df_2019_notstandard_<date>' were made on DHJs PC using script 01 in project 'Milkys2_pc'  
 ```{r, results='hold'}
 
-filepattern <- paste0("80_df_", lastyear, "_notstandard_")    # file name except date and extension
+filepattern <- paste0("01_df_", lastyear, "_notstandard_")    # file name except date and extension #ELU endrer fra 80_df til 01_df
 filepattern_with_extension <- paste0(filepattern, ".+.rds")
                   
 filenumber <- 1                                 # filenumber = 1 means "read the newest file"
@@ -136,7 +136,7 @@ if (FALSE){
 ```
 
 
-### a1b. Change name of CAUGHT    
+### a1b. Change name of CAUGHT                        #ELU feil script til denne overskriften?
 Should be ca. 100-200 values for both liver and whole soft body    
 ```{r}
 
@@ -160,7 +160,7 @@ n2 <- nrow(dat_new1)
 
 ```
 
-### a2. Check Fat and dry weight    
+### a2. Check Fat and dry weight                    # ELU ok
 Should be ca. 100-200 values for both liver and whole soft body    
 ```{r}
 
@@ -243,7 +243,7 @@ dat_check <- dat_new1 %>%
 tab <- xtabs(~NAME + STATION_CODE, dat_check)
 
 tab1a <- tab[rownames(tab) %in% c("PYR1OH", "1-OH-pyren"),]
-tab1b <- apply(tab1a > 0, 2, sum)
+tab1b <- apply(tab1a > 0, 2, sum)                                       #ELU: får feil her, kjører ikke dette scriptet
 tab2a <- tab[rownames(tab) %in% c("PA1OH", "1-OH-fenantren"),]
 tab2b <- apply(tab2a > 0, 2, sum)
 tab3a <- tab[rownames(tab) %in% c("BAP3OH", "3-OH-benzo[a]pyren"),]
@@ -296,7 +296,7 @@ cat("dat_new1:", sum(sel), "records with adjusted PAHs removed\n")
 
 # Note NAME instead of PARAM (on contrast with checks further down)
 df_duplicates <- dat_new1 %>%
-  add_count(STATION_CODE, LATIN_NAME, TISSUE_NAME, MYEAR, SAMPLE_ID, NAME) %>%
+  add_count(STATION_CODE, LATIN_NAME, TISSUE_NAME, SAMPLE_ID, NAME) %>%           #fjernet MYEAR,
   filter(n > 1)
 
 if (nrow(df_duplicates) > 0){
@@ -468,7 +468,7 @@ df_SCCP <- data_legacy %>%
   select(STATION_CODE, LATIN_NAME, TISSUE_NAME, MYEAR, SAMPLE_NO2, PARAM, VALUE_WW) %>%
   tidyr::pivot_wider(names_from = PARAM, values_from = VALUE_WW)
 
-ggplot(df_SCCP, aes(MYEAR, 100*(`SCCP inkl. LOQ` - `SCCP eksl. LOQ`)/`SCCP inkl. LOQ`)) +
+ggplot(df_SCCP, aes(MYEAR, 100*(`SCCP inkl. LOQ` - `SCCP eksl. LOQ`)/`SCCP inkl. LOQ`)) +   #
   geom_jitter(height = 0, width = 0.3) +
   labs(title = "SCCP, difference between incl. LOQ and excl. LOQ values", 
        subtitle = "Note relavively small difference in 2015-2016",
@@ -633,7 +633,7 @@ cat("dat_new2: PARAM = Fett set for", sum(sel), "records \n")
 
 ```
 
-### b2. Check 'new' PARAM values 
+### b2. Check 'new' PARAM values         # ELU: finner 2 nye klor.pest,ok
 
 * I.e., with legacy data  
 
@@ -812,7 +812,7 @@ if (FALSE){
 }
 
 ```
-### d2. Fix Triphenyltin in legacy data  
+### d2. Fix Triphenyltin in legacy data  # ELU kjører ikke
 ```{r}
 
 # ONLY NEEDED TO DO ONCE
@@ -914,7 +914,7 @@ if (nrow(check2) > 0){
 Just for help with writing the next section  
 ```{r}
 
-if (FALSE){
+if (TRUE){
   
   data_legacy %>% 
     names() %>% paste(collapse = ", ") 
@@ -931,7 +931,7 @@ if (FALSE){
 
 ```{r}
 
-if (FALSE){
+if (TRUE){
   dat_new2 %>%
     count(NAME, PARAM)
   }
@@ -996,7 +996,7 @@ dat_new3 <- dat_new3 %>%
   )
 
 # Check:
-if (FALSE){
+if (TRUE){
   table(addNA(dat_new3$UNIT))
 }
 
@@ -1819,7 +1819,7 @@ message("Number of rows: ", nrow(data_updated2))
 - Something strange in 2020, seem to be duplicates for the data ("Lever" + "Liver - microsome")  
 ```{r}
 
-if (FALSE){
+if (TRUE){
   check <- data_updated2 %>%
     filter(PARAM %in% c("EROD","PROTV"))
   
@@ -1904,7 +1904,7 @@ if (mean(data_updated2$VALUE_WW[sel]) > 10){
 ```
 
 
-### l. Add SCCP and MCCP without LOQ for eider duck (S. mollissima)  
+### l. Add SCCP and MCCP without LOQ for eider duck (S. mollissima)  #ELU kjører ikke denne
 
 
 ```{r}
