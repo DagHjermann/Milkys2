@@ -281,7 +281,7 @@ if (download_and_save){
 ```{r}
 
 dat_last_year_1 <- dat_2 %>%
-  filter(MYEAR == 2023 & STATION_CODE == "30B")
+  filter(MYEAR == measurement_year & STATION_CODE == "30B")
 
 ```
 
