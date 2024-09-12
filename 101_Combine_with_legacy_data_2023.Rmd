@@ -93,6 +93,39 @@ if (length(files) == 0){
 
 } else {
   
+  column_types <- cols(
+    PROJECT_NAME = col_character(),
+    STATION_CODE = col_character(),
+    STATION_NAME = col_character(),
+    LATIN_NAME = col_character(),
+    MYEAR = col_double(),
+    TISSUE_NAME = col_character(),
+    SAMPLE_NO = col_double(),
+    REPNO = col_double(),
+    NAME = col_character(),
+    VALUE = col_double(),
+    FLAG1 = col_character(),
+    UNIT = col_character(),
+    REMARK_sample = col_character(),
+    LABORATORY = col_character(),
+    METHOD_REF = col_character(),
+    DETECTION_LIMIT = col_double(),
+    UNCERTAINTY = col_double(),
+    QUANTIFICATION_LIMIT = col_double(),
+    PROJECT_ID = col_double(),
+    STATION_ID = col_double(),
+    TAXONOMY_CODE_ID = col_double(),
+    MATRIX_ID = col_double(),
+    SAMPLE_ID = col_double(),
+    TISSUE_ID = col_double(),
+    METHOD_ID = col_double(),
+    VALUE_ID = col_double(),
+    Pooled_n = col_double(),
+    LABWARE_TEXT_ID = col_character(),
+    SPECIMEN_ID = col_character(),
+    SPECIMEN_NO = col_character()
+  )
+  
   # Info for user
   cat("Reading file number ",  filenumber, ", sorted from newest to oldest files:", sep = "")
   cat("\n", files[filenumber])
@@ -109,14 +142,18 @@ if (length(files) == 0){
   # The date part of 'filename' (e.g., '2020-04-23')
   # will be used in part 10, when we save the resulting file
   
-  dat_new1 <- readRDS(paste0("Input_data/", filename))
+  dat_new1 <- read_csv(paste0("Input_data/", filename), col_types = column_types) 
   message(nrow(dat_new1), " rows of data read from file")
   
 }
 
 cat("\n")
 
-# If you want to remove VALUE = NA, change FALSE to TRUE in the next line  
+# If you want to remove VALUE = NA, change FALSE to TRUE in the next line 
+
+dat_new1_missing_value <- dat_new1 %>% 
+  filter(is.na(VALUE))
+
 if (FALSE){
   
   n1 <- nrow(dat_new1)
