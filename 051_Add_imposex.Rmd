@@ -65,6 +65,7 @@ measurement_year <- 2023
 # 'write_sql_files' shall normally be TRUE  
 # can sometimes be useufle that it is FALSE (to avoid overwriting files that were OK already)
 write_sql_files <- TRUE
+# write_sql_files <- FALSE
 
 ```
 
@@ -75,8 +76,10 @@ write_sql_files <- TRUE
 
 ```{r}
 
+test_connection <- try(DBI::dbGetQuery(con, "select * from NIVADATABASE.PROJECTS where rownum < 4"))
+
 # if the script is run interactively
-if (interactive()){
+if (interactive() & class(test_connection) == "try-error"){
   
   con <- DBI::dbConnect(odbc::odbc(),
                       Driver = "/opt/conda/orahome/libsqora.so.12.1",
@@ -362,7 +365,7 @@ dat_1 <- bind_rows(dat_vdsi, dat_intersex) %>%
 
 cat("\n------------------------------------------\n")
 cat("Combined data: \n------------------------------------------\n")
-xtabs(~PARAM, dat )
+xtabs(~NAME, dat_1)
 
 ```
 
@@ -387,8 +390,18 @@ message("Reading file ",  filename)
 dat_existing_nivabase <- readRDS(paste0("Input_data/", filename))
 message(nrow(dat_existing_nivabase), " rows of data read from file")
 
+```
+### Previous years  
+
+```{r}
+
+dat_prev_a <- readRDS("Data/101_dat_new_2022-09-23.rds")
+
+# dat_prev_b <- readRDS("Data/109_adjusted_data_ELU_2023-09-12.rds") %>%
+#   filter(MYEAR %in% 2021:2022)
 
 ```
+
 
 ## 5. Add data to Nivabasen   
 
@@ -429,24 +442,12 @@ df_specimens_nivabasen <- map_dfr(lookup_stationid$STATION_ID,
 ```
 
 
-### b. Add extra columns to data  
+
+### b. Add columns to data (dat_2)  
 
 ```{r}
 
 lookup_tissues <- tissue %>% 
-  collect()
-
-# Expecting only be one species for each station
-# - otherwise, left_join further down will warn you
-lookup_taxonomyid <- dat_existing_nivabase %>%
-  distinct(LATIN_NAME, TAXONOMY_CODE_ID)
-
-lookup_date_by_specimen <- df_specimens_nivabasen %>% 
-  distinct(STATION_ID, SPECIMEN_NO, DATE_CAUGHT) %>%
-  collect()
-
-lookup_date_by_station <- df_specimens_nivabasen %>% 
-  distinct(STATION_ID, DATE_CAUGHT) %>%
   collect()
 
 dat_2 <- dat_1 %>%
@@ -456,285 +457,157 @@ dat_2 <- dat_1 %>%
       NAME == "EROD" ~ "Liver - microsome"    # must use exactly this name (from Nivabasen BIOTA_TISSUE_TYPES)
     )
   ) %>%
-  left_join(lookup_tissues, by = "TISSUE_NAME", relationship = "many-to-one") %>%      # add TISSUE_ID column
-  left_join(lookup_stationid, by = "STATION_CODE", relationship = "many-to-one") %>%   # add STATION_ID column
-  left_join(lookup_taxonomyid, by = "LATIN_NAME", relationship = "many-to-one") %>%  # add TAXONOMY_CODE_ID column
-  left_join(lookup_date_by_specimen, by = c("STATION_ID", "SPECIMEN_NO"),              # add DATE_CAUGHT column
-            relationship = "many-to-one")
-
-if (sum(is.na(dat_2$DATE_CAUGHT)) > 0){
-  message(sum(is.na(dat_2$DATE_CAUGHT)), "samples don't have a corresponding date")
-  message("Run 'subset(dat_2, is.na(DATE_CAUGHT)' to see which SPECIMEN_NO that are lacking")
-  message("Either you must add rows with the lacking SPECIMEN_NO to lookup_date_by_specimen, or use lookup_date_by_station instead")
-}
-
-```
-
-
-### c. Find existing samples    
-
-### d. Check if we need to add new samples 
-
-* c and d can be skipped in the case of ALAD and EROD - no other parameters are taken form the same tissues,
-so these samples will not have been added to Nivabasen by LIMS  
-
-### e. New samples: Create data   
-
-* e and f are needed in the case of ALAD and EROD   
-* Should *not* be needed in the case of AY380 - all samples has been added as the PAH-metabolite results
-(taken from the same samples) have been added via LIMS  
-
-```{r}
-
-biota_samples_to_add <- dat_2 %>%
-  distinct(
-    STATION_CODE, STATION_ID, TISSUE_NAME, TISSUE_ID, SPECIMEN_NO, TAXONOMY_CODE_ID, DATE_CAUGHT) %>%
-  rename(
-    SAMPLE_DATE = DATE_CAUGHT
-  ) %>%
-  mutate(
-    REPNO = SPECIMEN_NO,
-    SAMPLE_NO = SPECIMEN_NO
-  )
-
-# make_sql_sample
-
-```
-
-### f. New samples: Make SQLs for adding data to 'BIOTA_SAMPLES' table   
-
-The script below creates a text file named e.g. 'milkys_2023_erod-alad_samples.sql'  
-* It is located in the folder 'Milkys2/Input_data/Biological_effects_cod'
-* Download this file to your PC  
-* Open this file in SQL Developer and run it  
-- remember `commit;` after running the insert sentences  
-* Then come back here and continue below (part g)  
-
-(Note to DHJ: use "SQL developer (latest version)" from desktop. Don't use the start menu.)
-
-```{r}
-
-# For info (if needed): check a random sample of BIOTA_SAMPLES records
-# x <- sample(dat_existing_nivabase$SAMPLE_ID, 50)
-# samples2 <- tbl(con, in_schema("NIVADATABASE", "BIOTA_SAMPLES")) %>%
-#   rename(REMARK_sample = REMARK)
-# samples2 %>%
-#   filter(SAMPLE_ID %in% x)
-
-sql_list <- 1:nrow(biota_samples_to_add) %>% 
-  map_chr(make_sql_sample, data = biota_samples_to_add)
-sql <- paste(sql_list, collapse = ";\n")
-sql <- paste0(sql, ";\n")
-
-# Windows only:
-# writeLines(sql, "clipboard")  # copies SQLs to clipboard - go to SQL Developer and paste
-
-# On Jupyterhub:
-fn <- paste0("Input_data/Biological_effects_cod/milkys_", measurement_year, "_erod-alad_samples.sql")
-
-if (write_sql_files)
-  writeLines(sql, fn)  # writes SQL code to file - download this to yor computer 
-
-
-cat("Number of SQLs: \n")
-length(sql_list)  
-
-cat("\nSample of SQLs: \n")
-sql_list[1:3]
-
-
-```
-
-
-### g. Specimens: Do all specimens exist in Nivabasen?  
-
-* Creates 'biota_specimens_to_add'  
-* If 'biota_specimens_to_add' has zero rows, h, i and j can be skipped  
-
-```{r}
-
-# Station code and specimen number for the ALAD/EROD data
-df_specimens_excel <- dat_2 %>%
-  distinct(STATION_ID, SPECIMEN_NO, DATE_CAUGHT, TAXONOMY_CODE_ID)
-
-biota_specimens_to_add <- df_specimens_excel %>%
-  distinct(SPECIMEN_NO, STATION_ID, TAXONOMY_CODE_ID, DATE_CAUGHT) %>%
-  # 'anti_join' means keep only 'df_specimens_excel' rows NOT in 'df_specimens_nivabasen'
-  anti_join(df_specimens_nivabasen, by = join_by(STATION_ID, SPECIMEN_NO, DATE_CAUGHT, TAXONOMY_CODE_ID))   
-  #left_join(df_stationid, by = join_by(STATION_CODE))                             # add STATION_ID
-
-if (nrow(biota_specimens_to_add) > 0){
-  message(nrow(biota_specimens_to_add), " specimens (see 'biota_specimens_to_add') are not in Nivabase and must be added (part h-j)")
-} else {
-  message("All specimens were found in Nivabase. Don't run part h")
-}
-
-```
-
-### h. New specimens: Make SQLs for adding data to 'BIOTA_SINGLE_SPECIMENS' table   
-
-The script below creates a text file named e.g. 'milkys_2023_erod-alad_specimen.sql'    
-* The file is located in the folder 'Milkys2/Input_data/Biological_effects_cod'
-* Download this file to your PC  
-* Open this file in SQL Developer and run it  
-- remember `commit;` after running the insert sentences  
-* Then come back here and continue below  
-
-(Note to DHJ: use "SQL developer (latest version)" from desktop. Don't use the start menu.)
-
-```{r}
-# Test functions
-# make_sql_single_specimen(1, biota_single_specimens_eider)
-# make_sql_single_specimen(2, biota_single_specimens_eider)
-
-sql_list <- 1:nrow(biota_specimens_to_add) %>% 
-  map_chr(make_sql_single_specimen, data = biota_specimens_to_add)
-sql <- paste(sql_list, collapse = ";\n")
-sql <- paste0(sql, ";\n")  
-
-# Windows only:
-# writeLines(sql, "clipboard")  # copies SQLs to clipboard - go to SQL Developer and paste
-# On Jupyterhub:
-fn <- paste0("Input_data/Biological_effects_cod/milkys_", measurement_year, "_erod-alad_specimen.sql")
-
-if (write_sql_files)
-  writeLines(sql, fn)  # writes SQL code to text file - download it to your PC and run it from SQL Developer
-
-cat("Number of SQLs: \n")
-length(sql_list)  # 9
-
-
-cat("\nSQLs: \n")
-sql_list
-
-```
-
-### i. Samples-specimens: Make data for coupling specimens to samples    
-```{r}  
-
-# tbl(con, in_schema("NIVADATABASE", "BIOTA_SAMPLES")) %>% head(3)
-
-station_ids <- unique(biota_samples_to_add$STATION_ID)
-specimen_no <- unique(biota_samples_to_add$SPECIMEN_NO)
-tissue_ids <- unique(biota_samples_to_add$TISSUE_ID)
-
-# Read the biota samples we just added to the database  
-samples_sel <- tbl(con, in_schema("NIVADATABASE", "BIOTA_SAMPLES")) %>%
-  filter(
-    STATION_ID %in% station_ids, 
-    REPNO %in% specimen_no,
-    year(SAMPLE_DATE) == 2023, 
-    TISSUE_ID %in% tissue_ids) %>%
+  # add TISSUE_ID column
+  left_join(lookup_tissues, by = "TISSUE_NAME", relationship = "many-to-one") %>%      
+  # add STATION_ID column
+  left_join(lookup_stationid, by = "STATION_CODE", relationship = "many-to-one") %>%
   collect()
 
-biota_samples_added <- biota_samples_to_add %>%
-  left_join(
-    samples_sel, 
-    by = join_by(STATION_ID, TISSUE_ID, TAXONOMY_CODE_ID, SAMPLE_DATE, REPNO, SAMPLE_NO),
-    relationship = "one-to-one")
+```
 
-# Read the specimen samples we just added to the database  
-specimens_sel <- tbl(con, in_schema("NIVADATABASE", "BIOTA_SINGLE_SPECIMENS")) %>%
-  filter(
-    STATION_ID %in% station_ids, 
-    SPECIMEN_NO %in% specimen_no,
-    year(DATE_CAUGHT) == 2023) %>%
+### c. Add columns to data (dat_3)  
+
+```{r}
+
+# a. Get TAXONOMY_CODE_ID for given species - problem: there are several per species
+latin_names <- unique(dat_1$LATIN_NAME)
+lookup_taxonomyid_1 <- taxonomy_codes %>%
+  left_join(taxonomy, by = "NIVA_TAXON_ID") %>%
+  filter(LATIN_NAME %in% latin_names) %>%
+  distinct(LATIN_NAME, TAXONOMY_CODE_ID) %>%
   collect()
 
-biota_specimens_added <- dat_2 %>%
-  distinct(SPECIMEN_NO, STATION_ID, TAXONOMY_CODE_ID, DATE_CAUGHT) %>%
-  left_join(
-    specimens_sel,
-    by = join_by(SPECIMEN_NO, STATION_ID, TAXONOMY_CODE_ID, DATE_CAUGHT),
-    relationship = "one-to-one")
 
-biota_samples_specimens_to_add <- biota_specimens_added %>%
-  select(STATION_ID, SPECIMEN_NO, TAXONOMY_CODE_ID, DATE_CAUGHT, SPECIMEN_ID) %>%
-  left_join(
-    biota_samples_added %>%
-      select(STATION_ID, REPNO, TAXONOMY_CODE_ID, SAMPLE_DATE, SAMPLE_ID), 
-    by = join_by(STATION_ID, SPECIMEN_NO == REPNO, TAXONOMY_CODE_ID, DATE_CAUGHT == SAMPLE_DATE)
-  )
-
-
-```
-
-### j. Samples-specimens: Make SQLs for adding data to 'BIOTA_SAMPLES_SPECIMENS' table   
-
-The script below creates a text file named e.g. 'milkys_2023_erod-alad_samples_specimen.sql'    
-* The file is located in the folder 'Milkys2/Input_data/Biological_effects_cod'
-* Download this file to your PC  
-* Open this file in SQL Developer and run it  
-- remember `commit;` after running the insert sentences  
-* Then come back here and continue below  
-
-(Note to DHJ: use "SQL developer (latest version)" from desktop. Don't use the start menu.)
-```{r}
-
-sql_list <- 1:nrow(biota_samples_specimens_to_add) %>% 
-  map_chr(make_sql_samples_specimens, data = biota_samples_specimens_to_add)
-sql <- paste(sql_list, collapse = ";\n")
-sql <- paste0(sql, ";\n")  
-
-# Windows only:
-# writeLines(sql, "clipboard")  # copies SQLs to clipboard - go to SQL Developer and paste
-# On Jupyterhub:
-fn <- paste0("Input_data/Biological_effects_cod/milkys_", measurement_year, "_erod-alad_samples_specimens.sql")
-
-if (write_sql_files)
-  writeLines(sql, fn)  # writes SQL code to text file - download it to your PC and run it from SQL Developer
-
-# for checking:
-# readLines(fn)
-
-cat("Number of SQLs: \n")
-length(sql_list)  # 9
-
-
-cat("\nThe three first and three last SQLs: \n")
-
-# the three first SQLs:
-head(sql_list, 3)
-cat("...\n")
-tail(sql_list, 3)
-
-```
-
-### k. Adding methods: Make SQLs for adding methods to METHODS_DEFINITIONS  
-
-Usually not needed  
-
-### l. Measurements: Make data   
-
-```{r}
-
+# b. Get TAXONOMY_CODE_ID used last year
 station_ids <- unique(dat_2$STATION_ID)
-specimen_no <- unique(dat_2$SPECIMEN_NO)
-tissue_ids <- unique(dat_2$TISSUE_ID)
-
-# Read the biota samples we just added to the database  
-samples_sel <- tbl(con, in_schema("NIVADATABASE", "BIOTA_SAMPLES")) %>%
+lookup_taxonomyid_2 <- specimens %>%
   filter(
-    STATION_ID %in% station_ids, 
-    REPNO %in% specimen_no,
-    year(SAMPLE_DATE) == 2023, 
-    TISSUE_ID %in% tissue_ids) %>%
+    year(DATE_CAUGHT) %in% (measurement_year - 1),
+    STATION_ID %in% station_ids) %>%
+  distinct(TAXONOMY_CODE_ID) %>%
   collect()
 
+# c. filter by those  
+lookup_taxonomyid <- lookup_taxonomyid_1 %>%
+  filter(TAXONOMY_CODE_ID %in% pull(lookup_taxonomyid_2, TAXONOMY_CODE_ID)) %>%
+  collect() 
+
+dat_3 <- dat_2 %>%   
+  # add TAXONOMY_CODE_ID column
+  left_join(lookup_taxonomyid, by = "LATIN_NAME", relationship = "many-to-one")
+
+```
+
+### d. Add columns to data (dat_4)  
+
+```{r}
+
+# Add DATE_CAUGHT, SPECIMEN_ID
+lookup_id_by_specimen <- df_specimens_nivabasen %>% 
+  filter(
+    year(DATE_CAUGHT) %in% measurement_year,
+    STATION_ID %in% pull(dat_2, STATION_ID)) %>%
+  distinct(STATION_ID, SPECIMEN_NO, TAXONOMY_CODE_ID, DATE_CAUGHT, SPECIMEN_ID)  %>%
+  collect()
+
+dat_4 <- dat_3 %>%
+  left_join(lookup_id_by_specimen, by = c("STATION_ID", "TAXONOMY_CODE_ID", "SPECIMEN_NO")
+  )
 
 
-#dat_alad_erod3
-dat_alad_erod3 <- dat_2 %>%
-  left_join(
-    samples_sel,
-    by = join_by(STATION_ID, 
-                 TAXONOMY_CODE_ID, 
-                 DATE_CAUGHT == SAMPLE_DATE, 
-                 TISSUE_ID == TISSUE_ID,
-                 SPECIMEN_NO == REPNO),
-    relationship = "one-to-many")
+```
 
-biota_measurements_to_add <- dat_alad_erod3 %>%
+### e. Check  
+
+```{r}
+
+if (sum(is.na(dat_4$SPECIMEN_ID)) > 0){
+  message(sum(is.na(dat_4$SPECIMEN_ID)), "samples don't have a corresponding SPECIMEN_ID")
+  message("Run 'subset(dat_4, is.na(SPECIMEN_ID)' to see which SPECIMEN_NO that are lacking")
+  message("You may need to add specimens to the database table BIOTA_SINGLE_SPECIMENS")
+} else {
+  message("SPECIMEN_ID found for all data")
+}
+
+```
+
+
+### f. Find existing samples    
+
+```{r}
+
+specimen_ids <- dat_4$SPECIMEN_ID 
+
+df_sampspec_nivabasen <- samples_specimens %>%
+  filter(SPECIMEN_ID %in% specimen_ids) %>%
+  collect()
+
+dat_5 <- dat_4 %>% 
+  left_join(df_sampspec_nivabasen, by = join_by(SPECIMEN_ID))
+
+```
+
+
+### f. Check if we need to add new samples 
+
+```{r}
+
+if (sum(is.na(dat_5$SAMPLE_ID)) > 0){
+  message(sum(is.na(dat_5$SAMPLE_ID)), "samples don't have a corresponding SPECIMEN_ID")
+  message("Run 'subset(dat_5, is.na(SAMPLE_ID)' to see which SPECIMEN_ID that are lacking SAMPLE_ID")
+  message("You may need to add samples to the database table BIOTA_SAMPLES")
+} else {
+  message("SAMPLE_ID found for all data")
+}
+
+```
+
+
+### g. New samples: Create data   
+
+* Can be skipped, see above  
+* Otherwise, see script 50 for code      
+
+### h. New samples: Make SQLs for adding data to 'BIOTA_SAMPLES' table   
+
+* Can be skipped, see above  
+* Otherwise, see script 50 for code      
+
+### i. Specimens: Do all specimens exist in Nivabasen?  
+
+* Can be skipped, see above  
+* Otherwise, see script 50 for code      
+
+### j. New specimens: Make SQLs for adding data to 'BIOTA_SINGLE_SPECIMENS' table   
+
+* Can be skipped in this case, see above  
+* Otherwise, see script 50 for code      
+
+
+### k. Samples-specimens: Make data for coupling specimens to samples    
+
+* Can be skipped in this case, see above  
+* Otherwise, see script 50 for code      
+
+### l. Samples-specimens: Make SQLs for adding data to 'BIOTA_SAMPLES_SPECIMENS' table   
+
+* Can be skipped in this case, see above  
+* Otherwise, see script 50 for code      
+
+### m. Adding methods: Make SQLs for adding methods to METHODS_DEFINITIONS  
+
+* Usually not needed  
+
+### n. Measurements: Make data   
+
+```{r}
+
+lookup_methods <- dat_prev_a %>%
+  rename(NAME = PARAM) %>%
+  distinct(NAME, METHOD_ID) %>%
+  filter(NAME %in% c("VDSI", "Intersex"))
+
+biota_measurements_to_add <- dat_5 %>%
   left_join(lookup_methods) %>%
   mutate(FLAG1 = as.character(NA) )
   
@@ -763,7 +636,7 @@ sql <- paste0(sql, ";\n")
 # Windows only:
 # writeLines(sql, "clipboard")  # copies SQLs to clipboard - go to SQL Developer and paste
 # On Jupyterhub:
-fn <- paste0("Input_data/Biological_effects_cod/milkys_", measurement_year, "_erod-alad_measurements.sql")
+fn <- paste0("Input_data/opparbeiding_biota/Snegl_2023/milkys_", measurement_year, "_imposex_measurements.sql")
 if (write_sql_files)
   writeLines(sql, fn)  # writes SQL code to text file - download it to your PC and run it from SQL Developer
 
