@@ -256,16 +256,19 @@ add_sumparameter_inclloq_allyears <- function(i, pars_list, data){
     tidyr::pivot_longer(
       cols = c(VALUE_WW, VALUE_DW, VALUE_FB, VALUE_WWa, VALUE_DWa, VALUE_FBa), names_to = "BASIS", values_to = "VALUE") %>%
     mutate(
-      VALUE_exloq = case_when(
-        is.na(FLAG1) ~ VALUE,
-        !is.na(FLAG1) ~ 0)
+      VALUE_inclloq = VALUE
     )
   df_grouped <- df_reshaped %>%
     group_by(STATION_CODE, LATIN_NAME, TISSUE_NAME, MYEAR, SAMPLE_NO2, UNIT, BASIS) # not PARAM, but including BASIS
   if (nrow(df_grouped) > 0){
     df1 <- df_grouped %>%
-      summarise(VALUE = sum(VALUE_exloq, na.rm = TRUE), .groups = "drop_last") %>%      # sum of the measurements
-      mutate(QUANTIFICATION_LIMIT = NA) %>%
+      summarise(VALUE = sum(VALUE_inclloq, na.rm = TRUE),   # sum of the measurements
+                n_under_loq = sum(FLAG1 %in% "<"),          # number of less-thans
+                .groups = "drop_last") %>% 
+      mutate(QUANTIFICATION_LIMIT = NA,
+             FLAG1 = case_when(
+               n_under_loq == 0 ~ as.character(NA),
+               n_under_loq > 0 ~ "<")) %>%
       as.data.frame(stringsAsFactors = FALSE)
     df3 <- df_grouped %>%
       summarise(N_par = n(), .groups = "drop_last") %>%    # number of measurements
@@ -282,7 +285,7 @@ add_sumparameter_inclloq_allyears <- function(i, pars_list, data){
     # Set the parameter name
     df1$PARAM <- paste0(names(pars_list)[i], "_exloq")   
     
-    df_to_add1 <- data.frame(df1, FLAG1 = as.character(NA), N_par = df3[,"N_par"], stringsAsFactors = FALSE)  # Make data to add
+    df_to_add1 <- data.frame(df1, N_par = df3[,"N_par"], stringsAsFactors = FALSE)  # Make data to add
     
     # Get and add support parameters
     df_supportpars <- data %>%
