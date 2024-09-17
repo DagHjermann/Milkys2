@@ -70,8 +70,11 @@ write_sql_files <- TRUE
 
 ```{r}
 
-# if the script is run interactively
-if (interactive()){
+con_exists <- "con" %in% ls()
+
+# if the script is run interactively and 'con' has not been defined,
+#   ask for username and password
+if (interactive() & !con_exists){
   
   con <- DBI::dbConnect(odbc::odbc(),
                       Driver = "/opt/conda/orahome/libsqora.so.12.1",
@@ -79,8 +82,15 @@ if (interactive()){
                       UID = rstudioapi::askForPassword("Database username (NIVA initials, 3 capital letters)"),
                       PWD = rstudioapi::askForPassword("Nivabasen password")
   )
+
+# if 'con' has not been defined, we don't have to aske for username and password again
+} else if (interactive() & con_exists){  
   
+  message("Connection 'con' already exists \n  - run 'rm(con)' if you want to remove it")
+  
+# if the script is knitted (not run interactively), you need to .knit with parameters' from the 'knit' menu
 } else {
+  
 # if the script is knitted
   
   # If params$oraclepass is just an empty string, you have probably just clicked the Knit button  
