@@ -178,7 +178,7 @@ if (TRUE){
 
 ### a1b. Add eider duck data (19N) for the year before (2022)   
 
-* This is special for 2023!  
+* *NOTE:This is special for 2023!*  
 
 ```{r}
 
@@ -187,8 +187,16 @@ if (TRUE){
 dat_eider_2022 <- read_csv(
   "Input_data/80_df_2022_notstandard_2024-09-12_12h16m.csv", 
   col_types = column_types) %>% 
-  filter(STATION_CODE == "19N") %>%
-  mutate(MYEAR = 2022)
+  # Keep rows with eider duck only (station 19N)  
+  filter(
+    STATION_CODE == "19N") %>%
+  # Remove rows with isotopes - they were analysed last year so they are already in the legacy data  
+  filter(
+    !NAME %in% c("% C", "% N", "W% C/N", "Delta 13C", "Delta 15N")  
+  ) %>%
+  # HARD-CODED: this is year 2022
+  mutate(
+    MYEAR = 2022)
 message(nrow(dat_eider_2022), " rows of data will be added to the dataset")
 
 check <- dat_new1$MYEAR == 2022 & dat_new1$STATION_CODE == "19N"
@@ -1557,6 +1565,24 @@ cat("Legacy data:", nrow(data_legacy), "rows \n")
 cat("Updated data:", nrow(data_updated), "rows \n")
 cat("That is", nrow(data_updated)-nrow(data_legacy), "rows more \n")
 
+
+```
+
+### Check duplicates again  
+```{r}
+
+df_duplicates <- data_updated %>%
+  add_count(STATION_CODE, LATIN_NAME, TISSUE_NAME, MYEAR, SAMPLE_NO2, PARAM) %>%
+  filter(n > 1)
+
+if (nrow(df_duplicates) > 0){
+  stop("Duplicates in the data! Check 'df_duplicates'. (Section 9) \n")
+  xtabs(~PARAM, df_duplicates) %>% print()
+  xtabs(~MYEAR, df_duplicates) %>% print()
+} else {
+  cat("No duplicates found in the data. \n")
+}
+  
 
 ```
 
