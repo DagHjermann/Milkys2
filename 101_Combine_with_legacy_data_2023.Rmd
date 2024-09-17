@@ -1271,12 +1271,13 @@ if (FALSE){
 
 ### Add sum parameters (as extra rows)  
 Note that this also deletes some 'index' variables and reshuffles data  
+*2023: Skips this here - must add sums for the entire dat set (all years)*
 ```{r}
 
-for (i in seq_along(sum_parameters)){     # go through numbers 1 to 9
-  # We add new rows every time we go through the loop
-  dat_new5 <- add_sumparameter(i, sum_parameters, dat_new5)
-  }
+# for (i in seq_along(sum_parameters)){     # go through numbers 1 to 9
+#   # We add new rows every time we go through the loop
+#   dat_new5 <- add_sumparameter(i, sum_parameters, dat_new5)
+#   }
 
 ```
 
@@ -1421,7 +1422,7 @@ dat_new6 <- dat_new6 %>%
       BASIS == "D" ~ VALUE*(DRYWT/100)/(FAT_PERC/100),
       BASIS == "F" ~ VALUE)
     ) %>%
-  select(-c(BASIS, VALUE, Preferred_unit, Conversion_factor, N_par))
+  select(-c(BASIS, VALUE, Preferred_unit, Conversion_factor))
     
 # Example
 # value_ww = 8, drywt = 50, fatperc = 10
