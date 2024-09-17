@@ -73,9 +73,9 @@ lastyear <- 2023
 
 ## 2. Data  
 
-### a1. Recently downloaded data  
-- Read and reformat data (by default, the most recent dataset made)        
-- In constrast to 2019 version, we use only data from NIVAbasen (2c in 2019 version)    
+### a1a. Recently downloaded data  
+- Read data downloaded from Nivabasen usoing script 080 (by default, the most recent dataset made is downloaded)   
+- Reformat data         
 - The file named '01_df_2019_notstandard_<date>' were made on DHJs PC using script 01 in project 'Milkys2_pc'  
 ```{r, results='hold'}
 
@@ -154,25 +154,24 @@ cat("\n")
 dat_new1_missing_value <- dat_new1 %>% 
   filter(is.na(VALUE))
 
-if (FALSE){
+if (TRUE){
   
   n1 <- nrow(dat_new1)
   dat_new1 <- dat_new1 %>%
     filter(!is.na(VALUE))
   n2 <- nrow(dat_new1)
   
-  message("\n", n1-n2, " rows with no value of VALUE were removed")
+  warning("\n", n1-n2, " rows with no value of VALUE were removed\n")
+  message("You must check the reason for missing rows - check 'dat_new1_missing_value'")
   
 } else {
   
-  warning("There are ", nrow(dat_new1_missing_value), " rows with VALUE = NA. These have NOT been removed")
+  warning("There are ", nrow(dat_new1_missing_value), " rows with VALUE = NA. These have NOT been removed (see a1")
   
 }
 
 
 ```
-
-
 
 ### a1b. Add eider duck data (19N) for the year before (2022)   
 
@@ -184,12 +183,14 @@ dat_eider_2022 <- read_csv(
   "Input_data/80_df_2022_notstandard_2024-09-12_12h16m.csv", 
   col_types = column_types) %>% 
   filter(STATION_CODE == "19N")
-message(nrow(dat_eider_2022), " rows of data read from file")
+message(nrow(dat_eider_2022), " rows of data will be added to the dataset")
 
 check <- dat_new1$MYEAR == 2022 & dat_new1$STATION_CODE == "19N"
 if (sum(check) == 0){
   dat_new1 <- bind_rows(dat_new1, dat_eider_2022) 
 }
+
+message("'dat_new1' now contains ", nrow(dat_new1), " rows")
 
 ```
 
