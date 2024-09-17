@@ -126,6 +126,8 @@ if (length(files) == 0){
     SPECIMEN_NO = col_character()
   )
   
+         
+  
   # Info for user
   cat("Reading file number ",  filenumber, ", sorted from newest to oldest files:", sep = "")
   cat("\n", files[filenumber])
@@ -142,7 +144,8 @@ if (length(files) == 0){
   # The date part of 'filename' (e.g., '2020-04-23')
   # will be used in part 10, when we save the resulting file
   
-  dat_new1 <- read_csv(paste0("Input_data/", filename), col_types = column_types) 
+  dat_new1 <- read_csv(paste0("Input_data/", filename), col_types = column_types) %>%
+    mutate(MYEAR = lastyear)
   message(nrow(dat_new1), " rows of data read from file")
   
 }
@@ -179,10 +182,13 @@ if (TRUE){
 
 ```{r}
 
+### HARD-CODED - 2023 script only! ###
+
 dat_eider_2022 <- read_csv(
   "Input_data/80_df_2022_notstandard_2024-09-12_12h16m.csv", 
   col_types = column_types) %>% 
-  filter(STATION_CODE == "19N")
+  filter(STATION_CODE == "19N") %>%
+  mutate(MYEAR = 2022)
 message(nrow(dat_eider_2022), " rows of data will be added to the dataset")
 
 check <- dat_new1$MYEAR == 2022 & dat_new1$STATION_CODE == "19N"
@@ -602,8 +608,7 @@ if (nrow(df_duplicates) > 0){
 ```{r}
 
 dat_new2 <- dat_new1 %>%
-  mutate(MYEAR = lastyear,
-         SAMPLE_NO2 = SAMPLE_NO,
+  mutate(SAMPLE_NO2 = SAMPLE_NO,
          BASIS = "W")             # hard-coded
 
 ```
