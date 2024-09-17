@@ -10,13 +10,15 @@ editor_options:
 
 **Combine legacy data (data until the year before last year) with new data (downloaded in script 100)**   
 
-**NOTE:** Before running this script, you must  
-* run script 802 on your own PC (downloads latest data from Nivabasen)  
-* this will create a file in the folder 'Files_to_Jupyterhub_2021' (if 2021 was the last year) named something like 
-    - '01_df_2021_notstandard_2022-06-02.rds' (the last part is the date of creation)    
-* copy the resulting file to Jupyterhub, folder 'Input_data'  
-   
-   
+* Ran after 050 and 051 (which add imposex and biol. effect data to Nivabasen) and 080 (which downloads data from Nivabasen)  
+    - note: this replaces the old routine of running script 802 on your own PC  
+* script 080 creates a file in the folder 'Input_data'   
+* Overview (more detailed overview below)
+    - part 1: read the data from the last year (for 2023, also eider duck 2022 is added)  
+    - part 2-8: format/check the last year's data    
+    - part 9: add last year's data to legacy data (from running script 101 last year)  
+    - part 10-13: checking/correcting the entire data set  
+
 **NOTE: Check the results of '12 Data changes since last year'**  
   
 **Overview of this script**   
