@@ -206,7 +206,10 @@ dat_new1 <- dat_new1 %>%
   filter(!STATION_CODE %in% c("I965", "I969")) 
 n2 <- nrow(dat_new1)
 
+message("'dat_new1' now contains ", nrow(dat_new1), " rows")
+
 ```
+
 
 ### a2. Check Fat and dry weight                    # ELU ok
 Should be ca. 100-200 values for both liver and whole soft body    
@@ -227,7 +230,7 @@ TBT is given by two measurements:
     - 'TBT' in Access, 'Tributyltinn (TBT)' in Nivabasen, 'TBSN+' in ICES (current standard code)   
 - atom weight of tin in TBT, called:   
     - 'TBTIN' in Access, 'Tributyltinn (TBT)-Sn' in Nivabasen, 'TBTIN' in ICES (marked as 'legacy code')   
-- [ion weight] = 2.44*[atom weight]   
+- [ion weight] should be 2.44*[atom weight]   
   
 As reference to the ICES codes, see    
 - https://vocab.ices.dk/?CodeID=33697  
@@ -242,7 +245,7 @@ dat_new1 %>%
 
 ```
 
-### a4. SPECIAL CASE FOR 2020 (hopefully): adjusted metabolites have been mislabeled  
+### a4. Check whether adjusted metabolites have been mislabeled  
 
 - Could rename them, for 2020 data we just remove them
 
@@ -290,37 +293,59 @@ dat_check <- dat_new1 %>%
 
 tab <- xtabs(~NAME + STATION_CODE, dat_check)
 
-tab1a <- tab[rownames(tab) %in% c("PYR1OH", "1-OH-pyren"),]
-tab1b <- apply(tab1a > 0, 2, sum)                                       #ELU: får feil her, kjører ikke dette scriptet
-tab2a <- tab[rownames(tab) %in% c("PA1OH", "1-OH-fenantren"),]
-tab2b <- apply(tab2a > 0, 2, sum)
-tab3a <- tab[rownames(tab) %in% c("BAP3OH", "3-OH-benzo[a]pyren"),]
-tab3b <- apply(tab3a > 0, 2, sum)
-
-if (any(tab1b > 1) | any(tab2b > 1) | any(tab3b > 1)){
-  
-  stop("There are synonymous parameters for the same station! (section 2-a5) \nEach station should have either PYR1OH or 1-OH-pyren, not both. Same for the other pairs. \n\nMost likely explanation: adjusted 1-OH-pyren (PYR1O) has been mislabeled PYR1OH.  \n\nCheck tab1, tab2a, and tab3a. (Section 2-a5)") 
-  
+# Function for testing whether the same staion contains both versions of
+# synonymous names  
+name_pair_in_station <- function(table, names){
+  table_a <- table[rownames(table) %in% names,]
+  # if there is only one station, table_a is not a matrix and apply doesn't work
+  # so we must turn it into a matrix of one column 
+  if (is.null(dim(table_a)))
+    table_a <- matrix(table_a, ncol = 1)
+  table_b <- apply(table_a > 0, 2, sum)  
+  if (any(table_b > 1)){
+    names_for_message <- paste(sQuote(names), collapse = ", ")
+    message("The parameters ", names_for_message, " occur in station(s) given as TRUE below:")
+    print(table_b > 1)
+    stop("No stations must contain both of these two names")
+  }
 }
+# test function:
+# dat_test <- data.frame(
+#   STATION_CODE = c("15B", "15B", "23B", "23B"),
+#   NAME = c("PYR1OH", "1-OH-pyren", "PYR1OH", "PYR1OH"))
+# tab <- xtabs(~NAME + STATION_CODE, dat_test)
+# debugonce(name_pair_in_station)
+# name_pair_in_station(tab, c("PYR1OH", "1-OH-pyren"))
+
+# Check whether the same station contains both versions of
+# synonymous names  
+name_pair_in_station(tab, c("PYR1OH", "1-OH-pyren"))
+name_pair_in_station(tab, c("PA1OH", "1-OH-fenantren"))
+name_pair_in_station(tab, c("BAP3OH", "3-OH-benzo[a]pyren"))
+
 
 dat_plot <- dat_new1 %>%
   filter(NAME %in% params & !is.na(VALUE)) 
+# table(dat_plot$NAME)
 
 if (nrow(dat_plot) > 0){
-  ggplot(dat_plot, aes(x = VALUE)) +
+  
+  # Plot values (all parameters in one plot)
+  gg <- ggplot(dat_plot, aes(x = VALUE)) +
     geom_histogram() +
     facet_wrap(vars(NAME), scales = "free_x")
+  print(gg)
   
   # separate for "3-OH-benzo[a]pyren"
   param_pick <- "1-OH-pyren"
   param_pick <- "1-OH-fenantren"
   param_pick <- "3-OH-benzo[a]pyren"
-  ggplot(dat_plot %>% filter(NAME == param_pick), # %>% View(), 
+  gg <- ggplot(dat_plot %>% filter(NAME == param_pick), # %>% View(), 
          aes(x = VALUE)) +
     geom_histogram(bins = 30) +
     facet_wrap(vars(FLAG1), nrow = 1) +
     ggtitle(param_pick)
-
+  # print(gg)
 
 }
 
