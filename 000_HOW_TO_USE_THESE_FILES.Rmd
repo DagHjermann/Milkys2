@@ -39,10 +39,29 @@ fat basis
 - Script 201 - Makes the big excel file based on medians (from 110) and time trends (from 120)  
 
 ## Main script files  
-#### Scripts 001-099: Scripts containing functions used by several other scripts    
+#### Scripts 001-049: Scripts containing functions used by several other scripts    
 001_Add_trends_functions.R               
 002_Utility_functions.R
-  
+
+
+#### Scripts 050-049: Scripts for inserting data into Nivabasen, and reading data from Nivabasen
+
+Read data from excel and insert into Nivabasen (thus, must be used *before* 080):  
+* 050: Biological effects and bile metabolites in cod    
+* 051: Imposex and intersex data  
+    - For both of these, you need username/password to read and write from the Oracle Nivadatabase, as well as SQL Developer installed on your computer (talk to Jens)    
+    - These scripts are run on Jupyterhub, but they create SQL code scripts that must be downloaded to your PC and then opened in SQL Developer in order to insert data into the database.    
+    - These scripts must be run step by step: Run the code until you have created SQL script number 1. Then download and run this script in SQL Developer to insert data into a table. Then go back to the script and continue from where you stopped, until the script creates SQL script number 2. Then download and run this script in SQL Developer, etc. The reason for this is that when running SQL script number 1, new ID values are created in the process which you need to read back using R before you can create SQL script number 2.
+
+Read data from Nivabasen:  
+* 080 Reads Milkys data from Nivabasen   
+    - creating `01_df_2020_notstandard_...` RData file, used by script 101   
+    - needs username/password to read from the Oracle Nivadatabase (talk to Jens)    
+
+NILU data  
+* Should now be submitted in a template by NILU, which then is imported into LIMS (and thereby Nivabase) by Dorna/Viviane.  
+
+
 #### Scripts 100-149: Main pipeline for collecting data and calculating all medians and trends <br> (Uses data from Nivabasen, and possibly also extra data files made using scripts 150-199)   
 101_Combine_with_legacy_data_2019.Rmd (uses data downloaded on a pc - see 'Scripts 800-899' below)              
 101_Combine_with_legacy_data_functions.R (functions used by the file above)      
@@ -89,17 +108,10 @@ These scripts are used 'locally', i.e. on your own computer
 Important scripts to make files *used by* Milkys2 scripts    
 * 801 Reads Labware data from the database   
     - creating `Labware_samples_xxxx` rds file, used by scripts 109, 111 and 201               
-* 802 Reads Milkys data from Nivabasen   
-    - creating `01_df_2020_notstandard_...` file, used by script 101   
-The files resulting from these scripts are automatically saved in the `Files_to_Jupyterhub_xxxx` folder on your computer, and then manually uploaded to Jupyterhub (folder `Input_data`)   
-* NOTE: both these scripts will need an Oracle client and access to the Oracle Nivadatabase  
-   
-Important scripts to insert new data into Nivabasen (thus, must be used *before* 802):  
-* 812, 814: NILU data  
-* 813: Imposex and intersex data  
-* 815: Biological effects and bile metabolites in cod    
-These scripts are run on RStudio your computer, creating SQL code that is copy/pasted into SQL Developer to insert data into the database     
-  
+    - Must be run on a PC  
+    - the files resulting from this script is automatically saved in the `Files_to_Jupyterhub_xxxx` folder on your computer, and then you must manually uploaded it to Jupyterhub (folder `Input_data`)   
+    - need an Oracle client and access to the Oracle Nivadatabase  
+
 Important scripts that uses files *produced by* Milkys2 scripts:      
 * 841-844: Submission to ICES      
 Files used by these scripts must first be manually downloaded from Jupyterhub and manually saved to the `Files_from_Jupyterhub_xxxx` folder on your computer. These scripts are used to make a data file (text format) which is tested on ICES' DATSU service (https://dome.ices.dk/datsu/)  and then sent to accessions@ices.dk   
@@ -139,7 +151,7 @@ These files are manually downloaded to your pc and saved to the `Files_from_Jupy
 If you don't see a graph here, click the small "Trust HTML" button in the top left corner of this window.
 
 ```{r, echo=FALSE, message=FALSE, warning=FALSE, results='hide'}
-install.packages("DiagrammeR")
+# install.packages("DiagrammeR")
 ```
 
 ```{r diagram, echo=FALSE, fig.width=9, fig.height=13}
@@ -170,16 +182,16 @@ digraph boxes_and_circles {
         color = IndianRed,
         fontcolor = IndianRed,
         width = 1.5] // ellipse
-  801 [label = 'Script 801\n(on PC)', width = 2, 
-    tooltip = 'Downloading sample data from Labware/Nivabasen - must run on your PC']; 
+  801 [label = 'Script 801', width = 2, 
+    tooltip = 'Downloading sample data from LIMS/Nivabasen (must run on a PC)']; 
   LastYear [label = 'Script 101,\nrun last year\n', height = 0.6, width = 2]; 
-  802 [label = 'Script 802 (PC)', tooltip = 'Download all Milkys data fro last year from Nivabasen. Must be run on a PC. Will need an Oracle client and access to the Oracle Nivadatabase'];
+  080 [label = 'Script 080 (PC)', tooltip = 'Download all Milkys data from last year from Nivabasen. Needs username/password for reading from the Oracle Nivadatabase'];
   101 [label = 'Script 101'];
   150 [label = 'Script 150']; 
   109 [label = 'Script 109']; 
-  812 [label = 'Script 812,814\n(on PC)', width = 2]; 
-  813 [label = 'Script 813\n(on PC)', width = 2]; 
-  815 [label = 'Script 815\n(on PC)', width = 2]; 
+  812 [label = 'Imported by lab\n(Viviane/Dorna)', width = 2]; 
+  051 [label = 'Script 051', width = 2]; 
+  050 [label = 'Script 050\n(on PC)', width = 2]; 
   110 [label = 'Script 110']; 
   111 [label = 'Script 111']; 
   120 [label = 'Script 120']; 
@@ -232,12 +244,12 @@ digraph boxes_and_circles {
 
   # Connections (edges)
   NILU_excel -> 812; 812 -> NILU; 
-  Imposex_excel -> 813; 813 -> Imposex; 
-  Codbiol_excel -> 815; 815 -> Codbiol;
+  Imposex_excel -> 051; 051 -> Imposex; 
+  Codbiol_excel -> 050; 050 -> Codbiol;
   {NILU Imposex Codbiol} -> Nivadatabase;
-  Nivadatabase -> 802;
+  Nivadatabase -> 080;
   Labware_db -> 801; 801 -> Labware; 
-  LastYear -> Legacy; 802 -> Nivabasen
+  LastYear -> Legacy; 080 -> Nivabasen
   {Nivabasen Legacy} -> 101; 
   101 -> Raw2; 
   Lengths_excel -> 150; 150 -> Lengths; 
