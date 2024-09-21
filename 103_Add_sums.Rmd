@@ -10,6 +10,13 @@ editor_options:
   chunk_output_type: inline
 ---
 
+This script does the following things:  
+* Reads data made by script 101  
+* Deletes all sums made in script 101 before , i.e. "CB_S7" (incl. LOQ) accompanied by "CB_S7_exloq" (excl. LOQ)  
+* Adds new sums defined in the top of script '101_Combine_with_legacy_data_functions.R', based on MGR's excel table in Sharepoint/project portal   
+    - these suns are on the format "sumPCB7" (incl. LOQ) accompanied by "sumPCB7_exloq" (excl. LOQ)  
+* Saved file will be used in script 105  
+
 ## 0. Settings  
 ```{r}
 
@@ -177,17 +184,11 @@ xtabs(~PARAM + addNA(N_par), testdata3)
 
 # test column names
 # add_sumparameter_inclloq_allyears adds only 'n_under_loq' to the data
-test_columns <- full_join(
-  data.frame(x = names(testdata1), data1 = TRUE),
-  data.frame(x = names(testdata2), data2 = TRUE),
-  data.frame(x = names(testdata3), data3 = TRUE)
-  )
-
 test_columns <- data.frame(x = names(testdata1), data1 = TRUE) %>%
   full_join(data.frame(x = names(testdata2), data2 = TRUE)) %>%
   full_join(data.frame(x = names(testdata3), data3 = TRUE))
 
-View(test_columns)
+# View(test_columns)
 
 ```
 
@@ -285,6 +286,6 @@ write_csv(dat_all_new, filename_csv)
 
 
 cat("Updated and standardized data saved as:")
-cat("\n", filename)
+cat("\n", filename, "\n")
 
 ```
