@@ -34,7 +34,8 @@ Read and reformat the most recent data (by default)
 ```{r}
 
 # Files 
-files <- list_files("Data", pattern = "103_data_updated")
+files <- list_files("Data", pattern = "103_data_updated.+.rds")
+# files <- list_files("Data", pattern = "103_data_updated")
 
 # Pick file
 filename <- files[1]
