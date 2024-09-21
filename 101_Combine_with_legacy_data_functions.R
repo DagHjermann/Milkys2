@@ -1,5 +1,5 @@
 
-sum_parameters <- list(
+sum_parameters_old <- list(
   CB_S7 = c("CB28", "CB52", "CB101", "CB118", "CB138", "CB153", "CB180"), 
   CB_S6 = c("CB28", "CB52", "CB101", "CB138", "CB153", "CB180"), 
   BDE6S = c("BDE28", "BDE47", "BDE99", "BDE100", "BDE153", "BDE154"), 
@@ -19,6 +19,28 @@ sum_parameters <- list(
            "DBA3A", "ICDP"), 
   DDTEP = c("DDEPP", "DDTPP")
 )
+
+sum_parameters <- list(
+  sumPCB7 = c("CB28", "CB52", "CB101", "CB118", "CB138", "CB153", "CB180"), 
+  sumBDE6 = c("BDE28", "BDE47", "BDE99", "BDE100", "BDE153", "BDE154"), 
+  sumHCH = c("HCHA", "HCHB", "HCHG"), 
+  PFAS = c("PFOS", "PFOSA"), 
+  sumHBCD = c("HBCDA", "HBCDB", "HBCDG"), 
+  sumBDE = c("BDE17", "BDE28", "BDE47", "BDE49", 
+            "BDE66", "BDE71", "BDE77", "BDE85", "BDE99", "BDE100", "BDE119", 
+            "BDE126", "BDE138", "BDE153", "BDE154", "BDE156", "BDE183", "BDE184", 
+            "BDE191", "BDE196", "BDE197", "BDE205", "BDE206", "BDE207", "BDE209"), 
+  sumPAH15 = c("ACNLE", "ACNE", "FLE", "PA", "ANT", "FLU", "PYR",
+               "BAA", "CHR", "BBJF", "BKF", "BAP", "DBA3A", "BGHIP", "ICDP", "BBJKF"), 
+  sumPAH16 = c("ACNLE", "ACNE", "FLE", "PA", "ANT", "FLU", "PYR",
+               "BAA", "CHR", "BBJF", "BKF", "BAP", "DBA3A", "BGHIP", "ICDP", "BBJKF",
+               "NAP"), 
+  sumKPAH = c("BAA", "CHR", "BBJF", "BKF", "BAP", 
+           "DBA3A", "ICDP"), 
+  sumDDTEP = c("DDEPP", "DDTPP"),
+  sumNPs = c("4-T-NP", "4-N-NP")
+)
+
 
 
 #
@@ -186,11 +208,14 @@ add_sumparameter_exloq_allyears <- function(i, pars_list, data){
     group_by(STATION_CODE, LATIN_NAME, TISSUE_NAME, MYEAR, SAMPLE_NO2, UNIT, BASIS) # not PARAM, but including BASIS
   if (nrow(df_grouped) > 0){
     df1 <- df_grouped %>%
-      summarise(VALUE = sum(VALUE_exloq, na.rm = TRUE), .groups = "drop_last") %>%      # sum of the measurements
+      summarise(
+        VALUE = sum(VALUE_exloq, na.rm = TRUE), 
+        .groups = "drop_last") %>%      # sum of the measurements
       mutate(QUANTIFICATION_LIMIT = NA) %>%
       as.data.frame(stringsAsFactors = FALSE)
     df3 <- df_grouped %>%
-      summarise(N_par = n(), .groups = "drop_last") %>%    # number of measurements
+      summarise(
+        N_par = n(), .groups = "drop_last") %>%    # number of measurements
       as.data.frame()
     # Should be all 1
     # check <- df1[,1:9] == df2[,1:9]
@@ -263,12 +288,12 @@ add_sumparameter_inclloq_allyears <- function(i, pars_list, data){
   if (nrow(df_grouped) > 0){
     df1 <- df_grouped %>%
       summarise(VALUE = sum(VALUE_inclloq, na.rm = TRUE),   # sum of the measurements
-                n_under_loq = sum(FLAG1 %in% "<"),          # number of less-thans
+                N_under_loq = sum(FLAG1 %in% "<"),          # number of less-thans
                 .groups = "drop_last") %>% 
       mutate(QUANTIFICATION_LIMIT = NA,
              FLAG1 = case_when(
-               n_under_loq == 0 ~ as.character(NA),
-               n_under_loq > 0 ~ "<")) %>%
+               N_under_loq == 0 ~ as.character(NA),
+               N_under_loq > 0 ~ "<")) %>%
       as.data.frame(stringsAsFactors = FALSE)
     df3 <- df_grouped %>%
       summarise(N_par = n(), .groups = "drop_last") %>%    # number of measurements
@@ -283,7 +308,8 @@ add_sumparameter_inclloq_allyears <- function(i, pars_list, data){
     #     apply(check, 2, mean) %>% mean(na.rm = TRUE), "\n")
     
     # Set the parameter name
-    df1$PARAM <- paste0(names(pars_list)[i], "_exloq")   
+    df1$PARAM <- names(pars_list)[i]                        # for incl. loq, for instance "sumPCB7"
+    # df1$PARAM <- paste0(names(pars_list)[i], "_exloq")    # for incl. loq, for instance "sumPCB7_exloq"   
     
     df_to_add1 <- data.frame(df1, N_par = df3[,"N_par"], stringsAsFactors = FALSE)  # Make data to add
     
