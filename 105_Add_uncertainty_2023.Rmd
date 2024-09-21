@@ -87,7 +87,7 @@ check <- dat_all %>%
 
 if (nrow(check) > 0){
   # Should be 'stop'? set this as warning for now 
-  warning("Some values of 'Substance.Group' in 'df_paramgroups' lacks data! Fix, and recreate dat_all.")
+  warning("Some values of 'Substance.Group' in 'df_paramgroups' lacks data! Fix, and recreate dat_all.")    #ELU får 13 warnings, men fikser ikke nå
 }
 
 cat("\n\n")
@@ -114,7 +114,7 @@ dat_all[sel, ] %>%
   mutate(Existing_value = paste(ifelse(is.na(FLAG1), "=", "<"), VALUE_WW)) %>%
   count(PARAM, MYEAR, Existing_value)
 
-if (FALSE) {
+if (TRUE) {
   
   # All PFAS
   # NO values under LOQ for ANY parameter
@@ -181,7 +181,7 @@ if (sum(sel, na.rm = TRUE) > 0){
 ### Check existing uncertainty by year      
 ```{r}
 
-for (yr in c(2021, 2020, 2019, 2018)){
+for (yr in c(2023, 2022, 2021, 2020, 2019, 2018)){
 cat("==========================================\n", yr, "\n==========================================\n")
 
 dat_all %>%
@@ -239,7 +239,7 @@ df2023 %>%                                                                      
 - Compare with data set made in 'Uncertainty, combined', below   
 - Largely comparable  
 ```{r}
-if (FALSE){
+if (TRUE){
 
 df2020 %>%
   filter(Uncert_group == ">0") %>%
@@ -457,7 +457,7 @@ if (nrow(check) == 0){
   warning("Still some substances / labs lacking uncertainty - check tables below")
 }
 
-if (FALSE){
+if (TRUE){
   
   check %>% count(Substance.Group, Lab)
   check %>% count(Substance.Group, PARAM, Lab)
@@ -481,14 +481,14 @@ dat_updated_view <- dat_updated %>%
     UNCRT, METCU
   )
 
-if (FALSE){
+if (TRUE){
   
   View(dat_updated_view %>% 
          filter(LATIN_NAME == "Gadus morhua" & PARAM == "CB180") %>% 
          arrange(VALUE_WW), title = "CB180")
   View(dat_updated_view %>% 
-         filter(LATIN_NAME == "Gadus morhua" & PARAM == "PFUdA") %>% 
-         arrange(VALUE_WW), title = "PFUdA")
+         filter(LATIN_NAME == "Gadus morhua" & PARAM == "PFUnDA") %>% 
+         arrange(VALUE_WW), title = "PFUnDA")
   View(dat_updated_view %>% 
          filter(LATIN_NAME == "Gadus morhua" & PARAM == "PFDcA") %>% 
          arrange(VALUE_WW), title = "PFDcA")
@@ -505,7 +505,7 @@ if (FALSE){
 ### a. R data file    
 ```{r}
 
-filename <- paste0("Data/105_data_with_uncertainty_", file_date, ".rds")             #ELU: har ikke laget fil ennå
+filename <- paste0("Data/105_data_with_uncertainty_", file_date, ".rds")             #ELU: ny fil 10. juli 2024 (med fildato 9.juli2024)
 saveRDS(dat_updated, filename)
 
 cat("Data on sample level, with uncertainty, saved as: \n")
