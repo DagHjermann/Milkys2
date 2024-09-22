@@ -802,7 +802,7 @@ df_smpno <- read.table(textConnection("
             LATIN_NAME SMPNO  SMLNK
         'Gadus morhua'     1      8
      'Limanda limanda'     8      8
-  'Littorina littorea'     3     11
+  'Littorina littorea'     4     11
       'Mytilus edulis'     0     11
     'Nucella lapillus'     3     11
   'Platichthys flesus'     6      9
@@ -1226,8 +1226,8 @@ if (nrow(check) > 0){
     mutate(LATIN_NAME = "Gadus morhua",
            NOIMP = 1,
            SAMPLE_NO_Muscle = NA, SAMPLE_NO_Liver = 4,
-           SUBNO = extra_subno_numbers, BULKID = "",
-           SMPNO = 1)
+           SUBNO = extra_subno_numbers, BULKID = "") %>%
+    left_join(df_smpno %>% select(LATIN_NAME, SMPNO), by = "LATIN_NAME")
   
   data_04_fish_main <- bind_rows(
     data_04_fish_main, 
