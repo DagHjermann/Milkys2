@@ -3139,25 +3139,25 @@ table_21_add <- function(existing_data_21, amlnk){
   )
 } 
 
-#
-# DO IT
-#
-
-amlnk <- data_10 %>% table_10_amlnk_get("HCHA")
-data_10 <- data_10 %>% table_10_amlnk_set("HCHA", amlnk)
-data_21 <- data_21 %>% table_21_add(amlnk)
-
-cat("\n")
-amlnk <- data_10 %>% table_10_amlnk_get("HCHG")
-data_10 <- data_10 %>% table_10_amlnk_set("HCHG", amlnk)
-data_21 <- data_21 %>% table_21_add(amlnk)
-
-cat("\n")
-amlnk <- data_10 %>% table_10_amlnk_get("HCB")
-data_10 <- data_10 %>% table_10_amlnk_set("HCB", amlnk)
-data_21 <- data_21 %>% table_21_add(amlnk)
-
-
+if (FALSE){
+  
+  # Not needed in 2023 - these already exist in table 21
+  
+  amlnk <- data_10 %>% table_10_amlnk_get("HCHA")
+  data_10 <- data_10 %>% table_10_amlnk_set("HCHA", amlnk)
+  data_21 <- data_21 %>% table_21_add(amlnk)
+  
+  cat("\n")
+  amlnk <- data_10 %>% table_10_amlnk_get("HCHG")
+  data_10 <- data_10 %>% table_10_amlnk_set("HCHG", amlnk)
+  data_21 <- data_21 %>% table_21_add(amlnk)
+  
+  cat("\n")
+  amlnk <- data_10 %>% table_10_amlnk_get("HCB")
+  data_10 <- data_10 %>% table_10_amlnk_set("HCB", amlnk)
+  data_21 <- data_21 %>% table_21_add(amlnk)
+  
+}
 
 ```
 
