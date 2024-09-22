@@ -276,12 +276,12 @@ cat("Intersex changed to code INTF% for", sum(sel), "records")
 ### a2-3. Remove stations not to submit  
 
 - Particular for 2022  
-- Ranfjord stations (I969, I965) and eider duck (19N)  
+- Ranfjord stations (I969, I965) 
 
 ```{r}
 
 data_all <- data_all %>%
-  filter(!STATION_CODE %in% c("I969", "I965", "19N"))
+  filter(!STATION_CODE %in% c("I969", "I965"))
 
 ```
 
@@ -3508,21 +3508,21 @@ check <- new_stations %in% data_91$STNNO
 }
 
 ```
-### c2. Add 71A and 20B  
+### c2. Add 71A, 20B  
 
 - 71A = Bjørkøya, Grenland   
 - 20B = Longyearbyen  
 ```{r}
 
-# data_2018[["91"]] %>% View()
+# data_previous[["91"]] %>% View()
 
-new_stations <- c("71A", "20B")
+new_stations <- "71A"
 new_lat <- c(59.02333, 78.2760)	
 new_lon <- c(9.75367, 15.4060)
 
 data_91_extra <- tibble(
   RECID = "91",
-  CRUIS = "AA711",
+  CRUIS = 2,                         # 2 for hand-picking
   STNNO = new_stations, 
   LATIT = decimal2minute(new_lat),   # change to ICES format ("+67 17.778")
   LONGI = decimal2minute(new_lon),   # change to ICES format
@@ -3547,6 +3547,41 @@ if (sum(check) == 0){
 }
 
 ```
+
+### c2. Add 19N  
+```{r}
+
+new_stations <- "19N"
+
+# 91;2;19N;+79 0.240;+12 6.600;EST;20210613;;;;19N Breøyane;CEMP;CF;B;T~S
+
+data_91_extra <- tibble(
+  RECID = "91",
+  CRUIS = 2,                         # 2 for hand-picking
+  STNNO = new_stations, 
+  LATIT = "+79 0.240",    # ICES format
+  LONGI = "+12 6.600",    # ICES format
+  POSYS = "EST",
+  SDATE = "",   # set later
+  STATN = "19N Breøyane",
+  MPROG = "CEMP",
+  WLTYP = "CF", 
+  MSTAT = "B",       # B = background
+  PURPM = "T~S"      # purpose: T = time series, S = spatial monitoring  
+)
+
+check <- new_stations %in% data_91$STNNO
+  if (sum(check) == 0){
+  data_91 <- bind_rows(data_91, data_91_extra)
+  cat(nrow(data_91_extra), "new stations added\n")
+} else if (sum(check) == 1){
+  cat("Stations were already in data set\n")
+} else {
+  cat("Some, but not all, stations are already in data set. CHECK.\n")
+}
+
+```
+
 ### c3. Check if we have all stations  
 ```{r}
 
