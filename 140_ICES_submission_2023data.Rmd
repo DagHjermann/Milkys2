@@ -7,6 +7,9 @@ output:
     keep_md: true
 ---
 
+
+**TODO: check 56A2 / 56A, why do we have both in the data?**
+
 Script for making files in ICES format, for submitting last year's data to ICES  
 
 Source of main data (data_ind2):
@@ -32,7 +35,8 @@ get_nivabase_data(str)
 ### Selected year  
 ```{r}
 
-selected_year <- 2022
+selected_year <- 2023  
+previous_year <- selected_year - 1
 
 ```
 
@@ -43,7 +47,20 @@ selected_year <- 2022
 save_folder <- paste0("Files_to_ICES/", selected_year)
 save_folder_txt <- paste0("Files_to_ICES/", selected_year, "/Test")
 save_folder_rds <- paste0("Files_to_ICES/", selected_year, "/Rdata")
-save_folder_excel <- paste0("Files_to_ICES/", selected_year, "/Excel")
+
+# define function
+create_folder_if_needed <- function(folder){
+  if (!dir.exists(folder)){
+    dir.create(folder)
+    message("folder ", sQuote(folder), " created")
+  } else {
+    message("folder ", sQuote(folder), " already exists")
+  }
+}
+
+create_folder_if_needed(save_folder)
+create_folder_if_needed(save_folder_txt)
+create_folder_if_needed(save_folder_rds)
 
 ```
 
@@ -61,7 +78,8 @@ library(lubridate)
 
 # source("01_Get_chemical_data_NIVAbasen_functions.R")  # for get_standard_parametername()
 
-source("844_ICES_submission_check_functions.R")
+source("002_Utility_functions.R")
+source("140_ICES_submission_functions.R")
 
 ```
 
@@ -132,20 +150,37 @@ if (FALSE){
 
 ### a1. Get data produced by script 105 in Jupyterhub  
 
-- used to be based on data produced by script 841 (see scripts from previous years)    
+### a. Main data  
+Read and reformat the most recent data (by default)  
+```{r}
+
+# Files 
+files <- list_files("Data", pattern = "105_data_with_uncertainty.+.rds")
+
+# Pick file
+filename <- files[1]
+cat("\nLast file:", filename, "\n")
+cat("Time since this file was modified: \n")
+Sys.time() - file.info(paste0("Data/", filename))$mtime 
+
+# Info
+cat("\nIf you want to read a different file, input a different name for 'filename' \n")
+
+# Read data
+data_all <- readRDS(paste0("Data/", filename))
+
+# We save the date part of the text (e.g., '2020-04-23')
+# This will be used in part 10, when we save the resulting file
+file_date <- substr(filename, 18, 27)    # pick out the part of the text from character no. 17 to no. 26
+
+```
+#### Data in the selected year  
+
+- also set 36A to 36A1
 
 ```{r}
 
-folder <- "Files_from_Jupyterhub_2022/Raw_data"
-dir(folder, "105_*")
 
-data_all <- readRDS(paste0(folder, "/", "105_data_with_uncertainty_2023-09-12.rds")) %>%
-  # Set 36A to 36A1
-  mutate(
-    STATION_CODE = ifelse(STATION_CODE == "36A", "36A1", STATION_CODE)
-  )
-
-    
 #
 # Data in the selected year
 #
@@ -159,7 +194,15 @@ data_ind2 <- data_all %>%
       PARAM %in% "3-OH-benzo[a]pyren" ~ "BAP3OH",
       TRUE ~ PARAM),
     UNCRT = round(UNCRT, 3)
+  ) %>%
+  # Set 36A to 36A1 and 56A2 to 56A
+  mutate(
+    STATION_CODE = case_when(
+      STATION_CODE == "36A" ~ "36A1",
+      STATION_CODE == "56A2" ~ "56A",
+      TRUE ~ STATION_CODE)
   )
+
 
 #
 # Couple of tables
@@ -173,18 +216,19 @@ xtabs(~ is.na(SAMPLE_NO), data_ind2)
 
 xtabs(~ addNA(LATIN_NAME), data_ind2)
 
-#
-# Data on individual level of fish (lengt, weight, gonad weight)
-#
-# Must contain these exact column names:
-# STATION_CODE, Fish_no, Length, Weight, Gonad_weight
-#
-# data_ind_fish_old <- readRDS("Data/03_Fish_individual_data.rds")
+```
+#### Data on individual level of fish (lengt, weight, gonad weight)
 
-dir(folder, "150_*")
-data_ind_fish <- readRDS(paste0(folder, "/", "150_Fish_individual_data_ELU_2022.rds"))
+* Must contain these exact column names:
+    - STATION_CODE, Fish_no, Length, Weight, Gonad_weight  
+    
+```{r}
+
+fishdata_fn <- paste0("Data/150_Fish_individual_data_ELU_", selected_year, ".rds")  # assuming this file name format
+data_ind_fish <- readRDS(fishdata_fn)
 
 ```
+
 
 #### Check PAH metabolites
 ```{r}
@@ -410,87 +454,52 @@ df %>%
 ```
 
 
-### b1. Get tables submitted to ICES in 2016
-For comparison and getting the PARAM we want
-```{r}
-load(file = "../Milkys_2018/Input_data/22_ICES_tables_2016-10-06.RData")     # data file from script 22 used in 2017
+### b1. Get tables submitted to ICES before    
 
-data_03_2016 <- data_03
-data_10_2016 <- data_10
-data_21_2016 <- data_21
-data_91_2016 <- data_91
+* Used in some places below
+
+```{r}
+
+data_previous <- readRDS("Files_to_ICES/2022/Rdata/842_NIVA2022CF_08.rds")        # HARD-CODED
+names(data_previous)
+
+data_previous[["03"]]$STNNO %>% table
+
+str(data_previous[["03"]])
+str(data_previous[["04"]])
+str(data_previous[["10"]])
+lapply(data_previous, names)
 
 ```
 
-### b2. Get tables submitted to ICES in 2019 (2018 data)
-```{r}
-
-folder_data <- "../Milkys/ICES/delivered to Mildir"
-# dir(folder_data)
-# fns <- dir(folder_data, ".NO", full.names = TRUE)
-fn <- paste0(folder_data, "/NIVA2018CF_2nd_version.NO")
-data_2018 <- read_ices_file(fn)  
-data_2018 <- add_field_codes(data_2018)  
-
-if (FALSE){
-  
-  names(data_2018)
-  data_2018[["10"]] %>% xtabs(~PARAM, .)
-  
-  data_2018[["91"]] %>% xtabs(~STNNO, .)
-  data_2018[["91"]] %>% xtabs(~STATN, .)
-
-}
-
-```
-
-
-
-
-### c. Also get the newest 2017 data produced by script 10  
-We call it 'data_ind2_10'  
-We do this only to add uncertainty and quantification limit
-```{r}
-
-# NOT NEEDED - WE SHOULD ALREADY HAVE uncertainty and quantification limit
-# str(data_ind2)
-
-# Last year's statistics
-# xtabs(~is.na(UNCRT), data_10_2016)   # UNCERTAINTY
-# xtabs(~is.na(DETLI), data_10_2016)    # QUANTIFICATION_LIMIT
-
-# xtabs(~is.na(QUANTIFICATION_LIMIT), data_ind2_10 %>% filter(PARAM %in% "EROD"))
-# xtabs(~is.na(DETLI), data_10_2016 %>% filter(PARAM %in% "EROD"))
-# data_10_2016 %>% filter(PARAM %in% "EROD") %>% pull(DETLI)
-
-```
-
-### d. Data used for submitting 2017 data
-```{r}
-
-df_ind_old <- read.csv("../Milkys_2018/Data/09_df_ind.csv", stringsAsFactors = FALSE)
-df_liver_old <- read.csv("../Milkys_2018/Data/09_df_liver.csv", stringsAsFactors = FALSE)
-df_muscle_old <- read.csv("../Milkys_2018/Data/09_df_muscle.csv", stringsAsFactors = FALSE)
-df_liver_33F_old <- readRDS("../Milkys_2018/Data/09_df_liver_33F.RData")
-df_muscle_33F_old <- readRDS("../Milkys_2018/Data/09_df_muscle_33F.RData")
-
-```
 
 
 ### e1. Fish individual data
 ```{r}
 
-# df_samples <- readRDS(file = "Data/01_df_samples_2019.rds")
-# df_samples <- readRDS("Files_to_Jupyterhub_2020/Labware_samples_2020_2021-07-02.rds")  
+# rev() sorts files in opposite direction (i.e. with the newest first)
+files <- dir("Input_data", "83_Labware_samples_") %>% rev()
 
-folder <- paste0("Files_to_Jupyterhub_", selected_year)
-dir(folder, pattern = "Labware_samples_*")
+sel <- selected_year %in% as.numeric(substr(files, 20, 23))
 
-df_samples <- readRDS(paste0(folder, "/Labware_samples_2022_2023-09-12.rds")) %>%
+if (sum(sel)==0){
+  stop("No files from year ", selected_year, "found! Get it from script 801 on your pc.")
+}
+
+# Read last file (number 1, as they are sorted with the newest first)
+filename <- files[1] 
+df_samples <- readRDS(paste0("Input_data/", filename))
+
+# table(df_samples$AQUAMONITOR_CODE)
+
+# Some fixing
+df_samples <- df_samples %>%
   filter(STATUS %in% "Ferdig") %>%
   # Set 36A to 36A1
   mutate(
-    AQUAMONITOR_CODE = ifelse(AQUAMONITOR_CODE == "36A", "36A1", AQUAMONITOR_CODE)
+    AQUAMONITOR_CODE = case_when(
+      AQUAMONITOR_CODE == "36A" ~ "36A1", 
+      TRUE ~ AQUAMONITOR_CODE)
   ) %>%
   # Remove "SIA" lines 
   filter(!grepl("SIA", DESCRIPTION))
@@ -502,20 +511,6 @@ if (FALSE)
     select(AQUAMONITOR_CODE, TISSUE, DESCRIPTION, BIOTA_SAMPLENO, X_BULK_BIO) %>% 
     View()
 
-# if (selected_year == 2021){
-#   
-#   # 36A lacking for some reason
-# 
-#   df_samples <- bind_rows(
-#     df_samples,
-#     data.frame(
-#       AQUAMONITOR_CODE = "36A", TISSUE = "SB-Whole soft body", DESCRIPTION = "",
-#       BIOTA_SAMPLENO = 1:3, X_BULK_BIO = as.character(NA))
-#   )
-# 
-# }
-
-
 # Check again
 check <- setdiff(unique(data_ind2$STATION_CODE), unique(df_samples$AQUAMONITOR_CODE))
 if (length(check) > 0){
@@ -523,9 +518,9 @@ if (length(check) > 0){
 }
 
 ```
-#### 
 
 #### Check data  
+
 ```{r}
 
 check <- df_samples %>%
@@ -1482,7 +1477,7 @@ SO FAR WE JUST USE LAST YEAR'S TABLE :-)
 
 ### Generate lookup
 ```{r}
-df_amlnk <- data_10_2016 %>%
+df_amlnk <- data_previous[["10"]] %>%
   group_by(PARAM, AMLNK) %>%
   summarise(n = n(),
             .groups = "drop")
@@ -1528,7 +1523,7 @@ Table 10 is the combined rows of the following tables:
 - Note that siloxanes "D4", "D5", "D6" are not included because they are not in the ICES vocabulary  
 ```{r}
 
-par_ices <- unique(data_10_2016$PARAM) %>% sort()
+par_ices <- unique(data_previous[["10"]]$PARAM) %>% sort()
 # Add some
 par_ices <- c(par_ices, "HCHA", "HCHG", "HCB") %>% unique() %>% sort() 
 #
@@ -1796,7 +1791,7 @@ message(nrow(data_conc_back) - nrow(data_conc), " EROD observations without GOSO
 ```{r}
 
 xtabs(~UNIT, data_conc)
-xtabs(~MUNIT, data_10_2016)
+xtabs(~MUNIT, data_previous[["10"]])
 
 # we need only these units, as the rest will be dropped
 df_munit <- data.frame(
@@ -1816,7 +1811,7 @@ df_munit <- data.frame(
 #   filter(PARAM %in% c("PA1O", "PYR1O", "BAP3O", "PA1OH", "PYR1OH", "BAP3OH", "ALAD", "EROD")) %>%
 #   count(PARAM, UNIT)
 # 
-# data_10_2016 %>% 
+# data_previous[["10"]] %>% 
 #   filter(PARAM %in% c("PA1O", "PYR1O", "BAP3O", "PA1OH", "PYR1OH", "BAP3OH", "ALAD", "EROD")) %>%
 #   count(PARAM, MUNIT)
 
@@ -1836,8 +1831,8 @@ df_matrx <- tibble(
   MATRX = c("MU", "BL", "BI", "LIMIC", "LI")
 )
 
-# xtabs(~MATRX + PARAM, data_10_2016 %>% filter(PARAM %in% c("ALAD", "BAP3OH", "EROD", "PA1OH", "PYR1OH")))
-# xtabs(~MUNIT + PARAM, data_10_2016 %>% filter(PARAM %in% c("ALAD", "BAP3OH", "EROD", "PA1OH", "PYR1OH")))
+# xtabs(~MATRX + PARAM, data_previous[["10"]] %>% filter(PARAM %in% c("ALAD", "BAP3OH", "EROD", "PA1OH", "PYR1OH")))
+# xtabs(~MUNIT + PARAM, data_previous[["10"]] %>% filter(PARAM %in% c("ALAD", "BAP3OH", "EROD", "PA1OH", "PYR1OH")))
 ```
 
 #### c1a2. Check when SAMPLE_NO_Muscle =/= Fish_no   
@@ -3045,11 +3040,12 @@ data_10 <- data_10 %>%
 
 ### a. Check PARAM relative to table 10
 ```{r}
-# data_21 <- data_21_2016  # restore from "backup"
+
+data_21 <- data_previous[["21"]]  # restore from "backup"
 data_21_back <- data_21  # make backup
 
 # We use 2018 data instead
-data_21 <- data_2018[["21"]] %>%
+data_21 <- data_previous[["21"]] %>%
   mutate(AMLNK = as.numeric(AMLNK))
 
 column_order_21 <- names(data_21)
@@ -3087,7 +3083,7 @@ So the AMLNK for TBSN+ in data_10 points to the TBT line in data_21
 if ("TBSN+" %in% check1$PARAM) {
   
   # First, find AMLNK for TBTIN (note that we use 'old' data, as these have been deleted from 'data_10'....)
-  amlnk <- data_2018[["10"]] %>% 
+  amlnk <- data_previous[["10"]] %>% 
     filter(PARAM == "TBTIN") %>% 
     pull(AMLNK) %>% unique()
   amlnk
@@ -3105,6 +3101,7 @@ if ("TBSN+" %in% check1$PARAM) {
 
 
 ```
+
 ### b3b. Add extra parameters  
 Must both add a new AMLNK to table 10 and add a line with this AMLNK to table 21
 ```{r}
@@ -3191,7 +3188,7 @@ if (nrow(check1) == 0 & nrow(check2) == 0){
 ```{r}
 # data_21 %>% colnames() %>% dput()
 amlnk_missing <- data_21 %>% filter(!AMLNK %in% data_10$AMLNK) %>% pull(AMLNK)
-param_in_21_but_not_in_10 <- data_10_2016 %>%
+param_in_21_but_not_in_10 <- data_previous[["10"]] %>%
   filter(AMLNK %in% amlnk_missing) %>%
   group_by(PARAM, AMLNK) %>%
   summarise(N = n(), .groups = "drop")
@@ -3310,7 +3307,7 @@ xtabs(~METOA, data_21)
 ### e2. Read method data   
 ```{r}
 
-df_metoa <- readxl::read_excel("../Milkys_2018/Input_data/ICES_METOA_codes2.xlsx")
+df_metoa <- readxl::read_excel("Input_data/Lookup_tables/ICES_METOA_codes2.xlsx")
 
 # Change PFOSA to PFOSD in the method data
 sel <- df_metoa$PARAM %in% "PFOSA"; sum(sel)
@@ -3323,7 +3320,7 @@ df_metoa$PARAM[sel] <- "PFOSD"
 By join with df_metoa. Note that both PARAM and UNIT are used for the join!  
 ```{r}
 # data_21_back <- data_21  # make backup
-# data_21 <- data_21_2016  # restore from backup
+# data_21 <- data_previous[["21"]]  # restore from backup
 
 n1 <- nrow(data_21)
 data_21 <- data_21 %>%
@@ -3456,7 +3453,7 @@ It lacks
 ### a. Get 2018 data (submitted in 2019)  
 ```{r}
 
-data_91 <- data_2018[["91"]]
+data_91 <- data_previous[["91"]]
 column_order_91 <- names(data_91)
 
 ```
@@ -3629,15 +3626,13 @@ data_91$STATN[sel] <- "20B Longyearbyen"
 
 
 ### f. Sample dates   
-- Taken from raw data, 
+- Taken from raw data
+
 ```{r}
 
-data_for_dates <- data_ind2 %>%
-  filter(!is.na(SAMPLE_DATE)) %>%
-  distinct(STATION_CODE, SAMPLE_DATE)
-
-df_dates <- data_for_dates %>%
-  rename(STNNO = STATION_CODE)
+df_dates <- df_samples %>%
+  distinct(SAMPLED_DATE, AQUAMONITOR_CODE) %>%
+  rename(SAMPLE_DATE = SAMPLED_DATE, STNNO = AQUAMONITOR_CODE)
 
 # Check stations with >1 date (19N has two)
 check_dates_1 <- df_dates %>%
@@ -3721,7 +3716,6 @@ REVISION: Use
 * SHIPC = 58TB 	TRYGVE BRAARUD for 30B
 ```{r}
 # Original
-data_90
 
 data_90 <- tibble(
   RECID = rep(90,3),
@@ -4476,7 +4470,6 @@ data[["10"]] %>%
 ## Notes  
 
 
-```
 
 "BDE119", "BDE138", "BDE156", "BDE17", "BDE184", "BDE191", "BDE196", 
 "BDE197", "BDE202", "BDE206", "BDE207", "BDE49", "BDE66", 
@@ -4510,8 +4503,8 @@ D5: decamethylcyclopentasiloxane	541-02-6
 D6: dodecamethylcyclohexasiloxane	540-97-6	
 
 
-# "Heptaklor epoksid"
-# only cis-heptachlorepoxide "(alpha)" and trans-heptachlorepoxide "(beta)"	
+"Heptaklor epoksid"
+  only cis-heptachlorepoxide "(alpha)" and trans-heptachlorepoxide "(beta)"	
 
 
 HCEPT 	 
@@ -4548,5 +4541,3 @@ HCEPT
 "TTBT")
 > 
 > cat("\n\nCheck excluded parameters:\n")
-
-```
