@@ -4341,21 +4341,20 @@ if (restore) {
 ```{r}
 
 # Turns ICES position string into decimal longitude, latitude
-copy_decimal <- function(string){ 
+print_decimal <- function(string){ 
   str2 <- strsplit(string, ",")[[1]]
   y1 <- strsplit(str2[1], " ")[[1]] %>% as.numeric()
   y <- y1[1] + y1[2]/60
   x1 <- strsplit(str2[2], " ")[[1]] %>% as.numeric()
   x <- x1[1] + x1[2]/60
-  paste0(round(y, 5), ",", round(x,5)) %>% writeLines("clipboard")
+  paste0(round(y, 5), ",", round(x,5))
 }
 
 # ICES position strings getting the warning 'Station position appears to be on land'   
 # Run line by line
-# For each line, paste into search box of norgeskart.no
-"+59 53.737,+05 6.514" %>% copy_decimal()
-"+69 39.180,+18 58.440" %>% copy_decimal()
-"+79 0.240,+12 6.600" %>% copy_decimal()
+# For each line, copy-paste into search box of norgeskart.no
+"+59 53.737,+05 6.514" %>% print_decimal()
+"+69 39.180,+18 58.440" %>% print_decimal()
 
 ```
 
