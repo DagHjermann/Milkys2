@@ -225,13 +225,13 @@ dat_all_new <- dat_sums_deleted
 message("Number of rows before adding: ", nrow(dat_all_new))
                                                  
 # Add sums including LOQ
-for (i in length(sum_parameters))
-  dat_all_new <- add_sumparameter_inclloq_allyears(1, sum_parameters, data = dat_all_new)   # add new rows
+for (i in 1:length(sum_parameters))
+  dat_all_new <- add_sumparameter_inclloq_allyears(i, sum_parameters, data = dat_all_new)   # add new rows
 message("Number of rows after adding sums including LOQ: ", nrow(dat_all_new))
 
 # Add sums excluding LOQ
-for (i in length(sum_parameters))
-  dat_all_new <- add_sumparameter_exloq_allyears(1, sum_parameters, data = dat_all_new)   # add new rows
+for (i in 1:length(sum_parameters))
+  dat_all_new <- add_sumparameter_exloq_allyears(i, sum_parameters, data = dat_all_new)   # add new rows
 message("Number of rows after adding sums excluding LOQ: ", nrow(dat_all_new))
 
 
