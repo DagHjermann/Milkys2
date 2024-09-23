@@ -26,12 +26,15 @@ How to use the scripts in `shared/DHJ/Milkys2`
 
 
 ## Work flow for the Milkys project   
-**Summary of workflow: 801 -> 101 -> 109 -> 110 -> 111 -> 120 -> 201**  
-  (below, 'Script 801' refers to the file starting with '801' and ending with 'Rmd')
-- Script 801 - Downloads Aquamonitor data, as an Excel file (with several sheets)  
-- Script 101 - Takes the Aquamonitor data for last year (from 801) and combines them
-with the old data (up to 2018). Also makes concentrations on dry-weight and
+**Summary of workflow: 050 -> 051 -> 080 -> 101 -> 103 -> 105 -> 109 -> 110 -> 111 -> 120 -> 201**  
+- Script 050 - Add cod biological effects data to Nivabasen     
+- Script 051 - Add imposex data to Nivabasen     
+- Script 080 - Download last year's data from Nivabasen     
+- Script 101 - Takes the downloaded Nivabasen data for last year (from 080) and combines them
+with the legacy data from last year. Also makes concentrations on dry-weight and
 fat basis
+- Script 103 - Add sum parameters for all years    
+- Script 105 - Add measurement uncertainty    
 - Script 109 - Combines the data (from 101) with fish length data (from 105) and makes length-adjusted concentrations  
 - Script 110 - Makes median data (per station/year) based on the data (from 109) and adds PROREF   
 - Script 111 - Makes some information measures on sample size etc. that are used by script 201 
@@ -187,6 +190,7 @@ digraph boxes_and_circles {
   LastYear [label = 'Script 101,\nrun last year\n', height = 0.6, width = 2]; 
   080 [label = 'Script 080 (PC)', tooltip = 'Download all Milkys data from last year from Nivabasen. Needs username/password for reading from the Oracle Nivadatabase'];
   101 [label = 'Script 101'];
+  103 [label = 'Script 103'];
   150 [label = 'Script 150']; 
   109 [label = 'Script 109']; 
   812 [label = 'Imported by lab\n(Viviane/Dorna)', width = 2]; 
@@ -227,7 +231,8 @@ digraph boxes_and_circles {
   NILU [label = 'NILU data', width = 2];
   Imposex [label = 'Imposex data', width = 2];
   Codbiol [label = 'Cod biological effects', width = 2];
-  Raw2 [label = 'Raw concentration data\n(complete)', width = 2.5];
+  Raw2 [label = 'Raw concentration data\n(all years)', width = 2.5];
+  Raw2b [label = 'Data with sums', width = 2.5];
   Lengths [label = 'Fish length data', width = 2.5];
   Raw3 [label = 'Raw data with length-adjusted conc.', width = 3.5];
   Medians [label = 'Medians per station/year', width = 2.5];
@@ -252,8 +257,10 @@ digraph boxes_and_circles {
   LastYear -> Legacy; 080 -> Nivabasen
   {Nivabasen Legacy} -> 101; 
   101 -> Raw2; 
+  Raw2 -> 103; 
+  103 -> Raw2b; 
   Lengths_excel -> 150; 150 -> Lengths; 
-  {Raw2 Lengths Labware} -> 109;
+  {Raw2b Lengths Labware} -> 109;
   109 -> Raw3; Raw3 -> 110; 110 -> Medians; 
   Raw3 -> 111; Labware -> 111; 111 -> Nstring; 
   Medians -> 120; 120 -> Trends;
