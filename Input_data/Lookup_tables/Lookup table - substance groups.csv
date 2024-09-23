@@ -1,4 +1,4 @@
-﻿Original row,PARAM,Parameter.Name,CAS,Component.Name,Substance.Group,Parameter_group,MGR.Group,MGR.Subgroup,Comment
+Original row,PARAM,Parameter.Name,CAS,Component.Name,Substance.Group,Parameter_group,MGR.Group,MGR.Subgroup,Comment
 4,AY380,NA,NA,NA,Biological effects: molecular/biochemical/cellular/assays,NA,ABS380,,
 3,ALAD,ALAD,NA,delta-aminolevulinic acid dehydratase,Biological effects: molecular/biochemical/cellular/assays,ALA-D,ALA-D,,
 20,MCCP,MCCP,85535-85-9,medium chain chlorinated parrafin (C14-C17),Chlorinated paraffins,SCCP+MCCP,CCP_NA,,
@@ -8,9 +8,9 @@
 21,MCCP eksl. LOQ,MCCP eksl. LOQ,NA,NA,Chlorinated paraffins,SCCP+MCCP,CCPs,,
 24,SCCP eksl. LOQ,SCCP eksl. LOQ,NA,NA,Chlorinated paraffins,SCCP+MCCP,CCPs,,
 17,CYP1A,CYP1A,NA,Cytochrome P4501A,Biomarkers,CYP1A,CYP1A,,
-73,DDTEP,"p,p'-DDT + p,p'-DDE incl. LOQ",GM,DDT (p p') + DDE (p p'),Dichloro-diphenyl-trichloroethane (DDTs),DDTs major isomers,DDT_NA,,
+73,sumDDTEP,"p,p'-DDT + p,p'-DDE incl. LOQ",GM,DDT (p p') + DDE (p p'),Dichloro-diphenyl-trichloroethane (DDTs),DDTs major isomers,DDT_NA,,
 75,DDTPP,"p,p'-DDT + p,p'-DDE",50-29-3,DDT (p p'),Dichloro-diphenyl-trichloroethane (DDTs),DDTs major isomers,DDT_NA,,
-74,DDTEP_exloq,"p,p'-DDT + p,p'-DDE excl. LOQ",GM,DDT (p p') + DDE (p p'),Dichloro-diphenyl-trichloroethane (DDTs),DDTs major isomers,DDT_sum,,
+74,sumDDTEP_exloq,"p,p'-DDT + p,p'-DDE excl. LOQ",GM,DDT (p p') + DDE (p p'),Dichloro-diphenyl-trichloroethane (DDTs),DDTs major isomers,DDT_sum,,
 76,DDDOP,"o,p'-DDD",NA,NA,Dichloro-diphenyl-trichloroethane (DDTs),"DDTs o,p' isomers",DDTs,op,
 77,DDEOP,"o,p'-DDE",NA,NA,Dichloro-diphenyl-trichloroethane (DDTs),"DDTs o,p' isomers",DDTs,op,
 78,DDTOP,"o,p'-DDT",NA,NA,Dichloro-diphenyl-trichloroethane (DDTs),"DDTs o,p' isomers",DDTs,op,
@@ -39,8 +39,8 @@
 155,HBCDA,HBCDA,134237-50-6,alpha-hexabromocyclododecane,Organobromines,HBCDD (HBCD),HBCDs,,
 156,HBCDB,HBCDB,134237-51-7,beta-hexabromocyclododecane,Organobromines,HBCDD (HBCD),HBCDs,,
 159,HBCDG,HBCDG,134237-52-8,gamma-hexabromocyclododecane,Organobromines,HBCDD (HBCD),HBCDs,,
-158,HBCDD_exloq,Sum HBCD excl. LOQ,3194-55-6,1 2 5 6 9 10-hexabromocyclododecane,Organobromines,NA,HBCDs,,
-157,HBCDD,Sum HBCD incl. LOQ,3194-55-6,1 2 5 6 9 10-hexabromocyclododecane,Organobromines,NA,HBCDs_NA,,
+158,sumHBCD_exloq,Sum HBCD excl. LOQ,3194-55-6,1 2 5 6 9 10-hexabromocyclododecane,Organobromines,NA,HBCDs,,
+157,sumHBCD,Sum HBCD incl. LOQ,3194-55-6,1 2 5 6 9 10-hexabromocyclododecane,Organobromines,NA,HBCDs_NA,,
 18,Intersex,NA,NA,NA,Biomarkers,Imposex/intersex,Imposex/intersex,,
 19,VDSI,VDSI,NA,NA,Biomarkers,Imposex/intersex,Imposex/intersex,,
 105,C/N,Delta15C/Delta13N,NA,NA,Isotopes,Isotopes,Isotopes,,
@@ -84,12 +84,12 @@
 269,NAP,NAP,91-20-3,naphthalene,Polycyclic aromatic hydrocarbons (PAHs),PAH16,PAH,,
 272,PA,PA,85-01-8,phenanthrene,Polycyclic aromatic hydrocarbons (PAHs),PAH16,PAH,,
 275,PYR,PYR,129-00-0,pyrene,Polycyclic aromatic hydrocarbons (PAHs),PAH16,PAH,,
-274,PAH16_exloq,NA,NA,NA,Polycyclic aromatic hydrocarbons (PAHs),PAH16,PAH16_sum,,
+274,sumPAH16_exloq,PAH16 excl. LOQ,NA,NA,Polycyclic aromatic hydrocarbons (PAHs),PAH16,PAH16_sum,,
 266,KPAH,NA,NA,NA,Polycyclic aromatic hydrocarbons (PAHs),PAH16,PAH_NA,,
-267,KPAH_exloq,NA,NA,NA,NA,NA,PAH_NA,,
-270,P_S,PAH15 incl. LOQ,NA,NA,Polycyclic aromatic hydrocarbons (PAHs),PAH16,PAH_NA,,
-271,P_S_exloq,PAH15 excl. LOQ,NA,NA,Polycyclic aromatic hydrocarbons (PAHs),PAH16,PAH_NA,,
-273,PAH16,NA,NA,NA,Polycyclic aromatic hydrocarbons (PAHs),PAH16,PAH_NA,,inkludere for sammenligning med PAH16_exloq?
+267,KPAH_exloq,NA,NA,NA,Polycyclic aromatic hydrocarbons (PAHs),PAH16,PAH_NA,,
+270,sumPAH15,PAH15 incl. LOQ,NA,NA,Polycyclic aromatic hydrocarbons (PAHs),PAH16,PAH_NA,,
+271,sumPAH15_exloq,PAH15 excl. LOQ,NA,NA,Polycyclic aromatic hydrocarbons (PAHs),PAH16,PAH_NA,,
+273,sumPAH16,PAH16 incl. LOQ,NA,NA,Polycyclic aromatic hydrocarbons (PAHs),PAH16,PAH_NA,,inkludere for sammenligning med PAH16_exloq?
 276,Sum 16 EPA-PAH ekskl. LOQ,NA,NA,NA,Polycyclic aromatic hydrocarbons (PAHs),PAH16,PAH_NA,,inkludere for sammenligning med PAH16_exloq?
 277,Sum 16 EPA-PAH inkl. LOQ,NA,NA,NA,Polycyclic aromatic hydrocarbons (PAHs),PAH16,PAH_NA,,
 278,Sum PAH 16,NA,NA,NA,Polycyclic aromatic hydrocarbons (PAHs),PAH16,PAH_NA,,inkludere for sammenligning med PAH16_exloq?
@@ -134,10 +134,10 @@
 149,BDE71,BDE71,189084-62-6,2 3' 4' 6-tetrabromodiphenyl ether (BDE71),Organobromines,NA,PBDE,,
 150,BDE77,BDE77,93703-48-1,3 3' 4 4'-tetrabromodiphenyl ether  (BDE77),Organobromines,NA,PBDE,,
 151,BDE85,BDE85,182346-21-0,2 2' 3 4 4'-pentabromodiphenyl ether (BDE85),Organobromines,NA,PBDE,,
-148,BDE6S_exloq,BDE6S excl. LOQ,NA,NA,Organobromines,NA,PBDE6_sum,,
-147,BDE6S,BDE6S incl. LOQ,NA,"sum BDE-28, -47, -99, -100, -153, og -154",Organobromines,NA,PBDE_NA,,
-153,BDESS,BDESS incl. LOQ,NA,NA,Organobromines,NA,PBDE_NA,,
-154,BDESS_exloq,BDESS excl. LOQ,NA,NA,Organobromines,NA,PBDE_NA,,
+148,sumBDE6_exloq,BDE6S excl. LOQ,NA,NA,Organobromines,NA,PBDE6_sum,,
+147,sumBDE6,BDE6S incl. LOQ,NA,"sum BDE-28, -47, -99, -100, -153, og -154",Organobromines,NA,PBDE_NA,,
+153,sumBDE,BDESS incl. LOQ,NA,NA,Organobromines,NA,PBDE_NA,,
+154,sumBDE_exloq,BDESS excl. LOQ,NA,NA,Organobromines,NA,PBDE_NA,,
 28,CB101,CB101,37680-73-2,2 2' 4 5 5'-pentachlorobiphenyl (CB101),Chlorobiphenyls,PCB7,PCB,PCB7,
 31,CB118,CB118,31508-00-6,2 3' 4 4' 5-pentachlorobiphenyl,Chlorobiphenyls,PCB7,PCB,PCB7,
 34,CB138,CB138,35065-28-2,2 2' 3 4 4' 5'-hexachlorobiphenyl,Chlorobiphenyls,PCB7,PCB,PCB7,
@@ -173,10 +173,10 @@
 60,CB66,CB66,NA,NA,Chlorobiphenyls,NA,PCB,,
 61,CB74,CB74,NA,NA,Chlorobiphenyls,NA,PCB,,
 62,CB99,CB99,NA,NA,Chlorobiphenyls,NA,PCB,,
-63,Sum 6 DIN-PCB eksl. LOQ,NA,NA,NA,Chlorobiphenyls,NA,PCB6 DIN,,
-27,CB_S7_exloq,PCB7 excl. LOQ,NA,NA,Chlorobiphenyls,NA,PCB7_sum,,
-26,CB_S7,PCB7 incl. LOQ,NA,NA,Chlorobiphenyls,NA,PCB_NA,,
-64,Sum 6 DIN-PCB inkl. LOQ,NA,NA,NA,Chlorobiphenyls,NA,PCB_NA,,
+63,sumPCB6_exloq,NA,NA,NA,Chlorobiphenyls,NA,PCB6 DIN,,
+27,sumPCB7_exloq,PCB7 excl. LOQ,NA,NA,Chlorobiphenyls,NA,PCB7_sum,,
+26,sumPCB7,PCB7 incl. LOQ,NA,NA,Chlorobiphenyls,NA,PCB_NA,,
+64,sumPCB6,NA,NA,NA,Chlorobiphenyls,NA,PCB_NA,,
 65,Sum PCB 7,NA,NA,NA,Chlorobiphenyls,NA,PCB_NA,,kan inkludere denne for kontroll av PCB7?
 66,Total 6 ndl-PCB (medium-bound),NA,NA,NA,Chlorobiphenyls,NA,PCB_NA,,
 67,WHO (2005)-PCB TEQ eksl. LOQ,NA,NA,NA,Chlorobiphenyls,NA,PCB-TEQ,,hva er forskjellen mellom denne og rad 70?
@@ -193,7 +193,7 @@
 217,Heptaklor,Heptaklor,NA,NA,Others,NA,Pesticides,,
 218,Heptaklor epoksid,Heptaklor epoksid,NA,NA,Others,NA,Pesticides,,
 219,Mirex,Mirex,NA,NA,Others,NA,Pesticides,,
-220,Nonaklor, trans-,Nonaklor, trans-,NA,NA,Others,NA,Pesticides,,
+220,Nonaklor,trans-Nonaklor,NA,NA,Others,NA,Pesticides,,
 221,Oxyklordan,Oxyklordan,NA,NA,Others,NA,Pesticides,,
 222,PROTV,PROTV,NA,NA,Others,NA,Pesticides,,
 223,Toksafen Parlar 26,Toksafen Parlar 26,NA,NA,Others,NA,Pesticides,,
@@ -281,5 +281,19 @@
 99,DRYWT%,NA,NA,NA,Fat and dry weight,TTS% (dry weight),TTS% (dry weight),,
 97,WHO(2005)-PCDD/F TEQ eksl. LOQ,NA,NA,NA,Dioxins,Dioxins,WHO(2005)-PCDD/F TEQ eksl. LOQ,,
 98,WHO(2005)-PCDD/F TEQ inkl. LOQ,NA,NA,NA,Dioxins,Dioxins,WHO(2005)-PCDD/F TEQ inkl. LOQ,,
-
+283,PFUnDA,,,,Organofluorines,PFC (PFAS),PFAS,,
+284,PFTeDA,,,,Organofluorines,PFC (PFAS),PFAS,,
+285,PFTrDA,,,,Organofluorines,PFC (PFAS),PFAS,,
+286,PFDS,,,,Organofluorines,PFC (PFAS),PFAS,,
+287,PFDoDA,,,,Organofluorines,PFC (PFAS),PFAS,,
+288,PFDA,,,,Organofluorines,PFC (PFAS),PFAS,,
+289,Perfluorheptansulfonat (PFHpS),,,,Organofluorines,PFC (PFAS),PFAS,,
+290,PFBA,,,,Organofluorines,PFC (PFAS),PFAS,,
+291,PFPA,,,,Organofluorines,PFC (PFAS),PFAS,,
+104.1,sumHCH,sum HCH incl. LOQ,NA,NA,Hexachlorocyclohexanes,HCH (klorerte pest.),Pesticides,, 
+104.2,sumHCH_exloq,sum HCH excl. LOQ,NA,NA,Hexachlorocyclohexanes,HCH (klorerte pest.),Pesticides,, 
+273.1,sumKPAH,KPAH incl. LOQ,NA,NA,Polycyclic aromatic hydrocarbons (PAHs),PAH16,PAH_NA,,inkludere for sammenligning med PAH16_exloq?
+273.2,sumKPAH_exloq,KPAH excl. LOQ,NA,NA,Polycyclic aromatic hydrocarbons (PAHs),PAH16,PAH_NA,,inkludere for sammenligning med PAH16_exloq?
+"164,1",OCS,Oktaklorstyren (OCS),NA,NA,Organochlorines (general),OCS (klorerte pest.),Pesticides,, 
+220.1,"Nonaklor, trans-",trans-Nonaklor,NA,NA,Others,NA,Pesticides,, 
 ,,,,,,,,,
