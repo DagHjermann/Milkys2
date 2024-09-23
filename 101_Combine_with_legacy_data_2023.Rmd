@@ -8,6 +8,12 @@ editor_options:
   chunk_output_type: inline
 ---
 
+**NOTE: SOME (POSSIBLE?) SYNONYMS
+* Nonaklor, trans- = Nonaklor   - see 'Lookup table - substance groups.csv'
+* Oktaklorstyren (OCS) = OCS    - see 'Lookup table - substance groups.csv' 
+* Endosulfan, alfa-  ???
+* epsilon-HCH*  ???
+
 **Combine legacy data (data until the year before last year) with new data (downloaded in script 100)**   
 
 * Ran after 050 and 051 (which add imposex and biol. effect data to Nivabasen) and 080 (which downloads data from Nivabasen)  
