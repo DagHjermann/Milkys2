@@ -240,7 +240,7 @@ df2023 %>%                                                                      
 - Compare with data set made in 'Uncertainty, combined', below   
 - Largely comparable  
 ```{r}
-if (TRUE){
+if (FALSE){
 
 df2020 %>%
   filter(Uncert_group == ">0") %>%
@@ -482,7 +482,7 @@ dat_updated_view <- dat_updated %>%
     UNCRT, METCU
   )
 
-if (TRUE){
+if (FALSE){
   
   View(dat_updated_view %>% 
          filter(LATIN_NAME == "Gadus morhua" & PARAM == "CB180") %>% 
