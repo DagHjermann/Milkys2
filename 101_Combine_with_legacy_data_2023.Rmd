@@ -1563,7 +1563,7 @@ n2[!n2 %in% n1]
 
 data_updated <- bind_rows(
   data_legacy, 
-  dat_new6 %>% select(-c(SAMPLE_NO, REPNO, FLAG1, REMARK_sample, 
+  dat_new6 %>% select(-c(SAMPLE_NO, REPNO, REMARK_sample, 
                       STATION_ID, SAMPLE_ID, METHOD_ID, VALUE_ID,  
                       TISSUE_ID, TAXONOMY_CODE_ID))
   )
