@@ -166,8 +166,8 @@ dat_1 <- specimens %>%
     YEAR = year(DATE_CAUGHT),
     MONTH = month(DATE_CAUGHT),
     MYEAR = case_when(
-      MONTH >= 3 ~ YEAR,
-      MONTH < 3 ~ YEAR-1)) %>%
+      MONTH >= 4 ~ YEAR,
+      MONTH < 4 ~ YEAR-1)) %>%
   left_join(samples_specimens) %>%
   left_join(samples) %>% 
   left_join(tissue) %>% 
