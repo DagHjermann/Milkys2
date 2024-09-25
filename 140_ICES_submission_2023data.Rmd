@@ -2212,7 +2212,7 @@ data_10_fish <- data.frame(
   DEPHL = NA,
   PARAM = data_conc_fish$PARAM,
   MUNIT = data_conc_fish$MUNIT,
-  BASIS = case_when(data_conc_fish$PARAM %in% c("DRYWT%", "FATWT%") ~ "",
+  BASIS = case_when(data_conc_fish$PARAM %in% c("DRYWT%", "FATWT%") ~ "W",
                     TRUE ~ "W"),
   AMLNK = data_conc_fish$AMLNK,
   VFLAG = NA,
@@ -2359,7 +2359,7 @@ data_10_bluemussel <- data.frame(
   DEPHL = NA,
   PARAM = data_conc_bluemussel$PARAM,
   MUNIT = data_conc_bluemussel$MUNIT,
-  BASIS = case_when(data_conc_bluemussel$PARAM %in% "DRYWT%" ~ "",
+  BASIS = case_when(data_conc_bluemussel$PARAM %in% "DRYWT%" ~ "W",
                     TRUE ~ "W"),
   AMLNK = data_conc_bluemussel$AMLNK,
   VFLAG = NA,
@@ -2452,7 +2452,7 @@ data_10_vdsi <- data.frame(
   DEPHL = NA,
   PARAM = df_snail$PARAM,
   UNIT = df_snail$UNIT,
-  BASIS = case_when(df_snail$PARAM %in% c("DRYWT%", "VDSI", "INTF%") ~ "",
+  BASIS = case_when(df_snail$PARAM %in% c("VDSI", "INTF%") ~ "",
                     TRUE ~ "W"),
   AMLNK = df_snail$AMLNK,
   VFLAG = NA,
@@ -2537,7 +2537,7 @@ data_10_eider <- data.frame(
   DEPHL = NA,
   PARAM = data_conc_eider$PARAM,
   MUNIT = data_conc_eider$MUNIT,
-  BASIS = case_when(data_conc_eider$PARAM %in% "DRYWT%" ~ "",
+  BASIS = case_when(data_conc_eider$PARAM %in% "DRYWT%" ~ "W",
                     TRUE ~ "W"),
   AMLNK = data_conc_eider$AMLNK,
   VFLAG = NA,
@@ -2614,9 +2614,9 @@ cat("PARAM changed from PFOSA to PFOSD for", sum(sel), "records\n")
 # Check that all records have SMPNO
 sum(is.na((data_10$SMPNO)))  # should be zero
 
-# Set BASIS to "" for length, wet weigth etc. + VDSI
+# Set BASIS to "" for length,etc. + VDSI
 # xtabs(~PARAM, data_10)
-sel <- data_10$PARAM %in% c("FATWT%", "DRYWT%", "LNMEA", "WTMEA", "VDSI"); sum(sel)
+sel <- data_10$PARAM %in% c("LNMEA", "WTMEA", "VDSI"); sum(sel)
 data_10$BASIS[sel] <- ""
 
 ```
@@ -4359,7 +4359,8 @@ print_decimal <- function(string){
 ```
 
 
-### Check specific lines in data
+### Check specific lines in data   
+ICES DATSU errors typically refers to lines in the text file   
 ```{r}
 
 check <- FALSE
