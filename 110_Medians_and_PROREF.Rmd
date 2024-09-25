@@ -7,7 +7,7 @@ output:
 ---
 
 Condenses data to annual medians (per parameter/station/tissue)  
-* I.e., this is the main source of time series data  
+* I.e., this is the main source of time series data                               #not anymore 
   
 Some data series are also 'homogenized' here  
 * E.g., we make a single time series for some data with different STATION_CODE  
@@ -47,7 +47,7 @@ Read and reformat the most recent data (by default)
 # filepattern <- "101_data_updated_"         # entire file name except date and extension
 
 # Normally, if we have length-adjusted the last year's data:
-filepattern <- "109_adjusted_data_"       # entire file name except date and extension
+filepattern <- "109_adjusted_data_ELU_"       # entire file name except date and extension                    #ELU-version for 2023-data
 
 filenumber <- 1                           # filenumber = 1 means "read the newest file"
 
@@ -267,7 +267,7 @@ if (nrow(data_med_1a) == nrow(data_med_1b)){
 ### Downloading data  
 ```{r}
 
-# The ICES database sometimes hangs, therefore we can also get data from the previous dataset  
+# The ICES database sometimes hangs, therefore we can also get data from the previous dataset                      #ELU kjører ikke denne, ennå
 # - see end of next chunk  
 get_data_from_ICES <- FALSE 
 
@@ -297,7 +297,7 @@ if (get_data_from_ICES){
 
 ```{r}
 
-if (get_data_from_ICES){
+if (get_data_from_ICES){                                                                             #ELU kjører ikke denne, ennå
   
   extract_first_word <- function(string, pattern_word_break = "[[[:blank:]]"){
     m <- regexpr(pattern_word_break, string)
@@ -349,7 +349,7 @@ if (get_data_from_ICES){
 ```{r}
 
 
-if (FALSE){
+if (FALSE){                                                                           #ELU kjører ikke denne, ennå
   
   # check variables
   n1 <- data_med_1 %>% names()
@@ -401,7 +401,7 @@ if (FALSE){
 ### Add PAH met.data  
 ```{r}
 
-data_med_1_added_pahmetab <- bind_rows(
+data_med_1_added_pahmetab <- bind_rows(                                              #ELU kjører ikke denne, ennå       
   data_med_1,
   data_medians_ices_3
 )
@@ -457,7 +457,7 @@ for (param in params){
   
 }
 
-data_med_1_fixed_ccp <- data_med_1_added_pahmetab %>%
+data_med_1_fixed_ccp <- data_med_1 %>%                                   #ELU: kjører uten _added_pahmetab
   filter(!PARAM %in% params) %>%
   bind_rows(data_med_ccp[["SCCP eksl. LOQ"]]) %>%
   bind_rows(data_med_ccp[["MCCP eksl. LOQ"]])
@@ -488,7 +488,7 @@ proref_updated03 <- bind_rows(
 ### Save    
 ```{r}
 
-write.csv(proref_updated03 %>% rename(Proref = Q95), "Input_data/Lookup_tables/Lookup_proref.csv")
+write.csv(proref_updated03 %>% rename(Proref = Q95), "Input_data/Lookup_tables/Lookup_proref_ELU2024.csv")                    #ELU-version for 2023-data
 
 ```
 
@@ -508,8 +508,8 @@ data_med_3 <- data_med_2 %>%
   left_join(proref_updated03 %>% rename(Proref_N = N), 
             by = c("LATIN_NAME", "TISSUE_NAME", "PARAM", "Basis"))
 
-nrow(data_med_2)  # 525960
-nrow(data_med_3)  # 525960
+nrow(data_med_2)  # 525960            #2023-data: 645804
+nrow(data_med_3)  # 525960            #2023-data: 645804
 
 ```
 
@@ -560,12 +560,15 @@ names(data_med_3$Value_p75) <- NULL
 ## 5. Save  
 ```{r}
 
-filename <- paste0("Data/110_mediandata_updated_", data_list$file_date, ".rds")
+filename <- paste0("Data/110_mediandata_updated_ELU_", data_list$file_date, ".rds")                               #ELU 2023-data
 
 saveRDS(data_med_3, filename)
 
 cat("Data of medians saved as: \n")
 cat(" ", filename, "\n")
+
+
+write.csv(data_med_3, "Data/110_mediandata_updated_ELU.csv")                    #ELU-version
 
 ```
 
@@ -573,7 +576,20 @@ cat(" ", filename, "\n")
 ```{r}
 
 if (FALSE){
-  data_med_3 <- readRDS("Data/110_mediandata_updated_2022-09-23.rds")
+  data_med_3 <- readRDS("Data/110_mediandata_updated_ELU_2023-09-12.rds")
+  data_med_3 %>%
+    filter(
+      MYEAR == 2022 & STATION_CODE == "10A2" & Basis == "WW" & PARAM == "CB_S7_exloq" 
+    ) %>% View("CB7 2022")
+  
+  dat <- readRDS("Data/109_adjusted_data_ELU2_2023-09-12.rds") 
+  # dat <- readRDS("Data/105_data_with_uncertainty_2023-09-12.rds") 
+  data_all %>%
+    filter(
+      MYEAR == 2022 & STATION_CODE == "10A2" & PARAM == "CB_S7_exloq" 
+    ) %>% View("CB7 2022")
+  dir("Data", "105")
+  dir("Data", "105")
 }
 
 ```
