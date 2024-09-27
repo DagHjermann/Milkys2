@@ -12,10 +12,10 @@ library(shiny)
 library(ggplot2)
 library(dplyr)
 
-current_year <- 2021
+current_year <- 2023
 
 # Data and station metadata
-dat <- readRDS("../Data/109_adjusted_data_2022-09-23.rds")
+dat <- readRDS("../Data/109_adjusted_data_ELU_2024-09-25.rds")
 dat_stations <- read.csv("../Input_data/Lookup_tables/Lookup_stationorder.csv") %>%
   mutate(Station = paste(STATION_CODE, substr(Station_name, 1, 15)))
 
@@ -32,7 +32,7 @@ dat2 <- dat %>%
     filter(!is.na(log_Conc))
 
 matrices <- dat2 %>%
-    filter(MYEAR == current_year) %>%
+    filter(MYEAR %in% (current_year-5):current_year) %>%
     count(Matrix) %>%
     arrange(desc(n)) %>%
     pull(Matrix)
@@ -65,7 +65,7 @@ param_meta <- read.csv("../Input_data/Lookup_tables/Lookup table - substance gro
 # setdiff(group_seq, groups)
 
 parameters <- dat2 %>%
-  filter(MYEAR == current_year) %>%
+  filter(MYEAR %in% (current_year-5):current_year) %>%
   distinct(PARAM) %>%
   left_join(param_meta, by = "PARAM") %>%
   arrange(Substance.Group, PARAM) %>%
