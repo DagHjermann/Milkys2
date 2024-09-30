@@ -1,19 +1,42 @@
 
+library(ggplot2)
+library(dplyr)
+
 # Check last year's data, downloaded from Nivabase
-dat_lastyear <- readRDS("Input_data/80_df_2023_notstandard_2024-09-23_20h06m.rds")
+dat_nivabase <- readRDS("Input_data/80_df_2023_notstandard_2024-09-23_20h06m.rds")
 
 # Check all years' data, at different stages
-dat_all <- readRDS("Data/101_dat_new_2024-09-23.rds")
-dat_all <- readRDS("Data/103_data_updated_2024-09-23.rds")
-dat_all <- readRDS("Data/105_data_with_uncertainty_2024-09-23.rds")
+dat_newpart <- readRDS("Data/101_dat_new_2024-09-25.rds")
+dat_101 <- readRDS("Data/101_data_updated_2024-09-25.rds")
+dat_103 <- readRDS("Data/103_data_updated_2024-09-25.rds")
+dat_105 <- readRDS("Data/105_data_with_uncertainty_2024-09-25.rds")
+dat_109 <- readRDS("Data/109_adjusted_data_ELU_2024-09-25.rds")
+
+# table: FLAG1 (under LOQ) + MYEAR
+xtabs(~addNA(FLAG1) + MYEAR, subset(dat_nivabase, MYEAR > 2018))
+xtabs(~addNA(FLAG1) + MYEAR, subset(dat_101, MYEAR > 2018))
+xtabs(~addNA(FLAG1) + MYEAR, subset(dat_109, MYEAR > 2018))
 
 # table: STATION_CODE + MYEAR
-xtabs(~STATION_CODE + MYEAR, subset(dat_lastyear, MYEAR > 2018))
-xtabs(~STATION_CODE + MYEAR, subset(dat_all, MYEAR > 2018))
+xtabs(~STATION_CODE + MYEAR, subset(dat_nivabase, MYEAR > 2018))
+xtabs(~STATION_CODE + MYEAR, subset(dat_109, MYEAR > 2018))
 
 # table: PARAM + MYEAR for eider duck  
-xtabs(~NAME + MYEAR, subset(dat_lastyear, MYEAR > 2018 & STATION_CODE == "19N"))
-xtabs(~PARAM + MYEAR, subset(dat_all, MYEAR > 2018 & STATION_CODE == "19N"))
+xtabs(~NAME + MYEAR, subset(dat_nivabase, MYEAR > 2018 & STATION_CODE == "19N"))
+xtabs(~PARAM + MYEAR, subset(dat_109, MYEAR > 2018 & STATION_CODE == "19N"))
+
+# SCCP and MCCP - check whether values are missing (NA), zero or >zero 
+dat_109 %>%
+  filter(
+    PARAM %in% c("SCCP eksl. LOQ", "SCCP inkl. LOQ", "MCCP eksl. LOQ", "MCCP inkl. LOQ"),
+  ) %>%
+  mutate(
+    VALUE_class = case_when(
+      is.na(VALUE_WW) ~ "NA",
+      VALUE_WW %in% 0 ~ "0",
+      VALUE_WW > 0 ~ ">0")
+  ) %>%
+  xtabs(~VALUE_class + MYEAR, .)
 
 # test plot some substances, eider duck 
 substance <- "D5"
@@ -21,9 +44,11 @@ substance <- "HG"
 substance <- "PFOS"
 substance <- "BDE99"
 substances <- c("BDE47", "BDE99", "BDE100")
-ggplot(data = subset(dat_all, MYEAR > 2018 & STATION_CODE == "19N" & PARAM %in% substances),
+substances <- c("MCCP eksl. LOQ", "MCCP inkl. LOQ")
+ggplot(data = subset(dat_109, MYEAR > 2018 & STATION_CODE == "19N" & PARAM %in% substances),
        aes(MYEAR, VALUE_WW, color = (FLAG1 %in% "<"))) +
   geom_jitter(width = 0.1) +
+  scale_y_log10() +
   facet_grid(rows = vars(PARAM), cols = vars(TISSUE_NAME)) +
   labs(title = paste("Eider duck:", paste(substances, collapse = ", ")))
   
