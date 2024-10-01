@@ -57,7 +57,7 @@ source("109_Adjust_for_fish_length_functions.R")
 ### Year  
 ```{r}
 
-selected_year <- 2022
+selected_year <- 2023
 
 ```
 
@@ -138,6 +138,7 @@ data_ind_fish <- readRDS(filename) %>%
     STATION_CODE = case_when(
       STATION_CODE %in% "43B" ~ "43B2",
       STATION_CODE %in% "98B" ~ "98B1",
+      STATION_CODE %in% "43BH" ~ "43B2",                                            # legger til en rettelse her for stasjon 43B
       TRUE ~ STATION_CODE)
   )
 
@@ -238,22 +239,22 @@ if (FALSE){
 if (TRUE){
   
   df_fishsamples %>% 
-    filter(AQUAMONITOR_CODE %in% "43B2") %>%
+    filter(AQUAMONITOR_CODE %in% "45B2") %>%
     xtabs(~BIOTA_SAMPLENO + TISSUE_NAME, .)
 
 }
 
 # Example - number 1 is 2 different liver, 4 different muscle    
-cat('AQUAMONITOR_CODE %in% "43B2" & BIOTA_SAMPLENO == 1: \n')
+cat('AQUAMONITOR_CODE %in% "45B2" & BIOTA_SAMPLENO == 1: \n')
 df_fishsamples %>% 
-  filter(AQUAMONITOR_CODE %in% "43B2" & BIOTA_SAMPLENO == 1) %>%
+  filter(AQUAMONITOR_CODE %in% "45B2" & BIOTA_SAMPLENO == 1) %>%
   xtabs(~DESCRIPTION, .)
 cat('\n\n')
 
 # plus that number 101 is 2 more livers    
-cat('AQUAMONITOR_CODE %in% "43B2" & BIOTA_SAMPLENO == 101: \n')
+cat('AQUAMONITOR_CODE %in% "45B2" & BIOTA_SAMPLENO == 101: \n')
 df_fishsamples %>% 
-  filter(AQUAMONITOR_CODE %in% "43B2" & BIOTA_SAMPLENO == 101) %>%
+  filter(AQUAMONITOR_CODE %in% "45B2" & BIOTA_SAMPLENO == 101) %>%
   xtabs(~DESCRIPTION, .)
 
 
@@ -278,7 +279,7 @@ df_import <- readRDS(paste0("Input_data/", filename))
 # xtabs(~TISSUE, df_samples)
 
 
-if (FALSE){
+if (TRUE){
   
   check <- df_import %>% 
     filter(AQUAMONITOR_CODE %in% "43B2") %>%
@@ -345,7 +346,7 @@ df_fishsamples1 %>%
 ```
 
 
-### c5. Sample data, special case: galle (bile) at 30B   
+### c5. Sample data, special case: galle (bile) at 30B                      #ELU kjører ikke for 2023  
 - DROPPED FOR NOW
 
 ```{r}
@@ -399,9 +400,9 @@ if (FALSE){
 ## 3a. Prepare 'df_lnmea'  
 Data with mean length per sample  
 
-### Add rows for biol. effects in cod  
+### Add rows for biol. effects in cod                                             #ELU kjører ikke for 2023  
 
-- DROPPED FOR NOW
+- DROPPED FOR NOW    
 
 ```{r}
 
@@ -549,7 +550,7 @@ message("nrow(df_lnmea): ", nrow(df_lnmea))  # 752
 ### Get LNMEA
 ```{r}
 
-filenames <- dir("Data", paste0("109_adjusted_data_", selected_year, ".+.rds"))
+filenames <- dir("Data", paste0("109_adjusted_data_ELU2_", selected_year, ".+.rds"))          #legger til ELU2 i filnavnet for 2022-dataene, men bare ELU for 2024 (?)
 
 # 1 = newest file
 i <- 1
@@ -669,7 +670,7 @@ if (nrow(tab2) > 0 & nrow(tab2) <= row_limit){
 ### Checks 3
 ```{r}
 
-if (FALSE){
+if (TRUE){
   
   data_lastyear %>% 
     filter(STATION_CODE == "23B" & TISSUE_NAME == "Galle") %>% 
@@ -799,7 +800,7 @@ percent_zero <- 100*tab2[2,]/tab2[1,]
 # param_delete_zeros <- names(percent_zero)[percent_zero < 1]
 # NEW: we don't delete any values that are zero
 
-# Show them
+#Show them
 # cat("\n")
 # cat("param_delete_zeros: \n")
 # param_delete_zeros
@@ -1263,7 +1264,7 @@ if (FALSE){
 
   # For manual check  
   data_all2 %>%
-    filter(MYEAR == selected_year & STATION_CODE == "13B" & 
+    filter(MYEAR == selected_year & STATION_CODE == "30B" & 
              TISSUE_NAME == "Lever" & PARAM == "CD") %>%
     select(MYEAR, STATION_CODE, TISSUE_NAME, SAMPLE_NO2, 
            Pool_size, Fish_number, PARAM, VALUE_WW, FLAG1) %>%
@@ -1288,12 +1289,26 @@ data_all2$MYEAR[sel]
 
 ```
 
+### c2. Fix 56A2 in 2023
+
+* These shall all be 56A  
+
+```{r}
+
+sel <- with(data_all2, STATION_CODE %in% c("56A","56A2") & MYEAR == 2023)
+# xtabs(~PARAM + STATION_CODE, data_all2[sel,])
+
+data_all2$STATION_CODE[sel] <- "56A"
+data_all2$STATION_NAME[sel] <- "Kvalnes"
+
+```
+
 
 ### d. R data file    
 
 ```{r}
 
-filename <- paste0("Data/109_adjusted_data_ELU2_", file_date, ".rds")                   #ELU-version
+filename <- paste0("Data/109_adjusted_data_ELU_", file_date, ".rds")                   #ELU-version for 2023-data
 
 # Backup
 if (file.exists(filename)){
@@ -1322,10 +1337,208 @@ if (FALSE){
 ### e. csv file
 ```{r}
 
-fn <- paste0("Data/109_adjusted_data_ELU2_", file_date, ".csv")                          #ELU-version
+fn <- paste0("Data/109_adjusted_data_ELU_", file_date, ".csv")                          #ELU-version for 2023-data
 readr::write_excel_csv(data_all2, fn, na = "")
 
 ```
+
+### e3. ADHOC FIX of Delta123C in 2023  
+
+* Error in LIMS, all data appears to be <20  
+
+```{r}
+
+if (FALSE){
+  # For correction after running this script  
+  file_date <- "2024-09-25"
+  filename <- paste0("Data/109_adjusted_data_ELU_", file_date, ".rds")  # ELU-version 
+  # file.copy(filename, "Data/109_adjusted_data_ELU_2024-09-25_ERROR_DELTA13C.rds")
+  # file.copy("Data/109_adjusted_data_ELU_2024-09-25_ERROR_DELTA13C.rds", filename)
+  data_all2 <- readRDS(filename)
+  # data_all2 <- readRDS("Data/109_adjusted_data_ELU_2024-09-25_ERROR_DELTA13C.rds")
+  # for 2023-data
+}
+
+# Correct data (excel from IFE)
+dat_isotopes <- read_csv("Input_data/adhoc/milkys_isotopes_2023.csv")
+
+# Data from Nivadatabase (script 80), this gives us the LIMS ID  
+filename_80 <- "80_df_2023_notstandard_2024-09-25_04h12m.rds"
+dat_new1 <- readRDS(paste0("Input_data/", filename_80))
+
+# Make lookup file for LIMS numbers (LABWARE_TEXT_ID)
+lookup_temporary <- dat_new1 %>% 
+  filter(NAME %in% "Delta 13C") %>% # filter(SAMPLE_NO == 1) %>% View("1")
+  distinct(SAMPLE_ID, STATION_CODE, SAMPLE_NO, LATIN_NAME, TISSUE_NAME, LABWARE_TEXT_ID) %>%
+  arrange(STATION_CODE, LATIN_NAME, TISSUE_NAME, SAMPLE_NO)
+lookup_temporary$LABWARE_TEXT_ID_1 <- ""
+lookup_temporary$LABWARE_TEXT_ID_2 <- ""
+split <- strsplit(lookup_temporary$LABWARE_TEXT_ID, ", ")
+sel <- map_int(split, length) == 2
+lookup_temporary$LABWARE_TEXT_ID_1[sel] <- map_chr(split[sel], 1)
+lookup_temporary$LABWARE_TEXT_ID_2[sel] <- map_chr(split[sel], 2)
+nrow(lookup_temporary)
+ 
+# There are several LABWARE_TEXT_ID for each sample, so we need to find the correct manually
+
+# View(lookup_temporary)
+# - compare manuall with excel file - conclusion:
+# LABWARE_TEXT_ID_2 is the correct for eider duck egg
+# LABWARE_TEXT_ID_2 is the correct for eider duck blood
+# LABWARE_TEXT_ID_2 is the correct for cod
+# LABWARE_TEXT_ID_2 is the correct for blue mussel
+
+# Make lookup file with correct LIMS no
+lookup_lims_id <- lookup_temporary %>%
+  select(STATION_CODE, SAMPLE_ID, SAMPLE_NO, LATIN_NAME, TISSUE_NAME, LABWARE_TEXT_ID_2) %>%
+  rename(LABWARE_TEXT_ID = LABWARE_TEXT_ID_2) %>%
+  filter(!is.na(LABWARE_TEXT_ID)) %>%
+  arrange(LATIN_NAME, TISSUE_NAME, SAMPLE_NO)
+nrow(lookup_lims_id)
+# View(lookup_lims_id)
+
+# The data in 109 file - with errors
+# Turns aout there are also much too few rows, should be > 300
+check <- data_all2 %>% 
+  filter(MYEAR %in% 2023 & PARAM == "Delta13C") %>%
+  distinct(LATIN_NAME, TISSUE_NAME, SAMPLE_NO2, PARAM, VALUE_WW, FLAG1)
+nrow(check)
+# ONLY 48 samples! So a lot of samples appear to be missing  
+# View(check)
+
+# Check the Delta15N (which always has been correct)
+check2 <- data_all2 %>% 
+  filter(MYEAR %in% 2023 & PARAM %in% "Delta15N") %>%
+  distinct(LATIN_NAME, TISSUE_NAME, SAMPLE_NO2, PARAM, VALUE_WW, FLAG1)
+nrow(check2)
+
+# new_data will be added as new rows
+# start with the 15N data, and just replace the VALUE_WW numbers    
+new_data <- data_all2 %>% 
+  filter(MYEAR %in% 2023 & PARAM %in% "Delta15N") %>%
+  select(-c(VALUE_DW, VALUE_FB, VALUE_WWa, VALUE_DWa, VALUE_FBa, LABWARE_TEXT_ID)) %>%
+  # add LIMS ID
+  left_join(
+    lookup_lims_id %>% select(STATION_CODE, LATIN_NAME, TISSUE_NAME, SAMPLE_NO, LABWARE_TEXT_ID),
+    by = c("STATION_CODE", "LATIN_NAME", "TISSUE_NAME", "SAMPLE_NO2" = "SAMPLE_NO"), 
+    relationship = "one-to-one"
+  ) %>%
+  left_join(
+    dat_isotopes %>% select(TEXT_ID, `Delta 13C`),
+    by = c("LABWARE_TEXT_ID" = "TEXT_ID"),
+    relationship = "one-to-one"
+  ) %>%
+  # Use this as the new VALUE_WW
+  mutate(
+    PARAM = "Delta13C",
+    VALUE_WW = `Delta 13C`
+  ) %>%
+  select(
+    -`Delta 13C`
+  )
+
+nrow(new_data)
+
+if (selected_year == 2023){
+  
+  # Remove Delta13C data
+  data_all2_corrected_1 <- data_all2 %>% 
+    filter(!(MYEAR %in% 2023 & PARAM == "Delta13C"))
+  nrow(data_all2)
+  nrow(data_all2_corrected_1)
+  data_all2_corrected_2 <- data_all2_corrected_1 %>%
+    bind_rows(new_data)
+  
+  nrow(data_all2)
+  nrow(data_all2_corrected_1)
+  nrow(data_all2_corrected_2)
+
+  file_date <- "2024-09-25"
+  filename <- paste0("Data/109_adjusted_data_ELU_", file_date, ".rds")  # ELU-version 
+  saveRDS(data_all2_corrected_2, filename)
+  filename_csv <- sub("rds$", "csv", filename)
+  readr::write_excel_csv(data_all2_corrected_2, filename_csv, na = "")  
+  
+  data_all2_corrected_2 %>% 
+    filter(PARAM == "Delta13C" & VALUE_WW > (-50)) %>% # View()
+    ggplot(aes(MYEAR, VALUE_WW)) +
+    geom_jitter(width = 0.1) +
+    facet_wrap(vars(LATIN_NAME, TISSUE_NAME))
+  data_all2 %>% 
+    filter(PARAM == "Delta13C" & VALUE_WW > (-50)) %>% # View()
+    ggplot(aes(MYEAR, VALUE_WW)) +
+    geom_jitter(width = 0.1) +
+    facet_wrap(vars(LATIN_NAME, TISSUE_NAME))
+
+}
+
+
+```
+
+### e3. ADHOC FIX of ALAD and EROD in 2023  
+
+* Error in LIMS (blame DHJ)  
+* ALAD wrongly entered as EROD, EROD wrongly entered as PROTV  
+* Later updated in Nivabasen using script 'milkys_2023_erod-alad_correction.sql' (on DHJ's pc)  
+
+```{r}
+
+if (FALSE){
+  # For correction after running this script  
+  file_date <- "2024-09-25"
+  filename <- paste0("Data/109_adjusted_data_ELU_", file_date, ".rds")  # ELU-version 
+  # file.copy(filename, "Data/109_adjusted_data_ELU_2024-09-25_ERROR_EROD.rds")
+  data_all2 <- readRDS(filename)
+  # data_all2 <- readRDS("Data/109_adjusted_data_ELU_2024-09-25_ERROR_DELTA13C.rds")
+  # for 2023-data
+}
+
+# for info: the original
+# df_raw <- read_excel("Input_data/Biological_effects_cod/BEM-JAMP_2023_ARU.xls", sheet = 1)
+
+data_all2_correct <- data_all2
+
+sel1 <- with(data_all2_correct, MYEAR == 2023 & PARAM == "EROD")
+sum(sel1)
+sel2 <- with(data_all2_correct, MYEAR == 2023 & PARAM == "PROTV")
+sum(sel2)
+bind_rows(head(data_all2_correct[sel1,], 1), head(data_all2_correct[sel2,], 1))
+
+data_all2_correct$PARAM[sel1] <- "ALAD"
+data_all2_correct$PARAM[sel2] <- "EROD"
+
+data_all2_correct$TISSUE_NAME[sel1] <- "Blod"
+data_all2_correct$TISSUE_NAME[sel2] <- "Liver - microsome"
+
+data_all2_correct$UNIT[sel1] <- "mg/mL"
+data_all2_correct$UNIT[sel2] <- "pmol/min/mg protein"
+
+data_all2_correct$Substance.Group[sel1] <- "Biological effects: molecular/biochemical/cellular/assays"
+data_all2_correct$Substance.Group[sel2] <- "Biological effects: molecular/biochemical/cellular/assays"
+
+bind_rows(
+  head(data_all2 [sel1,], 1), head(data_all2 [sel2,], 1),
+  head(data_all2_correct[sel1,], 1), head(data_all2_correct[sel2,], 1))
+
+data_all2[sel1,] %>% select(STATION_CODE, SAMPLE_NO2, PARAM, TISSUE_NAME, VALUE_WW, UNIT) %>%
+  arrange(STATION_CODE, SAMPLE_NO2)
+data_all2[sel2,] %>% select(STATION_CODE, SAMPLE_NO2, PARAM, TISSUE_NAME, VALUE_WW, UNIT) %>%
+  arrange(STATION_CODE, SAMPLE_NO2)
+data_all2_correct[sel1,] %>% select(STATION_CODE, SAMPLE_NO2, PARAM, TISSUE_NAME, VALUE_WW, UNIT) %>%
+  arrange(STATION_CODE, SAMPLE_NO2)
+data_all2_correct[sel2,] %>% select(STATION_CODE, SAMPLE_NO2, PARAM, TISSUE_NAME, VALUE_WW, UNIT) %>%
+  arrange(STATION_CODE, SAMPLE_NO2)
+
+xtabs(~PARAM, data_all2 %>% filter(PARAM %in% ""))
+
+file_date <- "2024-09-25"
+filename <- paste0("Data/109_adjusted_data_ELU_", file_date, ".rds")  # ELU-version 
+saveRDS(data_all2_correct, filename)
+filename_csv <- sub("rds$", "csv", filename)
+readr::write_excel_csv(data_all2_correct, filename_csv, na = "")  
+
+```
+
 
 ### f. Save last years as Excel file  
 Needed by Norman and Anders   
@@ -1367,7 +1580,7 @@ xtabs(~is.na(TL) + TISSUE_NAME, data_export %>% filter(MYEAR >= from_year))
 #### f3. Change tissue names  
 ```{r}
 
-if (FALSE){   #ELU: har ikke kjørt denne                                                                     
+if (FALSE){                                                                             #ELU: har ikke kjørt denne                                                                     
   
   # Check SH and WO parameters
 
@@ -1380,28 +1593,28 @@ if (FALSE){   #ELU: har ikke kjørt denne
   data_export %>% filter(TISSUE_NAME == "WO") %>% xtabs(~STATION_CODE + PARAM, .)
   
   data_export %>% 
-    filter(TISSUE_NAME == "WO" & PARAM %in% "IMPS") %>%    # imposex on an individual level
+    filter(TISSUE_NAME == "WO" & PARAM %in% "RSIP") %>%    # imposex on an individual level
     ggplot(aes(MYEAR, VALUE_WW)) +
     geom_jitter(width = 0.2, height = 0.1) +
-    facet_wrap(vars(STATION_CODE))
+    facet_wrap(vars(STATION_CODE))             #(vars(STATION_CODE))
 
   data_export %>% 
     filter(PARAM %in% "VDSI") %>%
     ggplot(aes(MYEAR, VALUE_WW)) +
     geom_point() +
-    facet_wrap(vars(STATION_CODE))
+    facet_wrap(vars(STATION_CODE))   
 
   data_export %>% 
     filter(TISSUE_NAME == "WO" & PARAM %in% "RSPI") %>%
     ggplot(aes(MYEAR, VALUE_WW)) +
     geom_point() +
-    facet_wrap(vars(STATION_CODE))
+    facet_wrap(vars(STATION_CODE))   
 
   }
 
 # - delete "sample" and "TISSUE_NAME == 'WO' and 'SH'"
 # - change TISSUE_NAME into English versions for the rest
-data_export <- data_export %>%                            #ELU: har kjørt denne
+data_export <- data_export %>%                                                    #ELU: har kjørt denne
   filter(!PARAM %in% "Sample") %>%
   filter(!TISSUE_NAME %in% c('SH', 'WO')) %>%
   mutate(TISSUE_NAME = case_when(
@@ -1425,7 +1638,7 @@ data_last_years <- data_export %>%
   select(-c(VALUE_DW, VALUE_FB, VALUE_WWa, VALUE_DWa, VALUE_FBa)) 
 
 fn <- paste0(
-  "Data/Milkys_raw_data_ELU2_",                                                    #ELU-version
+  "Data/Milkys_raw_data_ELU_",                                                    #ELU-version
   from_year, "-", substr(to_year, 3, 4),
   " (script 109).xlsx")
 
@@ -1434,6 +1647,16 @@ data_last_years %>%
 
 cat("\nData written to \n")
 cat(" ", fn, "\n")
+
+
+#export av trophiclevel til MGR
+
+# fn_tl <- paste0(
+#   "Data/Milkys_trophic_level_ELU",file_date,
+#   " (script 109).xlsx")
+# 
+# data_trophiclevel %>%
+#   writexl::write_xlsx(fn_tl)
 
 ```
 ## 9. Final check for HG in cod  
