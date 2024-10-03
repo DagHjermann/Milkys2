@@ -509,6 +509,7 @@ get_data_trends <- function(data_medians,
       Trend_color = Trend_shape,
       # Text: Keep only "Too few over-LOQ years", "Too few years" and "No data before 2012":
       Trend_text = case_when(
+        Trend_string %in% "No change" & is.na(y_mean)  ~ "No change",
         Trend_string %in% c("Increasing" , "Decreasing", "No change", "No trend") ~ as.character(NA), 
         Trend_string %in% "Estimation failed" ~ "No model",
         is.na(Trend_string) ~ "Too few over-LOQ years",
@@ -763,6 +764,7 @@ get_combo_plot <- function(tileplot, trendplots){
     rel_widths = c(2.7, 0.75, 1.25)
   )
 }
+
 
 #o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
 #
