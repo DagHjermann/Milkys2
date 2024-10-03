@@ -1,0 +1,74 @@
+---
+title: "Fact sheet - PCBs and pesticides"
+subtitle: "Polychlorinated biphenyls (PCB) and chlorinated pesticides incl. dichlorodiphenyltrichloroethane (DDT)"
+author: "NIVA"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+
+---
+
+In order to improve visibility of the majority of the time series, the trend plots don't show the entire confidence intervals (the outermost/largest confidence intervals are cropped)  
+
+```{r, include=FALSE}
+
+source("../431_Report_parameter_functions.R")
+source("../002_Utility_functions.R")
+
+lookup_eqs <- subset(
+  read.csv("../Input_data/Lookup_tables/Lookup_EQS_limits.csv"),
+  Basis == "WW")
+
+```
+
+
+
+```{r, echo=FALSE, results='asis', warning=FALSE, message=FALSE}
+
+# References:
+# https://bookdown.org/yihui/rmarkdown-cookbook/child-document.html#child-document
+# and
+# https://stackoverflow.com/a/69392658/1734247 
+
+param_values <- c("CB118", "CB138", "CB153", "CB_S7_exloq",  
+                  "HCB", "HCHG", "QCB", 
+                  "DDEPP")
+
+# Note: the child document must have no chunk labels, otherwise it will stop in the start of he second round
+#   because chunk labels are 'duplicated'
+
+for (param in param_values){
+  
+  if (param == "HG"){
+    basis_trends <- "WWa"
+  } else {
+    basis_trends <- "WW"
+  }
+  
+  eqsplot <- as.character(param %in% lookup_eqs$PARAM)
+
+  params <- list(
+    param = param,
+    basis_medians = "WW",
+    basis_trends = basis_trends,
+    eqsplot = eqsplot,
+    prorefplot = "TRUE",
+    include_trend = "TRUE",
+    current_year = 2022,
+    called_from_mother = "TRUE",
+    species3 = "Mytilus edulis"
+  )
+  
+  res <- knitr::knit_child('../434_Report_parameter_interactive_nochunklabels.Rmd', quiet = TRUE)
+  # res <- knitr::knit_child('../434_test1.Rmd', quiet = FALSE)
+  cat(res, sep = '\n')
+  
+}
+
+# Alternative:
+# ```{r call_child, child = '434_Report_parameter_interactive.Rmd'}
+# ```
+
+```
+
