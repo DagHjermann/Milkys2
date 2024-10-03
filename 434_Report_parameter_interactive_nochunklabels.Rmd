@@ -29,7 +29,7 @@ editor_options:
 #   3. (for testing) by running interactively, e.g. "Run all" (run_interactively = TRUE)  
 
 run_interactively <- TRUE  
-run_interactively <- FALSE  
+# run_interactively <- FALSE  
 
 # Parameters:
 
@@ -61,9 +61,81 @@ run_interactively <- FALSE
 #   Given by 'filename_109' in 'get_data_raw'  
 #   default value is "Data/109_adjusted_data_2022-09-23.rds"
 
-filename_109 <- "Data/109_adjusted_data_ELU2_2023-09-12.rds"
-filename_110 <- "110_mediandata_updated_ELU_2023-09-12.rds"
-filename_trends <- "App01_timeseries/Data2022/dat_trend.rds"
+# the trend file needs the following columns:
+# - series identifiers: PARAM, LATIN_NAME, TISSUE_NAME, STATION_CODE, Basis (WW or WWa)
+# - Trend_type ("long", "short"), last_year, first_year  
+# - Trend_string ("Increasing" , "Decreasing", "No change", "Estimation failed")
+#   - other possible (but not necessary) values: "No trend", "Too few over-LOQ years", 
+#     "Too few years", "No data before 20xx" and NA  
+# - y_mean, y_q2.5, y_q97.5 - change (last_year to first_year) on natural log scale  
+
+filename_109 <- "Data/109_adjusted_data_ELU_2024-09-25.rds"           # update
+filename_110 <- "Data/110_mediandata_updated_ELU_2024-09-25.rds"      # update
+filename_trends <- "Data/milkys4_01_trends_nivaformat.rds"            # update
+
+lookup_ices_params <- bind_rows(
+  data.frame(
+    PARAM =       c("MBT",   "TPhT",  "DPhT",  "TBT",   "DBT"),
+    determinand = c("MPSN+", "TPSN+", "DPSN+", "TBSN+", "DBSN+")),
+  data.frame(
+    PARAM =       c("BDE100", "BDE119", "BDE126", "BDE138", "BDE153", "BDE154", "BDE183", "BDE190", "BDE209"),
+    determinand = c("BD100",  "BD119",  "BD126",  "BD138",  "BD153",  "BD154",  "BD183",   "BD190", "BD209")),
+  data.frame(
+    PARAM =       c("sumPCB6", "sumPCB7", "sumBDE", "sumHBCD", "sumHCH", "sumPAH15", "sumPAH16"),
+    determinand = c(   "SCB6",    "SCB7",  "SBDE6",    "HBCD",    "HCH",   "SPAH15",   "SPAH16"))
+)
+
+lookup_trend <- data.frame(
+  trend = c("upward trend", "downward trend", "no trend", "status assessment only", "informal status assessment"),
+  Trend_string = c("Increasing", "Decreasing", "No change", "Too few years", "Too few years")
+)
+
+lookup_tissue <- data.frame(
+  matrix = c("LI", "SB", "BL", "MU"),
+  TISSUE_NAME = c("Lever", "Whole soft body", "Blod", "Muskel")
+)
+
+lookup_trendtype <- data.frame(
+  trend_length = c("recent", "whole"),
+  Trend_type = c("short", "long")
+)
+
+df_trend_orig <- readr::read_csv("Data/milkys4_01_trends.csv") 
+# dput(unique(df_trend_orig$matrix))
+# table(df_trend_orig$matrix, df_trend_orig$determinand)
+# table(df_trend_orig$matrix, df_trend_orig$species)
+# table(df_trend_orig$station_name)
+# table(df_trend_orig$trend_length)
+
+df_trend <- df_trend_orig %>%
+  left_join(
+    lookup_ices_params, by = "determinand") %>%
+  left_join(
+    lookup_trend, by = "trend") %>%
+  left_join(
+    lookup_tissue, by = "matrix") %>%
+  left_join(
+    lookup_trendtype, by= "trend_length") %>%
+  mutate(
+    PARAM = ifelse(is.na(PARAM), determinand, PARAM),
+    STATION_CODE = stringr::str_extract(station_name, "[^\\s]+"),
+    Basis = "WW",
+    y_mean = estimate,
+    y_q2.5 = estimate - 2*se,
+    y_q97.5 = estimate + 2*se) %>%
+  rename(
+    LATIN_NAME = species,
+    first_year = start,
+    last_year = end
+  ) %>%
+  select(
+    series, PARAM, LATIN_NAME, TISSUE_NAME, STATION_CODE, Basis, 
+    Trend_type, last_year, first_year, Trend_string,
+    y_mean, y_q2.5, y_q97.5
+  )
+
+saveRDS(df_trend, filename_trends)
+  
 
 dat_groups <- read.csv("Input_data/Lookup_tables/Lookup table - substance groups.csv")  
 header_param <- subset(dat_groups, PARAM %in% params$param, select = Parameter.Name)[1,1]
@@ -71,9 +143,9 @@ header_param <- subset(dat_groups, PARAM %in% params$param, select = Parameter.N
 if (run_interactively){   # set to TRUE for running interactively, otherwise FALSE
   
   # Note that 'called_from_mother' = "NA" (see chunk 15)
-  params <- list(param = "SCCP", basis_medians = "WW", basis_trends = "WW", 
+  params <- list(param = "CD", basis_medians = "WW", basis_trends = "WW", 
                  eqsplot = "FALSE", prorefplot = "TRUE", include_trend = "TRUE", 
-                 current_year = 2021, called_from_mother = "NA", 
+                 current_year = 2023, called_from_mother = "NA", 
                  species3 = "Mytilus edulis")
 }
 
