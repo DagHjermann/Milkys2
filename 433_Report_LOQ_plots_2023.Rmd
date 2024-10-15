@@ -1,0 +1,342 @@
+---
+title: "433_Report_LOQ_plots"
+author: "DHJ"
+date: "2022-10-15"
+output: 
+  html_document:
+    keep_md: true
+    toc: true
+    toc_float: true
+---
+
+## Startup  
+```{r 01_settings, include=FALSE}
+
+current_year <- 2022
+knitr::opts_chunk$set(echo = FALSE, results = 'hold')
+
+```
+
+```{r 02_packages, include=FALSE}
+
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(lubridate)
+library(flextable)
+# library(glue)
+library(readxl)
+library(purrr)
+library(glue)
+# library(leftcensored)   # DHJ's package (https://github.com/DagHjermann/leftcensored)
+library(scico)            # colour palettes incl. "Vik" (https://github.com/thomasp85/scico)
+
+library(ggiraph)
+library(cowplot)
+
+# library(safejoin) # https://github.com/moodymudskipper/safejoin
+
+```
+
+## Data    
+
+```{r 03_medians_data1}
+
+dat_raw <- readRDS("Data/109_adjusted_data_ELU2_2023-09-12.rds") %>%
+  filter(!STATION_CODE %in% c("I965","I969"))
+
+dat_medians <- readRDS("Data/110_mediandata_updated_ELU_2023-09-12.rds") %>%
+  filter(!STATION_CODE %in% c("I965","I969"))
+
+# Stations - for corrrect ordering
+lookup_stations <- read.csv("Input_data/Lookup_tables/Lookup_stationorder.csv") # %>%
+
+
+```
+
+
+## Median LOQ by year
+```{r}
+
+# 2021:
+# params <- c("AG", "AS", "CD", "CO", "CR", "CU", "HG", "NI", "PB", "ZN", 
+#   "BDE47", "BDE99", "BDE100", "BDE153", "HBCDA", "HCB", "CB118", "CB138",  "CB153", 
+#   "PFOA", "PFOS", "PFOSA", "BAA", "BAP", "FLU", "PYR", "D5")
+
+df_params <- read_excel("Input_data/Lookup_tables/Lookup_priority_for_timetrends.xlsx")
+params <- df_params %>%
+  filter(`Selected 2022[PARAM]` == 1) %>%
+  pull(PARAM)
+
+sel <- params %in% "SCCP eksl. LOQ"
+params[sel] <- "SCCP"
+sel <- params %in% "MCCP eksl. LOQ"
+params[sel] <- "MCCP"
+
+params1 <- params[!params %in% c("SCCP","MCCP")]
+params2 <- params[params %in% c("SCCP","MCCP")]
+
+```
+
+### LOQ for all parameters except SCCP, MCCP
+```{r}
+
+# LOQ median values for all parameters except SCCP, MCCP
+dat_loq1 <-  dat_raw %>%
+  filter(PARAM %in% params1) %>%
+  group_by(PARAM, MYEAR, UNIT) %>%
+  summarise(
+    medLOQ = median(VALUE_WW[!is.na(FLAG1)], na.rm = TRUE) %>% round(4),
+    .groups = "drop"
+  ) 
+
+```
+
+## LOQ for SCCP and MCCP  
+```{r}
+
+# SCCP
+df2a <- dat_raw %>%
+  filter(PARAM %in% c("SCCP inkl. LOQ", "SCCP eksl. LOQ")) %>%
+  select(MYEAR, STATION_CODE, TISSUE_NAME, SAMPLE_NO2, PARAM, VALUE_WW, UNIT) %>%
+  pivot_wider(names_from = PARAM, values_from = VALUE_WW) 
+df2b <- df2a %>%
+  mutate(PARAM = "SCCP") %>%
+  group_by(PARAM, MYEAR, UNIT) %>%
+  summarise(
+    medLOQ = median(`SCCP inkl. LOQ`[`SCCP eksl. LOQ` == 0], na.rm = TRUE) %>% round(4),
+    .groups = "drop"
+  ) 
+
+# MCCP
+df2c <- dat_raw %>%
+  filter(PARAM %in% c("MCCP inkl. LOQ", "MCCP eksl. LOQ")) %>%
+  select(MYEAR, STATION_CODE, TISSUE_NAME, SAMPLE_NO2, PARAM, VALUE_WW, UNIT) %>%
+  pivot_wider(names_from = PARAM, values_from = VALUE_WW) 
+df2d <- df2c %>%
+  filter(`MCCP eksl. LOQ` == 0) %>%
+  mutate(PARAM = "MCCP") %>%
+  group_by(PARAM, MYEAR, UNIT) %>%
+  summarise(
+    medLOQ = median(`MCCP inkl. LOQ`[`MCCP eksl. LOQ` == 0], na.rm = TRUE) %>% round(4),
+    .groups = "drop"
+  ) 
+
+# check SCCP 
+df2a %>%
+  mutate(ratio_excluding_including = `SCCP eksl. LOQ`/`SCCP inkl. LOQ`) %>%
+  ggplot() + 
+  geom_histogram(aes(x = ratio_excluding_including))
+
+dat_loq2 <- bind_rows(df2b, df2d)
+
+```
+
+### Combine 
+```{r}
+
+dat_loq <- bind_rows(dat_loq1, dat_loq2) %>%
+  mutate(PARAM = factor(PARAM, levels = params))
+
+```
+
+
+### Tables  
+```{r}
+
+dat_loq2a <- dat_loq %>% 
+  arrange(PARAM, MYEAR) %>%
+  filter(MYEAR >= 2001 & MYEAR <= 2011) %>%
+  tidyr::pivot_wider(names_from = MYEAR, values_from = medLOQ, names_sort = TRUE)
+
+dat_loq2b <- dat_loq %>% 
+  arrange(PARAM, MYEAR) %>%
+  filter(MYEAR >= 2012) %>%
+  tidyr::pivot_wider(names_from = MYEAR, values_from = medLOQ, names_sort = TRUE)
+
+write.csv(dat_loq2a, "Data/433_LOQ_medians1.csv", row.names = FALSE, na = "")
+write.csv(dat_loq2b, "Data/433_LOQ_medians2.csv", row.names = FALSE, na = "")
+
+dat_loq2a
+dat_loq2b
+
+```
+
+
+### Plot  
+```{r, fig.width=12, fig.height=8}
+
+dat_loq_ref <- dat_loq %>%
+  filter(MYEAR %in% 2013:2015) %>%
+  group_by(PARAM) %>%
+  summarise(medLOQ_ref = median(medLOQ, na.rm = TRUE))  
+
+dat_loq2 <- dat_loq %>% 
+  filter(MYEAR >= 2002) %>%
+  left_join(dat_loq_ref, by = "PARAM") %>%
+  mutate(
+    loq_rel = log10(medLOQ/medLOQ_ref),
+    PARAM = forcats::fct_rev(PARAM)) %>%
+  group_by(PARAM) %>%
+  mutate(
+    min_medLOQ = min(medLOQ, na.rm = TRUE)
+  ) %>%
+  ungroup() %>%
+  mutate(
+    medLOQ_label = case_when(
+      is.na(medLOQ) ~ "-",
+      min_medLOQ < 0.001 ~ sprintf("%.4f", medLOQ),
+      min_medLOQ < 0.01 ~ sprintf("%.3f", medLOQ),
+      min_medLOQ < 0.1 ~ sprintf("%.2f", medLOQ),
+      TRUE ~ sprintf("%.1f", medLOQ)
+    )
+  )
+
+# range(subset(dat_loq2, MYEAR >= 2012)$loq_rel, na.rm = TRUE)
+#  range(subset(dat_loq2, MYEAR >= 2002)$loq_rel, na.rm = TRUE)
+
+sel <- is.na(dat_loq2$loq_rel)
+dat_loq2$loq_rel[sel] <- 0
+
+white <- c(-0.5,0.5)
+
+gg <- ggplot(dat_loq2, aes(MYEAR, PARAM, fill = loq_rel)) +
+  geom_tile() +
+  scale_fill_scico("Relative LOQ", palette = "vik", direction = 1,  midpoint = 0) +
+  geom_text(data = subset(dat_loq2, is.na(loq_rel)), 
+            aes(label = medLOQ_label), color = "black") +
+  geom_text(data = subset(dat_loq2, loq_rel >= white[1] & loq_rel <= white[2]), 
+            aes(label = medLOQ_label), color = "black", size = 3.5) +
+  geom_text(data = subset(dat_loq2, loq_rel < white[1] | loq_rel > white[2]), 
+            aes(label = medLOQ_label), color = "white", size = 3.5) +
+  scale_x_continuous(breaks = seq(2002,2022,1)) +
+  theme(axis.title = element_blank())
+  
+gg1 <- gg + coord_cartesian(xlim = c(2002,2012))
+gg2 <- gg + coord_cartesian(xlim = c(2013,2022))
+
+ggsave("Figures/433_LOQ-median1.png", gg1, width = 10, height = 6.5, dpi = 200)
+ggsave("Figures/433_LOQ-median2.png", gg2, width = 10, height = 6.5, dpi = 200)
+
+gg1
+gg2
+
+```
+
+### Add a 2021 version for last plot   
+
+```{r}
+
+gg2b <- gg + coord_cartesian(xlim = c(2013,2021))
+ggsave("Figures/433_LOQ-median2_2021.png", gg2b, width = 10*9/10, height = 6.5, dpi = 200)
+
+```
+
+
+## Detection frequency
+
+
+### Detection frequency 1 (by param * station, one parameter in all years)  
+
+* Vik color scale used  
+* This plot shows the median value for each station/year, it could instead show limit of quantification (median value of less-thans)  
+
+```{r, fig.width=13, fig.height=7}
+
+dat_detectplot1 <- dat_medians %>% 
+  left_join(lookup_stations %>% select(Order, STATION_CODE, Station_name)) %>%
+  arrange(Order, PARAM) %>%
+  filter(Basis %in% "WW" & MYEAR %in% current_year & PARAM %in% params) %>%
+  mutate(
+    Parameter = factor(PARAM, levels = params),
+    Parameter = forcats::fct_rev(Parameter),
+    tissue_bird = ifelse(STATION_CODE == "19N", TISSUE_NAME, ""),
+    Station = forcats::fct_inorder(paste(STATION_CODE, Station_name, tissue_bird)),
+    Detected = round(100*(Over_LOQ/N_median), 0)
+    )
+
+# dat_detectplot1 %>% filter(is.na(Station)) %>% View()
+
+ggplot(dat_detectplot1, aes(Station, Parameter, fill = Detected)) +
+  geom_tile() +
+  geom_text(data = subset(dat_detectplot1, Detected > 35 & Detected < 65), 
+            aes(label = Detected), size = 3) +
+  geom_text(data = subset(dat_detectplot1, Detected <= 35 | Detected >= 65), 
+            aes(label = Detected), size = 3, 
+            color = "white") +
+  # scale_fill_viridis_b(breaks = seq(0,1,0.1)) +
+  scale_fill_scico(palette = "vik", direction = -1,  midpoint = 50, limits = c(0,100)) +
+  ggeasy::easy_rotate_labels("x", angle = -45) +
+  theme(axis.title.x = element_blank())
+
+```
+
+### Other way   
+
+```{r, fig.width=13, fig.height=11}
+
+dat_detectplot1b <- dat_detectplot1 %>%
+  mutate(Station = forcats::fct_rev(Station),
+         Parameter = forcats::fct_rev(Parameter)
+  )
+
+gg <- ggplot(dat_detectplot1b, aes(Parameter, Station, fill = Detected)) +
+  geom_tile() +
+  geom_text(data = subset(dat_detectplot1, Detected > 35 & Detected < 65), 
+            aes(label = Detected), size = 3) +
+  geom_text(data = subset(dat_detectplot1, Detected <= 35 | Detected >= 65), 
+            aes(label = Detected), size = 3, 
+            color = "white") +
+  # scale_fill_viridis_b(breaks = seq(0,1,0.1)) +
+  scale_fill_scico(palette = "vik", direction = -1,  midpoint = 50, limits = c(0,100)) +
+  ggeasy::easy_rotate_labels("x", angle = -45) +
+  theme(axis.title = element_blank())
+
+ggsave(paste0("Figures/433_LOQ-median-", current_year, ".png"), gg, 
+       width = 10, height = 10, dpi = 200)
+
+gg
+
+```
+
+
+### Detection frequency 2 (by year * station, one parameter in all years)  
+
+* Vik color scale used  
+* This plot shows the median value for each station/year, it could instead show limit of quantification (median value of less-thans)  
+
+```{r, fig.width=11, fig.height=7}
+
+param <- "CR"
+
+dat_detectplot2 <- dat_medians %>% 
+  filter(PARAM %in% param & MYEAR >= 2012) %>%
+  group_by(STATION_CODE) %>%
+  mutate(max_year = max(MYEAR)) %>% 
+  ungroup() %>%
+  filter(max_year %in% current_year) %>%
+  left_join(lookup_stations %>% select(Order, STATION_CODE, Station_name)) %>%
+  arrange(Order) %>%
+  mutate(
+    tissue_bird = ifelse(STATION_CODE == "19N", TISSUE_NAME, ""),
+    Station = forcats::fct_inorder(paste(STATION_CODE, Station_name, tissue_bird)),
+    Detected = round(100*(Over_LOQ/N_median), 0)
+    ) %>%
+  group_by(Station, MYEAR) %>%
+  summarise(Detected = median(Detected))
+
+white <- c(35, 65)
+
+ggplot(dat_detectplot2, aes(MYEAR, Station, fill = Detected)) +
+  geom_tile() +
+  geom_text(data = subset(dat_detectplot2, Detected <= white[1] | Detected >= white[2]),
+            aes(label = Detected), size = 3, color = "white") +
+  geom_text(data = subset(dat_detectplot2, Detected > white[1] & Detected < white[2]),
+            aes(label = Detected), size = 3, color = "black") +
+  # scale_fill_viridis_b(breaks = seq(0,1,0.1)) +
+  scale_fill_scico(palette = "vik", direction = -1,  midpoint = 50, limits = c(0,100)) +
+  labs(
+    title = param
+  )
+
+```
