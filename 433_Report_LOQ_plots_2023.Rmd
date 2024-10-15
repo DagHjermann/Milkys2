@@ -12,7 +12,7 @@ output:
 ## Startup  
 ```{r 01_settings, include=FALSE}
 
-current_year <- 2022
+current_year <- 2023
 knitr::opts_chunk$set(echo = FALSE, results = 'hold')
 
 ```
@@ -42,10 +42,11 @@ library(cowplot)
 
 ```{r 03_medians_data1}
 
-dat_raw <- readRDS("Data/109_adjusted_data_ELU2_2023-09-12.rds") %>%
+dat_raw <- readRDS("Data/109_adjusted_data_ELU_2024-09-25.rds") %>%
   filter(!STATION_CODE %in% c("I965","I969"))
 
-dat_medians <- readRDS("Data/110_mediandata_updated_ELU_2023-09-12.rds") %>%
+dat_medians <- readr::read_csv(
+  "Data/110_mediandata_updated_ELU_2024-09-025_rettet 09-26.csv") %>%
   filter(!STATION_CODE %in% c("I965","I969"))
 
 # Stations - for corrrect ordering
@@ -64,9 +65,33 @@ lookup_stations <- read.csv("Input_data/Lookup_tables/Lookup_stationorder.csv") 
 #   "PFOA", "PFOS", "PFOSA", "BAA", "BAP", "FLU", "PYR", "D5")
 
 df_params <- read_excel("Input_data/Lookup_tables/Lookup_priority_for_timetrends.xlsx")
-params <- df_params %>%
+params_old <- df_params %>%
   filter(`Selected 2022[PARAM]` == 1) %>%
   pull(PARAM)
+
+# From milkys4   
+params_check <- c(
+  "AG", "AS", "CD", "CO", "CR", "CU", "HG", "HG.LENADJ", "NI", "PB", "ZN",  # metals_focus
+  "CB118", "CB138", "CB153", "CB_S7",         # pcb_focus
+  "PFOA", "PFOS", "PFOSA",                    # pfas_focus
+  "BDE47", "BD100", "BD154",                  # bde_focus
+  "ANT", "BAA", "BAP", "FLU", "NAP", "PYR",   # pah_focus
+  "TPSN+", "TBSN+")                           # tbt_focus
+
+setdiff(params_old, params_check)
+setdiff(params_check, params_old)
+
+params <- c(
+  "AG", "AS", "CD", "CO", "CR", "CU", "HG", "NI", "PB", "ZN",  # metals_focus
+  "CB118", "CB138", "CB153", "CB_S7",         # pcb_focus
+  "PFOA", "PFOS", "PFOSA",                    # pfas_focus
+  "BDE47", "BD100", "BD154",                  # bde_focus
+  "ANT", "BAA", "BAP", "FLU", "NAP", "PYR",   # pah_focus
+  "HBCDA", "HCB",                             # organochlorines
+  "MCCP eksl. LOQ", "SCCP eksl. LOQ",         # chlorparaffins
+  "D5",                                       # siloxans
+  "TPhT", "TBT")                              # tbt_focus
+
 
 sel <- params %in% "SCCP eksl. LOQ"
 params[sel] <- "SCCP"
@@ -209,14 +234,16 @@ gg <- ggplot(dat_loq2, aes(MYEAR, PARAM, fill = loq_rel)) +
             aes(label = medLOQ_label), color = "black", size = 3.5) +
   geom_text(data = subset(dat_loq2, loq_rel < white[1] | loq_rel > white[2]), 
             aes(label = medLOQ_label), color = "white", size = 3.5) +
-  scale_x_continuous(breaks = seq(2002,2022,1)) +
+  scale_x_continuous(breaks = seq(2002,2023,1)) +
   theme(axis.title = element_blank())
   
 gg1 <- gg + coord_cartesian(xlim = c(2002,2012))
-gg2 <- gg + coord_cartesian(xlim = c(2013,2022))
+gg2 <- gg + coord_cartesian(xlim = c(2013,2023))
 
-ggsave("Figures/433_LOQ-median1.png", gg1, width = 10, height = 6.5, dpi = 200)
-ggsave("Figures/433_LOQ-median2.png", gg2, width = 10, height = 6.5, dpi = 200)
+ggsave(paste0("Figures/433_LOQ-median1-", current_year, ".png"), gg1, 
+       width = 10, height = 6.5, dpi = 200)
+ggsave(paste0("Figures/433_LOQ-median2-", current_year, ".png"), gg2, 
+       width = 10, height = 6.5, dpi = 200)
 
 gg1
 gg2
@@ -227,8 +254,8 @@ gg2
 
 ```{r}
 
-gg2b <- gg + coord_cartesian(xlim = c(2013,2021))
-ggsave("Figures/433_LOQ-median2_2021.png", gg2b, width = 10*9/10, height = 6.5, dpi = 200)
+# gg2b <- gg + coord_cartesian(xlim = c(2013,2021))
+# ggsave("Figures/433_LOQ-median2_2021.png", gg2b, width = 10*9/10, height = 6.5, dpi = 200)
 
 ```
 
@@ -244,7 +271,8 @@ ggsave("Figures/433_LOQ-median2_2021.png", gg2b, width = 10*9/10, height = 6.5, 
 ```{r, fig.width=13, fig.height=7}
 
 dat_detectplot1 <- dat_medians %>% 
-  left_join(lookup_stations %>% select(Order, STATION_CODE, Station_name)) %>%
+  left_join(lookup_stations %>% select(Order, STATION_CODE, Station_name),
+            by = join_by(STATION_CODE)) %>%
   arrange(Order, PARAM) %>%
   filter(Basis %in% "WW" & MYEAR %in% current_year & PARAM %in% params) %>%
   mutate(
@@ -292,8 +320,8 @@ gg <- ggplot(dat_detectplot1b, aes(Parameter, Station, fill = Detected)) +
   ggeasy::easy_rotate_labels("x", angle = -45) +
   theme(axis.title = element_blank())
 
-ggsave(paste0("Figures/433_LOQ-median-", current_year, ".png"), gg, 
-       width = 10, height = 10, dpi = 200)
+ggsave(paste0("Figures/433_Detect_frequency-", current_year, ".png"), gg, 
+       width = 13, height = 10, dpi = 200)
 
 gg
 
