@@ -1,0 +1,359 @@
+---
+title: "075_Get_labware_data_lastyear"
+author: "DHJ"
+date: "2024-10-17"
+output: 
+  html_document:
+    keep_md: true
+    toc: true  
+    toc_float: true
+params:
+  oracleuser: 
+    label: "NIVA initials (3 capital letters)"
+    value: "DHJ"
+    input: text
+  oraclepass: 
+    label: "Oracle password"
+    value: ""
+    input: password
+---
+
+**Get last year's biota chemistry data from Nivabasen**    
+
+* Filtering and joining is done using lazy table loading    
+    - "Lazy" means that the data are not actually downloaded until you use 'collect()'  
+    - So, if you wait using collect() until you have done the filtering, you avoid downloading unnecessary data  
+
+* This script accesses Nivabasen on Oracle and therefore needs your Oracle user name (your initials) and password. It can be run in two ways:  
+    - Interactively - run chunk by chunk (by clicking the little arrow in the corner of the chunk, or Shift+Ctrl+Enter and Shift-Alt-N) - enter username and password when you are asked for it 
+    - Or by using "Knit with Parameters..." from the menu (pull-down menu from the Knit button) - enter username and password, then click 'Knit'  
+
+## 1. Libraries
+
+```{r}
+
+# For loading libraries without startup messages
+library2 <- function(...) suppressPackageStartupMessages(library(...))
+
+library2(dbplyr)
+library2(dplyr)
+library2(lubridate)
+library2(ggplot2)
+library2(stringr)
+
+# help(package = "dbplyr")
+
+```
+
+## 2. Settings  
+```{r}
+
+measurement_year <- 2023
+
+# Set to TRUE if you want to download the data (ca. 6 minutes)
+download_and_save <- TRUE
+
+```
+
+
+
+## 3. Set up Oracle connection   
+
+- This part of the script will ask you about your user name and password to Nivabasen  
+
+```{r}
+
+# if the script is run interactively
+if (interactive()){
+  
+  con <- DBI::dbConnect(odbc::odbc(),
+                      Driver = "/opt/conda/orahome/libsqora.so.12.1",
+                      DBQ = "dbora-niva-prod01.niva.corp:1555/NIVABPRD",
+                      UID = rstudioapi::askForPassword("Database username (NIVA initials, 3 capital letters)"),
+                      PWD = rstudioapi::askForPassword("Nivabasen password")
+  )
+  
+} else {
+# if the script is knitted
+  
+  # If params$oraclepass is just an empty string, you have probably just clicked the Knit button  
+  if (params$oraclepass == ""){
+    stop("Password = ''. You must use 'Knit with Parameters...' from the menu (pull-down menu from the Knit button), and enter you password in the dialog")
+  }
+  
+  con <- DBI::dbConnect(odbc::odbc(),
+                        Driver = "/opt/conda/orahome/libsqora.so.12.1",
+                        DBQ = "dbora-niva-prod01.niva.corp:1555/NIVABPRD",
+                        UID = params$oracleuser,
+                        PWD = params$oraclepass
+  )
+  
+}
+
+test_connection <- DBI::dbGetQuery(con, "select * from NIVADATABASE.PROJECTS where rownum < 4")
+if ("test_connection" %in% ls()){
+  if (nrow(test_connection) == 3)
+    cat("Connection to Nivadatabase set up and tested")
+}
+
+rm(test_connection)
+
+```
+
+
+
+
+## 4. Set up queries  
+
+* These define how to get data from Nivabasen, but don't actually get them  
+
+
+### Get pointers to all tables  
+
+* Note that when dbplyr joins tables, it will try to join using all fields (columns) that have the same name in the two tables  
+    - therefore, fields with the same column names but that cannot be used for joining (such as ENTERED_BY, ENTERED_DATE) must either be removed or renamed   
+    - if not, no rows will be joined (probably)  
+* Columns that are actually used for joins should of couse not be removed (e.g., STATION_ID, SAMPLE_ID)   
+
+```{r}
+
+# Remove ENTERED_BY and ENTERED_DATE from all tables because they mess up the joins
+
+methods <- tbl(con, in_schema("NIVADATABASE", "METHOD_DEFINITIONS")) %>%
+  select(METHOD_ID, NAME, UNIT, LABORATORY, METHOD_REF, MATRIX_ID)
+measurements <- tbl(con, in_schema("NIVADATABASE", "BIOTA_CHEMISTRY_VALUES")) %>%
+  select(SAMPLE_ID, METHOD_ID, VALUE_ID, VALUE, FLAG1, 
+         DETECTION_LIMIT, UNCERTAINTY, QUANTIFICATION_LIMIT)
+# drop STATION_ID, TAXONOMY_CODE_ID from samples
+samples <- tbl(con, in_schema("NIVADATABASE", "BIOTA_SAMPLES")) %>%
+  select(SAMPLE_ID, TISSUE_ID, SAMPLE_NO, REPNO, REMARK) %>%
+  rename(REMARK_sample = REMARK)
+samples_specimens <- tbl(con, in_schema("NIVADATABASE", "BIOTA_SAMPLES_SPECIMENS")) %>%
+  select(SPECIMEN_ID, SAMPLE_ID)
+specimens <- tbl(con, in_schema("NIVADATABASE", "BIOTA_SINGLE_SPECIMENS")) %>%
+  select(STATION_ID, SPECIMEN_ID, SPECIMEN_NO, DATE_CAUGHT, TAXONOMY_CODE_ID, REMARK) %>%
+  rename(REMARK_specimen = REMARK)
+project_stations <- tbl(con, in_schema("NIVADATABASE", "PROJECTS_STATIONS")) %>%
+  select(STATION_ID, STATION_CODE, STATION_NAME, PROJECT_ID )
+projects <- tbl(con, in_schema("NIVADATABASE", "PROJECTS")) %>%
+  select(PROJECT_ID, PROJECT_NAME, PROJECT_DESCRIPTION)
+
+# Lookup tables  
+taxonomy_codes <- tbl(con, in_schema("NIVADATABASE", "TAXONOMY_CODES")) %>%
+  select(TAXONOMY_CODE_ID, CODE, NIVA_TAXON_ID)
+taxonomy <- tbl(con, in_schema("NIVADATABASE", "TAXONOMY")) %>%
+  select(NIVA_TAXON_ID, LATIN_NAME)
+tissue <- tbl(con, in_schema("NIVADATABASE", "BIOTA_TISSUE_TYPES")) %>%
+  select(TISSUE_ID, TISSUE_NAME)
+lims_id <- tbl(con, in_schema("NIVADATABASE", "LABWARE_BSID")) %>%
+  select(BIOTA_SAMPLE_ID, LABWARE_TEXT_ID)
+
+# Not really necessary here:
+# matrix <- tbl(con, in_schema("NIVADATABASE", "MATRIX_DEFINITIONS")) %>%
+#   select(MATRIX_ID, MATRIX_NAME)
+# collect(matrix)
+
+```
+
+### Set up join and aggregation   
+
+```{r}
+
+# Specimen level
+# - one row per specimen, in cas of poole dsamples there wil be several rows per sample
+dat_1 <- specimens %>%
+  mutate(
+    YEAR = year(DATE_CAUGHT),
+    MONTH = month(DATE_CAUGHT),
+    MYEAR = case_when(
+      MONTH >= 4 ~ YEAR,
+      MONTH < 4 ~ YEAR-1)) %>%
+  left_join(samples_specimens) %>%
+  left_join(samples) %>% 
+  left_join(tissue) %>% 
+  left_join(lims_id, by = c("SAMPLE_ID" = "BIOTA_SAMPLE_ID")) %>% 
+  left_join(measurements) %>%
+  left_join(methods) %>%
+  left_join(project_stations) %>%
+  left_join(projects) %>%
+  filter(PROJECT_NAME == "CEMP_Biota")  %>%
+  left_join(taxonomy_codes) %>%
+  left_join(taxonomy)  
+
+# Sample level
+# - one row per sample, specimen-level info is discarded  
+# - assumes that there is only one project, station and MYEAR per sample  
+dat_2 <- dat_1 %>%
+  distinct(
+    # Main data
+    PROJECT_NAME, STATION_CODE, STATION_NAME, LATIN_NAME, MYEAR, TISSUE_NAME, SAMPLE_NO, REPNO, 
+    NAME, VALUE, FLAG1, UNIT, 
+    # extra time info
+    # DATE_CAUGHT, YEAR, MONTH,
+    # extra sample info (note: LABWARE_TEXT_ID not included as there can be two or more TEXT_ID for a single sample)
+    REMARK_sample, 
+    # extra chemical methiod info
+    LABORATORY, METHOD_REF, DETECTION_LIMIT, UNCERTAINTY, QUANTIFICATION_LIMIT, 
+    # IDs
+    PROJECT_ID, STATION_ID, TAXONOMY_CODE_ID, MATRIX_ID, SAMPLE_ID, TISSUE_ID, METHOD_ID, VALUE_ID, )
+
+```
+
+## 5. Get all data for the given year
+
+### Download  
+
+* Download takes ca. 6 minutes  
+
+```{r}
+
+if (download_and_save){
+  
+  t0 <- now()
+  
+  dat_last_year_1 <- dat_2 %>%
+    filter(MYEAR == measurement_year) %>%
+    collect()
+  
+  dat_last_year_pooled <- dat_1 %>%
+    filter(MYEAR == measurement_year) %>%
+    distinct(STATION_CODE, MYEAR, TISSUE_NAME, SAMPLE_ID, SPECIMEN_ID, SPECIMEN_NO, LABWARE_TEXT_ID) %>%
+    collect() %>%
+    arrange(STATION_CODE, MYEAR, TISSUE_NAME, SAMPLE_ID, SPECIMEN_NO, LABWARE_TEXT_ID) %>%
+    group_by(STATION_CODE, MYEAR, TISSUE_NAME, SAMPLE_ID) %>%
+    summarise(
+      Pooled_n = n(),
+      LABWARE_TEXT_ID = stringr::str_flatten(unique(LABWARE_TEXT_ID), collapse = ", "),
+      SPECIMEN_ID = stringr::str_flatten(unique(SPECIMEN_ID), collapse = ", "),
+      SPECIMEN_NO = stringr::str_flatten(unique(SPECIMEN_NO), collapse = ", "),
+      .groups = "drop"
+    ) 
+  
+  # how long time took the download?  
+  t1 <- now()
+  cat("Time used for download:  "); print(t1-t0)
+  
+  dat_last_year <- dat_last_year_1 %>%
+    left_join(
+      dat_last_year_pooled %>% select(SAMPLE_ID, Pooled_n, LABWARE_TEXT_ID, SPECIMEN_ID, SPECIMEN_NO), 
+      by = "SAMPLE_ID")
+  
+  # make timestamp to use in file name (NOTE: UTC = Greenwich mean time used, not local time)
+  now <- lubridate::now()
+  timestring <- paste0(substr(now, 1, 10), "_", substr(now, 12, 13), "h", substr(now, 15, 16), "m")  
+  
+  message(nrow(dat_last_year), " rows of data downloaded")
+  
+} else {
+  
+  message("Complete data not downloaded (set 'download_and_save' to TRUE to download and save data)")
+  
+}
+
+```
+
+### Save  
+
+```{r}
+
+if (download_and_save){
+  
+  fn_rds <- paste0("80_df_", measurement_year, "_notstandard_", timestring, ".rds")  
+  fn_csv <- sub(".rds", ".csv", fn_rds)  
+  # fn_rds; fn_csv
+  saveRDS(dat_last_year, paste0("Input_data/", fn_rds))
+  readr::write_csv(dat_last_year, paste0("Input_data/", fn_csv))
+  
+  message("Data saved to 'Input_data' as ", sQuote(fn_csv), " (and as a corresponding .rds file)")
+  
+} else {
+  
+  message("Complete data not saved (set 'download_and_save' to TRUE to download and save data)")
+  
+}
+
+```
+
+
+## 6. Examples of use  
+
+### All substances/parameters measured in one station, one year
+```{r}
+
+dat_last_year_1 <- dat_2 %>%
+  filter(MYEAR == measurement_year & STATION_CODE == "30B")
+
+```
+
+### Measurements of one substance in one station, one year
+```{r}
+
+dat_2 %>%
+  filter(MYEAR == 2023 & STATION_CODE == "30B" & NAME == "Perfluoroktansulfonamid (PFOSA)") 
+
+```
+
+
+### Overview of specimens per sample inc. pooled samples (one station/year)    
+```{r}
+
+dat_1 %>%
+  filter(
+    MYEAR == 2023 & STATION_CODE == "30B") %>%
+  distinct(
+    TISSUE_NAME, SAMPLE_NO, REPNO, 
+    # SAMPLE_ID, LABWARE_TEXT_ID, SPECIMEN_ID      # more columns if we wish
+    SPECIMEN_NO
+    ) %>%
+  # str_flatten doesn't work with Oracle, therefore we nned to collect (download)
+  #   the data before this step
+  collect() %>%
+  group_by(
+    TISSUE_NAME, SAMPLE_NO, REPNO, 
+    # SAMPLE_ID, LABWARE_TEXT_ID
+    ) %>%
+  summarise(
+    # SPECIMEN_IDs = str_flatten(SPECIMEN_ID, collapse = ", "),
+    SPECIMEN_NOs = str_flatten(SPECIMEN_NO, collapse = ", ")
+  ) %>%
+  arrange(TISSUE_NAME, SAMPLE_NO)
+
+```
+
+### Medians of one substance in all stations, several years  
+```{r}
+
+dat_plot <- dat_2 %>%
+  filter(MYEAR >= 2018 & NAME == "Perfluoroktansulfonamid (PFOSA)" & LATIN_NAME == "Gadus morhua") %>%
+  mutate(
+    Over_LOQ_num = ifelse(is.na(FLAG1), 1, 0)
+  ) %>%
+  group_by(STATION_CODE, MYEAR) %>%
+  summarise(
+    VALUE_median = median(VALUE),
+    Over_LOQ_f = mean(Over_LOQ_num),
+    n_samples = n()
+  ) %>%
+  mutate(
+    LOQ = ifelse(Over_LOQ_f >= 0.5, "Over LOQ", "Under LOQ")
+  ) %>%
+  collect() %>%
+  group_by(STATION_CODE) %>%
+  mutate(n_years = length(unique(MYEAR)))
+
+dat_plot %>%
+  filter(n_years >= 5) %>%
+  ggplot(aes(MYEAR, VALUE_median, color = STATION_CODE, shape = LOQ)) +
+  geom_line() +
+  geom_point() +
+  scale_shape_manual(values = c(19,6)) +
+  scale_y_log10()
+
+```
+
+
+
+
+
+
+
