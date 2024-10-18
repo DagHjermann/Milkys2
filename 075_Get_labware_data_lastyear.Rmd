@@ -18,6 +18,8 @@ params:
     input: password
 ---
 
+## NOTE: THIS IS JUST A COPY OF SCRIPT 080 SO FAR!!!! 
+
 **Get last year's biota chemistry data from Nivabasen**    
 
 * Filtering and joining is done using lazy table loading    
