@@ -1,0 +1,305 @@
+---
+title: "81_check_downloaded_data"
+format: 
+  html:
+    toc: true
+---
+
+
+## Packages  
+```{r}
+#| message: false
+#| warning: false
+#| results: hide
+
+library(dplyr)
+library(ggplot2)
+# library(stringr)
+library(forcats)
+
+```
+
+### Set year  
+```{r}
+
+lastyear <- 2023
+
+```
+
+
+## Most recent data  
+
+### Read data from file 
+
+- Read and reformat data (by default, the most recent dataset made)        
+- The file named '01_df_2019_notstandard_<date>' were made using script 80  
+
+```{r}
+#| results: hold
+#| echo: false
+
+filepattern <- paste0("80_df_", lastyear, "_notstandard_")    # file name except date and extension
+filepattern_with_extension <- paste0(filepattern, ".+.rds")
+                  
+filenumber <- 1                                 # filenumber = 1 means "read the newest file"
+
+# Get available files, sorted from newest to oldest
+files <- dir("Input_data", pattern = filepattern_with_extension) %>% rev()
+
+if (length(files) == 0){
+  
+  stop("No files found for year ", lastyear)
+
+} else {
+  
+  # Info for user
+  cat("Reading file number ",  filenumber, ", sorted from newest to oldest files:", sep = "")
+  cat("\n", files[filenumber])
+  cat("\n\n")
+  cat("If you want to read a different file, replace 'filenumber <- 1' or 'filename' with the file you want")
+  cat("\n")
+  cat("For instance, set 'filenumber <- 2' to read the second newest file")
+  cat("\n")
+  
+  # Get filename and its date part 
+  filename <- files[filenumber]
+  file_date <- substr(filename, nchar(filepattern) + 1, nchar(filepattern) + 10) # pick date part
+  
+  # The date part of 'filename' (e.g., '2020-04-23')
+  # will be used in part 10, when we save the resulting file
+  
+  dat_new1 <- readRDS(paste0("Input_data/", filename))
+  message(nrow(dat_new1), " rows of data read from file")
+  
+}
+
+cat("\n")
+
+# If you want to remove VALUE = NA, change FALSE to TRUE in the next line  
+if (FALSE){
+  
+  n1 <- nrow(dat_new1)
+  dat_new1 <- dat_new1 %>%
+    filter(!is.na(VALUE))
+  n2 <- nrow(dat_new1)
+  
+  message("\n", n1-n2, " rows with no value of VALUE were removed")
+  
+} else {
+  
+  warning("There are ", sum(is.na(dat_new1$VALUE)), " rows with VALUE = NA. These have NOT been removed")
+  
+}
+
+
+```
+
+### Create summary data  
+
+```{r}
+#| echo: false
+
+# Make factor levels (= order in plot) for station code
+# Order stations by species, then by code
+
+codes <- dat_new1 %>% pull(STATION_CODE) %>% unique() 
+
+# for parts that are copy-pasted into the code:
+# grep("B", codes, value = TRUE) |> dput()
+# grep("G", codes, value = TRUE) |> dput()
+
+# cod
+codes1 <- c("02B", "10B", "13B", "15B", "19B", "20B", "23B", "24B", "28B", "30B", "36B", "43B2", "45B2", "53B", "71B", "80B", "98B1")
+# snails
+codes3 <- c("11G", "131G", "227G2", "22G", "36G", "71G", "76G", "98G")
+# eider duck
+codes4 <- "19N"
+# blue mussel - this is assumed to be the rest
+codes2 <- setdiff(codes, c(codes1, codes3, codes4))
+STATION_CODE_levels <- c(codes1, codes2, codes3, codes4)
+
+#
+# Create summary for plotting  
+#
+dat_summ <- dat_new1 %>%
+  distinct(
+    STATION_CODE, NAME, TISSUE_NAME, SAMPLE_NO, REPNO, SPECIMEN_NO
+  ) %>%
+  count(
+    STATION_CODE, NAME, name = "n_samples"
+  ) %>%
+  mutate(
+    STATION_CODE = factor(STATION_CODE, levels = STATION_CODE_levels)
+  )
+
+cat("There are", length(STATION_CODE_levels), "samples\n")
+cat("- ", length(codes1), "cod stations (code 'B')\n")
+cat("- ", length(codes2), "blue mussel stations (code ''A','I','X')\n")
+cat("- ", length(codes3), "snail stations (code 'G')\n")
+cat("- ", length(codes4), "eider duck stations (code 'N')\n")
+cat("There are", length(unique(dat_summ$NAME)), "parameters\n")
+cat("There are", nrow(dat_summ), "combinations of station x parameter\n")
+
+```
+
+### Plot  
+
+```{r}
+#| fig-height: 18
+#| fig-width: 11
+
+ggplot(dat_summ, aes(STATION_CODE, fct_rev(factor(NAME)), fill = n_samples)) +
+  geom_tile() +
+  scale_fill_viridis_c() +
+  theme(axis.text.x = element_text(angle = -45, hjust = 0))
+
+```
+
+
+## Compare with previous file  
+
+```{r}
+#| results: hold
+#| echo: false
+
+
+filenumber_prev <- filenumber + 1
+
+  # Info for user
+  message("Reading file number ",  filenumber_prev, ", sorted from newest to oldest files:")
+  message(" - ", files[filenumber])
+  
+  # Get filename and its date part 
+  filename_prev <- files[filenumber_prev]
+
+  dat_prev <- readRDS(paste0("Input_data/", filename_prev))
+  message(nrow(dat_prev), " rows of data read from file")
+  message("- The latest file has ", nrow(dat_new1) - nrow(dat_prev), " more rows")
+  
+
+  cat("\n")
+
+# If you want to remove VALUE = NA, change FALSE to TRUE in the next line  
+if (FALSE){
+  
+  n1 <- nrow(dat_prev)
+  dat_prev <- dat_prev %>%
+    filter(!is.na(VALUE))
+  n2 <- nrow(dat_prev)
+  
+  message("\n", n1-n2, " rows with no value of VALUE were removed")
+  
+} else {
+  
+  warning("There are ", sum(is.na(dat_prev$VALUE)), " rows with VALUE = NA. These have NOT been removed")
+  
+}
+
+cat("\n\n")
+cat("If you want to read a different file, change the value of 'filenumber_prev'")
+cat("\n")
+
+  
+```
+
+### Add to 'dat_summary'  
+
+* adds variables n_samples_prev, new_samples, new_samples_perc  
+
+```{r}
+
+#| echo: false
+
+
+dat_summ_prev <- dat_prev %>%
+  distinct(
+    STATION_CODE, NAME, TISSUE_NAME, SAMPLE_NO, REPNO, SPECIMEN_NO
+  ) %>%
+  count(
+    STATION_CODE, NAME, name = "n_samples_prev"
+  ) %>%
+  mutate(
+    STATION_CODE = factor(STATION_CODE, levels = STATION_CODE_levels)
+  )
+
+if (!"n_samples_prev" %in% names(dat_summ)){
+  dat_summ <- dat_summ %>%
+    full_join(dat_summ_prev) %>%
+    mutate(
+      n_samples = ifelse(is.na(n_samples), 0, n_samples),      # modifies 'n_samples': if NA, we set it to zero
+      n_samples_prev = ifelse(is.na(n_samples_prev), 0, n_samples_prev), # same for 'n_samples_prev'  
+      new_samples = n_samples - n_samples_prev,
+      new_samples_perc = 100*new_samples/n_samples,
+    ) %>%
+    filter(!n_samples == n_samples_prev)
+}
+
+
+```
+
+
+### Plot  
+
+```{r}
+
+#| fig-height: 14
+#| fig-width: 11
+
+ggplot(dat_summ, aes(STATION_CODE, fct_rev(factor(NAME)), fill = new_samples_perc)) +
+  geom_tile() +
+  scale_fill_viridis_c() +
+  theme(axis.text.x = element_text(angle = -45, hjust = 0))
+
+```
+
+## More detailed checking  
+
+### PAH metabolites  
+
+* Lacking absorbance (ABS380)  
+
+```{r}
+
+# dat_summ %>%
+#   filter(STATION_CODE == "15B") %>%
+#   pull(NAME) %>% dput()
+
+vars1 <- c("1-OH-fenantren", "1-OH-naftalen", "1-OH-pyren", 
+  "2-OH-fenantren", "2-OH-naftalen", "3-OH-benzo[a]pyren", "3-OH-fenantren", 
+  "4-OH-fenantren", "X-OH-B[a]P ?")
+
+dat_new1 %>%
+  filter(NAME %in% vars1) %>%
+  mutate(LOQ = ifelse(is.na(FLAG1), "Over LOQ", "Under LOQ")) %>%
+  ggplot(aes(NAME, VALUE, shape = LOQ)) +
+  geom_point() +
+  scale_shape_manual(values = c("Over LOQ" = 19, "Under LOQ" = 6)) +
+  coord_flip()
+
+if (FALSE){
+dat_new1 %>%
+  filter(NAME %in% "1-OH-pyren") %>%
+  pull(VALUE)
+}
+
+```
+
+## Export information/data  
+
+### File with sample IDs and TEXT_ID from LIMS (Labware)  
+
+```{r}
+
+filename_lims <- sub(".rds", "_limsID.rds", filename)
+filename_lims
+
+dat_new1 %>% 
+  # filter(LATIN_NAME == "Gadus morhua") %>%
+  distinct(LATIN_NAME, STATION_ID, SPECIMEN_ID, SAMPLE_ID, LABWARE_TEXT_ID) %>%
+  tidyr::separate_wider_delim(
+    LABWARE_TEXT_ID, delim = ", ", names = c("TEXT_ID_a","TEXT_ID_b"), too_few = "align_start") %>%
+  readr::write_csv(paste0("Input_data/", filename_lims))
+
+```
+
+
