@@ -8,8 +8,8 @@ params:
   eqsplot: "FALSE"
   prorefplot: "TRUE"
   include_trend: "TRUE"
-  current_year: 2022
-  called_from_mother: "FALSE"
+  current_year: 2023
+  called_from_mother: "TRUE"
   species3: "Mytilus edulis"
   conc_unit: "mg/kg wet weight"
 output: 
@@ -69,9 +69,11 @@ run_interactively <- TRUE
 #     "Too few years", "No data before 20xx" and NA  
 # - y_mean, y_q2.5, y_q97.5 - change (last_year to first_year) on natural log scale  
 
+library(dplyr)
+
 filename_109 <- "Data/109_adjusted_data_ELU_2024-09-25.rds"           # update
 filename_110 <- "Data/110_mediandata_updated_ELU_2024-09-25.rds"      # update
-filename_trends <- "Data/milkys4_01_trends_nivaformat.rds"            # update
+filename_trends <- "Data/milkys4_01_trends_nivaformat_02.rds"            # update
 
 lookup_ices_params <- bind_rows(
   data.frame(
@@ -100,7 +102,16 @@ lookup_trendtype <- data.frame(
   Trend_type = c("short", "long")
 )
 
-df_trend_orig <- readr::read_csv("Data/milkys4_01_trends.csv") 
+if (FALSE){
+  
+  # for 2023 data, using trend results from milkys5 script 01
+  # needs to be done only every time the trend file is updated
+  
+df_trend_orig <- bind_rows(
+  readr::read_csv("Data/milkys4_01_trends.csv"),
+  readr::read_csv("Data/milkys4_01_trends_Hg-lengthadjusted.csv") #  %>% unique(determinand)
+)
+
 # dput(unique(df_trend_orig$matrix))
 # table(df_trend_orig$matrix, df_trend_orig$determinand)
 # table(df_trend_orig$matrix, df_trend_orig$species)
@@ -117,9 +128,14 @@ df_trend <- df_trend_orig %>%
   left_join(
     lookup_trendtype, by= "trend_length") %>%
   mutate(
-    PARAM = ifelse(is.na(PARAM), determinand, PARAM),
+    PARAM = case_when(
+      determinand %in% "HG.lenadj" ~ "HG",
+      is.na(PARAM) ~ determinand,
+      TRUE ~ PARAM),
     STATION_CODE = stringr::str_extract(station_name, "[^\\s]+"),
-    Basis = "WW",
+    Basis = case_when(
+      determinand %in% "HG.lenadj" ~ "WWa",
+      TRUE ~ "WW"),
     y_mean = estimate,
     y_q2.5 = estimate - 2*se,
     y_q97.5 = estimate + 2*se) %>%
@@ -134,8 +150,19 @@ df_trend <- df_trend_orig %>%
     y_mean, y_q2.5, y_q97.5
   )
 
-saveRDS(df_trend, filename_trends)
-  
+# Fix accidental duplicates of trend data
+df_trend2 <- df_trend %>%
+  arrange(PARAM, LATIN_NAME, TISSUE_NAME, STATION_CODE, Basis,
+           Trend_type, Trend_string, first_year, last_year, y_mean, y_q2.5, y_q97.5) %>%
+  group_by(PARAM, LATIN_NAME, TISSUE_NAME, STATION_CODE, Basis,
+           Trend_type, Trend_string, first_year, last_year, y_mean, y_q2.5, y_q97.5) %>%
+  mutate(i = 1:length(PARAM)) %>%
+  filter(i == 1) %>%
+  select(-i)
+
+saveRDS(df_trend2, filename_trends)
+
+}  
 
 dat_groups <- read.csv("Input_data/Lookup_tables/Lookup table - substance groups.csv")  
 header_param <- subset(dat_groups, PARAM %in% params$param, select = Parameter.Name)[1,1]
@@ -178,7 +205,6 @@ div.main-container {
 
 library(ggiraph)
 
-# library(tidyr)
 library(ggplot2)
 library(lubridate)
 library(flextable)
