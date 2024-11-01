@@ -73,7 +73,7 @@ library(dplyr)
 
 filename_109 <- "Data/109_adjusted_data_ELU_2024-09-25.rds"           # update
 filename_110 <- "Data/110_mediandata_updated_ELU_2024-09-25.rds"      # update
-filename_trends <- "Data/milkys4_01_trends_nivaformat_02.rds"            # update
+filename_trends <- "Data/milkys4_01_trends_03.rds"            # update
 
 lookup_ices_params <- bind_rows(
   data.frame(
