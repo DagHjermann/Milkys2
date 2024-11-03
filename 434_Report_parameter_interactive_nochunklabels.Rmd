@@ -2,10 +2,10 @@
 title: "Report for parameter (431)"
 author: "NIVA"
 params:
-  param: "CD"
+  param: "HG"
   basis_medians: "WW"
   basis_trends: "WW"
-  eqsplot: "FALSE"
+  eqsplot: "TRUE"
   prorefplot: "TRUE"
   include_trend: "TRUE"
   current_year: 2023
@@ -762,8 +762,10 @@ if (params$param %in% "HG"){
 }
 df1 <- dat_raw1 <- get_data_raw(params$param, "Gadus morhua", fish_tissue, params$basis_medians, 
                                 include_year=current_year, filename_109 = filename_109)  
-dat_raw2 <- get_data_raw(params$param, "Somateria mollissima", "Blod", "WW", include_year=current_year)
-dat_raw3 <- get_data_raw(params$param, "Somateria mollissima", "Egg", "WW", include_year=current_year)  
+dat_raw2 <- get_data_raw(params$param, "Somateria mollissima", "Blod", "WW",
+                         include_year=current_year, filename_109 = filename_109)
+dat_raw3 <- get_data_raw(params$param, "Somateria mollissima", "Egg", "WW",
+                         include_year=current_year,filename_109 = filename_109)  
 
 dat_raw_codeider <- bind_rows(dat_raw1, dat_raw2, dat_raw3)
 
