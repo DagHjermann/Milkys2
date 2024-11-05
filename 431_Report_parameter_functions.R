@@ -453,9 +453,9 @@ get_data_trends <- function(data_medians,
       mutate(
         Perc_change = round((exp(-y_mean)-1)*100, 1),
         D_year = last_year - first_year,
-        Perc_annual = round((exp(-y_mean/D_year)-1)*100, 1),
-        Perc_annual_lo = round((exp(-y_q2.5/D_year)-1)*100, 1),
-        Perc_annual_hi = round((exp(-y_q97.5/D_year)-1)*100, 1)
+        Perc_annual = round((exp(y_mean/D_year)-1)*100, 1),
+        Perc_annual_lo = round((exp(y_q2.5/D_year)-1)*100, 1),
+        Perc_annual_hi = round((exp(y_q97.5/D_year)-1)*100, 1)
       )
     
     if (nrow(dat_trends_list[[species]]) == 0){
