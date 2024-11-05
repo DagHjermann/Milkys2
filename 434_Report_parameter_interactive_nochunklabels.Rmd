@@ -2,7 +2,7 @@
 title: "Report for parameter (431)"
 author: "NIVA"
 params:
-  param: "HG"
+  param: "CO"
   basis_medians: "WW"
   basis_trends: "WW"
   eqsplot: "TRUE"
@@ -74,7 +74,7 @@ library(dplyr)
 filename_109 <- "Data/109_adjusted_data_ELU_2024-09-25.rds"           # update
 filename_110 <- "Data/110_mediandata_updated_ELU_2024-09-25.rds"      # update
 # This trend file is created in milkys4 project, script 903 (hence the name)
-filename_trends <- "Data/milkys4_903_trends_01.rds"                   # update
+filename_trends <- "Data/milkys4_903_trends_02.rds"                   # update
 
 dat_groups <- read.csv("Input_data/Lookup_tables/Lookup table - substance groups.csv")  
 header_param <- subset(dat_groups, PARAM %in% params$param, select = Parameter.Name)[1,1]
@@ -82,7 +82,7 @@ header_param <- subset(dat_groups, PARAM %in% params$param, select = Parameter.N
 if (run_interactively){   # set to TRUE for running interactively, otherwise FALSE
   
   # Note that 'called_from_mother' = "NA" (see chunk 15)
-  params <- list(param = "CD", basis_medians = "WW", basis_trends = "WW", 
+  params <- list(param = "CO", basis_medians = "WW", basis_trends = "WW", 
                  eqsplot = "FALSE", prorefplot = "TRUE", include_trend = "TRUE", 
                  current_year = 2023, called_from_mother = "NA", 
                  species3 = "Mytilus edulis")
