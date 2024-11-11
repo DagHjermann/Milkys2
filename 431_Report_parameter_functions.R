@@ -438,25 +438,37 @@ get_data_trends <- function(data_medians,
   dat_trends_list <- list()
   for (species in spp){
     
+    param <- param_filter <- unique(data_medians$PARAM) 
+
     if (basis == "WWa" & species != "Gadus morhua"){
+      # For blue mussel and eider duck, we use WW also for HG
       basis <- "WW"
+    } else if (basis == "WWa" & species == "Gadus morhua" & "HG" %in% param_filter){
+      # For cod, we use HG WWa is coded as HG.LENADJ with basis WW
+      # (because this is what works in HARSAT)
+      # After getting the HG.LENADJ rows, however, we must reset PARAM to HG ('PARAM = param' below)
+      basis <- "WW"
+      param_filter <- "HG.LENADJ"
     }
     
     dat_trends_list[[species]] <- readRDS(filename_trends) %>%
       filter(
-        PARAM %in% unique(data_medians$PARAM),
+        PARAM %in% param_filter,
         LATIN_NAME %in% species,
         TISSUE_NAME %in% unique(data_medians$TISSUE_NAME),
         STATION_CODE %in% unique(data_medians$STATION_CODE),
         Basis %in% basis
       ) %>%
       mutate(
+        PARAM = param,   # only affects HG.LENADJ, which is changed to PARAM
         Perc_change = round((exp(-y_mean)-1)*100, 1),
         D_year = last_year - first_year,
         Perc_annual = round((exp(y_mean/D_year)-1)*100, 1),
         Perc_annual_lo = round((exp(y_q2.5/D_year)-1)*100, 1),
         Perc_annual_hi = round((exp(y_q97.5/D_year)-1)*100, 1)
       )
+    
+    
     
     if (nrow(dat_trends_list[[species]]) == 0){
       #cat("PARAM:", paste(unique(data_medians$PARAM), collapse = ","), "\n")
