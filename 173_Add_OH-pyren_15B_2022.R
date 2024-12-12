@@ -74,7 +74,7 @@ ggplot(dat_sel_median, aes(MYEAR, VALUE_WW)) +
 # tar_target(series3, create_series_with_trendtype(series2, last_year)),
 # tar_target(result, get_trend_results(series3, data5))
 
-source("../Milkys3/R/functions_trend.R")
+source("../Milkys3_test/R/functions_trend.R")
 library(leftcensored)
 data3 <- lc_prepare(dat_sel, x = "MYEAR",
                              y = "VALUE_WW", 
