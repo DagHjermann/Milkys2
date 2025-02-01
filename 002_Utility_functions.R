@@ -814,4 +814,377 @@ make_sql_ids <- function(data, variable){
 
 
 
+#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
+#
+# Functions for reading data from Nivabase  ----
+#
+#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
+
+
+test_connection <- function(connection){
+  
+  # Test a small download
+  test_connection <- DBI::dbGetQuery(connection, "select PROJECT_ID, PROJECT_NAME from NIVADATABASE.PROJECTS where rownum < 3")
+  
+  # Check that download worked
+  if ("test_connection" %in% ls()){
+    if (nrow(test_connection) == 2)                                                  
+      cat("Connection to Nivadatabase set up and tested")
+  } else {
+    warning("Test download failed")
+  }
+  
+}
+
+get_connection <- function(test_only = FALSE){
+  
+  # Set up connection (asks for user name and password)
+  connection <- DBI::dbConnect(odbc::odbc(),
+                 Driver = "/opt/conda/orahome/libsqora.so.12.1",
+                 DBQ = "dbora-niva-prod01.niva.corp:1555/NIVABPRD",
+                 UID = rstudioapi::askForPassword("Database username (NIVA initials, 3 capital letters)"),
+                 PWD = rstudioapi::askForPassword("Nivabasen password")
+  )
+  
+  test_connection(connection)
+  
+  connection
+                 
+}
+
+if (FALSE){
+  # Test
+  con <- get_connection()  
+  DBI::dbGetQuery(con, "select * from NIVADATABASE.PROJECTS_O_NUMBERS where rownum < 3")
+  library(dbplyr)
+  projects %>%
+    filter(substr(PROJECT_NAME,1,4) %in% "CEMP") %>%
+    collect()
+}
+
+
+define_nivabasen_tables <- function(connection){
+  
+  require(dbplyr)
+  
+  object_names <- c("t_lims_id", "t_measurements", "t_methods", "t_project_stations", 
+                    "t_projects", "t_projects_onumbers", "t_samples", "t_samples_specimens", 
+                    "t_specimens", "t_taxonomy", "t_taxonomy_codes", "t_tissue")
+  # Find existing variables in the global environment ("n = 1") starting with "t_"
+  existing_object_names <- ls(name = 1, pattern = "^t_")
+  overlap <- intersect(object_names, existing_object_names)
+  
+  create_objects <- TRUE
+  if (length(overlap) > 0){
+    answer <- ""
+    while (!answer %in% c("y","n")){
+      cat("This will overwrite the following existing objects:\n")
+      print(overlap)
+      answer <- readline("OK to continue? (y/n)")
+      if (answer == "n"){
+        create_objects <- FALSE
+        break()
+      }
+    }
+  }
+  
+  if (create_objects){
+    
+    t_methods <<- tbl(connection, in_schema("NIVADATABASE", "METHOD_DEFINITIONS")) %>%
+      select(METHOD_ID, NAME, UNIT, LABORATORY, METHOD_REF, MATRIX_ID)
+    t_measurements <<- tbl(connection, in_schema("NIVADATABASE", "BIOTA_CHEMISTRY_VALUES")) %>%
+      select(SAMPLE_ID, METHOD_ID, VALUE_ID, VALUE, FLAG1, 
+             DETECTION_LIMIT, UNCERTAINTY, QUANTIFICATION_LIMIT)
+    # drop STATION_ID, TAXONOMY_CODE_ID from samples
+    t_samples <<- tbl(connection, in_schema("NIVADATABASE", "BIOTA_SAMPLES")) %>%
+      select(SAMPLE_ID, TISSUE_ID, SAMPLE_NO, REPNO, REMARK) %>%
+      rename(REMARK_sample = REMARK)
+    t_samples_specimens <<- tbl(connection, in_schema("NIVADATABASE", "BIOTA_SAMPLES_SPECIMENS")) %>%
+      select(SPECIMEN_ID, SAMPLE_ID)
+    t_specimens <<- tbl(connection, in_schema("NIVADATABASE", "BIOTA_SINGLE_SPECIMENS")) %>%
+      select(STATION_ID, SPECIMEN_ID, SPECIMEN_NO, DATE_CAUGHT, TAXONOMY_CODE_ID, REMARK) %>%
+      rename(REMARK_specimen = REMARK)
+    t_project_stations <<- tbl(connection, in_schema("NIVADATABASE", "PROJECTS_STATIONS")) %>%
+      select(STATION_ID, STATION_CODE, STATION_NAME, PROJECT_ID )
+    t_projects <<- tbl(connection, in_schema("NIVADATABASE", "PROJECTS")) %>%
+      select(PROJECT_ID, PROJECT_NAME, PROJECT_DESCRIPTION)
+    t_projects_onumbers <<- tbl(connection, in_schema("NIVADATABASE", "PROJECTS_O_NUMBERS")) %>%
+      select(PROJECT_ID, O_NUMBER)
+    
+    # Lookup tables  
+    t_taxonomy_codes <<- tbl(connection, in_schema("NIVADATABASE", "TAXONOMY_CODES")) %>%
+      select(TAXONOMY_CODE_ID, CODE, NIVA_TAXON_ID)
+    t_taxonomy <<- tbl(connection, in_schema("NIVADATABASE", "TAXONOMY")) %>%
+      select(NIVA_TAXON_ID, LATIN_NAME)
+    t_tissue <<- tbl(connection, in_schema("NIVADATABASE", "BIOTA_TISSUE_TYPES")) %>%
+      select(TISSUE_ID, TISSUE_NAME)
+    t_lims_id <<- tbl(connection, in_schema("NIVADATABASE", "LABWARE_BSID")) %>%
+      select(BIOTA_SAMPLE_ID, LABWARE_TEXT_ID)
+  }
+  
+}
+
+
+if (FALSE){
+  # Test
+  # debugonce(define_nivabasen_tables)
+  define_nivabasen_tables(con)
+  
+  t_projects %>% head(3)
+  t_projects %>%
+    filter(PROJECT_NAME == 'CEMP_Biota') %>%
+    collect()
+  # Same, using SQL syntax:
+  t_projects %>%
+    filter(sql("PROJECT_NAME = 'CEMP_Biota'")) %>%
+    collect()
+  t_projects %>%
+    filter(substr(PROJECT_NAME,1,4) %in% "CEMP") %>%
+    collect()
+  # NOTE: grepl, example below, doesnt work with dbplyr:
+  #   filter(grepl("CEMP", PROJECT_NAME))
+  # Must use SQL syntax, put inside sql(), instead:
+  t_projects %>%
+    filter(sql("PROJECT_NAME like '%CEMP%'")) %>%
+    collect()
+}
+
+
+
+
+define_biotachemistry_tables <- function(connection, project_id = 3699){
+  
+  require(dbplyr)
+  
+  object_names <- c("t_specimenlevel", "t_samplelevel")
+  t_projects_with_onumbers <- t_projects %>%
+    filter(PROJECT_ID %in% project_id) %>%
+    left_join(t_projects_onumbers, by = join_by(PROJECT_ID))   
+  
+  cat("\nCreating tables", paste(sQuote(object_names), collapse = ","), "based on the following projects:\n\n")
+  print(t_projects_with_onumbers)
+  cat("\n")
+  
+  cat("\n\nNOTE: the data will not be downloaded when you do this (lazy loading).\n\n")
+  
+  # Find existing variables in the global environment ("n = 1") starting with "t_"
+  existing_object_names <- ls(name = 1, pattern = "^t_")
+  overlap <- intersect(object_names, existing_object_names)
+  
+  create_objects <- TRUE
+  if (length(overlap) > 0){
+    answer <- ""
+    while (!answer %in% c("y","n")){
+      cat("This will overwrite the following existing objects:\n")
+      print(overlap)
+      answer <- readline("OK to continue? (y/n)")
+      if (answer == "n"){
+        create_objects <- FALSE
+        break()
+      }
+    }
+  }
+  
+  if (create_objects){
+    
+    # Specimen level
+    # - one row per specimen, in cas of poole dsamples there wil be several rows per sample
+    t_specimenlevel <<- t_specimens %>%
+      mutate(
+        YEAR = year(DATE_CAUGHT),
+        MONTH = month(DATE_CAUGHT),
+        MYEAR = case_when(
+          MONTH >= 4 ~ YEAR,
+          MONTH < 4 ~ YEAR-1)) %>%
+      left_join(t_samples_specimens, by = join_by(SPECIMEN_ID)) %>%
+      left_join(t_samples, by = join_by(SAMPLE_ID)) %>% 
+      left_join(t_tissue, by = join_by(TISSUE_ID)) %>% 
+      left_join(t_lims_id, by = c("SAMPLE_ID" = "BIOTA_SAMPLE_ID")) %>% 
+      left_join(t_measurements, by = join_by(SAMPLE_ID)) %>%
+      left_join(t_methods, by = join_by(METHOD_ID)) %>%
+      left_join(t_project_stations, by = join_by(STATION_ID)) %>%
+      left_join(t_projects, by = join_by(PROJECT_ID)) %>%
+      filter(PROJECT_ID %in% project_id)  %>%
+      left_join(t_taxonomy_codes, join_by(TAXONOMY_CODE_ID)) %>%
+      left_join(t_taxonomy)  
+    
+    # Sample level
+    # - one row per sample, specimen-level info is discarded  
+    # - assumes that there is only one project, station and MYEAR per sample  
+    t_samplelevel <<- t_specimenlevel %>%
+      distinct(
+        # Main data
+        PROJECT_NAME, STATION_CODE, STATION_NAME, LATIN_NAME, MYEAR, TISSUE_NAME, SAMPLE_NO, REPNO, 
+        NAME, VALUE, FLAG1, UNIT, 
+        # extra time info
+        # DATE_CAUGHT, YEAR, MONTH,
+        # extra sample info (note: LABWARE_TEXT_ID not included as there can be two or more TEXT_ID for a single sample)
+        REMARK_sample, 
+        # extra chemical methiod info
+        LABORATORY, METHOD_REF, DETECTION_LIMIT, UNCERTAINTY, QUANTIFICATION_LIMIT, 
+        # IDs
+        PROJECT_ID, STATION_ID, TAXONOMY_CODE_ID, MATRIX_ID, SAMPLE_ID, TISSUE_ID, METHOD_ID, VALUE_ID)
+
+  }
+  
+}
+
+
+
+if (FALSE){
+  # Test
+  # debugonce(define_nivabasen_tables)
+  define_biotachemistry_tables(con)
+}
+
+
+get_biotachemistry <- function(connection, download_data = FALSE, year = NULL, filter_sql = NULL){
+  
+  object_names <- c("t_specimenlevel", "t_samplelevel")
+  existing_object_names <- ls(name = 1, pattern = "^t_")
+  objects_lacking <- setdiff(object_names, existing_object_names)
+  if (length(objects_lacking) > 0){
+    message("The following objects must be defined. Run 'define_biotachemistry_tables()' to define them, then you can try this function again.\n")
+    print(object_names)
+    stop("Lacking objects ", paste(sQuote(objects_lacking), collapse = ","))
+  }
+
+  if (is.null(year)){
+    t_samplelevel_filtered <- t_samplelevel
+  } else {
+    t_samplelevel_filtered <- t_samplelevel %>%
+      filter(MYEAR %in% year)
+  }
+  
+  if (!is.null(filter_sql)){
+    t_samplelevel_filtered <- t_samplelevel_filtered %>%
+      filter(sql(filter_sql))
+  }
+  
+  rows_by_year <- t_samplelevel_filtered %>%
+    count(MYEAR) %>%
+    collect()
+  number_of_samples <- sum(rows_by_year$n)
+
+  if (download_data){
+    
+    t0 <- now()
+    
+    t_samplelevel_filtered <- t_samplelevel_filtered %>%
+      collect()
+    
+    t_specimens_pooled <- t_specimenlevel %>%
+      filter(SAMPLE_ID %in% unique(t_samplelevel_filtered$SAMPLE_ID)) %>%
+      distinct(STATION_CODE, MYEAR, TISSUE_NAME, SAMPLE_ID, SPECIMEN_ID, SPECIMEN_NO, LABWARE_TEXT_ID) %>%
+      collect() %>%
+      arrange(STATION_CODE, MYEAR, TISSUE_NAME, SAMPLE_ID, SPECIMEN_NO, LABWARE_TEXT_ID) %>%
+      group_by(STATION_CODE, MYEAR, TISSUE_NAME, SAMPLE_ID) %>%
+      summarise(
+        Pooled_n = n(),
+        LABWARE_TEXT_ID = stringr::str_flatten(unique(LABWARE_TEXT_ID), collapse = ", "),
+        SPECIMEN_ID = stringr::str_flatten(unique(SPECIMEN_ID), collapse = ", "),
+        SPECIMEN_NO = stringr::str_flatten(unique(SPECIMEN_NO), collapse = ", "),
+        .groups = "drop"
+      ) 
+    
+    # how long time took the download?  
+    t1 <- now()
+    cat("Time used for download:  "); print(t1-t0)
+    
+    result <- t_samplelevel_filtered %>%
+      left_join(
+        t_specimens_pooled %>% select(SAMPLE_ID, Pooled_n, LABWARE_TEXT_ID, SPECIMEN_ID, SPECIMEN_NO),
+        by = "SAMPLE_ID")
+    
+  } else {
+    
+    result <- rows_by_year
+    
+  }
+  
+  message("number of samples: ", number_of_samples)
+  invisible(result)
+  
+}
+
+if (FALSE){
+  # Test
+  # debugonce(get_biotachemistry)
+  x <- get_biotachemistry(con, year = 2020:2023)
+  x <- get_biotachemistry(con, year = 2020:2023, filter_sql = "NAME = 'Mirex'")
+  x <- get_biotachemistry(con, year = 2022:2023, filter_sql = "NAME = 'Mirex'", download_data = TRUE)
+  
+}
+
+
+find_projects <- function(search_text = NULL, id = NULL, wildcard = FALSE, ignore.case = FALSE){
+  
+  options(useFancyQuotes = FALSE)
+  
+  if (!wildcard & !ignore.case){
+    sql_syntax <- paste0("PROJECT_NAME = ", sQuote(search_text))
+  } else if (!wildcard & ignore.case){
+    sql_syntax <- paste0("LOWER(PROJECT_NAME) = ", sQuote(tolower(search_text)))
+  } else if (wildcard & !ignore.case){
+    sql_syntax <- paste0("PROJECT_NAME LIKE ", sQuote(paste0("%", search_text, "%")))
+  } else if (wildcard & ignore.case){
+    sql_syntax <- paste0("LOWER(PROJECT_NAME) LIKE ", sQuote(paste0("%", tolower(search_text), "%")))
+  }
+
+  result <- t_projects %>% 
+    filter(sql(sql_syntax)) %>% 
+    left_join(t_projects_onumbers, by = join_by(PROJECT_ID)) %>%
+    collect()
+  
+  result
+}
+
+if (FALSE){
+  # debugonce(find_projects)
+  find_projects("CEMP_Biota")
+  find_projects("CEMP_biota")
+  find_projects("CEMP_biota", ignore.case = TRUE)
+  find_projects("CEMP", wildcard = TRUE)
+  find_projects("cemp", wildcard = TRUE)
+  find_projects("cemp", wildcard = TRUE, ignore.case = TRUE)
+}
+
+t_projects_onumbers %>% filter()
+
+find_projects_onumber <- function(search_text = NULL, id = NULL, wildcard = FALSE, ignore.case = FALSE){
+    
+    options(useFancyQuotes = FALSE)
+    
+    if (!wildcard & !ignore.case){
+      sql_syntax <- paste0("O_NUMBER = ", sQuote(search_text))
+    } else if (!wildcard & ignore.case){
+      sql_syntax <- paste0("LOWER(O_NUMBER) = ", sQuote(tolower(search_text)))
+    } else if (wildcard & !ignore.case){
+      sql_syntax <- paste0("O_NUMBER LIKE ", sQuote(paste0("%", search_text, "%")))
+    } else if (wildcard & ignore.case){
+      sql_syntax <- paste0("LOWER(O_NUMBER) LIKE ", sQuote(paste0("%", tolower(search_text), "%")))
+    }
+    
+    result <- t_projects %>% 
+      left_join(t_projects_onumbers, by = join_by(PROJECT_ID)) %>%
+      filter(sql(sql_syntax)) %>% 
+      collect()
+    
+    result
+  }
+  
+
+if (FALSE){
+  # Test
+  find_projects_onumber("14330ANA")
+  find_projects_onumber(14330)
+  find_projects_onumber(14330, wildcard = TRUE)
+}
+
+
+
+
+
+
+
 
