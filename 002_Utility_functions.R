@@ -1080,7 +1080,7 @@ get_biotachemistry <- function(connection, download_data = FALSE, year = NULL, f
     
     t_specimens_pooled <- t_specimenlevel %>%
       filter(SAMPLE_ID %in% sampleids) %>%
-      distinct(STATION_CODE, MYEAR, TISSUE_NAME, SAMPLE_ID, SPECIMEN_ID, SPECIMEN_NO, LABWARE_TEXT_ID) %>%
+      distinct(STATION_CODE, MYEAR, YEAR, MONTH, TISSUE_NAME, SAMPLE_ID, SPECIMEN_ID, SPECIMEN_NO, LABWARE_TEXT_ID) %>%
       collect() %>%
       arrange(STATION_CODE, MYEAR, TISSUE_NAME, SAMPLE_ID, SPECIMEN_NO, LABWARE_TEXT_ID) %>%
       group_by(STATION_CODE, MYEAR, TISSUE_NAME, SAMPLE_ID) %>%
@@ -1089,6 +1089,8 @@ get_biotachemistry <- function(connection, download_data = FALSE, year = NULL, f
         LABWARE_TEXT_ID = stringr::str_flatten(unique(LABWARE_TEXT_ID), collapse = ", "),
         SPECIMEN_ID = stringr::str_flatten(unique(SPECIMEN_ID), collapse = ", "),
         SPECIMEN_NO = stringr::str_flatten(unique(SPECIMEN_NO), collapse = ", "),
+        Year = mean(YEAR),
+        Month = mean(MONTH),
         .groups = "drop"
       ) 
     
@@ -1098,7 +1100,7 @@ get_biotachemistry <- function(connection, download_data = FALSE, year = NULL, f
     
     result <- t_samplelevel_filtered %>%
       left_join(
-        t_specimens_pooled %>% select(SAMPLE_ID, Pooled_n, LABWARE_TEXT_ID, SPECIMEN_ID, SPECIMEN_NO),
+        t_specimens_pooled %>% select(SAMPLE_ID, Pooled_n, LABWARE_TEXT_ID, SPECIMEN_ID, SPECIMEN_NO, Year, Month),
         by = "SAMPLE_ID")
     
   } else {
@@ -1128,6 +1130,7 @@ if (FALSE){
   # debugonce(get_biotachemistry)
   dat_ransfjord <- get_biotachemistry(con, year = 2024, download_data = TRUE)
   xtabs(~STATION_CODE + MYEAR, dat_ransfjord)
+  xtabs(~Month + MYEAR, dat_ransfjord)
   #  saveRDS(dat_ransfjord, "App02_Industry_data/data_chem_industry_ransfjord_2024.rds")
   
   proj <- find_projects_onumber(240237)  # hoyangsfjord
@@ -1136,7 +1139,7 @@ if (FALSE){
   # debugonce(get_biotachemistry)
   dat_hoyangsfjord <- get_biotachemistry(con, year = 2024, download_data = TRUE)
   xtabs(~STATION_CODE + MYEAR, dat_hoyangsfjord)
-  # saveRDS(dat_ransfjord, "App02_Industry_data/data_chem_industry_hoyangsfjord_2024.rds")
+  # saveRDS(dat_hoyangsfjord, "App02_Industry_data/data_chem_industry_hoyangsfjord_2024.rds")
   
   check <- tbl(con, in_schema("NIVADATABASE", "LABWARE_CHECK_SAMPLE")) %>% head(3)
     count(ACCOUNT_NUMBER, PROSJEKT, CUSTOMER) %>%
