@@ -867,7 +867,7 @@ define_nivabasen_tables <- function(connection){
   
   require(dbplyr)
   
-  object_names <- c("t_lims_id", "t_measurements", "t_methods", "t_project_stations", 
+  object_names <- c("t_lims_id", "t_measurements", "t_methods", "t_basis", "t_project_stations", 
                     "t_projects", "t_projects_onumbers", "t_samples", "t_samples_specimens", 
                     "t_specimens", "t_taxonomy", "t_taxonomy_codes", "t_tissue")
   # Find existing variables in the global environment ("n = 1") starting with "t_"
@@ -891,7 +891,9 @@ define_nivabasen_tables <- function(connection){
   if (create_objects){
     
     t_methods <<- tbl(connection, in_schema("NIVADATABASE", "METHOD_DEFINITIONS")) %>%
-      select(METHOD_ID, NAME, UNIT, LABORATORY, METHOD_REF, MATRIX_ID)
+      select(METHOD_ID, NAME, UNIT, LABORATORY, METHOD_REF, MATRIX_ID, BASIS_ID)
+    t_basis <<- tbl(connection, in_schema("NIVADATABASE", "BASIS_DEFINITIONS")) %>%
+      select(BASIS_ID, BASIS_CODE)
     t_measurements <<- tbl(connection, in_schema("NIVADATABASE", "BIOTA_CHEMISTRY_VALUES")) %>%
       select(SAMPLE_ID, METHOD_ID, VALUE_ID, VALUE, FLAG1, 
              DETECTION_LIMIT, UNCERTAINTY, QUANTIFICATION_LIMIT)
@@ -1002,6 +1004,7 @@ define_biotachemistry_tables <- function(connection, project_id = 3699, ask_befo
       left_join(t_lims_id, by = c("SAMPLE_ID" = "BIOTA_SAMPLE_ID")) %>% 
       left_join(t_measurements, by = join_by(SAMPLE_ID)) %>%
       left_join(t_methods, by = join_by(METHOD_ID)) %>%
+      left_join(t_basis, by = join_by(BASIS_ID)) %>%
       left_join(t_project_stations, by = join_by(STATION_ID)) %>%
       left_join(t_projects, by = join_by(PROJECT_ID)) %>%
       filter(PROJECT_ID %in% project_id)  %>%
@@ -1015,7 +1018,7 @@ define_biotachemistry_tables <- function(connection, project_id = 3699, ask_befo
       distinct(
         # Main data
         PROJECT_NAME, STATION_CODE, STATION_NAME, LATIN_NAME, MYEAR, TISSUE_NAME, SAMPLE_NO, REPNO, 
-        NAME, VALUE, FLAG1, UNIT, 
+        NAME, VALUE, FLAG1, UNIT, BASIS_CODE,
         # extra time info
         # DATE_CAUGHT, YEAR, MONTH,
         # extra sample info (note: LABWARE_TEXT_ID not included as there can be two or more TEXT_ID for a single sample)
@@ -1120,25 +1123,28 @@ if (FALSE){
   # Høyangsfjorden: O-240237
   # Kristiansandsfjorden: O-240244.
   proj <- find_projects_onumber(240130)  # Ransfjord
-  define_biotachemistry_tables(connection = con, project_id = proj$PROJECT_ID)
+  define_biotachemistry_tables(connection = con, project_id = proj$PROJECT_ID, ask_before_overwrite = F)
   get_biotachemistry(con, year = 2024)
   # debugonce(get_biotachemistry)
   dat_ransfjord <- get_biotachemistry(con, year = 2024, download_data = TRUE)
   xtabs(~STATION_CODE + MYEAR, dat_ransfjord)
+  #  saveRDS(dat_ransfjord, "App02_Industry_data/data_chem_industry_ransfjord_2024.rds")
   
   proj <- find_projects_onumber(240237)  # hoyangsfjord
-  define_biotachemistry_tables(connection = con, project_id = proj$PROJECT_ID)
+  define_biotachemistry_tables(connection = con, project_id = proj$PROJECT_ID, ask_before_overwrite = F)
   get_biotachemistry(con, year = 2024)
   # debugonce(get_biotachemistry)
   dat_hoyangsfjord <- get_biotachemistry(con, year = 2024, download_data = TRUE)
-   
+  xtabs(~STATION_CODE + MYEAR, dat_hoyangsfjord)
+  # saveRDS(dat_ransfjord, "App02_Industry_data/data_chem_industry_hoyangsfjord_2024.rds")
+  
   check <- tbl(con, in_schema("NIVADATABASE", "LABWARE_CHECK_SAMPLE")) %>% head(3)
     count(ACCOUNT_NUMBER, PROSJEKT, CUSTOMER) %>%
     filter(CUSTOMER == 'SIX') %>%
     collect()
   
   proj <- find_projects_onumber(240244)  # Kristiansandsfjorden
-  define_biotachemistry_tables(connection = con, project_id = proj$PROJECT_ID)
+  define_biotachemistry_tables(connection = con, project_id = proj$PROJECT_ID, ask_before_overwrite = F)
   get_biotachemistry(con, year = 2024)
   # debugonce(get_biotachemistry)
   dat_kristiansand <- get_biotachemistry(con, year = 2024, download_data = TRUE)
