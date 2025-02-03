@@ -952,7 +952,7 @@ if (FALSE){
 
 
 
-define_biotachemistry_tables <- function(connection, project_id = 3699){
+define_biotachemistry_tables <- function(connection, project_id = 3699, ask_before_overwrite = T){
   
   require(dbplyr)
   
@@ -972,7 +972,7 @@ define_biotachemistry_tables <- function(connection, project_id = 3699){
   overlap <- intersect(object_names, existing_object_names)
   
   create_objects <- TRUE
-  if (length(overlap) > 0){
+  if (length(overlap) > 0 & ask_before_overwrite){ 
     answer <- ""
     while (!answer %in% c("y","n")){
       cat("This will overwrite the following existing objects:\n")
@@ -1073,8 +1073,10 @@ get_biotachemistry <- function(connection, download_data = FALSE, year = NULL, f
     t_samplelevel_filtered <- t_samplelevel_filtered %>%
       collect()
     
+    sampleids <- unique(t_samplelevel_filtered$SAMPLE_ID)
+    
     t_specimens_pooled <- t_specimenlevel %>%
-      filter(SAMPLE_ID %in% unique(t_samplelevel_filtered$SAMPLE_ID)) %>%
+      filter(SAMPLE_ID %in% sampleids) %>%
       distinct(STATION_CODE, MYEAR, TISSUE_NAME, SAMPLE_ID, SPECIMEN_ID, SPECIMEN_NO, LABWARE_TEXT_ID) %>%
       collect() %>%
       arrange(STATION_CODE, MYEAR, TISSUE_NAME, SAMPLE_ID, SPECIMEN_NO, LABWARE_TEXT_ID) %>%
@@ -1114,6 +1116,33 @@ if (FALSE){
   x <- get_biotachemistry(con, year = 2020:2023, filter_sql = "NAME = 'Mirex'")
   x <- get_biotachemistry(con, year = 2022:2023, filter_sql = "NAME = 'Mirex'", download_data = TRUE)
   
+  # Ranfjorden: O-240130
+  # Høyangsfjorden: O-240237
+  # Kristiansandsfjorden: O-240244.
+  proj <- find_projects_onumber(240130)  # Ransfjord
+  define_biotachemistry_tables(connection = con, project_id = proj$PROJECT_ID)
+  get_biotachemistry(con, year = 2024)
+  # debugonce(get_biotachemistry)
+  dat_ransfjord <- get_biotachemistry(con, year = 2024, download_data = TRUE)
+  xtabs(~STATION_CODE + MYEAR, dat_ransfjord)
+  
+  proj <- find_projects_onumber(240237)  # hoyangsfjord
+  define_biotachemistry_tables(connection = con, project_id = proj$PROJECT_ID)
+  get_biotachemistry(con, year = 2024)
+  # debugonce(get_biotachemistry)
+  dat_hoyangsfjord <- get_biotachemistry(con, year = 2024, download_data = TRUE)
+   
+  check <- tbl(con, in_schema("NIVADATABASE", "LABWARE_CHECK_SAMPLE")) %>% head(3)
+    count(ACCOUNT_NUMBER, PROSJEKT, CUSTOMER) %>%
+    filter(CUSTOMER == 'SIX') %>%
+    collect()
+  
+  proj <- find_projects_onumber(240244)  # Kristiansandsfjorden
+  define_biotachemistry_tables(connection = con, project_id = proj$PROJECT_ID)
+  get_biotachemistry(con, year = 2024)
+  # debugonce(get_biotachemistry)
+  dat_kristiansand <- get_biotachemistry(con, year = 2024, download_data = TRUE)
+  
 }
 
 
@@ -1149,7 +1178,6 @@ if (FALSE){
   find_projects("cemp", wildcard = TRUE, ignore.case = TRUE)
 }
 
-t_projects_onumbers %>% filter()
 
 find_projects_onumber <- function(search_text = NULL, id = NULL, wildcard = FALSE, ignore.case = FALSE){
     
@@ -1179,6 +1207,9 @@ if (FALSE){
   find_projects_onumber("14330ANA")
   find_projects_onumber(14330)
   find_projects_onumber(14330, wildcard = TRUE)
+  # Ranfjorden: O-240130
+  # Høyangsfjorden: O-240237
+  # Kristiansandsfjorden: O-240244.
 }
 
 
