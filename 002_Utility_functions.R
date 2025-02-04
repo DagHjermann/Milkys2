@@ -1450,12 +1450,91 @@ if (FALSE){
   # Milkys - contains pooled samples (multiple specimens per sample)
   find_projects("CEMP", wildcard = TRUE, connection = con)  
   test <- select_samples(o_number = "14330ANA", myear = 2016:2023, connection = con)
-  dd <- test %>% filter(SAMPLE_ID == 239537) %>% collect()
-test %>% count(MYEAR) %>% arrange(MYEAR)
-sql_code <- paste0("SPECIMEN_ID LIKE ", sQuote("%,%"))
-test %>% filter(sql_code) %>% count(MYEAR) %>% arrange(MYEAR)
-
+  test_pooled <- test %>% filter(SAMPLE_ID == 239537) %>% collect()
+  # searc usin sample_id
+  test <- select_samples(sample_id = 239537, connection = con)
+  collect(test)
 }
+
+
+
+
+select_measurements <- function(value_id = NULL,
+                                param = NULL,
+                                sample_id = NULL,
+                           tissue = NULL,
+                           specimen_id = NULL, 
+                           myear = NULL, 
+                           species = NULL, 
+                           station_id = NULL, 
+                           o_number = NULL, connection){
+  
+  # drop STATION_ID, TAXONOMY_CODE_ID from samples
+  result <- select_samples(sample_id = NULL,
+                           specimen_id = specimen_id, 
+                             myear = myear, 
+                             species = species, 
+                             station_id = station_id, 
+                             o_number = o_number, 
+                             connection = connection) %>%
+    # select(SPECIMEN_ID, SPECIMEN_NO, MYEAR) %>% 
+    left_join(
+      tbl(connection, in_schema("NIVADATABASE", "BIOTA_CHEMISTRY_VALUES")) %>%
+        select(SAMPLE_ID, METHOD_ID, VALUE_ID, VALUE, FLAG1, 
+               DETECTION_LIMIT, UNCERTAINTY, QUANTIFICATION_LIMIT),
+      by = join_by(SAMPLE_ID)) %>%
+    left_join(
+      tbl(connection, in_schema("NIVADATABASE", "METHOD_DEFINITIONS")) %>%
+        select(METHOD_ID, NAME, UNIT, LABORATORY, METHOD_REF, MATRIX_ID, BASIS_ID),
+      by = join_by(METHOD_ID)) %>% 
+    left_join(
+      tbl(connection, in_schema("NIVADATABASE", "MATRIX_DEFINITIONS")) %>%
+        select(MATRIX_ID, MATRIX_NAME),
+      by = join_by(MATRIX_ID)) %>% 
+    left_join(
+      tbl(connection, in_schema("NIVADATABASE", "BASIS_DEFINITIONS")) %>%
+        select(BASIS_ID, BASIS_CODE),
+      by = join_by(BASIS_ID)) 
+  
+  # for later: add more specimen/ project info?
+  
+  if (!is.null(value_id)){
+    result <- result %>%
+      filter(VALUE_ID %in% value_id)
+  }
+  if (!is.null(param)){
+    result <- result %>%
+      filter(NAME %in% param)
+  }
+  
+  result
+}
+
+if (FALSE){
+  # debugonce(select_measurements)
+  test <- select_measurements(specimen_id = 325106, connection = con)
+  # in this case, just one sample
+  xtabs(~MYEAR + STATION_ID, test)
+  # search using project, year and parameters  
+  test <- select_measurements(o_number = "240237", myear = 2024, 
+                         param = c("Kvikksølv", "Bly"), connection = con)
+  
+  # test %>% collect() %>% View()
+  xtabs(~STATION_ID + NAME, test)
+  # Milkys - select all mercury measurements in a year  
+  find_projects("CEMP", wildcard = TRUE, connection = con)  
+  test <- select_measurements(o_number = "14330ANA", myear = 2023, 
+                         param = "Kvikksølv", connection = con)
+  test %>% count(STATION_ID)  
+  library(ggplot2)
+  test %>% 
+    group_by(STATION_ID) %>%
+    summarize(median_hg = median(VALUE)) %>% 
+    ggplot(aes(factor(STATION_ID), median_hg)) + 
+    geom_col()
+  
+}
+
 
 
 find_projects <- function(search_text = NULL, id = NULL, wildcard = FALSE, ignore.case = FALSE, connection){
