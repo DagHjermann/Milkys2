@@ -1152,9 +1152,30 @@ if (FALSE){
   # debugonce(get_biotachemistry)
   dat_hoyangsfjord <- get_biotachemistry(con, year = 2024, download_data = TRUE)
   xtabs(~STATION_CODE + MYEAR, dat_hoyangsfjord)
+  library(leaflet)
+  dat_hoyangsfjord %>%
+    arrange(STATION_CODE, LONGITUDE, LATITUDE, MYEAR) %>%
+    group_by(STATION_CODE, LONGITUDE, LATITUDE) %>%
+    summarise(Years = paste(unique(MYEAR), collapse = ","))
+  leaflet(dat_hoyangsfjord) %>% 
+    addTiles() %>% 
+    addMarkers(lng = LONGITUDE, lat = LATITUDE, popup = paste(STATION_CODE, MYEAR))
   # saveRDS(dat_hoyangsfjord, "App02_Industry_data/data_chem_industry_hoyangsfjord_2024.rds")
   
-  check <- tbl(con, in_schema("NIVADATABASE", "LABWARE_CHECK_SAMPLE")) %>% head(3)
+  # Several years
+  # find_projects("høyang", wildcard = TRUE, ignore.case = TRUE)  # hoyangsfjord
+  proj_id <- c(12375, 12633, 12820) # 2018, 2021, 2024
+  define_biotachemistry_tables(connection = con, project_id = proj_id, ask_before_overwrite = F)
+  get_biotachemistry(con, year = 2018:2024)
+  # debugonce(get_biotachemistry)
+  dat_hoyangsfjord <- get_biotachemistry(con, year = 2018:2024, download_data = TRUE)
+  
+
+  dat_hoyangsfjord %>% count(NAME) %>% View()
+  dat_hoyangsfjord %>% filter(NAME == "Kvikksølv") %>%
+    count(STATION_CODE, MYEAR)
+  
+    check <- tbl(con, in_schema("NIVADATABASE", "LABWARE_CHECK_SAMPLE")) %>% head(3)
     count(ACCOUNT_NUMBER, PROSJEKT, CUSTOMER) %>%
     filter(CUSTOMER == 'SIX') %>%
     collect()
@@ -1167,6 +1188,208 @@ if (FALSE){
   
 }
 
+#
+# select project by O_NUMBER, PROJECT_ID, STATION_CODE or STATION_NAME
+# only O_NUMBER implemented so far
+#
+select_project <- function(o_number = NULL, connection){
+  result <- tbl(connection, in_schema("NIVADATABASE", "PROJECTS_STATIONS")) %>% 
+    # add O_NUMBER column to data
+    left_join(
+      tbl(con, in_schema("NIVADATABASE", "PROJECTS_O_NUMBERS")) %>% select(PROJECT_ID, O_NUMBER),
+      by = join_by(PROJECT_ID)
+    )
+  if (!is.null(o_number)){
+    sql_code <- paste0("O_NUMBER LIKE ", sQuote(paste0("%", o_number, "%")))
+    result <- result %>%
+      filter(sql(sql_code))
+  }
+  result
+}
+
+if (FALSE){
+  # test
+  select_project("240237", con)
+  select_project("240237", con) %>% count(STATION_CODE)
+}
+
+
+#
+# select project by STATION_ID, coordinates or prorject info
+# only STATION_ID implemented so far
+#
+select_station <- function(station_id = NULL, ..., connection){
+  # Define stations by starting with projects  
+  result <- select_project(..., connection = connection) %>%
+    # summarize project information  
+    group_by(STATION_ID) %>% 
+    summarize(
+      STATION_CODEs = sql("listagg(unique(STATION_CODE), ',') within group (order by PROJECT_ID)"),
+      O_NUMBERs = sql("listagg(unique(O_NUMBER), ',') within group (order by PROJECT_ID)"),
+      PROJECT_IDs = sql("listagg(PROJECT_ID, ',') within group (order by PROJECT_ID)")) %>%
+    # add coordinate columns
+    left_join(
+      tbl(connection, in_schema("NIVADATABASE", "STATIONS")) %>% select(STATION_ID, GEOM_REF_ID),
+      by = join_by(STATION_ID)) %>% 
+    left_join(
+      tbl(connection, in_schema("NIVA_GEOMETRY", "SAMPLE_POINTS")) %>% select(SAMPLE_POINT_ID, LONGITUDE, LATITUDE),
+      by = join_by(GEOM_REF_ID == SAMPLE_POINT_ID))
+  if (!is.null(station_id)){
+    result <- result %>%
+      filter(STATION_ID %in% station_id)
+  }
+  result
+}
+ 
+
+if (FALSE){
+  # test
+  # - returns one station, and all projects with this station
+  select_station(station_id = 50588, connection = con)
+  # - returns 5 stations, and only the given project 
+  select_station(o_number = "240237", connection = con)
+}
+
+
+#
+# select specimen by specimen_id, date, year or species, or project/station info
+# only specimen_id, myear and species implemented so far
+#
+select_specimens <- function(specimen_id = NULL, myear = NULL, species = NULL, station_id = NULL, o_number = NULL, connection){
+  # Define stations by srtarting with projects  
+  result <- select_station(station_id = station_id, o_number = o_number, connection = connection) %>%
+    left_join(
+      tbl(connection, in_schema("NIVADATABASE", "BIOTA_SINGLE_SPECIMENS")) %>%
+        select(STATION_ID, SPECIMEN_ID, SPECIMEN_NO, DATE_CAUGHT, TAXONOMY_CODE_ID, REMARK) %>%
+        rename(REMARK_specimen = REMARK))%>%
+    mutate(
+      YEAR = year(DATE_CAUGHT),
+      MONTH = month(DATE_CAUGHT),
+      MYEAR = case_when(
+        MONTH >= 4 ~ YEAR,
+        MONTH < 4 ~ YEAR-1)) %>%
+    left_join(
+      tbl(connection, in_schema("NIVADATABASE", "TAXONOMY_CODES")) %>%
+        select(TAXONOMY_CODE_ID, CODE, NIVA_TAXON_ID)) %>%
+    left_join(
+      tbl(connection, in_schema("NIVADATABASE", "TAXONOMY")) %>%
+        select(NIVA_TAXON_ID, LATIN_NAME)
+    )
+  
+  if (!is.null(specimen_id)){
+    result <- result %>%
+      filter(SPECIMEN_ID %in% specimen_id)
+  }
+  
+  if (!is.null(myear)){
+    result <- result %>%
+      filter(MYEAR %in% myear)
+  }
+  
+  if (!is.null(species)){
+    result <- result %>%
+      filter(LATIN_NAME %in% species)
+  }
+  
+  result
+}
+
+
+if (FALSE){
+  # test
+  # - returns 10 specimens, 1-3 per year
+  select_specimens(station_id = 50588, connection = con) %>%
+    xtabs(~DATE_CAUGHT + STATION_CODEs, .)
+  # - returns all specimens for the stations used by the o_number,
+  # both specimens taken in the given project and earlier specimens
+  select_specimens(o_number = "240237", connection = con) %>%
+    xtabs(~DATE_CAUGHT + STATION_CODEs + PROJECT_IDs, .)
+  # - returns just the given specimen, but project info for earlier projects
+  # as well
+  select_specimens(specimen_id = 325106, connection = con) %>%
+    xtabs(~DATE_CAUGHT + STATION_CODEs + PROJECT_IDs, .)
+  # - returns all specimens for the given species
+  select_specimens(species = "Mytilus edulis", connection = con) %>%
+    count(LATIN_NAME)
+  # - returns all specimens for the given species in the given year
+  select_specimens(species = "Mytilus edulis", myear = 2024, connection = con) %>%
+    count(LATIN_NAME)
+  # - returns all specimens for the given species in the given year
+  test <- select_specimens(station_ = "15B", myear = 2023, connection = con)
+  count(LATIN_NAME)
+}
+
+# t_project_stations %>% filter(STATION_CODE == "15B")
+
+#
+# select specimen by specimen_id, date, year or species, or project/station info
+# only specimen_id, myear and species implemented so far
+#
+# drop STATION_ID, TAXONOMY_CODE_ID from samples
+# Lookup tables  
+# t_taxonomy_codes <<- tbl(connection, in_schema("NIVADATABASE", "TAXONOMY_CODES")) %>%
+#   select(TAXONOMY_CODE_ID, CODE, NIVA_TAXON_ID)
+# t_taxonomy <<- tbl(connection, in_schema("NIVADATABASE", "TAXONOMY")) %>%
+#   select(NIVA_TAXON_ID, LATIN_NAME)
+# t_tissue <<- tbl(connection, in_schema("NIVADATABASE", "BIOTA_TISSUE_TYPES")) %>%
+#   select(TISSUE_ID, TISSUE_NAME)
+# t_lims_id <<- tbl(connection, in_schema("NIVADATABASE", "LABWARE_BSID")) %>%
+#   select(BIOTA_SAMPLE_ID, LABWARE_TEXT_ID)
+
+
+select_samples <- function(sample_id = NULL,
+                           tissue = NULL,
+                           specimen_id = NULL, 
+                           myear = NULL, 
+                           species = NULL, 
+                           station_id = NULL, 
+                           o_number = NULL, connection){
+  # Define stations by srtarting with projects  
+  result <- select_specimens(specimen_id = specimen_id, 
+                            myear = myear, 
+                            species = species, 
+                            station_id = station_id, 
+                            o_number = o_number, 
+                            connection = connection) %>%
+    left_join(
+      tbl(connection, in_schema("NIVADATABASE", "BIOTA_SAMPLES_SPECIMENS")) %>%
+        select(SPECIMEN_ID, SAMPLE_ID),
+      by = join_by(SPECIMEN_ID)) %>%
+    left_join(
+      tbl(connection, in_schema("NIVADATABASE", "BIOTA_SAMPLES")) %>%
+        select(SAMPLE_ID, TISSUE_ID, SAMPLE_NO, REPNO, REMARK) %>%
+        rename(REMARK_sample = REMARK),
+      by = join_by(SAMPLE_ID))
+    # distinct(STATION_CODE, MYEAR, YEAR, MONTH, TISSUE_NAME, SAMPLE_ID, SPECIMEN_ID, SPECIMEN_NO, STATION_ID, 
+    #          LABWARE_TEXT_ID, PROJECT_ID, PROJECT_NAME, LONGITUDE, LATITUDE) %>%
+    # arrange(STATION_CODE, MYEAR, TISSUE_NAME, SAMPLE_ID, SPECIMEN_NO, LABWARE_TEXT_ID) %>%
+    # group_by(STATION_CODE, MYEAR, TISSUE_NAME, SAMPLE_ID,
+    #          STATION_ID, LONGITUDE, LATITUDE) %>%
+    # summarise(
+    #   Pooled_n = n(),
+    #   LABWARE_TEXT_ID = stringr::str_flatten(unique(LABWARE_TEXT_ID), collapse = ", "),
+    #   SPECIMEN_ID = stringr::str_flatten(unique(SPECIMEN_ID), collapse = ", "),
+    #   SPECIMEN_NO = stringr::str_flatten(unique(SPECIMEN_NO), collapse = ", "),
+    #   Year = mean(YEAR),
+    #   Month = mean(MONTH),
+    #   .groups = "drop"
+    # ) 
+  
+  if (!is.null(sample_id)){
+    result <- result %>%
+      filter(SAMPLE_ID %in% sample_id)
+  }
+
+  result
+}
+
+if (FALSE){
+  # debugonce(select_samples)
+  test <- select_samples(specimen_id = 325106, connection = con)
+  # in this case, just one sample
+  xtabs(~DATE_CAUGHT + STATION_CODEs + PROJECT_IDs, test)
+  
+}
 
 find_projects <- function(search_text = NULL, id = NULL, wildcard = FALSE, ignore.case = FALSE){
   
