@@ -856,6 +856,7 @@ if (FALSE){
   # Test
   con <- get_connection()  
   DBI::dbGetQuery(con, "select * from NIVADATABASE.PROJECTS_O_NUMBERS where rownum < 3")
+  library(dplyr)
   library(dbplyr)
   projects %>%
     filter(substr(PROJECT_NAME,1,4) %in% "CEMP") %>%
@@ -1190,27 +1191,46 @@ if (FALSE){
 
 #
 # select project by O_NUMBER, PROJECT_ID, STATION_CODE or STATION_NAME
-# only O_NUMBER implemented so far
+# - only PROJECT_ID and O_NUMBER implemented so far
+# - can use several values for project_id, and for o_number if exact = TRUE
 #
-select_project <- function(o_number = NULL, connection){
+select_projects_stations <- function(o_number = NULL, project_id = NULL, exact = FALSE, connection){
   result <- tbl(connection, in_schema("NIVADATABASE", "PROJECTS_STATIONS")) %>% 
     # add O_NUMBER column to data
     left_join(
       tbl(con, in_schema("NIVADATABASE", "PROJECTS_O_NUMBERS")) %>% select(PROJECT_ID, O_NUMBER),
       by = join_by(PROJECT_ID)
     )
-  if (!is.null(o_number)){
-    sql_code <- paste0("O_NUMBER LIKE ", sQuote(paste0("%", o_number, "%")))
+  # project_id has preference over O-number (and is always expected to be exact)
+  if (!is.null(project_id)){
     result <- result %>%
-      filter(sql(sql_code))
+      filter(PROJECT_ID %in% project_id)
+  # if project_id is not given, search for O-number will be used
+  # you must only gove 
+  } else if (!is.null(o_number)){
+    if (length(o_number) > 1 & !exact){
+      warning("More than one O-number given - exact search was used")
+      exact <- TRUE
+    }
+    if (exact){
+      result <- result %>%
+        filter(O_NUMBER %in% o_number)
+    } else {
+      sql_code <- paste0("O_NUMBER LIKE ", sQuote(paste0("%", o_number, "%")))
+      result <- result %>%
+        filter(sql(sql_code))
+    }
   }
-  result
+  result %>%
+    arrange(STATION_CODE, O_NUMBER)
 }
 
 if (FALSE){
   # test
-  select_project("240237", con)
-  select_project("240237", con) %>% count(STATION_CODE)
+  select_projects_stations(o_number = "240237", connection = con)
+  find_projects("høyang", wildcard = TRUE, ignore.case = TRUE, connection = con)
+  select_projects_stations(o_number = c("180293", "210293", "240237"), connection = con)
+  select_projects_stations(o_number = c("180293", "210293", "240237"), exact = TRUE, connection = con)
 }
 
 
@@ -1220,7 +1240,7 @@ if (FALSE){
 #
 select_station <- function(station_id = NULL, ..., connection){
   # Define stations by starting with projects  
-  result <- select_project(..., connection = connection) %>%
+  result <- select_projects_stations(..., connection = connection) %>%
     # summarize project information  
     group_by(STATION_ID) %>% 
     summarize(
@@ -1391,7 +1411,7 @@ if (FALSE){
   
 }
 
-find_projects <- function(search_text = NULL, id = NULL, wildcard = FALSE, ignore.case = FALSE){
+find_projects <- function(search_text = NULL, id = NULL, wildcard = FALSE, ignore.case = FALSE, connection){
   
   options(useFancyQuotes = FALSE)
   
@@ -1405,9 +1425,12 @@ find_projects <- function(search_text = NULL, id = NULL, wildcard = FALSE, ignor
     sql_syntax <- paste0("LOWER(PROJECT_NAME) LIKE ", sQuote(paste0("%", tolower(search_text), "%")))
   }
 
-  result <- t_projects %>% 
+  result <- tbl(connection, in_schema("NIVADATABASE", "PROJECTS")) %>%
+    select(PROJECT_ID, PROJECT_NAME, PROJECT_DESCRIPTION) %>% 
     filter(sql(sql_syntax)) %>% 
-    left_join(t_projects_onumbers, by = join_by(PROJECT_ID)) %>%
+    left_join(tbl(connection, in_schema("NIVADATABASE", "PROJECTS_O_NUMBERS")) %>%
+                select(PROJECT_ID, O_NUMBER), 
+              by = join_by(PROJECT_ID)) %>%
     collect()
   
   result
@@ -1415,13 +1438,13 @@ find_projects <- function(search_text = NULL, id = NULL, wildcard = FALSE, ignor
 
 if (FALSE){
   # debugonce(find_projects)
-  find_projects("CEMP_Biota")
-  find_projects("CEMP_biota")
-  find_projects("CEMP_biota", ignore.case = TRUE)
-  find_projects("CEMP", wildcard = TRUE)
-  find_projects("cemp", wildcard = TRUE)
-  find_projects("cemp", wildcard = TRUE, ignore.case = TRUE)
-  find_projects("høyang", wildcard = TRUE, ignore.case = TRUE)
+  find_projects("CEMP_Biota", connection = con)
+  find_projects("CEMP_biota", connection = con)
+  find_projects("CEMP_biota", ignore.case = TRUE, connection = con)
+  find_projects("CEMP", wildcard = TRUE, connection = con)
+  find_projects("cemp", wildcard = TRUE, connection = con)
+  find_projects("cemp", wildcard = TRUE, ignore.case = TRUE, connection = con)
+  find_projects("høyang", wildcard = TRUE, ignore.case = TRUE, connection = con)
 }
 
 
