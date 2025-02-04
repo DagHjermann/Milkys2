@@ -1194,11 +1194,18 @@ if (FALSE){
 # - only PROJECT_ID and O_NUMBER implemented so far
 # - can use several values for project_id, and for o_number if exact = TRUE
 #
-select_projects_stations <- function(o_number = NULL, project_id = NULL, exact = FALSE, connection){
-  result <- tbl(connection, in_schema("NIVADATABASE", "PROJECTS_STATIONS")) %>% 
+select_projects_stations <- function(o_number = NULL, 
+                                     project_id = NULL, 
+                                     station_code = NULL,
+                                     station_name = NULL,
+                                     exact = FALSE, 
+                                     connection){
+  result <- tbl(connection, in_schema("NIVADATABASE", "PROJECTS_STATIONS")) %>%
+    select(PROJECT_ID, STATION_ID, STATION_CODE, STATION_NAME, PROJECTS_STATION_ID) %>% 
     # add O_NUMBER column to data
     left_join(
-      tbl(con, in_schema("NIVADATABASE", "PROJECTS_O_NUMBERS")) %>% select(PROJECT_ID, O_NUMBER),
+      tbl(con, in_schema("NIVADATABASE", "PROJECTS_O_NUMBERS")) %>% 
+        select(PROJECT_ID, O_NUMBER),
       by = join_by(PROJECT_ID)
     )
   # project_id has preference over O-number (and is always expected to be exact)
@@ -1221,6 +1228,27 @@ select_projects_stations <- function(o_number = NULL, project_id = NULL, exact =
         filter(sql(sql_code))
     }
   }
+  
+  # In addition, you may search for station code   
+  if (!is.null(station_code)){
+    if (exact){
+      result <- result %>% filter(STATION_CODE %in% station_code)
+    } else {
+      sql_code <- paste0("STATION_CODE LIKE ", sQuote(paste0("%", station_code, "%")))
+      result <- result %>% filter(sql(sql_code))
+    }
+  }
+  
+  # In addition, you may search for station name   
+  if (!is.null(station_name)){
+    if (exact){
+      result <- result %>% filter(STATION_NAME %in% station_name)
+    } else {
+      sql_code <- paste0("STATION_NAME LIKE ", sQuote(paste0("%", station_name, "%")))
+      result <- result %>% filter(sql(sql_code))
+    }
+  }  
+    
   result %>%
     arrange(STATION_CODE, O_NUMBER)
 }
@@ -1229,6 +1257,7 @@ if (FALSE){
   # Search for O-number with non-exact search 
   select_projects_stations(o_number = "240237", connection = con)
   select_projects_stations(o_number = "O-21", connection = con)
+  select_projects_stations(station_name = "Mississippibekken", connection = con)
   # Search for several O-numbers
   find_projects("høyang", wildcard = TRUE, ignore.case = TRUE, connection = con)
   # - using exact search (the first one gives a warning)
