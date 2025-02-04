@@ -912,7 +912,11 @@ define_nivabasen_tables <- function(connection){
       select(PROJECT_ID, PROJECT_NAME, PROJECT_DESCRIPTION)
     t_projects_onumbers <<- tbl(connection, in_schema("NIVADATABASE", "PROJECTS_O_NUMBERS")) %>%
       select(PROJECT_ID, O_NUMBER)
-    
+    t_stations <<- tbl(connection, in_schema("NIVADATABASE", "STATIONS")) %>%
+      select(STATION_ID, GEOM_REF_ID)
+    t_coordinates <<- tbl(connection, in_schema("NIVA_GEOMETRY", "SAMPLE_POINTS")) %>%
+      select(SAMPLE_POINT_ID, LONGITUDE, LATITUDE)
+
     # Lookup tables  
     t_taxonomy_codes <<- tbl(connection, in_schema("NIVADATABASE", "TAXONOMY_CODES")) %>%
       select(TAXONOMY_CODE_ID, CODE, NIVA_TAXON_ID)
@@ -931,6 +935,9 @@ if (FALSE){
   # Test
   # debugonce(define_nivabasen_tables)
   define_nivabasen_tables(con)
+  
+  test <- tbl(con, in_schema("NIVADATABASE", "STATIONS")) %>%
+    select(STATION_ID, GEOM_REF_ID)
   
   t_projects %>% head(3)
   t_projects %>%
@@ -1007,6 +1014,8 @@ define_biotachemistry_tables <- function(connection, project_id = 3699, ask_befo
       left_join(t_basis, by = join_by(BASIS_ID)) %>%
       left_join(t_project_stations, by = join_by(STATION_ID)) %>%
       left_join(t_projects, by = join_by(PROJECT_ID)) %>%
+      left_join(t_stations, by = join_by(STATION_ID)) %>%
+      left_join(t_coordinates, by = join_by(GEOM_REF_ID == SAMPLE_POINT_ID)) %>%
       filter(PROJECT_ID %in% project_id)  %>%
       left_join(t_taxonomy_codes, join_by(TAXONOMY_CODE_ID)) %>%
       left_join(t_taxonomy)  
@@ -1036,8 +1045,9 @@ define_biotachemistry_tables <- function(connection, project_id = 3699, ask_befo
 
 if (FALSE){
   # Test
-  # debugonce(define_nivabasen_tables)
+  # debugonce(define_biotachemistry_tables)
   define_biotachemistry_tables(con)
+  define_biotachemistry_tables(connection = con, project_id = 12820, ask_before_overwrite = F)
 }
 
 
@@ -1080,10 +1090,12 @@ get_biotachemistry <- function(connection, download_data = FALSE, year = NULL, f
     
     t_specimens_pooled <- t_specimenlevel %>%
       filter(SAMPLE_ID %in% sampleids) %>%
-      distinct(STATION_CODE, MYEAR, YEAR, MONTH, TISSUE_NAME, SAMPLE_ID, SPECIMEN_ID, SPECIMEN_NO, LABWARE_TEXT_ID) %>%
+      distinct(STATION_CODE, MYEAR, YEAR, MONTH, TISSUE_NAME, SAMPLE_ID, SPECIMEN_ID, SPECIMEN_NO, STATION_ID, 
+               LABWARE_TEXT_ID, PROJECT_ID, PROJECT_NAME, LONGITUDE, LATITUDE) %>%
       collect() %>%
       arrange(STATION_CODE, MYEAR, TISSUE_NAME, SAMPLE_ID, SPECIMEN_NO, LABWARE_TEXT_ID) %>%
-      group_by(STATION_CODE, MYEAR, TISSUE_NAME, SAMPLE_ID) %>%
+      group_by(STATION_CODE, MYEAR, TISSUE_NAME, SAMPLE_ID,
+               STATION_ID, LONGITUDE, LATITUDE) %>%
       summarise(
         Pooled_n = n(),
         LABWARE_TEXT_ID = stringr::str_flatten(unique(LABWARE_TEXT_ID), collapse = ", "),
@@ -1100,7 +1112,8 @@ get_biotachemistry <- function(connection, download_data = FALSE, year = NULL, f
     
     result <- t_samplelevel_filtered %>%
       left_join(
-        t_specimens_pooled %>% select(SAMPLE_ID, Pooled_n, LABWARE_TEXT_ID, SPECIMEN_ID, SPECIMEN_NO, Year, Month),
+        t_specimens_pooled %>% select(SAMPLE_ID, Pooled_n, LABWARE_TEXT_ID, SPECIMEN_ID, SPECIMEN_NO, Year, Month,
+                                      STATION_ID, LONGITUDE, LATITUDE),
         by = "SAMPLE_ID")
     
   } else {
@@ -1185,6 +1198,7 @@ if (FALSE){
   find_projects("CEMP", wildcard = TRUE)
   find_projects("cemp", wildcard = TRUE)
   find_projects("cemp", wildcard = TRUE, ignore.case = TRUE)
+  find_projects("høyang", wildcard = TRUE, ignore.case = TRUE)
 }
 
 
@@ -1219,6 +1233,7 @@ if (FALSE){
   # Ranfjorden: O-240130
   # Høyangsfjorden: O-240237
   # Kristiansandsfjorden: O-240244.
+  find_projects_onumber(240237, wildcard = TRUE)
 }
 
 
