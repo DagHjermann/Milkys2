@@ -1226,9 +1226,12 @@ select_projects_stations <- function(o_number = NULL, project_id = NULL, exact =
 }
 
 if (FALSE){
-  # test
+  # Search for O-number with non-exact search 
   select_projects_stations(o_number = "240237", connection = con)
+  select_projects_stations(o_number = "O-21", connection = con)
+  # Search for several O-numbers
   find_projects("høyang", wildcard = TRUE, ignore.case = TRUE, connection = con)
+  # - using exact search (the first one gives a warning)
   select_projects_stations(o_number = c("180293", "210293", "240237"), connection = con)
   select_projects_stations(o_number = c("180293", "210293", "240237"), exact = TRUE, connection = con)
 }
@@ -1238,7 +1241,7 @@ if (FALSE){
 # select project by STATION_ID, coordinates or prorject info
 # only STATION_ID implemented so far
 #
-select_station <- function(station_id = NULL, ..., connection){
+select_stations <- function(station_id = NULL, ..., connection){
   # Define stations by starting with projects  
   result <- select_projects_stations(..., connection = connection) %>%
     # summarize project information  
@@ -1265,9 +1268,12 @@ select_station <- function(station_id = NULL, ..., connection){
 if (FALSE){
   # test
   # - returns one station, and all projects with this station
-  select_station(station_id = 50588, connection = con)
+  select_stations(station_id = 50588, connection = con)
+  # - returns several stations, and all projects with these stations
+  select_stations(station_id = 50588:50589, connection = con)
+  select_stations(station_id = c(), connection = con)
   # - returns 5 stations, and only the given project 
-  select_station(o_number = "240237", connection = con)
+  select_stations(o_number = "240237", connection = con)
 }
 
 
@@ -1277,7 +1283,7 @@ if (FALSE){
 #
 select_specimens <- function(specimen_id = NULL, myear = NULL, species = NULL, station_id = NULL, o_number = NULL, connection){
   # Define stations by srtarting with projects  
-  result <- select_station(station_id = station_id, o_number = o_number, connection = connection) %>%
+  result <- select_stations(station_id = station_id, o_number = o_number, connection = connection) %>%
     left_join(
       tbl(connection, in_schema("NIVADATABASE", "BIOTA_SINGLE_SPECIMENS")) %>%
         select(STATION_ID, SPECIMEN_ID, SPECIMEN_NO, DATE_CAUGHT, TAXONOMY_CODE_ID, REMARK) %>%
