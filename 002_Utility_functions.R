@@ -1330,6 +1330,9 @@ if (FALSE){
   # both specimens taken in the given project and earlier specimens
   select_specimens(o_number = "240237", connection = con) %>%
     xtabs(~DATE_CAUGHT + STATION_CODEs + PROJECT_IDs, .)
+  # in order to get only specimens from the given project, also add year
+  select_specimens(o_number = "240237", myear = 2024, connection = con) %>%
+    xtabs(~DATE_CAUGHT + STATION_CODEs + PROJECT_IDs, .)
   # - returns just the given specimen, but project info for earlier projects
   # as well
   select_specimens(specimen_id = 325106, connection = con) %>%
@@ -1342,7 +1345,8 @@ if (FALSE){
     count(LATIN_NAME)
   # - returns all specimens for the given species in the given year
   test <- select_specimens(station_ = "15B", myear = 2023, connection = con)
-  count(LATIN_NAME)
+  colnames(test)
+  count(test, LATIN_NAME)
 }
 
 # t_project_stations %>% filter(STATION_CODE == "15B")
@@ -1377,6 +1381,7 @@ select_samples <- function(sample_id = NULL,
                             station_id = station_id, 
                             o_number = o_number, 
                             connection = connection) %>%
+    # select(SPECIMEN_ID, SPECIMEN_NO, MYEAR) %>% 
     left_join(
       tbl(connection, in_schema("NIVADATABASE", "BIOTA_SAMPLES_SPECIMENS")) %>%
         select(SPECIMEN_ID, SAMPLE_ID),
@@ -1385,25 +1390,46 @@ select_samples <- function(sample_id = NULL,
       tbl(connection, in_schema("NIVADATABASE", "BIOTA_SAMPLES")) %>%
         select(SAMPLE_ID, TISSUE_ID, SAMPLE_NO, REPNO, REMARK) %>%
         rename(REMARK_sample = REMARK),
-      by = join_by(SAMPLE_ID))
-    # distinct(STATION_CODE, MYEAR, YEAR, MONTH, TISSUE_NAME, SAMPLE_ID, SPECIMEN_ID, SPECIMEN_NO, STATION_ID, 
-    #          LABWARE_TEXT_ID, PROJECT_ID, PROJECT_NAME, LONGITUDE, LATITUDE) %>%
-    # arrange(STATION_CODE, MYEAR, TISSUE_NAME, SAMPLE_ID, SPECIMEN_NO, LABWARE_TEXT_ID) %>%
-    # group_by(STATION_CODE, MYEAR, TISSUE_NAME, SAMPLE_ID,
-    #          STATION_ID, LONGITUDE, LATITUDE) %>%
-    # summarise(
-    #   Pooled_n = n(),
-    #   LABWARE_TEXT_ID = stringr::str_flatten(unique(LABWARE_TEXT_ID), collapse = ", "),
-    #   SPECIMEN_ID = stringr::str_flatten(unique(SPECIMEN_ID), collapse = ", "),
-    #   SPECIMEN_NO = stringr::str_flatten(unique(SPECIMEN_NO), collapse = ", "),
-    #   Year = mean(YEAR),
-    #   Month = mean(MONTH),
-    #   .groups = "drop"
-    # ) 
+      by = join_by(SAMPLE_ID)) %>%
+    group_by(SAMPLE_ID, TISSUE_ID, SAMPLE_NO, REPNO, REMARK_sample) %>% 
+    summarize(
+      STATION_ID = mean(STATION_ID, na.rm = TRUE),
+      STATION_ID_max = max(STATION_ID, na.rm = TRUE),
+      SPECIMEN_IDs = sql("listagg(unique(SPECIMEN_ID), ',') within group (order by SPECIMEN_NO)"),
+      SPECIMEN_NOs = sql("listagg(unique(SPECIMEN_NO), ',') within group (order by SPECIMEN_NO)"),
+      MYEAR = sql("listagg(unique(MYEAR), ',') within group (order by SPECIMEN_NO)"),
+      YEAR = mean(YEAR, na.rm = TRUE),
+      MONTH = mean(MONTH, na.rm = TRUE), .groups = "drop"
+    ) %>% 
+    left_join(
+      tbl(connection, in_schema("NIVADATABASE", "BIOTA_TISSUE_TYPES")) %>%
+        select(TISSUE_ID, TISSUE_NAME),
+      by = join_by(TISSUE_ID))
   
+    # for later: add more specimen/ project info?
+
   if (!is.null(sample_id)){
     result <- result %>%
       filter(SAMPLE_ID %in% sample_id)
+  }
+  
+  check <- result %>%
+    filter(STATION_ID_max > STATION_ID) %>%
+    collect()
+  if (nrow(check) > 0){
+    stop(nrow(check), " samples are from more than one station (STATION_ID)!")
+  } else {
+    result <- result %>%
+      select(-STATION_ID_max)
+  }
+  
+  check <- result %>%
+    count(SAMPLE_ID) %>%
+    filter(n > 1) %>%
+    collect()
+  
+  if (nrow(check) > 0){
+    stop(nrow(check), " samples (SAMPLE_ID) occur more than once!")
   }
 
   result
@@ -1414,8 +1440,23 @@ if (FALSE){
   test <- select_samples(specimen_id = 325106, connection = con)
   # in this case, just one sample
   xtabs(~DATE_CAUGHT + STATION_CODEs + PROJECT_IDs, test)
-  
+  # search using project and year
+  test <- select_samples(o_number = "240237", myear = 2024, connection = con)
+    # test %>% collect() %>% View()
+  xtabs(~DATE_CAUGHT + STATION_CODEs + PROJECT_IDs, test)
+  # search using project only - returns all years (but no sample duplicates)
+  test <- select_samples(o_number = "240237", connection = con)
+  xtabs(~DATE_CAUGHT + STATION_CODEs + PROJECT_IDs, test)
+  # Milkys - contains pooled samples (multiple specimens per sample)
+  find_projects("CEMP", wildcard = TRUE, connection = con)  
+  test <- select_samples(o_number = "14330ANA", myear = 2016:2023, connection = con)
+  dd <- test %>% filter(SAMPLE_ID == 239537) %>% collect()
+test %>% count(MYEAR) %>% arrange(MYEAR)
+sql_code <- paste0("SPECIMEN_ID LIKE ", sQuote("%,%"))
+test %>% filter(sql_code) %>% count(MYEAR) %>% arrange(MYEAR)
+
 }
+
 
 find_projects <- function(search_text = NULL, id = NULL, wildcard = FALSE, ignore.case = FALSE, connection){
   
