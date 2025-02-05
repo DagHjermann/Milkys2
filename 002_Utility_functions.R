@@ -1251,8 +1251,8 @@ select_projects_stations <- function(o_number = NULL,
     }
   }  
     
-  result %>%
-    arrange(STATION_CODE, O_NUMBER)
+  result
+  
 }
 
 if (FALSE){
@@ -1260,6 +1260,11 @@ if (FALSE){
   select_projects_stations(o_number = "240237", connection = con)
   select_projects_stations(o_number = "O-21", connection = con)
   select_projects_stations(station_name = "Mississippibekken", connection = con)
+  select_projects_stations(station_code = "Nordlys", connection = con) %>% 
+    left_join(tbl(con, in_schema("NIVADATABASE", "PROJECTS")) %>% 
+                filter(PROJECT_ID %in% df1$PROJECT_ID) %>% 
+                select(PROJECT_ID, PROJECT_NAME)
+    )
   # Search for several O-numbers
   find_projects("høyang", wildcard = TRUE, ignore.case = TRUE, connection = con)
   # - using exact search (the first one gives a warning)
