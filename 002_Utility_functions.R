@@ -846,6 +846,8 @@ get_connection <- function(test_only = FALSE){
                  PWD = rstudioapi::askForPassword("Nivabasen password")
   )
   
+  options(useFancyQuotes = FALSE)
+  
   test_connection(connection)
   
   connection
