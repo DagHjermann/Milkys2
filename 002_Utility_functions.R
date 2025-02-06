@@ -1414,7 +1414,9 @@ select_samples <- function(sample_id = NULL,
                            myear = NULL, 
                            species = NULL, 
                            station_id = NULL, 
-                           o_number = NULL, connection){
+                           o_number = NULL, 
+                           stop_if_problem = TRUE, 
+                           connection){
   # Define stations by srtarting with projects  
   result <- select_specimens(specimen_id = specimen_id, 
                             myear = myear, 
@@ -1432,16 +1434,20 @@ select_samples <- function(sample_id = NULL,
         select(SAMPLE_ID, TISSUE_ID, SAMPLE_NO, REPNO, REMARK) %>%
         rename(REMARK_sample = REMARK),
       by = join_by(SAMPLE_ID)) %>%
-    group_by(SAMPLE_ID, TISSUE_ID, SAMPLE_NO, REPNO, REMARK_sample) %>% 
+  # need the next line, as stations with no biota data (e.g. sediment stations)
+  # will produce a line with SAMPLE_ID = NA 
+  filter(!is.na(SAMPLE_ID)) %>%
+  group_by(SAMPLE_ID, TISSUE_ID, SAMPLE_NO, REPNO, REMARK_sample) %>% 
     summarize(
-      STATION_ID = mean(STATION_ID, na.rm = TRUE),
+      STATION_ID_mean = mean(STATION_ID, na.rm = TRUE),
       STATION_ID_max = max(STATION_ID, na.rm = TRUE),
+      STATION_ID = sql("listagg(unique(STATION_ID), ',') within group (order by SPECIMEN_NO)"),
       SPECIMEN_IDs = sql("listagg(unique(SPECIMEN_ID), ',') within group (order by SPECIMEN_NO)"),
       SPECIMEN_NOs = sql("listagg(unique(SPECIMEN_NO), ',') within group (order by SPECIMEN_NO)"),
       MYEAR = sql("listagg(unique(MYEAR), ',') within group (order by SPECIMEN_NO)"),
       YEAR = mean(YEAR, na.rm = TRUE),
       MONTH = mean(MONTH, na.rm = TRUE), .groups = "drop"
-    ) %>% 
+    ) %>%
     left_join(
       tbl(connection, in_schema("NIVADATABASE", "BIOTA_TISSUE_TYPES")) %>%
         select(TISSUE_ID, TISSUE_NAME),
@@ -1455,14 +1461,19 @@ select_samples <- function(sample_id = NULL,
   }
   
   check <- result %>%
-    filter(STATION_ID_max > STATION_ID) %>%
+    filter(STATION_ID_max > STATION_ID_mean) %>%
     collect()
-  if (nrow(check) > 0){
+  if (nrow(check) > 0 & stop_if_problem){
     stop(nrow(check), " samples are from more than one station (STATION_ID)!")
-  } else {
+  } else if (nrow(check) > 0 & !stop_if_problem){
+    warning(nrow(check), " samples are from more than one station (STATION_ID)!")
     result <- result %>%
-      select(-STATION_ID_max)
+      mutate(PROBLEM = case_when(
+        STATION_ID_max > STATION_ID_mean ~ "Sample is from more than one station!"))
   }
+  
+  result <- result %>%
+      select(-STATION_ID_mean, -STATION_ID_max)
   
   check <- result %>%
     count(SAMPLE_ID) %>%
@@ -1508,7 +1519,9 @@ select_measurements <- function(value_id = NULL,
                            myear = NULL, 
                            species = NULL, 
                            station_id = NULL, 
-                           o_number = NULL, connection){
+                           o_number = NULL, 
+                           stop_if_problem = TRUE,
+                           connection){
   
   # drop STATION_ID, TAXONOMY_CODE_ID from samples
   result <- select_samples(sample_id = NULL,
@@ -1517,6 +1530,7 @@ select_measurements <- function(value_id = NULL,
                              species = species, 
                              station_id = station_id, 
                              o_number = o_number, 
+                           stop_if_problem = stop_if_problem,
                              connection = connection) %>%
     # select(SPECIMEN_ID, SPECIMEN_NO, MYEAR) %>% 
     left_join(
