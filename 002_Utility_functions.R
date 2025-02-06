@@ -843,7 +843,8 @@ get_connection <- function(test_only = FALSE){
                  Driver = "/opt/conda/orahome/libsqora.so.12.1",
                  DBQ = "dbora-niva-prod01.niva.corp:1555/NIVABPRD",
                  UID = rstudioapi::askForPassword("Database username (NIVA initials, 3 capital letters)"),
-                 PWD = rstudioapi::askForPassword("Nivabasen password")
+                 PWD = rstudioapi::askForPassword("Nivabasen password"),
+                 encoding = "ISO-8859-1"
   )
   
   options(useFancyQuotes = FALSE)
