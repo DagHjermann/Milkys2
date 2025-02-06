@@ -1263,7 +1263,8 @@ if (FALSE){
   select_projects_stations(station_code = "Nordlys", connection = con) %>% 
     left_join(tbl(con, in_schema("NIVADATABASE", "PROJECTS")) %>% 
                 filter(PROJECT_ID %in% df1$PROJECT_ID) %>% 
-                select(PROJECT_ID, PROJECT_NAME)
+                select(PROJECT_ID, PROJECT_NAME),
+              by = join_by(STATION_ID)
     )
   # Search for several O-numbers
   find_projects("høyang", wildcard = TRUE, ignore.case = TRUE, connection = con)
@@ -1323,7 +1324,8 @@ select_specimens <- function(specimen_id = NULL, myear = NULL, species = NULL, s
     left_join(
       tbl(connection, in_schema("NIVADATABASE", "BIOTA_SINGLE_SPECIMENS")) %>%
         select(STATION_ID, SPECIMEN_ID, SPECIMEN_NO, DATE_CAUGHT, TAXONOMY_CODE_ID, REMARK) %>%
-        rename(REMARK_specimen = REMARK))%>%
+        rename(REMARK_specimen = REMARK),
+      by = join_by(STATION_ID)) %>%
     mutate(
       YEAR = year(DATE_CAUGHT),
       MONTH = month(DATE_CAUGHT),
@@ -1332,12 +1334,13 @@ select_specimens <- function(specimen_id = NULL, myear = NULL, species = NULL, s
         MONTH < 4 ~ YEAR-1)) %>%
     left_join(
       tbl(connection, in_schema("NIVADATABASE", "TAXONOMY_CODES")) %>%
-        select(TAXONOMY_CODE_ID, CODE, NIVA_TAXON_ID)) %>%
+        select(TAXONOMY_CODE_ID, CODE, NIVA_TAXON_ID),
+      by = join_by(TAXONOMY_CODE_ID)) %>%
     left_join(
       tbl(connection, in_schema("NIVADATABASE", "TAXONOMY")) %>%
-        select(NIVA_TAXON_ID, LATIN_NAME)
-    )
-  
+        select(NIVA_TAXON_ID, LATIN_NAME),
+      by = join_by(NIVA_TAXON_ID))
+
   if (!is.null(specimen_id)){
     result <- result %>%
       filter(SPECIMEN_ID %in% specimen_id)
