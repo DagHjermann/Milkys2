@@ -1284,7 +1284,8 @@ select_stations <- function(station_id = NULL, ..., connection){
     # summarize project information  
     group_by(STATION_ID) %>% 
     summarize(
-      STATION_CODEs = sql("listagg(unique(STATION_CODE), ',') within group (order by PROJECT_ID)"),
+      STATION_CODEs = sql("listagg(unique(STATION_CODE), ', ') within group (order by PROJECT_ID)"),
+      STATION_NAMEs = sql("listagg(unique(STATION_NAME), ', ') within group (order by PROJECT_ID)"),
       O_NUMBERs = sql("listagg(unique(O_NUMBER), ',') within group (order by PROJECT_ID)"),
       PROJECT_IDs = sql("listagg(PROJECT_ID, ',') within group (order by PROJECT_ID)")) %>%
     # add coordinate columns
