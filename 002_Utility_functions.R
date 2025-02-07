@@ -1437,7 +1437,7 @@ select_samples <- function(sample_id = NULL,
   # need the next line, as stations with no biota data (e.g. sediment stations)
   # will produce a line with SAMPLE_ID = NA 
   filter(!is.na(SAMPLE_ID)) %>%
-  group_by(SAMPLE_ID, TISSUE_ID, SAMPLE_NO, REPNO, REMARK_sample) %>% 
+  group_by(SAMPLE_ID, STATION_CODEs, TISSUE_ID, SAMPLE_NO, REPNO, REMARK_sample) %>% 
     summarize(
       STATION_ID_mean = mean(STATION_ID, na.rm = TRUE),
       STATION_ID_max = max(STATION_ID, na.rm = TRUE),
@@ -1445,8 +1445,13 @@ select_samples <- function(sample_id = NULL,
       SPECIMEN_IDs = sql("listagg(unique(SPECIMEN_ID), ',') within group (order by SPECIMEN_NO)"),
       SPECIMEN_NOs = sql("listagg(unique(SPECIMEN_NO), ',') within group (order by SPECIMEN_NO)"),
       MYEAR = sql("listagg(unique(MYEAR), ',') within group (order by SPECIMEN_NO)"),
-      YEAR = mean(YEAR, na.rm = TRUE),
-      MONTH = mean(MONTH, na.rm = TRUE), .groups = "drop"
+      SAMPLE_DATE = median(DATE_CAUGHT, na.rm = TRUE),
+      SAMPLE_DATE_min = min(DATE_CAUGHT, na.rm = TRUE),
+      SAMPLE_DATE_max = max(DATE_CAUGHT, na.rm = TRUE), 
+      .groups = "drop") %>%
+    mutate(
+      YEAR = year(SAMPLE_DATE),
+      MONTH = month(SAMPLE_DATE)
     ) %>%
     left_join(
       tbl(connection, in_schema("NIVADATABASE", "BIOTA_TISSUE_TYPES")) %>%
@@ -1454,12 +1459,33 @@ select_samples <- function(sample_id = NULL,
       by = join_by(TISSUE_ID))
   
     # for later: add more specimen/ project info?
-
+  
+  # select rows by SAMPLE_ID
   if (!is.null(sample_id)){
     result <- result %>%
       filter(SAMPLE_ID %in% sample_id)
   }
   
+  # select rows by TISSUE_NAME
+  if (!is.null(tissue)){
+    result <- result %>%
+      filter(TISSUE_NAME %in% tissue)
+  }
+  
+  # Check samples that mixes different sample dats for the specimens  
+  check <- result %>%
+    filter(SAMPLE_DATE_max > SAMPLE_DATE_min) %>%
+    collect()
+  if (nrow(check) > 0){
+    warning(nrow(check), " samples are polled samples where the sample date varies among specimens")
+    message("Maximum time difference between specimens in one sample is:")
+    diff <- max(check$SAMPLE_DATE_max - check$SAMPLE_DATE_min)
+    print(diff)
+  }
+
+  # Check whether there is only one station per sample
+  # Default behaviour (stop_if_problem = TRUE): the function fails with error message
+  # Optional behaviour (stop_if_problem = FALSE): just give a warning message
   check <- result %>%
     filter(STATION_ID_max > STATION_ID_mean) %>%
     collect()
@@ -1502,15 +1528,27 @@ if (FALSE){
   # Milkys - contains pooled samples (multiple specimens per sample)
   find_projects("CEMP", wildcard = TRUE, connection = con)  
   test <- select_samples(o_number = "14330ANA", myear = 2016:2023, connection = con)
-  test_pooled <- test %>% filter(SAMPLE_ID == 239537) %>% collect()
   # searc usin sample_id
   test <- select_samples(sample_id = 239537, connection = con)
   collect(test)
+  # test a startion with pooled samples  
+  df1 <- select_stations(o_number = "14330ANA", connection = con) %>% collect()
+  df2 <- select_specimens(station_id = 46980, myear = 2023, connection = con) %>% collect() 
+  df3 <- select_specimens(station_id = 46980, myear = 2023, connection = con) %>% collect() 
+  df3 <- select_samples(station_id = 46980, myear = 2023, tissue = "Lever", connection = con) %>% collect()
+  
 }
 
 
 
-
+#
+# NOTE: would be a good idea to have a separate function for *downloading*,
+# as an alternative to select_measurements() %>% collect()
+# As it is now, downloading is slower than needed as we download all
+# the sample, specimen and station metadata repetated X times (for each
+# measurement), instead of downloading them separately and then joining them.
+# OR rewrite the function with "download = FALSE/TRUE".  
+#
 select_measurements <- function(value_id = NULL,
                                 param = NULL,
                                 sample_id = NULL,
