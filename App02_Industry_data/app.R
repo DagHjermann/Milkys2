@@ -139,7 +139,10 @@ dat_all_prep3 <- dataset_all %>%
     Station = case_when(
       is.na(STATION_CODE) ~ STATION_NAME,
       STATION_CODE %in% "" ~ STATION_NAME,
-      TRUE ~ paste(STATION_CODE, STATION_NAME))
+      TRUE ~ paste(STATION_CODE, STATION_NAME)),
+    Project = case_when(
+      is.na(Project) ~ Project,
+      TRUE ~ "Others")
   ) %>%
   filter(!is.na(VALUE))
 
@@ -178,6 +181,7 @@ dat_all_prep3 <- bind_rows(
 
 # For the menus
 params <- unique(dat_all_prep3$PARAM) %>% sort()
+projects <- unique(dat_all_prep3$Projects) %>% sort()
 stations <- unique(dat_all_prep3$Station) %>% sort()
 tissues <- unique(dat_all_prep3$TISSUE_NAME) %>% sort()
 tissues <- c("(automatic)", tissues)
