@@ -229,6 +229,7 @@ datx_3 <- datx_2 %>%
     FLAG1 = case_when(
       grepl("<", VALUE_chr) ~ "<"
     ),
+    TISSUE_NAME = "Whole soft body",
     SAMPLE_DATE = ymd(ymd),
     MYEAR = year(SAMPLE_DATE),
     PARAM = get_standard_parametername(

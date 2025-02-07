@@ -152,9 +152,9 @@ dat_all_prep3 <- dat_all_prep3 %>%
       TISSUE_NAME %in% "Lever" ~ "Liver",
       TISSUE_NAME %in% "Muskel" ~ "Muscle",
       TISSUE_NAME %in% "Galle" ~ "Bile",
+      grepl("Whole soft body", TISSUE_NAME) ~ "Whole soft body",
       TRUE ~ TISSUE_NAME)
   )
-
 
 # Add 'Species_name' to data    
 dat_all_prep3 <- dat_all_prep3 %>%
