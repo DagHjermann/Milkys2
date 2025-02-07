@@ -1444,7 +1444,6 @@ select_samples <- function(sample_id = NULL,
       STATION_ID = sql("listagg(unique(STATION_ID), ',') within group (order by SPECIMEN_NO)"),
       SPECIMEN_IDs = sql("listagg(unique(SPECIMEN_ID), ',') within group (order by SPECIMEN_NO)"),
       SPECIMEN_NOs = sql("listagg(unique(SPECIMEN_NO), ',') within group (order by SPECIMEN_NO)"),
-      MYEAR = sql("listagg(unique(MYEAR), ',') within group (order by SPECIMEN_NO)"),
       SAMPLE_DATE = median(DATE_CAUGHT, na.rm = TRUE),
       SAMPLE_DATE_min = min(DATE_CAUGHT, na.rm = TRUE),
       SAMPLE_DATE_max = max(DATE_CAUGHT, na.rm = TRUE), 
@@ -1453,7 +1452,10 @@ select_samples <- function(sample_id = NULL,
       .groups = "drop") %>%
     mutate(
       YEAR = year(SAMPLE_DATE),
-      MONTH = month(SAMPLE_DATE)
+      MONTH = month(SAMPLE_DATE),
+      MYEAR = case_when(
+        MONTH >= 4 ~ YEAR,
+        MONTH < 4 ~ YEAR-1)
     ) %>%
     left_join(
       tbl(connection, in_schema("NIVADATABASE", "BIOTA_TISSUE_TYPES")) %>%
