@@ -1,0 +1,307 @@
+---
+title: "084_Industry_data"
+format: html
+---
+
+Code for updating the "industry app" (App02)  
+
+### Packages and functions  
+
+```{r}
+
+# Packages
+library(dplyr)
+library(dbplyr)
+# library(purrr)
+library(readxl)
+library(tidyr)
+library(stringr)
+library(ggplot2) 
+library(ggrepel)     # geom_label_repel() 
+library(lubridate)   # year(), month()
+library(mapdata)     # worldHires data set
+library(here)        # here()
+# Functions 
+source("002_Utility_functions.R")
+
+```
+
+### Connect to Nivadatabase  
+
+```{r}
+con <- get_connection()
+```
+## Projects 
+
+### Høyangsfjorden   
+
+Tiltaksorientert overvåking av Høyangsfjorden i 2024, O 240237  
+
+#### Projects  
+
+```{r}
+df_proj <- find_projects("høyang", wildcard = TRUE, ignore.case = TRUE, connection = con) %>%
+  collect()
+df_proj
+```
+
+#### Projects-stations  
+
+```{r}
+# find_projects("høyang", wildcard = TRUE, ignore.case = TRUE, connection = con)
+df_pstation <- select_projects_stations(project_id = df_proj$PROJECT_ID, connection = con) %>%
+  collect() 
+df_pstation
+
+```
+#### Stations  
+
+- one row per station (defined by station ID); summarizes the different versions of STATION_CODE, STATION_NAME and projects for each station  
+- may also also contain sediment and water stations  
+
+```{r}
+
+df_station <- select_stations(station_id = df_pstation$STATION_ID, connection = con) %>%
+  collect() 
+df_station
+```
+
+#### Select measurements  
+
+- in this case, chooses all biota chemistry data from the stations in `df_station`  
+- may also select a subset of stations, years, species, tissues, parameters    
+
+```{r}
+
+# Set up data lazily  
+lazy_hoy <- select_measurements(station_id = df_station$STATION_ID, connection = con)
+
+# if it stops because "samples are from more than one station",, try this:
+# df_samples <- select_samples(station_id = df_pstation$STATION_ID, connection = con, 
+#                              stop_if_problem = FALSE) %>%
+#   collect()
+
+```
+
+
+#### Check numbers of measurements  
+
+- tabulate the selected data, without actually downloading the full data 
+
+```{r}
+
+# Years and stations  
+tab1 <- lazy_hoy %>%
+  count(MYEAR, STATION_ID) %>% collect()
+tab2 <- lazy_hoy %>%
+  filter(STATION_ID == 50590) %>%
+  count(NAME) %>% collect()
+
+tab1 %>%
+  arrange(MYEAR) %>%
+  tidyr::pivot_wider(names_from = MYEAR, values_from = n)
+
+```
+
+#### Map stations  
+
+```{r}
+
+df_station_formap <- df_station %>% 
+  # Select only stations found in data - i.e., only stations with biota chemistry  
+  filter(STATION_ID %in% unique(tab1$STATION_ID)) %>%
+  # Make text to plot
+  mutate(
+    text_plot = paste0("STATION_ID = ", STATION_ID, "\n", 
+                       "STATION_CODE = ", STATION_CODEs, "\n", 
+                       STATION_NAMEs),
+    text_leaflet = paste0("STATION_ID = ", STATION_ID, "<br>", 
+                          "STATION_CODE = ", STATION_CODEs, "<br>", 
+                          STATION_NAMEs))
+
+ggplot(df_station_formap, aes(x = LONGITUDE, y = LATITUDE, label = text_plot)) +
+    annotation_map(
+    map_data("worldHires", "Norway"),
+    fill = "antiquewhite", colour = "darkgrey"
+  ) +
+  geom_point() +
+  expand_limits(x = c(5.7, 6.4), y =  c(61.1, 61.3)) +
+  coord_fixed(ratio = 2) +
+  geom_label_repel(size = 3)
+
+
+if (FALSE){
+  
+  # Run in console
+  library(leaflet)
+  leaflet(df_station_formap) %>%
+    addTiles() %>%
+    addMarkers(lng = ~LONGITUDE, lat = ~LATITUDE, popup = ~text_leaflet)
+  
+}
+
+```
+
+#### Decide on station names  
+
+- will be linked to the data using STATION_CODE, see below (`join_by(STATION_CODE)`)   
+    - we can do that here as there is only one STATION_CODE per station)  
+- in some cases there are several STATION_CODE per station (example: some sediment stations
+in this area, se station table above); we must then include STATION_ID in the table, 
+and link using `join_by(STATION_ID)`  
+
+```{r}
+
+# Based on mapP
+lookup_stations_hoyang <- tibble::tribble(
+  ~STATION_CODE, ~STATION_NAME, ~Project,
+  "G1", "Sandvika", "Høyangsfjorden",
+  "G2", "Godvika", "Høyangsfjorden",
+  "G3", "Saueneset", "Høyangsfjorden",
+  "G4", "Sæbøneset", "Høyangsfjorden",
+  "G6", "Espeskog", "Høyangsfjorden",
+  "Hg-ref", "Kyrkjeneset", "Høyangsfjorden"
+)
+
+```
+
+
+
+#### Download measurements  
+
+```{r}
+
+# Download the data  
+t0 <- Sys.time()
+
+df_hoy_01 <- lazy_hoy %>% collect()  
+
+t1 <- Sys.time(); t1-t0
+nrow(df_hoy_01)
+# 15.1056 secs for 935 rows  
+
+# Add STATION_CODE, Station_name and Area
+df_hoy_02 <- df_hoy_01 %>%
+  left_join(lookup_stations_hoyang, 
+            by = join_by(STATION_CODEs == STATION_CODE), 
+            relationship = "many-to-one") %>%
+  rename(STATION_CODE = STATION_CODEs,
+         PARAM = NAME)
+
+```
+
+#### Save  
+
+```{r}
+
+saveRDS(df_hoy_02, paste0(here(), "/App02_Industry_data/data_chem_industry_hoyangsfjord_2015-2024.rds"))
+
+```
+
+
+#### Extra data from reports  
+
+```{r}
+
+fn <- "App02_Industry_data/Høyangsfjorden - Tungmetaller i blåskjell fra før 2015.xlsx"
+readxl::excel_sheets(fn)
+
+datx_1 <- readxl::read_excel(fn, sheet = "For innlesing", 
+                             # Note: all columns must be read as text, otherwise pivot_longer falls over
+                             col_types = "text")
+# str(datx_1)
+datx_2 <- datx_1[c(1,3,4, seq(6, by = 2, length = 8))]
+# str(datx_2)
+
+datx_3 <- datx_2 %>%
+  tidyr::pivot_longer(cols = drywt:Kvikksølv, names_to = "PARAM", values_to = "VALUE_chr") %>%
+  mutate(
+    VALUE = VALUE_chr %>% 
+      str_replace("<", "") %>% 
+      str_replace(",", ".") %>% 
+      as.numeric() %>%
+      round(4),
+    FLAG1 = case_when(
+      grepl("<", VALUE_chr) ~ "<"
+    ),
+    SAMPLE_DATE = ymd(ymd),
+    MYEAR = year(SAMPLE_DATE)) %>%
+  # add STATION_CODE, Project
+  left_join(
+    lookup_stations_hoyang, 
+    by = join_by(STATION_NAME), 
+    relationship = "many-to-one"
+  ) %>%
+  # add STATION_ID
+  left_join(
+    df_hoy_02 %>% distinct(STATION_CODE, STATION_ID), 
+    by = join_by(STATION_CODE), 
+    relationship = "many-to-one"
+  )
+
+str(datx_3)
+
+```
+
+
+#### Add to the rest  
+```{r}
+
+df_hoy_03 <- df_hoy_02 %>%
+  bind_rows(datx_3 %>% select(-ymd))
+
+```
+
+
+#### Save  
+
+```{r}
+
+saveRDS(df_hoy_03, paste0(here(), "/App02_Industry_data/data_chem_industry_hoyangsfjord_2007-2024.rds"))
+
+```
+
+
+#### Compare with existing data 
+
+```{r}
+
+# code from App02_Industry_data/app.R
+dataset_all_01 <- readRDS("App02_Industry_data/data_chem_industry_ind_2023.rds")
+dataset_extra <- readRDS("App02_Industry_data/data_chem_industry_ind_2023_ElkemREC_autumn.rds")
+dataset_extra2 <- readxl::read_excel(
+  "App02_Industry_data/Vannmiljo St. 4 Svensholmen metals 2010-2014.xlsx", sheet = "nivabasen_fixed") %>%
+  mutate(
+    MYEAR = as.numeric(MYEAR),
+    Month = as.numeric(Month)
+  ) %>%
+  filter(Month >= 9)
+# end of copied code  
+
+
+
+names(dataset_all_01)
+names(dataset_extra)
+names(dataset_extra2)
+
+station_codes <- c("G1","G2","G3","G4","G6")
+xtabs(~MYEAR + STATION_CODE, dataset_all_01 %>% filter(grepl("^G", STATION_CODE))) 
+xtabs(~MYEAR + paste(STATION_CODE, STATION_NAME), dataset_all_01 %>% filter(grepl("^G", STATION_CODE))) 
+# no data in these
+# xtabs(~MYEAR + STATION_CODE, dataset_extra %>% filter(STATION_CODE %in% station_codes))
+# xtabs(~MYEAR + STATION_CODE, dataset_extra2 %>% filter(STATION_CODE %in% station_codes))
+
+cols <- c("STATION_CODE", "MYEAR", "NAME", )
+dataset_all_01
+
+```
+
+```{r}
+dataset_all_01_st <- dataset_all_01 %>%
+  distinct(STATION_ID, STATION_ID.x, STATION_ID.y, STATION_CODE, STATION_NAME)
+```
+
+
+
+
+
