@@ -86,6 +86,16 @@ dataset_extra2 <- readxl::read_excel(
   ) %>%
   filter(Month >= 9)
 
+# from 002, test code below 'get_biotachemistry' function 
+# dataset_extra3 <- bind_rows(
+#   readRDS("data_chem_industry_ransfjord_2024.rds") ,
+#   readRDS("data_chem_industry_hoyangsfjord_2024.rds")
+# ) %>%
+#   rename(PARAM = NAME) %>%
+#   mutate(BASIS = "W")
+# # Keep only necessary columns
+# dataset_extra3 <- dataset_extra3[names(dataset_extra2)]
+
 # Replace original "all year" Elkem - REC data with autumn-only data  
 dataset_all_02 <- dataset_all_01 %>%
   filter(!STATION_CODE %in% c("St. 1", "St. 2", "St. 3", "St. 4", "St. 5")) %>%
@@ -93,10 +103,26 @@ dataset_all_02 <- dataset_all_01 %>%
 
 # Replace original 2010-2013 data with data from Vannmiljø    
 params_metals <- c("AS", "PB", "CD", "CU", "CR", "HG", "NI", "ZN")
-dataset_all <- dataset_all_02 %>%
+dataset_all_03 <- dataset_all_02 %>%
   filter(!(STATION_CODE %in% "St. 4" & 
              MYEAR %in% 2010:2013 & PARAM %in% params_metals)) %>%
-  bind_rows(dataset_extra2)
+  bind_rows(dataset_extra2) 
+# %>%
+#   bind_rows(dataset_extra3)
+
+#
+# Data from Hoyangsfjorden - see script 084
+#
+dataset_hoyangsfjord_01 <- readRDS("data_chem_industry_hoyangsfjord_2007-2024.rds") %>%
+  mutate(SAMPLE_NO2 = SAMPLE_ID, 
+         BASIS = "W",
+         LATIN_NAME_sample = LATIN_NAME)
+# Keep the columns that are in the 'dataset_all_03', and add 'Project' as well
+names_overlap <- intersect(names(dataset_all_03), names(dataset_hoyangsfjord_01))
+dataset_hoyangsfjord_02 <- dataset_hoyangsfjord_01[c(names_overlap, "Project")]
+
+dataset_all <- dataset_all_03 %>%
+  bind_rows(dataset_hoyangsfjord_02)
 
 # dat_all_prep3 <- bind_rows(dataset1, dataset2) %>%
 dat_all_prep3 <- dataset_all %>%
