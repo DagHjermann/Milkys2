@@ -21,8 +21,11 @@ library(ggrepel)     # geom_label_repel()
 library(lubridate)   # year(), month()
 library(mapdata)     # worldHires data set
 library(here)        # here()
-# Functions 
+
+# most functions:
 source("002_Utility_functions.R")
+# for get_standard_parametername()
+source("101_Combine_with_legacy_data_functions.R")   
 
 ```
 
@@ -185,8 +188,10 @@ df_hoy_02 <- df_hoy_01 %>%
   left_join(lookup_stations_hoyang, 
             by = join_by(STATION_CODEs == STATION_CODE), 
             relationship = "many-to-one") %>%
-  rename(STATION_CODE = STATION_CODEs,
-         PARAM = NAME)
+  rename(STATION_CODE = STATION_CODEs) %>%
+  mutate(
+    PARAM = get_standard_parametername(
+      NAME, here("Input_data/Lookup table - standard parameter names.csv")))
 
 ```
 
@@ -214,7 +219,7 @@ datx_2 <- datx_1[c(1,3,4, seq(6, by = 2, length = 8))]
 # str(datx_2)
 
 datx_3 <- datx_2 %>%
-  tidyr::pivot_longer(cols = drywt:Kvikksølv, names_to = "PARAM", values_to = "VALUE_chr") %>%
+  tidyr::pivot_longer(cols = drywt:Kvikksølv, names_to = "NAME", values_to = "VALUE_chr") %>%
   mutate(
     VALUE = VALUE_chr %>% 
       str_replace("<", "") %>% 
@@ -225,7 +230,9 @@ datx_3 <- datx_2 %>%
       grepl("<", VALUE_chr) ~ "<"
     ),
     SAMPLE_DATE = ymd(ymd),
-    MYEAR = year(SAMPLE_DATE)) %>%
+    MYEAR = year(SAMPLE_DATE),
+    PARAM = get_standard_parametername(
+      NAME, here("Input_data/Lookup table - standard parameter names.csv"))) %>%
   # add STATION_CODE, Project
   left_join(
     lookup_stations_hoyang, 
