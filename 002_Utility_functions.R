@@ -1502,7 +1502,8 @@ select_samples <- function(sample_id = NULL,
         STATION_ID_max > STATION_ID_mean ~ "Sample is from more than one station!"))
   } else {
     result <- result %>%
-      select(-STATION_ID_mean, -STATION_ID_max)
+      select(-STATION_ID_mean, -STATION_ID_max) %>%
+      mutate(STATION_ID = as.numeric(STATION_ID))
   }
   
   # Check whether there is only one species per sample
