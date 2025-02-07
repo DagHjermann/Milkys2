@@ -1448,6 +1448,8 @@ select_samples <- function(sample_id = NULL,
       SAMPLE_DATE = median(DATE_CAUGHT, na.rm = TRUE),
       SAMPLE_DATE_min = min(DATE_CAUGHT, na.rm = TRUE),
       SAMPLE_DATE_max = max(DATE_CAUGHT, na.rm = TRUE), 
+      # LATIN_NAME_n = length(unique(LATIN_NAME)),
+      LATIN_NAMEs = sql("listagg(unique(LATIN_NAME), ',') within group (order by SPECIMEN_NO)"),
       .groups = "drop") %>%
     mutate(
       YEAR = year(SAMPLE_DATE),
@@ -1494,12 +1496,38 @@ select_samples <- function(sample_id = NULL,
   } else if (nrow(check) > 0 & !stop_if_problem){
     warning(nrow(check), " samples are from more than one station (STATION_ID)!")
     result <- result %>%
-      mutate(PROBLEM = case_when(
+      mutate(PROBLEM_station = case_when(
         STATION_ID_max > STATION_ID_mean ~ "Sample is from more than one station!"))
+  } else {
+    result <- result %>%
+      select(-STATION_ID_mean, -STATION_ID_max)
   }
   
-  result <- result %>%
-      select(-STATION_ID_mean, -STATION_ID_max)
+  # Check whether there is only one species per sample
+  # Default behaviour (stop_if_problem = TRUE): the function fails with error message
+  # Optional behaviour (stop_if_problem = FALSE): just give a warning message
+  check <- result %>%
+    count(LATIN_NAMEs) %>%
+    collect() %>%
+    filter(grepl(",", LATIN_NAMEs, fixed = TRUE))
+  if (nrow(check) > 0 & stop_if_problem){
+    stop(nrow(check), " samples are from more than one species (LATIN_NAME)!")
+  } else if (nrow(check) > 0 & !stop_if_problem){
+    warning(nrow(check), " samples are from more than one species (LATIN_NAME)!")
+    result <- result%>%
+      rename(LATIN_NAME = LATIN_NAMEs) %>%
+      mutate(PROBLEM_species = case_when(
+        LATIN_NAME %in% check$LATIN_NAMEs ~ "Sample is from more than one species!"))
+  } else {
+    result <- result %>%
+      rename(LATIN_NAME = LATIN_NAMEs)
+  }
+  
+  # select rows by LATIN_NAME
+  if (!is.null(species)){
+    result <- result %>%
+      filter(LATIN_NAME %in% species)
+  }
   
   check <- result %>%
     count(SAMPLE_ID) %>%
@@ -1528,15 +1556,20 @@ if (FALSE){
   # Milkys - contains pooled samples (multiple specimens per sample)
   find_projects("CEMP", wildcard = TRUE, connection = con)  
   test <- select_samples(o_number = "14330ANA", myear = 2016:2023, connection = con)
-  # searc usin sample_id
+  test %>% count(LATIN_NAME)
+  # search using species
+  test <- select_samples(o_number = "14330ANA", myear = 2023, species = "Mytilus edulis", 
+                         connection = con)
+  test %>% count(STATION_CODEs)
+  # search using sample_id
+  test <- select_samples(sample_id = 239537, connection = con)
+  collect(test)
   test <- select_samples(sample_id = 239537, connection = con)
   collect(test)
   # test a startion with pooled samples  
   df1 <- select_stations(o_number = "14330ANA", connection = con) %>% collect()
   df2 <- select_specimens(station_id = 46980, myear = 2023, connection = con) %>% collect() 
-  df3 <- select_specimens(station_id = 46980, myear = 2023, connection = con) %>% collect() 
   df3 <- select_samples(station_id = 46980, myear = 2023, tissue = "Lever", connection = con) %>% collect()
-  
 }
 
 
