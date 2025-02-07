@@ -186,7 +186,11 @@ years_all <- unique(dat_all_prep3$MYEAR) %>% sort()
 names(years_all) <- years_all
 
 # Folder for saving plots
-folder <- "../Figures_402/Til 2021-rapporten/"
+folder <- "../Figures_402/Til 2024-rapporten/"
+
+# Create folder if it doesn't exist
+if (!dir.exists(folder)){
+  dir.create(folder)}
 
 # Save metadata for saved plots
 savedplots_filename <- paste0(folder, "_saved_plots.csv")  
