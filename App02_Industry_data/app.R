@@ -7,7 +7,6 @@
 #    http://shiny.rstudio.com/
 #
 
-dir("App02_Industry_data/")
 
 # startup: packages ----
 
@@ -115,14 +114,24 @@ dataset_all_03 <- dataset_all_02 %>%
 #
 dataset_hoyangsfjord_01 <- readRDS("data_chem_industry_hoyangsfjord_2007-2024.rds") %>%
   mutate(SAMPLE_NO2 = SAMPLE_ID, 
-         BASIS = "W",
          LATIN_NAME_sample = LATIN_NAME)
 # Keep the columns that are in the 'dataset_all_03', and add 'Project' as well
 names_overlap <- intersect(names(dataset_all_03), names(dataset_hoyangsfjord_01))
 dataset_hoyangsfjord_02 <- dataset_hoyangsfjord_01[c(names_overlap, "Project")]
 
+#
+# Data for 2024 from Ranfjorden - see script 084
+#
+dataset_ranfjord_01 <- readRDS("data_chem_industry_ranfjord_2024.rds") %>%
+  mutate(SAMPLE_NO2 = SAMPLE_ID, 
+         LATIN_NAME_sample = LATIN_NAME)
+# Keep the columns that are in the 'dataset_all_03', and add 'Project' as well
+names_overlap <- intersect(names(dataset_all_03), names(dataset_ranfjord_01))
+dataset_ranfjord_02 <- dataset_ranfjord_01[c(names_overlap, "Project")]
+
 dataset_all <- dataset_all_03 %>%
-  bind_rows(dataset_hoyangsfjord_02)
+  bind_rows(dataset_hoyangsfjord_02) %>%
+  bind_rows(dataset_ranfjord_02)
 
 # dat_all_prep3 <- bind_rows(dataset1, dataset2) %>%
 dat_all_prep3 <- dataset_all %>%
