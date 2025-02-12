@@ -39,6 +39,8 @@ lookup_stations2 <- tibble::tribble(
   "I969", "Bjørnbærviken"
 )
 
+
+
 lookup_stations <- bind_rows(
   lookup_stations1, lookup_stations2) %>%
   mutate(Station = paste(STATION_CODE, Station_name))

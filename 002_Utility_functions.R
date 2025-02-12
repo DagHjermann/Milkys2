@@ -824,15 +824,27 @@ make_sql_ids <- function(data, variable){
 test_connection <- function(connection){
   
   # Test a small download
-  test_connection <- DBI::dbGetQuery(connection, "select PROJECT_ID, PROJECT_NAME from NIVADATABASE.PROJECTS where rownum < 3")
+  test_connection <- try(
+    DBI::dbGetQuery(connection, "select PROJECT_ID, PROJECT_NAME from NIVADATABASE.PROJECTS where rownum < 3"))
   
-  # Check that download worked
-  if ("test_connection" %in% ls()){
-    if (nrow(test_connection) == 2)                                                  
-      cat("Connection to Nivadatabase set up and tested")
+  if(class(test_connection) == "try-error"){
+    warning("Connection to Nivadatabase or test download failed")
+    result <- FALSE
   } else {
-    warning("Test download failed")
+    
+    # Check that download worked
+    if ("test_connection" %in% ls()){
+      if (nrow(test_connection) == 2)                                                  
+        cat("\n\nConnection to Nivadatabase set up and tested")
+      result <- TRUE
+    } else {
+      warning("Test download failed")
+      result <- FALSE
+    }
+    
   }
+  
+  invisible(result)
   
 }
 
@@ -1272,6 +1284,7 @@ if (FALSE){
   # - using exact search (the first one gives a warning)
   select_projects_stations(o_number = c("180293", "210293", "240237"), connection = con)
   select_projects_stations(o_number = c("180293", "210293", "240237"), exact = TRUE, connection = con)
+  select_projects_stations(o_number = c("230218"), exact = TRUE, connection = con) %>% collect()
 }
 
 
@@ -1662,11 +1675,18 @@ if (FALSE){
     ggplot(aes(factor(STATION_ID), median_hg)) + 
     geom_col()
   
+  test <- select_measurements(o_number = "230218", myear = 2024, connection = con)
+  test %>% 
+    distinct(STATION_ID, STATION_CODEs, MYEAR, SAMPLE_ID) %>% 
+    count(STATION_ID, STATION_CODEs, MYEAR)
+  test %>% 
+    count(STATION_ID, STATION_CODEs, SAMPLE_ID, NAME)
+  
 }
 
 
 
-find_projects <- function(search_text = NULL, id = NULL, wildcard = FALSE, ignore.case = FALSE, connection){
+find_projects <- function(search_text = NULL, o_number = FALSE, wildcard = FALSE, ignore.case = FALSE, connection){
   
   options(useFancyQuotes = FALSE)
   
@@ -1679,13 +1699,17 @@ find_projects <- function(search_text = NULL, id = NULL, wildcard = FALSE, ignor
   } else if (wildcard & ignore.case){
     sql_syntax <- paste0("LOWER(PROJECT_NAME) LIKE ", sQuote(paste0("%", tolower(search_text), "%")))
   }
-
+  
+  if (o_number){
+    sql_syntax <- sub("PROJECT_NAME", "O_NUMBER", sql_syntax)
+  }
+  
   result <- tbl(connection, in_schema("NIVADATABASE", "PROJECTS")) %>%
     select(PROJECT_ID, PROJECT_NAME, PROJECT_DESCRIPTION) %>% 
-    filter(sql(sql_syntax)) %>% 
     left_join(tbl(connection, in_schema("NIVADATABASE", "PROJECTS_O_NUMBERS")) %>%
                 select(PROJECT_ID, O_NUMBER), 
               by = join_by(PROJECT_ID)) %>%
+    filter(sql(sql_syntax)) %>% 
     collect()
   
   result
@@ -1699,43 +1723,12 @@ if (FALSE){
   find_projects("CEMP", wildcard = TRUE, connection = con)
   find_projects("cemp", wildcard = TRUE, connection = con)
   find_projects("cemp", wildcard = TRUE, ignore.case = TRUE, connection = con)
+  find_projects("14330", o_number = TRUE, wildcard = TRUE, ignore.case = TRUE, connection = con)
+  find_projects("230218", o_number = TRUE, wildcard = TRUE, ignore.case = TRUE, connection = con)
   find_projects("høyang", wildcard = TRUE, ignore.case = TRUE, connection = con)
 }
 
 
-find_projects_onumber <- function(search_text = NULL, id = NULL, wildcard = FALSE, ignore.case = FALSE){
-    
-    options(useFancyQuotes = FALSE)
-    
-    if (!wildcard & !ignore.case){
-      sql_syntax <- paste0("O_NUMBER = ", sQuote(search_text))
-    } else if (!wildcard & ignore.case){
-      sql_syntax <- paste0("LOWER(O_NUMBER) = ", sQuote(tolower(search_text)))
-    } else if (wildcard & !ignore.case){
-      sql_syntax <- paste0("O_NUMBER LIKE ", sQuote(paste0("%", search_text, "%")))
-    } else if (wildcard & ignore.case){
-      sql_syntax <- paste0("LOWER(O_NUMBER) LIKE ", sQuote(paste0("%", tolower(search_text), "%")))
-    }
-    
-    result <- t_projects %>% 
-      left_join(t_projects_onumbers, by = join_by(PROJECT_ID)) %>%
-      filter(sql(sql_syntax)) %>% 
-      collect()
-    
-    result
-  }
-  
-
-if (FALSE){
-  # Test
-  find_projects_onumber("14330ANA")
-  find_projects_onumber(14330)
-  find_projects_onumber(14330, wildcard = TRUE)
-  # Ranfjorden: O-240130
-  # Høyangsfjorden: O-240237
-  # Kristiansandsfjorden: O-240244.
-  find_projects_onumber(240237, wildcard = TRUE)
-}
 
 
 
