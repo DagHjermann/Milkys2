@@ -3,7 +3,15 @@ title: "084_Industry_data"
 format: html
 ---
 
-Code for updating the "industry app" (App02)  
+Code for updating the "industry app" (App02)    
+
+Note some differences between areas:  
+* For Høyangsfjorden, we have no existing data in the app, so we don't have to think of existing station names etc.  
+* For Høyangsfjorden, we also add data from excel (not so in Ransfjorden)  
+* codes ansd station names 
+    - for Høyangsfjorden, STATION_CODEs is OK, so we add Station_name and Area based on STATION_CODEs (and rename STATION_CODEs to STATION_CODE)  
+    - for Ransfjorden, we add STATION_CODE and Area based on STATION_CODEs  
+
 
 ### Packages and functions  
 
@@ -27,13 +35,182 @@ source("002_Utility_functions.R")
 # for get_standard_parametername()
 source("101_Combine_with_legacy_data_functions.R")   
 
+columns_needed <- c("STATION_CODE", "STATION_NAME", "LATIN_NAME", "TISSUE_NAME", 
+                    "PARAM", "UNIT", "SAMPLE_DATE", "MYEAR", "SAMPLE_NO2", "VALUE", 
+                    "FLAG1", "BASIS", "QUANTIFICATION_LIMIT", "LATIN_NAME_sample", 
+                    "SAMPLE_NO", "REPNO", "NAME", "LABORATORY", "METHOD_REF", "BASIS_CODE", 
+                    "DETECTION_LIMIT", "UNCERTAINTY", "REMARK_sample", "SAMPLE_ID", 
+                    "METHOD_ID", "VALUE_ID", "TISSUE_ID", "STATION_ID", "Area")
+
 ```
 
 ### Connect to Nivadatabase  
 
 ```{r}
-con <- get_connection()
+
+test <- test_connection(con)
+
+if (!test){
+  con <- get_connection()
+}
+
 ```
+
+
+### "Original" data  
+
+#### Lookup data for stations  
+
+```{r}
+
+# startup: lookup files ----  
+
+# Lookup file for station names  
+lookup_stations1 <- readRDS("App02_Industry_data/data_chem_industry_ranfjord_elkem_ind_2022_OLD2.rds") %>%
+  rename(Station_name = STATION_NAME) %>%
+  distinct(STATION_CODE, Station_name) %>%
+  filter(!STATION_CODE %in% c("I964b", "I964/I964b", "I965", "I969")) %>%
+  mutate(Area = "Kristiansand")
+
+lookup_stations2 <- tibble::tribble(
+  ~STATION_CODE, ~Station_name,
+  "I964/I964b", "Toraneskaia",
+  "I965", "Moholmen",
+  "I969", "Bjørnbærviken"
+) %>%
+  mutate(Area = "Ransfjord")
+
+lookup_stations <- bind_rows(
+  lookup_stations1, lookup_stations2) %>%
+  mutate(Station = paste(STATION_CODE, Station_name)) %>%
+  select(Area, STATION_CODE, Station_name, Station)
+
+lookup_stations <- lookup_stations %>% 
+  mutate(
+    Area = case_when(
+      STATION_CODE %in% c("I964/I964b", "I965", "I969") ~ "Ransfjorden",
+      STATION_CODE %in% c("G1", "G2B", "G5", "G6", "G6B", "G7", "G8") ~ "Årdalsfjorden",
+      STATION_CODE %in% c("St. 1", "St. 2", "St. 3", "St. 4", "St. 5") ~ "Kristiansand")
+    )
+
+```
+
+#### Lookup data for other stuff  
+
+```{r}
+
+# Lookup files for EQS and Proref 
+# NOTE: these are also used in the server code of the app  
+lookup_eqs <- read.csv("Input_data/Lookup_tables/Lookup_EQS_limits.csv") %>%
+  filter(Basis %in% c("WW", "WWa")) %>%
+  select(-Long_name, -Kommentar) %>%
+  rename(EQS = Limit)
+lookup_proref <- read.csv("Input_data/Lookup_tables/Lookup_proref.csv") %>%
+  select(PARAM, LATIN_NAME, TISSUE_NAME, Basis, Proref) 
+
+# Lookup file for full parameter names
+lookup_paramnames <- readxl::read_excel("Input_data/Lookup table - parameter names for plots.xlsx")
+
+# Lookup file for species names
+lookup_speciesnames <- read.csv("Input_data/Lookup_tables/Lookup_speciesnames.csv")
+
+```
+
+#### Data
+
+```{r}
+
+# Data
+# startup: data ----  
+
+# NOTE: 
+# These data sets have been created by Dag using scripts
+#   994_Industry_data_2022_Ranfjorden_Elkem.Rmd
+#   994_Industry_data_2022_Glencore.Rmd
+# in folder/project "Milkys"
+# 
+
+# dataset1 <- readRDS("data_chem_industry_ranfjord_elkem_ind_2022.rds")
+# dataset2 <- readRDS("data_chem_industry_kristiansand_glencore_ind_2022.rds")
+
+dataset_all_01 <- readRDS("App02_Industry_data/data_chem_industry_ind_2023.rds")
+dataset_extra <- readRDS("App02_Industry_data/data_chem_industry_ind_2023_ElkemREC_autumn.rds")
+dataset_extra2 <- readxl::read_excel(
+  "App02_Industry_data/Vannmiljo St. 4 Svensholmen metals 2010-2014.xlsx", sheet = "nivabasen_fixed") %>%
+  mutate(
+    MYEAR = as.numeric(MYEAR),
+    Month = as.numeric(Month)
+  ) %>%
+  filter(Month >= 9)
+
+# from 002, test code below 'get_biotachemistry' function 
+# dataset_extra3 <- bind_rows(
+#   readRDS("data_chem_industry_ransfjord_2024.rds") ,
+#   readRDS("data_chem_industry_hoyangsfjord_2024.rds")
+# ) %>%
+#   rename(PARAM = NAME) %>%
+#   mutate(BASIS = "W")
+# # Keep only necessary columns
+# dataset_extra3 <- dataset_extra3[names(dataset_extra2)]
+
+# Replace original "all year" Elkem - REC data with autumn-only data  
+dataset_all_02 <- dataset_all_01 %>%
+  filter(!STATION_CODE %in% c("St. 1", "St. 2", "St. 3", "St. 4", "St. 5")) %>%
+  rbind(dataset_extra)
+
+# Replace original 2010-2013 data with data from Vannmiljø    
+params_metals <- c("AS", "PB", "CD", "CU", "CR", "HG", "NI", "ZN")
+dataset_all_03 <- dataset_all_02 %>%
+  filter(!(STATION_CODE %in% "St. 4" & 
+             MYEAR %in% 2010:2013 & PARAM %in% params_metals)) %>%
+  bind_rows(dataset_extra2) 
+# %>%
+#   bind_rows(dataset_extra3)
+
+# table(dataset_all_03$STATION_CODE) %>% names() %>% dput()
+# table(dataset_all_01$STATION_CODE) %>% names() %>% dput()
+
+dataset_all_03 <- dataset_all_03 %>% 
+  mutate(
+    Area = case_when(
+      STATION_CODE %in% c("I964/I964b", "I965", "I969") ~ "Ransfjorden",
+      STATION_CODE %in% c("G1", "G2B", "G5", "G6", "G6B", "G7", "G8") ~ "Årdalsfjorden",
+      STATION_CODE %in% c("St. 1", "St. 2", "St. 3", "St. 4", "St. 5") ~ "Kristiansand (Elkem)",
+      # Have used  
+      # id/codes in 2024: 71334 Glencore kai, 71336 Kolsdalsbukta, 71337 Myrodden,
+      #   74455 Hanneviksbukta krabber, 71338 Dvergsøya, referansestasjon , 71335 Hanneviksbukt
+      STATION_NAME %in% c("Glencore kai", "Kolsdalsbukta", "Myrodden", 
+                          "Hanneviksbukta", "Dvergsøya") ~ "Kristiansand (Glencore)") 
+    )
+
+if (FALSE){
+  dataset_all_03 %>%
+    distinct(Area, STATION_CODE, STATION_NAME, STATION_ID, STATION_ID.x, STATION_ID.y) %>% 
+    arrange(Area, STATION_CODE, STATION_NAME, STATION_ID, STATION_ID.x, STATION_ID.y) %>% View("stations")
+  dataset_all_03 %>%
+    distinct(Area, STATION_CODE, STATION_NAME, STATION_ID, STATION_ID.x, STATION_ID.y) %>% View("stations")
+}
+
+```
+
+#### Add station names + Region 
+
+```{r}
+
+dataset_all_04 <- dataset_all_03 %>%
+  left_join(lookup_stations %>% select(STATION_CODE, Station_name), 
+            by = "STATION_CODE", relationship = "many-to-one")
+
+```
+
+#### Save  
+
+```{r}
+
+saveRDS(dataset_all_04, "App02_Industry_data/data_chem_industry_2023_complete.rds")
+
+```
+
 
 ### Høyangsfjorden   
 
@@ -86,7 +263,7 @@ lazy_hoy <- select_measurements(station_id = df_station$STATION_ID, connection =
 ```
 
 
-#### Check numbers of measurements  
+#### Check number of measurements  
 
 - tabulate the selected data, without actually downloading the full data 
 
@@ -155,15 +332,15 @@ and link using `join_by(STATION_ID)`
 ```{r}
 
 # Based on mapP
-lookup_stations_hoyang <- tibble::tribble(
-  ~STATION_CODE, ~STATION_NAME, ~Project,
+lookup_stations <- tibble::tribble(
+  ~STATION_CODE, ~STATION_NAME, ~Area,
   "G1", "Sandvika", "Høyangsfjorden",
   "G2", "Godvika", "Høyangsfjorden",
   "G3", "Saueneset", "Høyangsfjorden",
   "G4", "Sæbøneset", "Høyangsfjorden",
   "G6", "Espeskog", "Høyangsfjorden",
   "Hg-ref", "Kyrkjeneset", "Høyangsfjorden"
-)
+) 
 
 ```
 
@@ -173,24 +350,32 @@ lookup_stations_hoyang <- tibble::tribble(
 
 ```{r}
 
-# Download the data  
+# Download the data (15 sec) 
 t0 <- Sys.time()
 
-df_hoy_01 <- lazy_hoy %>% collect()  
+dat_01 <- lazy_hoy %>% collect()  
 
 t1 <- Sys.time(); t1-t0
-nrow(df_hoy_01)
+nrow(dat_01)
 # 15.1056 secs for 935 rows  
 
-# Add STATION_CODE, Station_name and Area
-df_hoy_02 <- df_hoy_01 %>%
+```
+
+#### Add variables
+
+```{r}
+
+dat_02 <- dat_01 %>%
+  # Add Station_name and Area based on STATION_CODE
   left_join(lookup_stations_hoyang, 
             by = join_by(STATION_CODEs == STATION_CODE), 
             relationship = "many-to-one") %>%
   rename(STATION_CODE = STATION_CODEs) %>%
+  # Add PARAM (standardized parameter names) and BASIS
   mutate(
     PARAM = get_standard_parametername(
-      NAME, here("Input_data/Lookup table - standard parameter names.csv")))
+      NAME, here("Input_data/Lookup table - standard parameter names.csv")),
+    BASIS = "W")
 
 ```
 
@@ -198,7 +383,7 @@ df_hoy_02 <- df_hoy_01 %>%
 
 ```{r}
 
-saveRDS(df_hoy_02, paste0(here(), "/App02_Industry_data/data_chem_industry_hoyangsfjord_2015-2024.rds"))
+saveRDS(dat_02, paste0(here(), "/App02_Industry_data/data_chem_industry_hoyangsfjord_2015-2024.rds"))
 
 ```
 
@@ -209,6 +394,11 @@ saveRDS(df_hoy_02, paste0(here(), "/App02_Industry_data/data_chem_industry_hoyan
 
 fn <- "App02_Industry_data/Høyangsfjorden - Tungmetaller i blåskjell fra før 2015.xlsx"
 readxl::excel_sheets(fn)
+
+# Check units:
+# check <- readxl::read_excel(fn, sheet = "Regnet om til våtvekt", 
+#                              # Note: all columns must be read as text, otherwise pivot_longer falls over
+#                              col_types = "text")
 
 datx_1 <- readxl::read_excel(fn, sheet = "For innlesing", 
                              # Note: all columns must be read as text, otherwise pivot_longer falls over
@@ -228,20 +418,26 @@ datx_3 <- datx_2 %>%
     FLAG1 = case_when(
       grepl("<", VALUE_chr) ~ "<"
     ),
+    UNIT = "MG_P_KG",
+    LATIN_NAME = "Mytilus edulis",
     TISSUE_NAME = "Whole soft body",
+    BASIS = "W",
     SAMPLE_DATE = ymd(ymd),
     MYEAR = year(SAMPLE_DATE),
     PARAM = get_standard_parametername(
       NAME, here("Input_data/Lookup table - standard parameter names.csv"))) %>%
   # add STATION_CODE, Project
   left_join(
-    lookup_stations_hoyang, 
+    lookup_stations, 
     by = join_by(STATION_NAME), 
     relationship = "many-to-one"
   ) %>%
+  mutate(
+    
+  ) %>%
   # add STATION_ID
   left_join(
-    df_hoy_02 %>% distinct(STATION_CODE, STATION_ID), 
+    dat_02 %>% distinct(STATION_CODE, STATION_ID), 
     by = join_by(STATION_CODE), 
     relationship = "many-to-one"
   )
@@ -254,8 +450,51 @@ str(datx_3)
 #### Add to the rest  
 ```{r}
 
-df_hoy_03 <- df_hoy_02 %>%
+dat_03 <- dat_02 %>%
   bind_rows(datx_3 %>% select(-ymd))
+
+```
+
+#### Check: rows lacking values  
+
+* Note: manual check (using View)
+
+```{r}
+
+lacking_value <- is.na(dat_03$VALUE)
+
+# Run next limne to check rows lacking values:
+# View(dat_03[lacking_value, ], title = "lacking_value")                       
+# - here lacking because of empty cells in the excel file
+
+dat_04 <- dat_03[!lacking_value,]
+
+```
+
+#### Checking NAs in necessary variables  
+```{r}
+
+vars_compulsory <- c("STATION_CODE", "MYEAR", "LATIN_NAME", "TISSUE_NAME", 
+                             "PARAM", "VALUE", "UNIT", "BASIS")
+check1 <- is.na(dat_04[,vars_compulsory])
+check2 <- apply(check1, 2, sum)
+
+if (sum(check2) > 0){
+  cat("Number of NA values:\n")
+  print(check2[check2 > 0])
+  stop("Lacking values among compulsory variables")
+}
+
+```
+
+#### Pick columns to save
+
+```{r}
+
+dat_05 <- dat_04 %>%
+  mutate(SAMPLE_NO2 = SAMPLE_ID, 
+         LATIN_NAME_sample = LATIN_NAME)
+dat_05 <- dat_05[,columns_needed]
 
 ```
 
@@ -264,7 +503,7 @@ df_hoy_03 <- df_hoy_02 %>%
 
 ```{r}
 
-saveRDS(df_hoy_03, paste0(here(), "/App02_Industry_data/data_chem_industry_hoyangsfjord_2007-2024.rds"))
+saveRDS(dat_05, here("App02_Industry_data", "data_chem_industry_hoyangsfjord_2007-2024.rds"))
 
 ```
 
@@ -277,8 +516,8 @@ Tiltaksorientert overvåking av Ransfjorden i 2024, O 240130
 #### Projects  
 
 ```{r}
-find_projects("240130", o_number = TRUE, connection = con)
-find_projects(search_text = "Ranfjorden", wildcard = TRUE, ignore.case = TRUE, connection = con) 
+# find_projects("240130", o_number = TRUE, connection = con)
+# find_projects(search_text = "Ranfjorden", wildcard = TRUE, ignore.case = TRUE, connection = con) 
 df_proj <- find_projects("Ranfjorden i 2024", wildcard = TRUE, ignore.case = TRUE, connection = con) %>%
   collect()
 df_proj
@@ -332,9 +571,9 @@ lazy_hoy <- select_measurements(station_id = df_station$STATION_ID, myear = 2024
 
 # Years and stations  
 tab1 <- lazy_hoy %>%
-  count(MYEAR, STATION_ID) %>% collect()
+  count(MYEAR, STATION_CODEs, STATION_ID) %>% collect()
 tab2 <- lazy_hoy %>%
-  filter(STATION_ID == 50590) %>%
+  filter(STATION_ID == 47184) %>%
   count(NAME) %>% collect()
 
 tab1 %>%
@@ -392,12 +631,25 @@ and link using `join_by(STATION_ID)`
 
 ```{r}
 
-# Based on mapP
+# dataset_all_01 <- readRDS("data_chem_industry_ind_2023.rds")
+# dataset_extra <- readRDS("data_chem_industry_ind_2023_ElkemREC_autumn.rds")
+# dataset_extra2 <- readxl::read_excel(
+#   "Vannmiljo St. 4 Svensholmen metals 2010-2014.xlsx", sheet = "nivabasen_fixed") %>%
+#   mutate(
+#     MYEAR = as.numeric(MYEAR),
+#     Month = as.numeric(Month)
+#   ) %>%
+#   filter(Month >= 9)
+# 
+# dataset_all_01 %>% filter(grepl("96", STATION_CODE)) %>% xtabs(~MYEAR + STATION_CODE, .)
+# dataset_all_01 %>% filter(grepl("96", STATION_CODE)) %>% xtabs(~MYEAR + STATION_CODE, .)
+
+# Based on map
 lookup_stations <- tibble::tribble(
   ~STATION_ID, ~STATION_CODE, ~STATION_NAME, ~Project,
-  71598, "I964/I964b", "Nord for Toraneskaia", "Ransfjorden",
-  47184, "I965", "Moholmen", "Ransfjorden",
-  47181, "I969", "Bjørnebærviken", "Ransfjorden"
+  71598, "I964/I964b", "Nord for Toraneskaia", "Ranfjorden",
+  47184, "I965", "Moholmen", "Ranfjorden",
+  47181, "I969", "Bjørnbærviken", "Ranfjorden"
 )
 
 ```
@@ -411,23 +663,75 @@ lookup_stations <- tibble::tribble(
 # Download the data  
 t0 <- Sys.time()
 
-df_hoy_01 <- lazy_hoy %>% collect()  
+dat_01 <- lazy_hoy %>% collect()  
 
 t1 <- Sys.time(); t1-t0
-nrow(df_hoy_01)
+nrow(dat_01)
 # 15.1056 secs for 935 rows  
 
-# Add STATION_CODE, Station_name and Area
-df_hoy_02 <- df_hoy_01 %>%
+```
+
+#### Add variables
+
+```{r}
+
+dat_02 <- dat_01 %>%
+  # Add STATION_CODE, Station_name and Area based on STATION_ID
   left_join(lookup_stations, 
             by = join_by(STATION_ID), 
             relationship = "many-to-one") %>%
+  # In this case, STATION_CODE is given by the line above
+  # rename(STATION_CODE = STATION_CODEs) %>%
+  # Add PARAM (standardized parameter names) and BASIS
   mutate(
     PARAM = get_standard_parametername(
-      NAME, here("Input_data/Lookup table - standard parameter names.csv")))
+      NAME, here("Input_data/Lookup table - standard parameter names.csv")),
+    BASIS = "W")
 
-check <- df_hoy_02 %>%
-  distinct(STATION_ID, STATION_CODE, STATION_CODEs)
+check <- dat_02 %>%
+  count(STATION_ID, STATION_CODE)
+
+```
+
+#### Extra data
+
+* none in this case  
+
+```{r}
+dat_03 <- dat_02
+```
+
+
+#### Check: rows lacking values  
+
+* Note: manual check (using View)
+
+```{r}
+
+lacking_value <- is.na(dat_03$VALUE)
+sum(lacking_value)
+
+# Run next limne to check rows lacking values:
+# View(dat_03[lacking_value, ], title = "lacking_value")                       
+# - here lacking because of empty cells in the excel file
+
+dat_04 <- dat_03[!lacking_value,]
+
+```
+
+#### Checking NAs in necessary variables  
+```{r}
+
+vars_compulsory <- c("STATION_CODE", "MYEAR", "LATIN_NAME", "TISSUE_NAME", 
+                             "PARAM", "VALUE", "UNIT", "BASIS")
+check1 <- is.na(dat_04[,vars_compulsory])
+check2 <- apply(check1, 2, sum)
+
+if (sum(check2) > 0){
+  cat("Number of NA values:\n")
+  print(check2[check2 > 0])
+  stop("Lacking values among compulsory variables")
+}
 
 ```
 
@@ -435,10 +739,261 @@ check <- df_hoy_02 %>%
 
 ```{r}
 
-saveRDS(df_hoy_02, paste0(here(), "/App02_Industry_data/data_chem_industry_ranssfjord_2024.rds"))
+saveRDS(dat_04, here("App02_Industry_data", "data_chem_industry_ranfjord_2024.rds"))
 
 ```
 
+
+### Kristiansandsfjorden (Elkem)     
+
+Tiltaksorientert overvåking for Elkem Carbon i 2024, O 240244  
+
+#### Projects  
+
+```{r}
+# find_projects("240130", o_number = TRUE, connection = con)
+# find_projects(search_text = "Ranfjorden", wildcard = TRUE, ignore.case = TRUE, connection = con) 
+df_proj <- find_projects("240244", o_number = TRUE, wildcard = TRUE, ignore.case = TRUE, connection = con) %>%
+  collect()
+df_proj
+```
+
+#### Projects-stations  
+
+```{r}
+# find_projects("høyang", wildcard = TRUE, ignore.case = TRUE, connection = con)
+df_pstation <- select_projects_stations(project_id = df_proj$PROJECT_ID, connection = con) %>%
+  collect() 
+df_pstation
+
+```
+
+#### Stations  
+
+- one row per station (defined by station ID); summarizes the different versions of STATION_CODE, STATION_NAME and projects for each station  
+- may also also contain sediment and water stations  
+
+```{r}
+
+df_station <- select_stations(station_id = df_pstation$STATION_ID, connection = con) %>%
+  collect() 
+df_station
+```
+#### Decide on station names  
+
+```{r}
+
+lookup_station <- df_station %>% 
+  mutate(
+    STATION_NAME = case_when(
+      STATION_CODEs == "St. 2" ~ "Fiskå",
+      STATION_CODEs == "St. 5" ~ "Flekkerøygapet",
+      TRUE ~ STATION_NAMEs),
+    Area = "Kristiansand (Elkem)"
+  ) %>%
+  rename(STATION_CODE = STATION_CODEs) %>%
+  select(STATION_ID, STATION_CODE, STATION_NAME, Area)
+
+```
+
+#### Select measurements  
+
+- in this case, chooses all biota chemistry data from the stations in `df_station`  
+- may also select a subset of stations, years, species, tissues, parameters    
+
+```{r}
+
+# Set up data lazily  
+lazy_hoy <- select_measurements(station_id = df_station$STATION_ID, myear = 2024, connection = con)
+
+# if it stops because "samples are from more than one station",, try this:
+# df_samples <- select_samples(station_id = df_pstation$STATION_ID, connection = con, 
+#                              stop_if_problem = FALSE) %>%
+#   collect()
+
+```
+
+
+#### Check numbers of measurements  
+
+- tabulate the selected data, without actually downloading the full data 
+
+```{r}
+
+# Years and stations  
+tab1 <- lazy_hoy %>%
+  count(MYEAR, STATION_CODEs, STATION_ID) %>% collect()
+# example station 
+tab2 <- lazy_hoy %>%
+  filter(STATION_ID == 66196) %>%
+  count(NAME) %>% collect()
+
+tab1 %>%
+  arrange(MYEAR) %>%
+  tidyr::pivot_wider(names_from = MYEAR, values_from = n)
+
+```
+#### From Labware  
+```{r}
+
+dir("App02_Industry_data", "xlsx")  
+
+fn <- "data_LIMS_O240244 Elkem Carbon i 2024.xlsx" 
+excel_sheets(here("App02_Industry_data", fn))
+
+dat_lims <- read_xlsx(here("App02_Industry_data", fn), sheet = "Forhåndvis resultater")  
+
+dat_lims %>% names() 
+
+table(dat_lims$STASJON)
+
+columns_needed <- c("STATION_CODE", "STATION_NAME", "LATIN_NAME", "TISSUE_NAME", 
+                    "PARAM", "UNIT", "SAMPLE_DATE", "MYEAR", "SAMPLE_NO2", "VALUE", 
+                    "FLAG1", "BASIS", "QUANTIFICATION_LIMIT", "LATIN_NAME_sample", 
+                    "SAMPLE_NO", "REPNO", "NAME", "LABORATORY", "METHOD_REF", "BASIS_CODE", 
+                    "DETECTION_LIMIT", "UNCERTAINTY", "REMARK_sample", "SAMPLE_ID", 
+                    "METHOD_ID", "VALUE_ID", "TISSUE_ID", "STATION_ID", "Area")
+
+```
+
+```{r}
+
+lookup_latin <- data.frame(ART = "Blåskjell", LATIN_NAME = "Mytilus edulis")
+lookup_units <- data.frame(
+  ENHETER = c("µg/kg","µg/kg"), UNIT = c("MG_P_KG", "UG_P_KG"))
+
+dat_01 <- dat_lims %>% 
+  rename(STATION_NAME = STASJON) %>% 
+  left_join(
+    lookup_station, by = c("STATION_NAME")
+  )  %>% 
+  left_join(
+    lookup_latin, by = c("ART")
+  ) %>% 
+  left_join(
+    lookup_units, by = c("ENHETER")
+  ) %>% 
+  rename(
+    TISSUE_NAME = VEV,
+    NAME = KOMPONENT) %>% 
+  mutate(
+    SAMPLE_DATE = dmy_hms(PRØVETAKINGSDATO),
+    MYEAR = year(SAMPLE_DATE),
+    PARAM = get_standard_parametername(
+      NAME, here("Input_data/Lookup table - standard parameter names.csv")),
+    BASIS = "W",
+    VALUE = RESULTAT %>% sub("<", "", .) %>% sub(",", ".", .) %>% as.numeric(),
+    FLAG1 = case_when(
+      grepl("<", RESULTAT) ~ "<",
+      TRUE ~ as.character(NA))
+  )
+
+```
+#### Selecting columns    
+```{r}
+
+columns_to_keep <- intersect(columns_needed, names(dat_01))
+dat_02 <- dat_01[,columns_to_keep]
+
+```
+
+#### Map stations  
+
+```{r}
+
+df_station_formap <- df_station %>% 
+  # Select only stations found in data - i.e., only stations with biota chemistry 
+  # This line is adapted for using CODE not ID
+  filter(STATION_CODEs %in% unique(dat_02$STATION_CODE)) %>%
+  # Make text to plot
+  mutate(
+    text_plot = paste0("STATION_ID = ", STATION_ID, "\n", 
+                       "STATION_CODE = ", STATION_CODEs, "\n", 
+                       STATION_NAMEs),
+    text_leaflet = paste0("STATION_ID = ", STATION_ID, "<br>", 
+                          "STATION_CODE = ", STATION_CODEs, "<br>", 
+                          STATION_NAMEs))
+
+get_xlim <- function(data, extra = 0.2){
+  c(min(data[["LONGITUDE"]]) - extra, max(data[["LONGITUDE"]]) + extra)}
+get_ylim <- function(data, extra = 0.1){
+  c(min(data[["LATITUDE"]]) - extra, max(data[["LATITUDE"]]) + extra)}
+
+ggplot(df_station_formap, aes(x = LONGITUDE, y = LATITUDE, label = text_plot)) +
+    annotation_map(
+    map_data("worldHires", "Norway"),
+    fill = "antiquewhite", colour = "darkgrey"
+  ) +
+  geom_point() +
+  coord_fixed(ratio = 2, 
+              xlim = get_xlim(df_station_formap),
+              ylim = get_ylim(df_station_formap)) +
+  geom_label_repel(size = 3)
+
+
+if (FALSE){
+  
+  # Run in console
+  library(leaflet)
+  leaflet(df_station_formap) %>%
+    addTiles() %>%
+    addMarkers(lng = ~LONGITUDE, lat = ~LATITUDE, popup = ~text_leaflet)
+  
+}
+
+```
+
+#### Decide on station names  
+
+- will be linked to the data using STATION_CODE, see below (`join_by(STATION_CODE)`)   
+    - we can do that here as there is only one STATION_CODE per station)  
+- in some cases there are several STATION_CODE per station (example: some sediment stations
+in this area, se station table above); we must then include STATION_ID in the table, 
+and link using `join_by(STATION_ID)`  
+
+```{r}
+
+# dataset_all_01 <- readRDS("data_chem_industry_ind_2023.rds")
+# dataset_extra <- readRDS("data_chem_industry_ind_2023_ElkemREC_autumn.rds")
+# dataset_extra2 <- readxl::read_excel(
+#   "Vannmiljo St. 4 Svensholmen metals 2010-2014.xlsx", sheet = "nivabasen_fixed") %>%
+#   mutate(
+#     MYEAR = as.numeric(MYEAR),
+#     Month = as.numeric(Month)
+#   ) %>%
+#   filter(Month >= 9)
+# 
+# dataset_all_01 %>% filter(grepl("96", STATION_CODE)) %>% xtabs(~MYEAR + STATION_CODE, .)
+# dataset_all_01 %>% filter(grepl("96", STATION_CODE)) %>% xtabs(~MYEAR + STATION_CODE, .)
+
+
+existing_data <- readRDS("App02_Industry_data/data_chem_industry_2023_complete.rds")
+
+existing_stations <- existing_data %>% 
+  count(STATION_ID, STATION_CODE, STATION_NAME) %>%
+  filter(STATION_CODE %in% dat_01$STATION_CODE)
+
+existing_stations
+
+stations_not_in_existing <- setdiff(dat_01$STATION_CODE, existing_stations$STATION_CODE)
+
+if (length(stations_not_in_existing) > 0){
+  stop("Some stations not in existing data")
+} else {
+ message("Stations appear ok") 
+}
+
+
+```
+
+
+#### Save  
+
+```{r}
+
+saveRDS(dat_02, here("App02_Industry_data", "data_chem_industry_glencore_2024.rds"))
+
+```
 
 
 
