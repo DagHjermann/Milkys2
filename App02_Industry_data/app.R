@@ -74,10 +74,13 @@ folder_output <- paste0(folder_results, "_output")
 # in folder/project "Milkys"
 # 
 
-dataset_all <- readRDS("data_chem_industry_2023_complete.rds")
+dataset_all <- readRDS("data_chem_industry_2023_complete.rds") %>%
+  bind_rows(readRDS("data_chem_industry_hoyangsfjord_2007-2024.rds")) %>%
+  bind_rows(readRDS("data_chem_industry_ranfjord_2024.rds")) %>% 
+  bind_rows(readRDS("data_chem_industry_krsand-elkem_2024.rds"))
 
 # dat_all_prep3 <- bind_rows(dataset1, dataset2) %>%
-dat_all_prep3 <- dataset_all %>%
+dat_all_prep1 <- dataset_all %>%
   mutate(
     Basis = case_when(
       BASIS %in% "W" ~ "WW",
@@ -96,7 +99,7 @@ dat_all_prep3 <- dataset_all %>%
   filter(!is.na(VALUE))
 
 # Add 'Param_name' and 'Tissue_name' to data    
-dat_all_prep3 <- dat_all_prep3 %>%
+dat_all_prep2a <- dat_all_prep1 %>%
   left_join(lookup_paramnames, by = "PARAM") %>%
   mutate(
     Param_name = ifelse(is.na(Param_name), PARAM, Param_name),  # use PARAM if Param_name is lacking
@@ -109,16 +112,16 @@ dat_all_prep3 <- dat_all_prep3 %>%
   )
 
 # Add 'Species_name' to data    
-dat_all_prep3 <- dat_all_prep3 %>%
+dat_all_prep2b <- dat_all_prep2a %>%
   left_join(lookup_speciesnames, by = "LATIN_NAME") %>%
   mutate(Species_name = ifelse(is.na(Species_name), LATIN_NAME, Species_name))
 
 # Add EQS and Proref to data    
 dat_all_prep3 <- bind_rows(
-  dat_all_prep3 %>%
+  dat_all_prep2b %>%
     filter(PARAM != "CB118") %>%
     left_join(lookup_eqs %>% filter(PARAM != "CB118") %>% select(-LATIN_NAME, -Basis), by = c("PARAM")),
-  dat_all_prep3 %>%
+  dat_all_prep2b %>%
     filter(PARAM == "CB118") %>%
     left_join(lookup_eqs %>% filter(PARAM == "CB118"), by = c("PARAM", "Basis", "LATIN_NAME"))
 ) %>%
@@ -126,13 +129,15 @@ dat_all_prep3 <- bind_rows(
 
 # For the menus
 params <- unique(dat_all_prep3$PARAM) %>% sort()
-projects <- unique(dat_all_prep3$Projects) %>% sort()
+# projects <- unique(dat_all_prep3$Projects) %>% sort()
 stations <- unique(dat_all_prep3$Station) %>% sort()
 tissues <- unique(dat_all_prep3$TISSUE_NAME) %>% sort()
 tissues <- c("(automatic)", tissues)
 basises <- unique(dat_all_prep3$Basis) %>% sort()
 years_all <- unique(dat_all_prep3$MYEAR) %>% sort()
 names(years_all) <- years_all
+
+# browser()
 
 # Folder for saving plots
 folder <- "../Figures_402/Til 2024-rapporten/"

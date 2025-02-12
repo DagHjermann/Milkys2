@@ -779,7 +779,7 @@ df_station <- select_stations(station_id = df_pstation$STATION_ID, connection = 
   collect() 
 df_station
 ```
-#### Decide on station names  
+#### Set station names  
 
 ```{r}
 
@@ -885,7 +885,8 @@ dat_01 <- dat_lims %>%
     VALUE = RESULTAT %>% sub("<", "", .) %>% sub(",", ".", .) %>% as.numeric(),
     FLAG1 = case_when(
       grepl("<", RESULTAT) ~ "<",
-      TRUE ~ as.character(NA))
+      TRUE ~ as.character(NA)),
+    Area = "Kristiansand-Elkem"
   )
 
 ```
@@ -943,7 +944,7 @@ if (FALSE){
 
 ```
 
-#### Decide on station names  
+#### Check station names  
 
 - will be linked to the data using STATION_CODE, see below (`join_by(STATION_CODE)`)   
     - we can do that here as there is only one STATION_CODE per station)  
@@ -991,9 +992,10 @@ if (length(stations_not_in_existing) > 0){
 
 ```{r}
 
-saveRDS(dat_02, here("App02_Industry_data", "data_chem_industry_glencore_2024.rds"))
+saveRDS(dat_02, here("App02_Industry_data", "data_chem_industry_krsand-elkem_2024.rds"))
 
 ```
+
 
 
 
