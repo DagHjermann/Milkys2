@@ -1729,7 +1729,12 @@ if (FALSE){
 }
 
 
-
+# For makink map plots: get x and y limits (ie longitude and latitude range) from data,  
+# and add some extra on each side in order to make room for labels
+get_xlim <- function(data, extra = 0.2){
+  c(min(data[["LONGITUDE"]]) - extra, max(data[["LONGITUDE"]]) + extra)}
+get_ylim <- function(data, extra = 0.1){
+  c(min(data[["LATITUDE"]]) - extra, max(data[["LATITUDE"]]) + extra)}
 
 
 
