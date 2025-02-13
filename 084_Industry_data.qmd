@@ -57,6 +57,8 @@ if (!test){
 ```
 
 
+
+
 ### "Original" data  
 
 #### Lookup data for stations  
@@ -203,11 +205,49 @@ dataset_all_04 <- dataset_all_03 %>%
 
 ```
 
+#### Add station names + Area for Kristiansand Glencore
+
+* drop this for now, as station names in the app are formed from STATION_CODE + STATION_NAME 
+
+```{r}
+
+# lookup_stations_glencore <- data.frame(
+#   STATION_ID = c(71334, 71335, 71336, 71337, 71338), 
+#   STATION_CODE = c("Glencore kai", "Hanneviksbukta", "Kolsdalsbukta", 
+#                     "Myrodden", "Dvergsøya, referansestasjon"), 
+#   # from existing_stations:
+#   STATION_NAME = c("Glencore kai", "Hanneviksbukta", "Kolsdalsbukta", 
+#                     "Myrodden", "Dvergsøya (referansestasjon)")
+# )
+
+# dataset_all_04 %>% 
+#   filter(STATION_NAME %in% lookup_stations_glencore$STATION_NAME) %>%
+#   distinct(STATION_ID, STATION_CODE, STATION_NAME)
+# 
+# dataset_all_05 <- dataset_all_04 %>% 
+#   left_join(
+#     lookup_stations_glencore %>% 
+#       rename(STATION_ID_new = STATION_ID, STATION_CODE_new = STATION_CODE)
+#   ) %>% 
+#   mutate(
+#     STATION_ID = ifelse(is.na(STATION_ID_new), STATION_ID, STATION_ID_new),
+#     STATION_CODE = ifelse(is.na(STATION_CODE_new), STATION_CODE, STATION_CODE_new),
+#   ) 
+# 
+# dataset_all_05 %>% 
+#   filter(STATION_NAME %in% lookup_stations_glencore$STATION_NAME) %>%
+#   distinct(STATION_ID, STATION_CODE, STATION_NAME)
+
+```
+
 #### Save  
 
 ```{r}
 
 saveRDS(dataset_all_04, "App02_Industry_data/data_chem_industry_2023_complete.rds")
+
+# dataset_orig <- readRDS("App02_Industry_data/data_chem_industry_2023_complete.rds")
+
 
 ```
 
@@ -915,11 +955,6 @@ df_station_formap <- df_station %>%
                           "STATION_CODE = ", STATION_CODEs, "<br>", 
                           STATION_NAMEs))
 
-get_xlim <- function(data, extra = 0.2){
-  c(min(data[["LONGITUDE"]]) - extra, max(data[["LONGITUDE"]]) + extra)}
-get_ylim <- function(data, extra = 0.1){
-  c(min(data[["LATITUDE"]]) - extra, max(data[["LATITUDE"]]) + extra)}
-
 ggplot(df_station_formap, aes(x = LONGITUDE, y = LATITUDE, label = text_plot)) +
     annotation_map(
     map_data("worldHires", "Norway"),
@@ -997,5 +1032,350 @@ saveRDS(dat_02, here("App02_Industry_data", "data_chem_industry_krsand-elkem_202
 ```
 
 
+### Kristiansandsfjorden (Glencore)     
 
+Tiltaksorientert overvåking av Ransfjorden i 2024, O 240130  
+
+#### Projects  
+
+```{r}
+# find_projects("240130", o_number = TRUE, connection = con)
+# find_projects(search_text = "Glencore", wildcard = TRUE, ignore.case = TRUE, connection = con) 
+df_proj <- find_projects("230218", o_number = TRUE, wildcard = TRUE, ignore.case = TRUE, connection = con) %>%
+  collect()
+df_proj
+```
+
+
+#### Projects-stations  
+
+```{r}
+# find_projects("høyang", wildcard = TRUE, ignore.case = TRUE, connection = con)
+df_pstation <- select_projects_stations(project_id = df_proj$PROJECT_ID, connection = con) %>%
+  collect() 
+df_pstation
+
+```
+
+#### Stations  
+
+- one row per station (defined by station ID); summarizes the different versions of STATION_CODE, STATION_NAME and projects for each station  
+- may also also contain sediment and water stations  
+
+```{r}
+
+df_station <- select_stations(station_id = df_pstation$STATION_ID, connection = con) %>%
+  collect() 
+df_station
+```
+
+#### Select measurements  
+
+- in this case, chooses all biota chemistry data from the stations in `df_station`  
+- may also select a subset of stations, years, species, tissues, parameters    
+
+```{r}
+
+# Set up data lazily  
+lazy_hoy <- select_measurements(station_id = df_station$STATION_ID, myear = 2024, species = "Mytilus edulis", connection = con)
+
+# if it stops because "samples are from more than one station",, try this:
+# df_samples <- select_samples(station_id = df_pstation$STATION_ID, connection = con, 
+#                              stop_if_problem = FALSE) %>%
+#   collect()
+
+```
+
+
+#### Check numbers of measurements  
+
+- tabulate the selected data, without actually downloading the full data 
+
+```{r}
+
+# Years and stations  
+tab1 <- lazy_hoy %>%
+  count(MYEAR, STATION_CODEs, STATION_ID) %>% collect()
+tab2 <- lazy_hoy %>%
+  filter(STATION_ID == 47184) %>%
+  count(NAME) %>% collect()
+
+tab1 %>%
+  arrange(MYEAR) %>%
+  tidyr::pivot_wider(names_from = MYEAR, values_from = n)
+
+```
+
+#### Map stations  
+
+```{r}
+
+df_station_formap <- df_station %>% 
+  # Select only stations found in data - i.e., only stations with biota chemistry  
+  filter(STATION_ID %in% unique(tab1$STATION_ID)) %>%
+  # Make text to plot
+  mutate(
+    text_plot = paste0("STATION_ID = ", STATION_ID, "\n", 
+                       "STATION_CODE = ", STATION_CODEs, "\n", 
+                       STATION_NAMEs),
+    text_leaflet = paste0("STATION_ID = ", STATION_ID, "<br>", 
+                          "STATION_CODE = ", STATION_CODEs, "<br>", 
+                          STATION_NAMEs))
+
+ggplot(df_station_formap, aes(x = LONGITUDE, y = LATITUDE, label = text_plot)) +
+    annotation_map(
+    map_data("worldHires", "Norway"),
+    fill = "antiquewhite", colour = "darkgrey"
+  ) +
+  geom_point() +
+  # expand_limits(x = c(5.7, 6.4), y =  c(61.1, 61.3)) +
+  coord_fixed(ratio = 2) +
+  geom_label_repel(size = 3)
+
+
+if (FALSE){
+  
+  # Run in console
+  library(leaflet)
+  leaflet(df_station_formap) %>%
+    addTiles() %>%
+    addMarkers(lng = ~LONGITUDE, lat = ~LATITUDE, popup = ~text_leaflet)
+  
+}
+
+```
+
+
+#### Set STATION_NAME in accordance to existing names  accordfand
+
+- in this case, will be linked to the data using STATION_ID, see below (`join_by(STATION_CODE)`)   
+
+```{r}
+
+existing_data <- readRDS("App02_Industry_data/data_chem_industry_2023_complete.rds")
+
+existing_stations <- existing_data %>%
+  count(STATION_ID, STATION_CODE, STATION_NAME)
+
+station_id <- c(71334:71338)
+df_station %>%
+  filter(STATION_ID %in% station_id) %>% 
+  select(STATION_ID, STATION_CODEs, STATION_NAMEs) #  %>%  dput()
+
+# the three first columns are form 'df_stations', the last is from 'existing_stations'
+lookup_stations <- data.frame(
+  STATION_ID = c(71334, 71335, 71336, 71337, 71338), 
+  STATION_CODE = c("Glencore kai", "Hanneviksbukta", "Kolsdalsbukta", 
+                    "Myrodden", "Dvergsøya, referansestasjon"), 
+  STATION_NAMEs = c("Glencore kai blåskjell stedegne", "Hanneviksbukta blåskjell stedegne", "Kolsdalsbukta blåskjell stedegne", 
+                    "Myrodden blåskjell stedegne", "Dvergsøya, referansestasjon blåskjell stedegne"),
+  # from existing_stations:
+  STATION_NAME = c("Glencore kai", "Hanneviksbukta", "Kolsdalsbukta", 
+                    "Myrodden", "Dvergsøya (referansestasjon)")
+)
+  
+```
+
+
+#### Download measurements  
+
+```{r}
+
+# Download the data  
+t0 <- Sys.time()
+
+dat_01 <- lazy_hoy %>% collect()  
+
+t1 <- Sys.time(); t1-t0
+nrow(dat_01)
+# 15.1056 secs for 935 rows  
+
+```
+
+#### Add variables
+
+```{r}
+
+dat_02 <- dat_01 %>%
+  # Add STATION_CODE, Station_name and Area based on STATION_ID
+  select(-STATION_CODEs) %>% 
+  left_join(lookup_stations, 
+            by = join_by(STATION_ID), 
+            relationship = "many-to-one") %>%
+  # In this case, STATION_CODE is given by the line above
+  # rename(STATION_CODE = STATION_CODEs) %>%
+  # Add PARAM (standardized parameter names) and BASIS
+  mutate(
+    PARAM = get_standard_parametername(
+      NAME, here("Input_data/Lookup table - standard parameter names.csv")),
+    BASIS = "W",
+    # this is just to be in accordance with existing data:
+    STATION_CODE = NA
+  )
+
+check <- dat_02 %>%
+  count(STATION_ID, STATION_CODE, STATION_NAME)  
+
+check2 <- dat_02 %>%
+  count(STATION_ID, STATION_CODE, STATION_NAME, SAMPLE_ID) 
+
+
+```
+
+#### Manual change  
+
+```{r}
+
+dat_02 <- dat_02 %>% 
+  mutate(
+    STATION_NAME = case_when(
+      SAMPLE_ID == 252464 ~ "Glencore kai (utsatte skjell)",
+      TRUE ~ STATION_NAME)
+  )
+
+```
+
+
+#### Extra data
+
+* none in this case  
+
+```{r}
+dat_03 <- dat_02
+```
+
+
+#### Check: rows lacking values  
+
+* Note: manual check (using View)
+
+```{r}
+
+lacking_value <- is.na(dat_03$VALUE)
+sum(lacking_value)
+
+# Run next limne to check rows lacking values:
+# View(dat_03[lacking_value, ], title = "lacking_value")                       
+# - here lacking because of empty cells in the excel file
+
+dat_04 <- dat_03[!lacking_value,]
+
+```
+
+#### Checking NAs in necessary variables  
+```{r}
+
+vars_compulsory <- c("STATION_CODE", "STATION_NAME", "MYEAR", "LATIN_NAME", "TISSUE_NAME", 
+                             "PARAM", "VALUE", "UNIT", "BASIS")
+
+# special for this area - drop STATION_CODE:
+vars_compulsory <- c("STATION_NAME", "MYEAR", "LATIN_NAME", "TISSUE_NAME", 
+                             "PARAM", "VALUE", "UNIT", "BASIS")
+
+check1 <- is.na(dat_04[,vars_compulsory])
+check2 <- apply(check1, 2, sum)
+
+if (sum(check2) > 0){
+  cat("Number of NA values:\n")
+  print(check2[check2 > 0])
+  stop("Lacking values among compulsory variables")
+}
+
+```
+
+
+#### Checking parameters  
+
+```{r}
+
+complete_data <- bind_rows(
+  existing_data,
+  dat_04) %>% 
+  filter(STATION_NAME %in% dat_04$STATION_NAME)
+
+# complete_data 
+
+tab_param <- xtabs(~addNA(PARAM) + STATION_NAME, complete_data)
+
+```
+
+
+#### Add dry-weight data for metals  
+
+```{r}
+
+# We need to convert the following from wet-weight to dry-weight,
+#   as they are on dry weight in the existing data updated to 2023:
+#   c("AG", "AL", "AS", "CA", "CO", "CR", "CU", "FE", "NI", "PB", "ZN").
+# Code for finding those:
+# readRDS("App02_Industry_data/data_chem_industry_2023_complete.rds") %>% 
+#   filter(STATION_NAME %in% unique(dat_04$STATION_NAME)) %>% 
+#   count(PARAM, BASIS) %>% 
+#   filter(BASIS == "D") %>% 
+#   pull(PARAM) %>% 
+#   dput()
+
+dat_04_drywt <- dat_04 %>% 
+  filter(PARAM %in% "DRYWT%") %>% 
+  select(SAMPLE_ID, drywt_percent = VALUE)   
+
+dat_04_wetweight_to_dryweight <- dat_04 %>% 
+  filter(PARAM %in% c("AG", "AL", "AS", "CA", "CO", "CR", "CU", "FE", "NI", "PB", "ZN")) %>% 
+  left_join(dat_04_drywt, by = join_by(SAMPLE_ID), relationship = "many-to-one") %>% 
+  mutate(
+    VALUE = VALUE/(drywt_percent/100),
+    BASIS = "D")
+
+dat_05 <- dat_04 %>% 
+  bind_rows(
+    dat_04_wetweight_to_dryweight %>% select(-drywt_percent)
+  )
+
+```
+
+#### Metals -  test plot  
+
+```{r}
+
+param <- "CO"
+readRDS("App02_Industry_data/data_chem_industry_2023_complete.rds") %>%
+  # Add the new data
+  bind_rows(dat_05) %>% 
+  # Select all Glencore stations and the given 'param' 
+  filter(STATION_NAME %in% unique(dat_05$STATION_NAME) & PARAM == param) %>%
+  ggplot(aes(MYEAR, VALUE, colour = BASIS)) +
+  geom_point() +
+  facet_wrap(vars(STATION_NAME)) +
+  labs(title = param)
+
+
+```
+
+
+#### Save  
+
+```{r}
+
+saveRDS(dat_05, here("App02_Industry_data", "data_chem_industry_krsand-glencore_2024.rds"))
+
+```
+
+
+
+
+
+
+## APPX  
+
+```
+
+# python TEST
+import nivapy3 as nivapy
+import cx_Oracle
+
+eng = nivapy.da.connect()
+df = nivapy.da.select_resa_projects(eng)
+df.head()
+
+```
 
