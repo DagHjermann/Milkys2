@@ -77,7 +77,8 @@ folder_output <- paste0(folder_results, "_output")
 dataset_all <- readRDS("data_chem_industry_2023_complete.rds") %>%
   bind_rows(readRDS("data_chem_industry_hoyangsfjord_2007-2024.rds")) %>%
   bind_rows(readRDS("data_chem_industry_ranfjord_2024.rds")) %>% 
-  bind_rows(readRDS("data_chem_industry_krsand-elkem_2024.rds"))
+  bind_rows(readRDS("data_chem_industry_krsand-elkem_2024.rds")) %>% 
+  bind_rows(readRDS("data_chem_industry_krsand-glencore_2024.rds"))
 
 # dat_all_prep3 <- bind_rows(dataset1, dataset2) %>%
 dat_all_prep1 <- dataset_all %>%
