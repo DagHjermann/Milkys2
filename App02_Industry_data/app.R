@@ -121,10 +121,13 @@ dat_all_prep2b <- dat_all_prep2a %>%
 dat_all_prep3 <- bind_rows(
   dat_all_prep2b %>%
     filter(PARAM != "CB118") %>%
-    left_join(lookup_eqs %>% filter(PARAM != "CB118") %>% select(-LATIN_NAME, -Basis), by = c("PARAM")),
+    left_join(lookup_eqs %>% filter(PARAM != "CB118") %>% select(-LATIN_NAME), 
+              by = c("PARAM", "Basis"),  relationship = "many-to-one"),
   dat_all_prep2b %>%
     filter(PARAM == "CB118") %>%
-    left_join(lookup_eqs %>% filter(PARAM == "CB118"), by = c("PARAM", "Basis", "LATIN_NAME"))
+    left_join(lookup_eqs %>% filter(PARAM == "CB118"), 
+              by = c("PARAM", "Basis", "LATIN_NAME"),
+              relationship = "many-to-one")
 ) %>%
   left_join(lookup_proref, by = c("PARAM", "LATIN_NAME", "TISSUE_NAME", "Basis"))
 
