@@ -1139,7 +1139,8 @@ if (FALSE){
   library(leaflet)
   leaflet(df_station_formap) %>%
     addTiles() %>%
-    addMarkers(lng = ~LONGITUDE, lat = ~LATITUDE, popup = ~text_leaflet)
+    addMarkers(lng = ~LONGITUDE, lat = ~LATITUDE, 
+               popup = ~text_leaflet, clusterOptions = markerClusterOptions())
   
 }
 
