@@ -1167,7 +1167,8 @@ lookup_stations <- data.frame(
   STATION_ID = c(71334, 71335, 71336, 71337, 71338), 
   STATION_CODE = c("Glencore kai", "Hanneviksbukta", "Kolsdalsbukta", 
                     "Myrodden", "Dvergsøya, referansestasjon"), 
-  STATION_NAMEs = c("Glencore kai blåskjell stedegne", "Hanneviksbukta blåskjell stedegne", "Kolsdalsbukta blåskjell stedegne", 
+  STATION_NAMEs = c("Glencore kai blåskjell stedegne", "Hanneviksbukta blåskjell stedegne", 
+                    "Kolsdalsbukta blåskjell stedegne", 
                     "Myrodden blåskjell stedegne", "Dvergsøya, referansestasjon blåskjell stedegne"),
   # from existing_stations:
   STATION_NAME = c("Glencore kai", "Hanneviksbukta", "Kolsdalsbukta", 
@@ -1184,7 +1185,7 @@ lookup_stations <- data.frame(
 # Download the data  
 t0 <- Sys.time()
 
-dat_01 <- lazy_hoy %>% collect()  
+dat_01 <- lazy_hoy %>% filter(STATION_ID %in% 71334:71338) %>% collect()  
 
 t1 <- Sys.time(); t1-t0
 nrow(dat_01)
@@ -1208,6 +1209,7 @@ dat_02 <- dat_01 %>%
   mutate(
     PARAM = get_standard_parametername(
       NAME, here("Input_data/Lookup table - standard parameter names.csv")),
+    PARAM = ifelse(NAME %in%  "WHO(2005)-PCDD/F TEQ eksl. LOQ", "Dioksiner", PARAM),
     BASIS = "W",
     # this is just to be in accordance with existing data:
     STATION_CODE = NA
@@ -1308,7 +1310,7 @@ tab_param <- xtabs(~addNA(PARAM) + STATION_NAME, complete_data)
 #   as they are on dry weight in the existing data updated to 2023:
 #   c("AG", "AL", "AS", "CA", "CO", "CR", "CU", "FE", "NI", "PB", "ZN").
 # Code for finding those:
-# readRDS("App02_Industry_data/data_chem_industry_2023_complete.rds") %>% 
+# readRDS("App02_Industry_data/data_chem_industry_2023_complete.rds") %>%
 #   filter(STATION_NAME %in% unique(dat_04$STATION_NAME)) %>% 
 #   count(PARAM, BASIS) %>% 
 #   filter(BASIS == "D") %>% 
@@ -1337,7 +1339,8 @@ dat_05 <- dat_04 %>%
 
 ```{r}
 
-param <- "CO"
+param <- "FE"
+param <- "Dioksiner"
 readRDS("App02_Industry_data/data_chem_industry_2023_complete.rds") %>%
   # Add the new data
   bind_rows(dat_05) %>% 
@@ -1357,6 +1360,8 @@ readRDS("App02_Industry_data/data_chem_industry_2023_complete.rds") %>%
 ```{r}
 
 saveRDS(dat_05, here("App02_Industry_data", "data_chem_industry_krsand-glencore_2024.rds"))
+
+# dat_05 <- readRDS(here("App02_Industry_data", "data_chem_industry_krsand-glencore_2024.rds"))
 
 ```
 
