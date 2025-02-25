@@ -357,6 +357,7 @@ server <- function(input, output) {
                           proref = input$proref,
                           value_eqs = eqs(), 
                           value_proref = proref(),
+                          transformation = data_sel_transformation()
                           )
   })
   
