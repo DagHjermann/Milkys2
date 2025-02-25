@@ -86,9 +86,6 @@ dat_all_prep1 <- dataset_all %>%
     Basis = case_when(
       BASIS %in% "W" ~ "WW",
       BASIS %in% "D" ~ "DW"),
-    UNIT = case_when(
-      UNIT %in% "NG_P_G" ~ "UG_P_KG",
-      TRUE ~ UNIT),
     VALUE = case_when(
       VALUE == 0 & PARAM %in% "Sum 16 EPA-PAH ekskl. LOQ" ~ 0.05,
       TRUE ~ VALUE),
@@ -128,8 +125,19 @@ dat_all_prep3 <- bind_rows(
     left_join(lookup_eqs %>% filter(PARAM == "CB118"), 
               by = c("PARAM", "Basis", "LATIN_NAME"),
               relationship = "many-to-one")
-) %>%
+) %>% 
+  mutate(
+    UNIT = case_when(
+      UNIT %in% "NG_P_G" ~ "UG_P_KG",
+      TRUE ~ UNIT)) %>%
   left_join(lookup_proref, by = c("PARAM", "LATIN_NAME", "TISSUE_NAME", "Basis"))
+
+# Final transformation
+sel <- dat_all_prep3$UNIT %in% "PG_P_G"
+if (sum(sel) > 0){
+  dat_all_prep3$UNIT[sel] <- "UG_P_KG"
+  dat_all_prep3$VALUE[sel] <- dat_all_prep3$VALUE[sel]*0.001
+}
 
 # For the menus
 params <- unique(dat_all_prep3$PARAM) %>% sort()
