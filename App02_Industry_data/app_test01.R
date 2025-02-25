@@ -15,10 +15,8 @@
 # . set work directory ----
 #
 #o#o#o#o#o#o#o#o#o#o#o#o#o#o#o#o
+
 setwd("/home/jovyan/shared/common/DHJ/Milkys2/App02_Industry_data")
-
-
-dir("App02_Industry_data/")
 
 # startup: packages ----
 
@@ -36,8 +34,6 @@ source("../125_Calculate_trends_leftadjusted_functions.R")
 # source("../402_Plot_time_series_functions.R")
 source("app_functions.R")
 
-
-
 # startup: lookup files ----  
 
 # Lookup file for station names  
@@ -52,6 +48,8 @@ lookup_stations2 <- tibble::tribble(
   "I965", "Moholmen",
   "I969", "Bjørnbærviken"
 )
+
+
 
 lookup_stations <- bind_rows(
   lookup_stations1, lookup_stations2) %>%
@@ -86,67 +84,14 @@ folder_output <- paste0(folder_results, "_output")
 # in folder/project "Milkys"
 # 
 
-# dataset1 <- readRDS("data_chem_industry_ranfjord_elkem_ind_2022.rds")
-# dataset2 <- readRDS("data_chem_industry_kristiansand_glencore_ind_2022.rds")
-dataset_all_01 <- readRDS("data_chem_industry_ind_2023.rds")
-dataset_extra <- readRDS("data_chem_industry_ind_2023_ElkemREC_autumn.rds")
-dataset_extra2 <- readxl::read_excel(
-  "Vannmiljo St. 4 Svensholmen metals 2010-2014.xlsx", sheet = "nivabasen_fixed") %>%
-  mutate(
-    MYEAR = as.numeric(MYEAR),
-    Month = as.numeric(Month)
-  ) %>%
-  filter(Month >= 9)
+dataset_all <- readRDS("data_chem_industry_2023_complete.rds") %>%
+  bind_rows(readRDS("data_chem_industry_hoyangsfjord_2007-2024.rds")) %>%
+  bind_rows(readRDS("data_chem_industry_ranfjord_2024.rds")) %>% 
+  bind_rows(readRDS("data_chem_industry_krsand-elkem_2024.rds")) %>% 
+  bind_rows(readRDS("data_chem_industry_krsand-glencore_2024.rds"))
 
-# from 002, test code below 'get_biotachemistry' function 
-# dataset_extra3 <- bind_rows(
-#   readRDS("data_chem_industry_ransfjord_2024.rds") ,
-#   readRDS("data_chem_industry_hoyangsfjord_2024.rds")
-# ) %>%
-#   rename(PARAM = NAME) %>%
-#   mutate(BASIS = "W",
-#          STATION_CODE = case_when(
-#            STATION_CODE %in% "I964b" ~ "I964/I964b",
-#            TRUE ~ STATION_CODE))
-
-# checking column names:
-# setdiff(names(dataset_extra2), names(dataset_extra3))
-# setdiff(names(dataset_extra3), names(dataset_extra2))
-# Keep only necessary columns
-# dataset_extra3 <- dataset_extra3[names(dataset_extra2)]
-
-# dataset_test <- readRDS("data_chem_industry_ranfjord_elkem_ind_2022_OLD1.rds")
-
-
-# Replace original "all year" Elkem - REC data with autumn-only data  
-dataset_all_02 <- dataset_all_01 %>%
-  filter(!STATION_CODE %in% c("St. 1", "St. 2", "St. 3", "St. 4", "St. 5")) %>%
-  rbind(dataset_extra)
-
-# Replace original 2010-2013 data with data from Vannmiljø    
-params_metals <- c("AS", "PB", "CD", "CU", "CR", "HG", "NI", "ZN")
-dataset_all_03 <- dataset_all_02 %>%
-  filter(!(STATION_CODE %in% "St. 4" & 
-             MYEAR %in% 2010:2013 & PARAM %in% params_metals)) %>%
-  bind_rows(dataset_extra2)
-
-# Data from Hoyangsfjorden - see script 084
-dataset_hoyangsfjord_01 <- readRDS("data_chem_industry_hoyangsfjord_2007-2024.rds") %>%
-  mutate(SAMPLE_NO2 = SAMPLE_ID, 
-         BASIS = "W",
-         LATIN_NAME_sample = LATIN_NAME)
-# Keep the columns that are in the 'dataset_all_03', and add 'Project' as well
-names_overlap <- intersect(names(dataset_all_03), names(dataset_hoyangsfjord_01))
-dataset_hoyangsfjord_02 <- dataset_hoyangsfjord_01[c(names_overlap, "Project")]
-
-dataset_all <- dataset_all_03 %>%
-  bind_rows(dataset_hoyangsfjord_02)
-
-# dataset_all %>%
-#   filter(substr(STATION_CODE,1,2) == "St") %>%
-#   xtabs(~MYEAR + STATION_CODE, .)
-
-dat_all_prep3 <- dataset_all %>%
+# dat_all_prep3 <- bind_rows(dataset1, dataset2) %>%
+dat_all_prep1 <- dataset_all %>%
   mutate(
     Basis = case_when(
       BASIS %in% "W" ~ "WW",
@@ -165,7 +110,7 @@ dat_all_prep3 <- dataset_all %>%
   filter(!is.na(VALUE))
 
 # Add 'Param_name' and 'Tissue_name' to data    
-dat_all_prep3 <- dat_all_prep3 %>%
+dat_all_prep2a <- dat_all_prep1 %>%
   left_join(lookup_paramnames, by = "PARAM") %>%
   mutate(
     Param_name = ifelse(is.na(Param_name), PARAM, Param_name),  # use PARAM if Param_name is lacking
@@ -173,40 +118,32 @@ dat_all_prep3 <- dat_all_prep3 %>%
       TISSUE_NAME %in% "Lever" ~ "Liver",
       TISSUE_NAME %in% "Muskel" ~ "Muscle",
       TISSUE_NAME %in% "Galle" ~ "Bile",
+      grepl("Whole soft body", TISSUE_NAME) ~ "Whole soft body",
       TRUE ~ TISSUE_NAME)
   )
 
-
 # Add 'Species_name' to data    
-dat_all_prep3 <- dat_all_prep3 %>%
+dat_all_prep2b <- dat_all_prep2a %>%
   left_join(lookup_speciesnames, by = "LATIN_NAME") %>%
   mutate(Species_name = ifelse(is.na(Species_name), LATIN_NAME, Species_name))
 
-# Add station names + Region 
-dat_all_prep3 <- dat_all_prep3 %>%
-  left_join(lookup_stations %>% select(STATION_CODE, Station_name), by = "STATION_CODE")
-
 # Add EQS and Proref to data    
 dat_all_prep3 <- bind_rows(
-  dat_all_prep3 %>%
+  dat_all_prep2b %>%
     filter(PARAM != "CB118") %>%
-    left_join(lookup_eqs %>% filter(PARAM != "CB118") %>% select(-LATIN_NAME, -Basis), by = c("PARAM")),
-  dat_all_prep3 %>%
+    left_join(lookup_eqs %>% filter(PARAM != "CB118") %>% select(-LATIN_NAME), 
+              by = c("PARAM", "Basis"),  relationship = "many-to-one"),
+  dat_all_prep2b %>%
     filter(PARAM == "CB118") %>%
-    left_join(lookup_eqs %>% filter(PARAM == "CB118"), by = c("PARAM", "Basis", "LATIN_NAME"))
+    left_join(lookup_eqs %>% filter(PARAM == "CB118"), 
+              by = c("PARAM", "Basis", "LATIN_NAME"),
+              relationship = "many-to-one")
 ) %>%
   left_join(lookup_proref, by = c("PARAM", "LATIN_NAME", "TISSUE_NAME", "Basis"))
 
-xtabs( ~STATION_CODE + MYEAR, dat_all_prep3 %>% filter(MYEAR %in% 2020:2024 ))
-xtabs( ~paste(STATION_CODE, "//", Station) + MYEAR, dat_all_prep3 %>% filter(MYEAR %in% 2020:2024 ))
-
-dat_all_prep3 %>% filter(MYEAR %in% 2020:2024 ) %>% 
-  filter(grepl("G1", STATION_CODE)) %>% 
-  xtabs(~Station, .)
-
-
 # For the menus
 params <- unique(dat_all_prep3$PARAM) %>% sort()
+# projects <- unique(dat_all_prep3$Projects) %>% sort()
 stations <- unique(dat_all_prep3$Station) %>% sort()
 tissues <- unique(dat_all_prep3$TISSUE_NAME) %>% sort()
 tissues <- c("(automatic)", tissues)
@@ -214,8 +151,14 @@ basises <- unique(dat_all_prep3$Basis) %>% sort()
 years_all <- unique(dat_all_prep3$MYEAR) %>% sort()
 names(years_all) <- years_all
 
+# browser()
+
 # Folder for saving plots
-folder <- "../Figures_402/Til 2021-rapporten/"
+folder <- "../Figures_402/Til 2024-rapporten/"
+
+# Create folder if it doesn't exist
+if (!dir.exists(folder)){
+  dir.create(folder)}
 
 # Save metadata for saved plots
 savedplots_filename <- paste0(folder, "_saved_plots.csv")  
@@ -225,7 +168,6 @@ if (!file_exists){
   cat("Filename, Time_GMT, PARAM, STATION_CODE, TISSUE_NAME, Basis, y_scale, ymax_perc, xmin_rel, xmax_rel, eqs, proref\n", file = zz)
   close(zz)
 }
-
 
 
 
