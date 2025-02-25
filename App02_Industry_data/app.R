@@ -175,8 +175,8 @@ ui <- fluidPage(
   # Sidebar with a slider input for number of bins 
   sidebarLayout(
     sidebarPanel(
-      shiny::selectInput(inputId = "param", label = "Parameter", choices = params, selected = "CD"),
-      shiny::selectInput(inputId = "station", label = "Station", choices = stations, selected = "St. 2 Fiskå"),
+      shiny::selectInput(inputId = "param", label = "Parameter", choices = params, selected = "Dioksiner"),
+      shiny::selectInput(inputId = "station", label = "Station", choices = stations, selected = "Glencore kai"),
       shiny::selectInput(inputId = "tissue", label = "Tissue", choices = tissues, selected = "(automatic)"),  
       shiny::selectInput(inputId = "basis", label = "Basis", choices = basises, selected = "WW"),
       # Make button for showing hidden settings
@@ -230,21 +230,48 @@ server <- function(input, output) {
   # Get data for plot ----
   #
   
-  data_sel <- reactive({
+  data_sel_filter <- reactive({
     #if (input$param == "CO" & input$station == "Dvergsøya (referansestasjon)")
     #if (input$param == "BAP" & input$station == "B2 Alterneset")
     #if (input$param == "Sum 16 EPA-PAH ekskl. LOQ" & input$station == "B2 Alterneset")
     # browser()
     dat_all_prep3 %>%
       filter(PARAM %in% input$param & Station %in% input$station & Basis %in% input$basis &
-               MYEAR %in% as.numeric(input$selected_years)) %>%
+               MYEAR %in% as.numeric(input$selected_years))
+  })
+  
+  data_sel_transformation <- reactive({
+    data_sel_filter <- data_sel_filter()
+    if (min(data_sel_filter$VALUE) > 0){
+      result <- "log"
+    } else {
+      result <- "log_plus_1"
+    }
+    result
+  })
+  
+  data_sel <- reactive({
+    #if (input$param == "CO" & input$station == "Dvergsøya (referansestasjon)")
+    #if (input$param == "BAP" & input$station == "B2 Alterneset")
+    #if (input$param == "Sum 16 EPA-PAH ekskl. LOQ" & input$station == "B2 Alterneset")
+    # browser()
+    data_sel_filter <- data_sel_filter()
+    result <- data_sel_filter %>%
       rename(x = MYEAR) %>%
       mutate(
-        y = log(VALUE),
         LOQ = case_when(
           is.na(FLAG1) ~ as.numeric(NA),
-          FLAG1 == "<" ~ y)
+          FLAG1 == "<" ~ VALUE)
       )
+    transformation <- data_sel_transformation()
+    if (transformation == "log"){
+      result <- result %>%
+        mutate(y = log(VALUE))
+    } else {
+      result <- result %>%
+        mutate(y = log(VALUE + 1))
+    }
+    result
   })
   
   latin_name <- reactive({
@@ -268,7 +295,7 @@ server <- function(input, output) {
     get_gam_data(data_sel_medians()) %>%
       rename(ymin = y_lo, ymax = y_hi)
   })
-  
+
   # For testing only
   # - must also add plot
   # output$data_rows <- renderPrint({
@@ -302,9 +329,11 @@ server <- function(input, output) {
   #
   output$timeseries_plot <- renderPlot({
   
+    # browser()
+    
     data_sel <- data_sel() 
     
-    # if (tail(data_sel$PARAM, 1) == "BAP")
+    # if (tail(data_sel$PARAM, 1) == "Dioksiner")
     #   browser()
     
     unit_print <- get_unit_text(
@@ -327,7 +356,8 @@ server <- function(input, output) {
                           eqs = input$eqs,
                           proref = input$proref,
                           value_eqs = eqs(), 
-                          value_proref = proref())
+                          value_proref = proref(),
+                          )
   })
   
   #
