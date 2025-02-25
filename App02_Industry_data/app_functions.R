@@ -553,7 +553,8 @@ plot_timeseries_trend <- function(data_medians = NULL,
                                   titlestring = NULL, 
                                   subtitlestring = NULL,
                                   trendtext = "",
-                                  trendtext_size = 4){
+                                  trendtext_size = 4,
+                                  transformation = "log"){
   
   # browser()
   
@@ -570,7 +571,7 @@ plot_timeseries_trend <- function(data_medians = NULL,
   
   # Get unit to print on y axis  
   
-  if (y_scale %in% c("ordinary", "log scale")){
+  if (y_scale %in% c("ordinary", "log scale") & transformation == "log"){
     data_medians <- data_medians %>% 
       mutate(
         y = exp(y),
@@ -579,6 +580,15 @@ plot_timeseries_trend <- function(data_medians = NULL,
     data_raw <- data_raw %>% 
       mutate(y = exp(y),
              LOQ = exp(LOQ))
+  } else if (y_scale %in% c("ordinary", "log scale") & transformation == "log_plus_1"){
+    data_medians <- data_medians %>% 
+      mutate(
+        y = exp(y)-1,
+        ymin = exp(ymin)-1,
+        ymax = exp(ymax)-1)
+    data_raw <- data_raw %>% 
+      mutate(y = exp(y)-1,
+             LOQ = exp(LOQ)-1)
   }
   
   # Set x limits
