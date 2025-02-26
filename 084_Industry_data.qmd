@@ -900,7 +900,7 @@ columns_needed <- c("STATION_CODE", "STATION_NAME", "LATIN_NAME", "TISSUE_NAME",
 
 lookup_latin <- data.frame(ART = "Blåskjell", LATIN_NAME = "Mytilus edulis")
 lookup_units <- data.frame(
-  ENHETER = c("µg/kg","µg/kg"), UNIT = c("MG_P_KG", "UG_P_KG"))
+  ENHETER = c("mg/kg","µg/kg"), UNIT = c("MG_P_KG", "UG_P_KG"))
 
 dat_01 <- dat_lims %>% 
   rename(STATION_NAME = STASJON) %>% 
@@ -930,6 +930,19 @@ dat_01 <- dat_lims %>%
   )
 
 ```
+
+#### Check units  
+
+```{r}
+
+sel <- is.na(dat_01$UNIT)
+if (sum(sel) > 0){
+  stop("UNIT lacking - check dat_01[sel,] %>% count(NAME, ENHETER, UNIT)")
+}
+
+```
+
+
 #### Selecting columns    
 ```{r}
 
@@ -1097,8 +1110,12 @@ lazy_hoy <- select_measurements(station_id = df_station$STATION_ID, myear = 2024
 tab1 <- lazy_hoy %>%
   count(MYEAR, STATION_CODEs, STATION_ID) %>% collect()
 tab2 <- lazy_hoy %>%
-  filter(STATION_ID == 47184) %>%
+  filter(STATION_ID == 71337) %>%
   count(NAME) %>% collect()
+tab3 <- lazy_hoy %>%
+  count(NAME, STATION_ID) %>% 
+  collect() %>% 
+  pivot_wider(names_from = STATION_ID, values_from = n)
 
 tab1 %>%
   arrange(MYEAR) %>%
@@ -1147,7 +1164,7 @@ if (FALSE){
 ```
 
 
-#### Set STATION_NAME in accordance to existing names  accordfand
+#### Set STATION_NAME in accordance to existing names 
 
 - in this case, will be linked to the data using STATION_ID, see below (`join_by(STATION_CODE)`)   
 
@@ -1194,7 +1211,9 @@ nrow(dat_01)
 
 ```
 
-#### Add variables
+#### Add variables  
+
+* Also rename dioxins and dioxin-like PCB
 
 ```{r}
 
@@ -1210,7 +1229,10 @@ dat_02 <- dat_01 %>%
   mutate(
     PARAM = get_standard_parametername(
       NAME, here("Input_data/Lookup table - standard parameter names.csv")),
-    PARAM = ifelse(NAME %in%  "WHO(2005)-PCDD/F TEQ eksl. LOQ", "Dioksiner", PARAM),
+    PARAM = case_when(
+      NAME %in%  "WHO(2005)-PCDD/F TEQ eksl. LOQ" ~ "Dioksiner", 
+      NAME %in%  "WHO(2005)-PCB TEQ eksl. LOQ" ~ "Dioksiner og dioksinliknende PCB", 
+      TRUE ~ PARAM),
     BASIS = "W",
     # this is just to be in accordance with existing data:
     STATION_CODE = NA
@@ -1341,7 +1363,8 @@ dat_05 <- dat_04 %>%
 ```{r}
 
 param <- "FE"
-param <- "Dioksiner"
+# param <- "Dioksiner"
+param <- "Dioksiner og dioksinliknende PCB"
 readRDS("App02_Industry_data/data_chem_industry_2023_complete.rds") %>%
   # Add the new data
   bind_rows(dat_05) %>% 
@@ -1359,6 +1382,14 @@ readRDS("App02_Industry_data/data_chem_industry_2023_complete.rds") %>%
 #### Save  
 
 ```{r}
+
+# check existing files
+dir("App02_Industry_data", "data_chem_industry_krsand-glencore_2024")
+
+# make backup
+# file.copy(
+#   here("App02_Industry_data", "data_chem_industry_krsand-glencore_2024.rds"),
+#   here("App02_Industry_data", "data_chem_industry_krsand-glencore_2024_OLD.rds"))
 
 saveRDS(dat_05, here("App02_Industry_data", "data_chem_industry_krsand-glencore_2024.rds"))
 
