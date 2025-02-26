@@ -1260,6 +1260,20 @@ dat_02 <- dat_02 %>%
 
 ```
 
+#### CB118 have data both as pg/g and ng/g   
+* e.g. 248 pg/g and 0.248 ng/g  
+* we delete the pg/g data  
+
+```{r}
+
+nrow(dat_02)
+dat_02 <- dat_02 %>% 
+  filter(!(NAME == "PCB 118" & UNIT == "PG_P_G"))
+nrow(dat_02)
+
+
+```
+
 
 #### Extra data
 
