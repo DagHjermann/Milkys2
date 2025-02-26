@@ -129,11 +129,14 @@ dat_all_prep3 <- bind_rows(
   mutate(
     UNIT = case_when(
       UNIT %in% "NG_P_G" ~ "UG_P_KG",
+      UNIT %in% "UG_P_KG_WW" ~ "UG_P_KG",
+      UNIT %in% "PERCENT" ~ "%",
+      UNIT %in% "PG_P_G" ~ "NG_P_KG",
       TRUE ~ UNIT)) %>%
   left_join(lookup_proref, by = c("PARAM", "LATIN_NAME", "TISSUE_NAME", "Basis"))
 
 # Final transformation
-sel <- dat_all_prep3$UNIT %in% "PG_P_G"
+sel <- with(dat_all_prep3, UNIT %in% "PG_P_G" & !(PARAM %in% c("Dioksiner", "Dioksiner og dioksinliknende PCB", "Dioksinliknende PCB")))
 if (sum(sel) > 0){
   dat_all_prep3$UNIT[sel] <- "UG_P_KG"
   dat_all_prep3$VALUE[sel] <- dat_all_prep3$VALUE[sel]*0.001
@@ -150,6 +153,32 @@ years_all <- unique(dat_all_prep3$MYEAR) %>% sort()
 names(years_all) <- years_all
 
 # browser()
+
+# Check if all observations in a series has the same units
+series_conflicting_units <- dat_all_prep3 %>% 
+  group_by(PARAM, Station, Basis) %>% 
+  summarize(
+    n_unit = length(unique(UNIT)),
+    units = paste(unique(UNIT), collapse = ", ")
+  ) %>% 
+  filter(
+    n_unit > 1
+  )
+
+# If there are conflicting units, delete 
+if (nrow(series_conflicting_units) > 0){
+  # Add 'n_unit' and 'units' to data for series with conflicting units, and keep only series with conflicting units  
+  check_unit <- dat_all_prep3 %>% 
+    left_join(series_conflicting_units, by = join_by(PARAM, Station, Basis), relationship = "many-to-one") %>% 
+    filter(!is.na(n_unit))
+  warning("The following series contains more than one unit and will be deleted. Check 'check_unit'")
+  print(series_conflicting_units)
+  # Delete series with conflicting units
+  dat_all_prep3 <- dat_all_prep3 %>% 
+    left_join(series_conflicting_units, by = join_by(PARAM, Station, Basis), relationship = "many-to-one") %>% 
+    filter(is.na(n_unit))
+}
+
 
 # Folder for saving plots
 folder <- "../Figures_402/Til 2024-rapporten/"
