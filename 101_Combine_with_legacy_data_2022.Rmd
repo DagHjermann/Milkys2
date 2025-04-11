@@ -2229,6 +2229,7 @@ data_updated2 %>%
 sel <- with(data_updated2, MYEAR >= 2021 & STATION_CODE == "19N" & PARAM %in% "HG")
 # sum(sel)
 
+# Only adjust numbers if they are really high
 if (mean(data_updated2$VALUE_WW[sel]) > 10){
   data_updated2$VALUE_WW[sel] <- data_updated2$VALUE_WW[sel]/1000
   data_updated2$VALUE_FB[sel] <- data_updated2$VALUE_FB[sel]/1000

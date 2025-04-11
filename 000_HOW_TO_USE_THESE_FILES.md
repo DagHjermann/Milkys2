@@ -74,7 +74,7 @@ NILU data
 111_Nstring_SD_DDI.Rmd
 120_Calculate_trends.Rmd                    
 
-NOTE: the following two scripts are not used, as Aquamonitor doen't prduce all the data we need:  
+NOTE: the following two scripts are not used, as Aquamonitor doen't prduce all the data we need: 
 - 100_Download_Aquamonitor_data.Rmd            
 - 100_Download_Aquamonitor_data_R_functions.R (functions used by the file above)   
 
