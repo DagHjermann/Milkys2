@@ -34,4 +34,7 @@ Input_data/Lookup for big excel - param - OLD*
 Input_data/Labware_samples*
 Input_data/Labware_import*
 Untitled*.ipynb
-
+101_Combine_with_legacy_data_2022_BACK.Rmd
+101_Combine_with_legacy_data_2023_ELU.Rmd
+105_Add_uncertainty_2023_ELU.Rmd
+109_Adjust_for_fish_length_2023_ELU.Rmd
