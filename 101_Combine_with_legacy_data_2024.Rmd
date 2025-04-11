@@ -74,7 +74,7 @@ source("101_Combine_with_legacy_data_functions.R")
 Note: there are still some hard-coded "2019" given in the code  
 ```{r}
 
-lastyear <- 2023
+lastyear <- 2024
 
 ```
 
@@ -184,37 +184,6 @@ if (TRUE){
 
 ```
 
-### a1b. Add eider duck data (19N) for the year before (2022)   
-
-* *NOTE:This is special for 2023!*  
-
-```{r}
-
-### HARD-CODED - 2023 script only! ###
-
-dat_eider_2022 <- read_csv(
-  "Input_data/80_df_2022_notstandard_2024-09-12_12h16m.csv", 
-  col_types = column_types) %>% 
-  # Keep rows with eider duck only (station 19N)  
-  filter(
-    STATION_CODE == "19N") %>%
-  # Remove rows with isotopes - they were analysed last year so they are already in the legacy data  
-  filter(
-    !NAME %in% c("% C", "% N", "W% C/N", "Delta 13C", "Delta 15N")  
-  ) %>%
-  # HARD-CODED: this is year 2022
-  mutate(
-    MYEAR = 2022)
-message(nrow(dat_eider_2022), " rows of data will be added to the dataset")
-
-check <- dat_new1$MYEAR == 2022 & dat_new1$STATION_CODE == "19N"
-if (sum(check) == 0){
-  dat_new1 <- bind_rows(dat_new1, dat_eider_2022) 
-}
-
-message("'dat_new1' now contains ", nrow(dat_new1), " rows")
-
-```
 
 
 ### a1c. Remove industry stations   
@@ -369,6 +338,8 @@ if (nrow(dat_plot) > 0){
     ggtitle(param_pick)
   # print(gg)
 
+} else {
+  message("No stations contains both versions of synonymous PAH metabolite names")
 }
 
   
@@ -425,7 +396,7 @@ cat("Parameter name changed for", sum(sel), "values\n")
 ```
 
 
-### a9. Change SCCP and MCCP values  
+### a9. Check SCCP and MCCP values  
 
 - Have already added missing rows in Milkys2_pc script 802  
 - Change 'SCCP eksl. LOQ' by setting VALUE = 0 and FLAG = NA for data < LOQ  
@@ -455,7 +426,7 @@ if (!identical(check[1,], check[2,])){
   message("Row 1 and row 2 are not identical! There should be equally many 'eksl. LOQ' and 'inkl. LOQ' values for all stations")           
   stop("This should be fixed in Nivabasen before proceeding. This can be done using script '817_Fix_SCCP_MCCP.R' in project 'Milkys2_pc'")
 } else {
-  message("There are equally many 'eksl. LOQ' and 'inkl. LOQ' values for all stations")
+  message("All OK - there are equally many 'eksl. LOQ' and 'inkl. LOQ' values for all stations")
 }                                              
 
 #
@@ -475,7 +446,7 @@ if (!identical(check[1,], check[2,])){
   message("Row 1 and row 2 are not identical! There should be equally many 'eksl. LOQ' and 'inkl. LOQ' values for all stations")           
   stop("This should be fixed in Nivabasen before proceeding. This can be done using script '817_Fix_SCCP_MCCP.R' in project 'Milkys2_pc'")
 } else {
-  message("There are equally many 'eksl. LOQ' and 'inkl. LOQ' values for all stations")
+  message("All OK - there are equally many 'eksl. LOQ' and 'inkl. LOQ' values for all stations")
 }                                              
 
 
@@ -492,7 +463,10 @@ files <- list_files("Data", pattern = "101_data_updated") %>% sort(decreasing = 
 data.frame(filename = head(files, 5), remark = c("newest file", rep("", 4)))
 
 # HARD_CODED: pick most recent data from last year
-data_legacy <- readRDS("Data/101_data_updated_2023-09-12.rds") %>%
+legacy_data_file_number <- 1
+legacy_data_file <- files[legacy_data_file_number]
+
+data_legacy <- readRDS(paste0("Data/", legacy_data_file)) %>%
   mutate(PARAM = case_when(
     PARAM %in% "TTBTIN" ~ "TTBT",
     TRUE ~ PARAM)
@@ -518,85 +492,55 @@ if (check <= 0){
 * Fixed in Nivabase for years 2015-2022 (and 2023, see above)  
     - We do nothing about data up to 2014  
 
-#### SCCP  
-
-*  Through 2014: Only 'SCCP' given  
-*  In 2015-2017, equal amount of 'SCCP' and 'SCCP eksl. LOQ', only lacking 'eksl. LOQ' for eider    
-    - See script 870 on Milkys2_pc: there was actually no lacking/zero data for 'SCCP eksl. LOQ' those years  
-*  In 2018-2020, zero data for 'SCCP eksl. LOQ' probably have not entered the database      
-
 
 ```{r}
+#
+# SCCPs
+#
 
-df_SCCP_tall <- data_legacy %>%
-  filter(grepl("SCCP", PARAM)) %>%
-  select(STATION_CODE, LATIN_NAME, TISSUE_NAME, MYEAR, SAMPLE_NO2, PARAM, VALUE_WW, FLAG1) 
+cat("SCCP: \n\n")
 
-cat("Parameters used:\n\n")
-xtabs(~PARAM + MYEAR, df_SCCP_tall)  
+# Check
 
-```
+#### ELU: forstår ikke denne sjekken...
 
-```{r}
+check <- data_legacy %>%
+  filter(MYEAR %in% 2015:(lastyear-1)) %>% 
+  filter(PARAM %in% c("SCCP eksl. LOQ", "SCCP inkl. LOQ"),
+         STATION_CODE != "19N") %>% # View("SCCP")          # 19N doesn't have 'inkl LOQ'
+  xtabs(~PARAM + STATION_CODE, .)
+check                                                         #ELU
+if (!identical(check[1,], check[2,])){   
+  message("Row 1 and row 2 are not identical! There should be equally many 'eksl. LOQ' and 'inkl. LOQ' values for all stations")           
+  stop("This should be fixed in Nivabasen before proceeding. This can be done using script '817_Fix_SCCP_MCCP.R' in project 'Milkys2_pc'")
+} else {
+  message("All OK - there are equally many 'eksl. LOQ' and 'inkl. LOQ' values for all stations")
+}                                              
 
-cat("Stations:\n\n")
-xtabs(~STATION_CODE + MYEAR, df_SCCP_tall)  
+#
+# MCCPs
+#
 
-```
-
-
-```{r}
-
-df_SCCP_tall %>%
-  filter(STATION_CODE == "23B") %>%
-  ggplot(aes(MYEAR, VALUE_WW)) +
-  geom_jitter(height = 0, width = 0.3) +
-  facet_grid(vars(PARAM)) + 
-  labs(title = "Parameter values")
- 
-```
-
-```{r}
-
-df_SCCP <- data_legacy %>%
-  filter(grepl("SCCP", PARAM)) %>%
-  select(STATION_CODE, LATIN_NAME, TISSUE_NAME, MYEAR, SAMPLE_NO2, PARAM, VALUE_WW) %>%
-  tidyr::pivot_wider(names_from = PARAM, values_from = VALUE_WW)
-
-ggplot(df_SCCP, aes(MYEAR, 100*(`SCCP inkl. LOQ` - `SCCP eksl. LOQ`)/`SCCP inkl. LOQ`)) +   #
-  geom_jitter(height = 0, width = 0.3) +
-  labs(title = "SCCP, difference between incl. LOQ and excl. LOQ values", 
-       subtitle = "Note relavively small difference in 2015-2016",
-       y = "incl. LOQ - excl. LOQ (as % incl. LOQ)")
-
-```
+cat("\n\n\nMCCP: \n\n")
 
 
+check <- data_legacy %>%
+  filter(MYEAR %in% 2015:(lastyear-1)) %>% 
+  filter(PARAM %in% c("MCCP eksl. LOQ", "MCCP inkl. LOQ"),
+         STATION_CODE != "19N") %>%                         # 19N doesn't have 'inkl LOQ'
+  xtabs(~PARAM + STATION_CODE, .)
+check
 
-#### MCCP  
+if (!identical(check[1,], check[2,])){   
+  message("Row 1 and row 2 are not identical! There should be equally many 'eksl. LOQ' and 'inkl. LOQ' values for all stations")           
+  stop("This should be fixed in Nivabasen before proceeding. This can be done using script '817_Fix_SCCP_MCCP.R' in project 'Milkys2_pc'")
+} else {
+  message("All OK - there are equally many 'eksl. LOQ' and 'inkl. LOQ' values for all stations")
+}                                              
 
-*  Same concusions as for SCCP, see above        
 
-```{r}
-
-df_MCCP_tall <- data_legacy %>%
-  filter(grepl("MCCP", PARAM)) %>%
-  select(STATION_CODE, LATIN_NAME, TISSUE_NAME, MYEAR, SAMPLE_NO2, PARAM, VALUE_WW, FLAG1) 
-
-df_MCCP <- data_legacy %>%
-  filter(grepl("MCCP", PARAM)) %>%
-  select(STATION_CODE, LATIN_NAME, TISSUE_NAME, MYEAR, SAMPLE_NO2, PARAM, VALUE_WW) %>%
-  tidyr::pivot_wider(names_from = PARAM, values_from = VALUE_WW)
-
-ggplot(df_MCCP, aes(MYEAR, 100*(`MCCP inkl. LOQ` - `MCCP eksl. LOQ`)/`MCCP inkl. LOQ`)) +
-  geom_jitter(height = 0, width = 0.3) +
-  labs(title = "MCCP, difference between incl. LOQ and excl. LOQ values", 
-       subtitle = "Note much larger difference in 2015-2016",
-       y = "incl. LOQ - excl. LOQ (as % incl. LOQ)")
 
 ```
-
-
 
 ### b3. Check legacy data for duplicates   
 (11-12 seconds)
@@ -811,12 +755,6 @@ if (nrow(df_duplicates) > 0){
 } else {
   cat("No duplicates found in the data. \n")
 }
-
-
-```
-### b4. Save data so far  
-```{r}
-
 
 
 ```
@@ -1318,6 +1256,8 @@ dat_new5 %>%
 #
 # Set i, e.g. 1 for sum parameter number 1 (i.e. CB_S7)
 
+if (FALSE){
+
 names(sum_parameters)
 
 tissue <- "Whole soft body"
@@ -1339,6 +1279,7 @@ dat_new5 %>%
   facet_wrap(vars(STATION_CODE)) +
   theme(axis.text.x = element_text(angle = -45, hjust = 0))
   
+}
 
 if (FALSE){
   
