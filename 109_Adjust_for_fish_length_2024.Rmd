@@ -57,7 +57,7 @@ source("109_Adjust_for_fish_length_functions.R")
 ### Year  
 ```{r}
 
-selected_year <- 2023
+selected_year <- 2024
 
 ```
 
