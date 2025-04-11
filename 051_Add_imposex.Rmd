@@ -76,21 +76,27 @@ write_sql_files <- TRUE
 
 ```{r}
 
-test_connection <- try(DBI::dbGetQuery(con, "select * from NIVADATABASE.PROJECTS where rownum < 4"))
+con_exists <- "con" %in% ls()
 
-# if the script is run interactively
-if (interactive() & class(test_connection) == "try-error"){
+# if the script is run interactively and 'con' has not been defined,
+#   ask for username and password
+if (interactive() & !con_exists){
   
   con <- DBI::dbConnect(odbc::odbc(),
-                      Driver = "/opt/conda/orahome/libsqora.so.12.1",
-                      DBQ = "dbora-niva-prod01.niva.corp:1555/NIVABPRD",
-                      UID = rstudioapi::askForPassword("Database username (NIVA initials, 3 capital letters)"),
-                      PWD = rstudioapi::askForPassword("Nivabasen password")
+                        Driver = "/opt/conda/orahome/libsqora.so.12.1",
+                        DBQ = "dbora-niva-prod01.niva.corp:1555/NIVABPRD",
+                        UID = rstudioapi::askForPassword("Database username (NIVA initials, 3 capital letters)"),
+                        PWD = rstudioapi::askForPassword("Nivabasen password")
   )
   
-} else {
-# if the script is knitted
+# if 'con' has not been defined, we don't have to aske for username and password again
+} else if (interactive() & con_exists){  
   
+  message("Connection 'con' already exists \n  - run 'rm(con)' if you want to remove it")
+
+# if the script is knitted (not run interactively), you need to .knit with parameters' from the 'knit' menu
+} else {
+
   # If params$oraclepass is just an empty string, you have probably just clicked the Knit button  
   if (params$oraclepass == ""){
     stop("Password = ''. You must use 'Knit with Parameters...' from the menu (pull-down menu from the Knit button), and enter you password in the dialog")

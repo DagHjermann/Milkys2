@@ -1,10 +1,11 @@
 
-library2(dbplyr)
-library2(dplyr)
-library2(lubridate)
-library2(ggplot2)
+library(dbplyr)
+library(dplyr)
+library(tidyr)
+library(lubridate)
+library(ggplot2)
 library(ggeasy)
-library2(stringr)
+library(stringr)
 
 
 #
@@ -27,9 +28,9 @@ xtabs(~NAME, dat_lofoten_2022)
 # . Get all SCCP methods ----
 
 # First try:
-df_meth <- methods %>%
-  filter(NAME %in% c("SCCP eksl. LOQ", "SCCP inkl. LOQ", "SCCP")) %>%
-  collect()
+# df_meth <- methods %>%
+#   filter(NAME %in% c("SCCP eksl. LOQ", "SCCP inkl. LOQ", "SCCP")) %>%
+#   collect()
 
 # Even better:
 df_meth <- methods %>%
@@ -67,7 +68,6 @@ dat_2 <- dat_1 %>%
 
 # then run
 
-
 dat_lofoten_sccp <- dat_2 %>%
   filter(STATION_CODE == "98B1" & METHOD_ID %in% method_ids) %>%
   collect()
@@ -75,6 +75,14 @@ dat_lofoten_sccp <- dat_2 %>%
 xtabs(~MYEAR + NAME, dat_lofoten_sccp)
 xtabs(~MYEAR + ENTERED_BY + NAME, dat_lofoten_sccp)
 
+dat_lofoten_sccp %>%
+  filter(MYEAR == 2022) %>%
+  mutate(
+    value_char = ifelse(is.na(FLAG1), as.character(VALUE), paste(FLAG1, VALUE))
+  ) %>%
+  select(MYEAR, SAMPLE_NO, NAME, value_char) %>%
+  pivot_wider(names_from = NAME, values_from = value_char)
+  
 
 #
 # . SCCP in water ----
