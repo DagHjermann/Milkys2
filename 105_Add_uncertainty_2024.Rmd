@@ -10,7 +10,7 @@ For now, we assume that uncertainty is the same for all years (sounds worse than
 ## 0. Settings  
 ```{r}
 
-selected_year <- 2023
+selected_year <- 2024
 
 ```
 
