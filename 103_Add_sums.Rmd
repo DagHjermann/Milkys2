@@ -20,7 +20,7 @@ This script does the following things:
 ## 0. Settings  
 ```{r}
 
-selected_year <- 2023
+selected_year <- 2024
 
 ```
 
@@ -167,7 +167,11 @@ nrow(testdata1)
 nrow(testdata2)
 nrow(testdata3)
 
-ggplot(testdata2, aes(MYEAR, VALUE))
+if (FALSE){
+  
+  # only for testing
+
+  ggplot(testdata2, aes(MYEAR, VALUE))
 
 table(testdata1$PARAM)
 table(testdata2$PARAM)
@@ -189,6 +193,8 @@ test_columns <- data.frame(x = names(testdata1), data1 = TRUE) %>%
   full_join(data.frame(x = names(testdata3), data3 = TRUE))
 
 # View(test_columns)
+
+}
 
 ```
 
@@ -217,6 +223,8 @@ ggplot(testdata2, aes(MYEAR, VALUE_WW, colour = is.na(FLAG1))) +
 
 
 ### Add sums for entire data set  
+* Sum parameters *including* LOQ will be given just the parameter name, e.g. 'sumPCB7'  
+* Sum parameters *excluding* LOQ will be given the parameter name + '_exloq', e.g. 'sumPCB7_exloq'    
 ```{r}
 
 # Initialise new data set
