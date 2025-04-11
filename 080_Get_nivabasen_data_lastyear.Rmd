@@ -275,7 +275,7 @@ if (download_and_save){
 ```
 
 
-## 6. Examples of use  
+## APPENDIX 1. Examples of use  
 
 ### All substances/parameters measured in one station, one year
 ```{r}
@@ -351,6 +351,50 @@ dat_plot %>%
 
 ```
 
+## APPENDIX 2. Check specimen data (fish length and weight)  
+
+```{r}
+
+# check which specimen data was added in 2025
+
+check1 <- tbl(con, in_schema("NIVADATABASE", "BIOTA_SPEC_ATTR")) %>%
+  filter(dbplyr::sql("EXTRACT(YEAR from entered_date) = 2025")) %>% 
+  left_join(
+    tbl(con, in_schema("NIVADATABASE", "BIOTA_SPEC_ATTR_DEF")) %>% 
+      select(ATTRIBUTE_ID, NAME, UNIT)
+  ) %>% 
+  collect()
+
+xtabs(~NAME, check1)
+
+specimen_id <- unique(check1$SPECIMEN_ID)
+
+check2 <- specimens %>%
+  filter(SPECIMEN_ID %in% specimen_id)  %>%
+  left_join(taxonomy_codes) %>%
+  left_join(taxonomy) %>% 
+  collect()
+
+xtabs(~LATIN_NAME + year(DATE_CAUGHT), check2)
+
+
+
+# check which specimen data for a given specimen (the first 2024 cod)
+# (not finished the code)
+
+specimen_id <- dat_last_year %>%
+  filter(LATIN_NAME == "Gadus morhua") %>%
+  head(1) %>% 
+  pull(SPECIMEN_ID) %>%
+  as.numeric()
+
+specimen_id
+
+
+
+
+
+```
 
 
 
