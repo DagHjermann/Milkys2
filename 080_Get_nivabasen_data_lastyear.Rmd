@@ -48,7 +48,7 @@ library2(stringr)
 ## 2. Settings  
 ```{r}
 
-measurement_year <- 2023
+measurement_year <- 2024
 
 # Set to TRUE if you want to download the data (ca. 6 minutes)
 download_and_save <- TRUE
