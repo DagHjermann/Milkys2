@@ -1,0 +1,252 @@
+---
+title: "083_Get_LIMS_samples"
+author: "DHJ"
+date: "2024-09-22"
+output: 
+  html_document:
+    keep_md: true
+    toc: true  
+    toc_float: true
+params:
+  oracleuser: 
+    label: "NIVA initials (3 capital letters)"
+    value: "DHJ"
+    input: text
+  oraclepass: 
+    label: "Oracle password"
+    value: ""
+    input: password
+---
+
+**Get last year's LIMS sample data from Nivabasen**    
+
+* Just the sample data,not the concentrations - one row per sample  
+
+* Filtering and joining is done using lazy table loading    
+    - "Lazy" means that the data are not actually downloaded until you use 'collect()'  
+    - So, if you wait using collect() until you have done the filtering, you avoid downloading unnecessary data  
+
+* This script accesses Nivabasen on Oracle and therefore needs your Oracle user name (your initials) and password. It can be run in two ways:  
+    - Interactively - run chunk by chunk (by clicking the little arrow in the corner of the chunk, or Shift+Ctrl+Enter and Shift-Alt-N) - enter username and password when you are asked for it 
+    - Or by using "Knit with Parameters..." from the menu (pull-down menu from the Knit button) - enter username and password, then click 'Knit'  
+
+## 1. Libraries
+
+```{r}
+
+# For loading libraries without startup messages
+library2 <- function(...) suppressPackageStartupMessages(library(...))
+
+library2(dbplyr)
+library2(dplyr)
+library2(lubridate)
+library2(ggplot2)
+library2(stringr)
+library2(knitr)
+
+# help(package = "dbplyr")
+
+```
+
+## 2. Settings  
+```{r}
+
+measurement_year <- 2023
+
+# Set to TRUE if you want to download the data (ca. 6 minutes)
+download_and_save <- TRUE
+
+```
+
+
+
+## 3. Set up Oracle connection   
+
+- This part of the script will ask you about your user name and password to Nivabasen  
+
+```{r}
+
+# if the script is run interactively
+if (interactive()){
+  
+  con <- DBI::dbConnect(odbc::odbc(),
+                      Driver = "/opt/conda/orahome/libsqora.so.12.1",
+                      DBQ = "dbora-niva-prod01.niva.corp:1555/NIVABPRD",
+                      UID = rstudioapi::askForPassword("Database username (NIVA initials, 3 capital letters)"),
+                      PWD = rstudioapi::askForPassword("Nivabasen password")
+  )
+  
+} else {
+# if the script is knitted
+  
+  # If params$oraclepass is just an empty string, you have probably just clicked the Knit button  
+  if (params$oraclepass == ""){
+    stop("Password = ''. You must use 'Knit with Parameters...' from the menu (pull-down menu from the Knit button), and enter you password in the dialog")
+  }
+  
+  con <- DBI::dbConnect(odbc::odbc(),
+                        Driver = "/opt/conda/orahome/libsqora.so.12.1",
+                        DBQ = "dbora-niva-prod01.niva.corp:1555/NIVABPRD",
+                        UID = params$oracleuser,
+                        PWD = params$oraclepass
+  )
+  
+}
+
+test_connection <- DBI::dbGetQuery(con, "select * from NIVADATABASE.PROJECTS where rownum < 4")
+if ("test_connection" %in% ls()){
+  if (nrow(test_connection) == 3)
+    cat("Connection to Nivadatabase set up and tested")
+}
+
+rm(test_connection)
+
+```
+
+## 4. Set up queries  
+
+* These define how to get data from Nivabasen, but don't actually get them  
+
+
+### Get pointers to tables  
+
+```{r}
+
+projects <- tbl(con, in_schema("NIVADATABASE", "LABWARE_CHECK_SAMPLE")) %>%
+  count(ACCOUNT_NUMBER, PROSJEKT, CUSTOMER)
+
+samples <- tbl(con, in_schema("NIVADATABASE", "LABWARE_CHECK_SAMPLE"))
+
+```
+
+## 5. Get samples  
+
+### List projects 
+
+```{r}
+
+# All Merete's projects  
+dat_projects <- projects %>%
+  filter(upper(CUSTOMER) %in% 'MSC') %>%
+  collect()
+
+# View(dat_projects)
+
+```
+
+### Get samples for all years    
+
+```{r}
+
+project <- "O 210200.ANAIN"
+cat("Name of project:", project, " \n\n")
+
+labware_sample_all <- samples %>%
+  filter(PROSJEKT %in% project) %>%
+  collect()
+
+# labware_sample_all_back <- labware_sample_all
+```
+
+
+### b2. Check samples with conflicting year info    
+
+* In some cases, year in SAMPLED_DATE is different from year in TEXT_ID
+
+#### Data for checking  
+
+```{r}
+# Check those with conflicting year info  
+# All years
+df_check_all <- labware_sample_all %>%
+  mutate(
+    year_sample = year(SAMPLED_DATE),
+    month_sample = month(SAMPLED_DATE),
+    year_textid = as.numeric(substr(TEXT_ID, 4, 7))) %>%
+  # Select those where year in SAMPLED_DATE is different from year in TEXT_ID  
+  filter(year_sample != year_textid) %>%
+  select(SAMPLED_DATE, TEXT_ID, year_sample, month_sample, year_textid,
+         DESCRIPTION, AQUAMONITOR_CODE, TISSUE) %>%
+  collect()
+
+```
+
+#### Check  
+```{r}
+
+cat("-----------------------------------------------\n")
+cat("All years\n-----------------------------------------------\n")
+xtabs(~year_sample + year_textid, df_check_all)
+
+cat("-----------------------------------------------\n")
+cat("One of the year info is 2023\n-----------------------------------------------\n")
+df_check1 <- df_check_all %>%
+  filter(
+    year_sample == 2023 | year_textid == 2023) %>%
+  # Does DESCRIPTION contain 'blank'?  
+  mutate(
+    blank = grepl("blank", DESCRIPTION, ignore.case = TRUE))
+
+xtabs(~year_sample + year_textid, df_check1)
+
+xtabs(~AQUAMONITOR_CODE + paste0(year_sample, ",", year_textid), df_check1)
+
+cat("-----------------------------------------------\n")
+cat("2023 - exclude blanks\n-----------------------------------------------\n")
+
+df_check2 <- df_check1 %>%
+  filter(!blank)
+
+xtabs(~AQUAMONITOR_CODE + paste0(year_sample, ",", year_textid), df_check2)
+
+df_check2 %>%
+  count(AQUAMONITOR_CODE, SAMPLED_DATE, TISSUE, year_textid, year_sample) %>%
+  kable()
+
+
+```
+
+### b3. Get 'labware_sample'   
+
+* From code above, we found that we can download all samples where either year in SAMPLED_DATE or year in TEXT_ID is 2023 (or both)   
+* Download should take around 20 seconds  
+
+```{r}
+
+labware_samples <- labware_sample_all %>%
+  filter(
+    year(SAMPLED_DATE) == 2023 | as.numeric(substr(TEXT_ID, 4, 7)) == 2023) %>%
+  collect()
+
+# Exlude blanks
+labware_samples <- labware_samples %>%
+  filter(
+    !grepl("blank", DESCRIPTION, ignore.case = TRUE)) 
+
+# make timestamp to use in file name (NOTE: UTC = Greenwich mean time used, not local time)
+now <- lubridate::now()
+timestring <- paste0(substr(now, 1, 10), "_", substr(now, 12, 13), "h", substr(now, 15, 16), "m")  
+
+cat("-----------------------------------------------\n")
+cat("Number of samples - 2023 (excluding blanks)\n-----------------------------------------------\n")
+nrow(labware_samples)
+
+```
+
+## 6. Save   
+
+```{r}
+
+# Needs only be save if different from previously downloaded data
+
+fn_rds <- paste0("83_Labware_samples_", measurement_year, "_", timestring, ".rds")  
+fn_csv <- sub(".rds", ".csv", fn_rds)  
+
+# fn_rds; fn_csv
+saveRDS(labware_samples, paste0("Input_data/", fn_rds))
+readr::write_csv(labware_samples, paste0("Input_data/", fn_csv))
+  
+message("Data saved to 'Input_data' as ", sQuote(fn_csv), " (and as a corresponding .rds file)")
+  
+
+```
