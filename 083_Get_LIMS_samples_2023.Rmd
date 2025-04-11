@@ -166,8 +166,7 @@ df_check_all <- labware_sample_all %>%
   # Select those where year in SAMPLED_DATE is different from year in TEXT_ID  
   filter(year_sample != year_textid) %>%
   select(SAMPLED_DATE, TEXT_ID, year_sample, month_sample, year_textid,
-         DESCRIPTION, AQUAMONITOR_CODE, TISSUE) %>%
-  collect()
+         DESCRIPTION, AQUAMONITOR_CODE, TISSUE)
 
 ```
 
