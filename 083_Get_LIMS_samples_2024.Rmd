@@ -1,7 +1,7 @@
 ---
 title: "083_Get_LIMS_samples"
 author: "DHJ"
-date: "2024-09-22"
+date: "2024-05-08"
 output: 
   html_document:
     keep_md: true
@@ -51,7 +51,7 @@ library2(knitr)
 ## 2. Settings  
 ```{r}
 
-measurement_year <- 2023
+measurement_year <- 2024
 
 # Set to TRUE if you want to download the data (ca. 6 minutes)
 download_and_save <- TRUE
@@ -136,6 +136,8 @@ dat_projects <- projects %>%
 
 ### Get samples for all years    
 
+* Download should take around 20 seconds  
+
 ```{r}
 
 project <- "O 210200.ANAIN"
@@ -156,17 +158,25 @@ labware_sample_all <- samples %>%
 #### Data for checking  
 
 ```{r}
-# Check those with conflicting year info  
 # All years
-df_check_all <- labware_sample_all %>%
+df_check_years <- labware_sample_all %>%
   mutate(
     year_sample = year(SAMPLED_DATE),
     month_sample = month(SAMPLED_DATE),
-    year_textid = as.numeric(substr(TEXT_ID, 4, 7))) %>%
+    year_textid = as.numeric(substr(TEXT_ID, 4, 7)))
+xtabs(~year_sample + year_textid, df_check_years)
+```
+
+#### Conficting year information
+```{r}
+# Check those with conflicting year info  
+df_check_year_conflicts <- df_check_years %>%
   # Select those where year in SAMPLED_DATE is different from year in TEXT_ID  
   filter(year_sample != year_textid) %>%
   select(SAMPLED_DATE, TEXT_ID, year_sample, month_sample, year_textid,
          DESCRIPTION, AQUAMONITOR_CODE, TISSUE)
+
+xtabs(~year_sample + year_textid, df_check_year_conflicts)
 
 ```
 
@@ -174,47 +184,55 @@ df_check_all <- labware_sample_all %>%
 ```{r}
 
 cat("-----------------------------------------------\n")
-cat("All years\n-----------------------------------------------\n")
-xtabs(~year_sample + year_textid, df_check_all)
+cat("One of the year info is", measurement_year, "or", 
+    measurement_year+1, "\n-----------------------------------------------\n")
 
-cat("-----------------------------------------------\n")
-cat("One of the year info is 2023\n-----------------------------------------------\n")
-df_check1 <- df_check_all %>%
+df_check1 <- df_check_year_conflicts %>%
   filter(
-    year_sample == 2023 | year_textid == 2023) %>%
+    year_sample %in% c(measurement_year, measurement_year+1) | 
+      year_textid == c(measurement_year, measurement_year+1)) %>%
   # Does DESCRIPTION contain 'blank'?  
   mutate(
     blank = grepl("blank", DESCRIPTION, ignore.case = TRUE))
 
 xtabs(~year_sample + year_textid, df_check1)
 
-xtabs(~AQUAMONITOR_CODE + paste0(year_sample, ",", year_textid), df_check1)
+xtabs(~addNA(AQUAMONITOR_CODE) + paste0(year_sample, ",", year_textid), df_check1)
+
+```
+
+### Excluding blank samples (DESCRIPTION contains 'blank')
+
+```{r}
 
 cat("-----------------------------------------------\n")
 cat("2023 - exclude blanks\n-----------------------------------------------\n")
 
-df_check2 <- df_check1 %>%
-  filter(!blank)
+xtabs(~year_sample + year_textid, df_check2)
 
-xtabs(~AQUAMONITOR_CODE + paste0(year_sample, ",", year_textid), df_check2)
+xtabs(~addNA(AQUAMONITOR_CODE) + paste0(year_sample, ",", year_textid), df_check2)
 
+```
+
+### Including SAMPLED_DATE     
+```{r}
 df_check2 %>%
   count(AQUAMONITOR_CODE, SAMPLED_DATE, TISSUE, year_textid, year_sample) %>%
   kable()
 
-
 ```
+
 
 ### b3. Get 'labware_sample'   
 
 * From code above, we found that we can download all samples where either year in SAMPLED_DATE or year in TEXT_ID is 2023 (or both)   
-* Download should take around 20 seconds  
 
 ```{r}
 
 labware_samples <- labware_sample_all %>%
   filter(
-    year(SAMPLED_DATE) == 2023 | as.numeric(substr(TEXT_ID, 4, 7)) == 2023) %>%
+    # year(SAMPLED_DATE) == 2023 | as.numeric(substr(TEXT_ID, 4, 7)) == 2023) %>%
+    year(SAMPLED_DATE) == measurement_year | as.numeric(substr(TEXT_ID, 4, 7)) == measurement_year) %>%
   collect()
 
 # Exlude blanks
@@ -227,7 +245,7 @@ now <- lubridate::now()
 timestring <- paste0(substr(now, 1, 10), "_", substr(now, 12, 13), "h", substr(now, 15, 16), "m")  
 
 cat("-----------------------------------------------\n")
-cat("Number of samples - 2023 (excluding blanks)\n-----------------------------------------------\n")
+cat("Number of samples -", measurement_year, "(excluding blanks)\n-----------------------------------------------\n")
 nrow(labware_samples)
 
 ```
