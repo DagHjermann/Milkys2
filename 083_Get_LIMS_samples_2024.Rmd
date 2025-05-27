@@ -261,8 +261,14 @@ fn_csv <- sub(".rds", ".csv", fn_rds)
 
 # fn_rds; fn_csv
 saveRDS(labware_samples, paste0("Input_data/", fn_rds))
-readr::write_csv(labware_samples, paste0("Input_data/", fn_csv))
+readr::write_csv(labware_samples, paste0("Input_data/", fn_csv), na = "")
   
+message("Data saved to 'Input_data' as ", sQuote(fn_csv), " (and as a corresponding .rds file)")
+
+# all years
+fn_rds <- paste0("83_Labware_samples_all_", timestring, ".rds")  
+fn_csv <- sub(".rds", ".csv", fn_rds)  
+readr::write_csv(labware_sample_all, paste0("Input_data/", fn_csv), na = "")
 message("Data saved to 'Input_data' as ", sQuote(fn_csv), " (and as a corresponding .rds file)")
   
 
