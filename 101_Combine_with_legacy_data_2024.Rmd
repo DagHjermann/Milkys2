@@ -94,7 +94,7 @@ legacy_data_file <- "101_data_updated_2024-09-25.rds"
 ```{r, results='hold'}
 
 # file name pattern: file name except date and extension 
-# '20[0-9][0-9]' will fit 'year' (e.g. 2025)
+# the '20[0-9][0-9]' part will fit years in the 21st century ('20' followed by two numbers)
 # Not including ELU files 
 filepattern <- paste0("80_df_", lastyear, "_notstandard_20[0-9][0-9]")   
 # ELU: replace sentence above with
@@ -156,10 +156,15 @@ if (length(files) == 0){
   cat("For instance, set 'filenumber <- 2' to read the second newest file")
   cat("\n")
   
-  # Get filename and its date part 
+  # Get filename and its date-time part (example "2025-09-01_09h14m")
   filename <- files[filenumber]
-  file_date <- substr(filename, nchar(filepattern) + 1, nchar(filepattern) + 10) # pick date part
-  
+  # Find the integer for where the date-time starts
+  # Should also work for "ELU" files
+  datesearch <- regexpr("20[0-9][0-9].[0-9][0-9].[0-9][0-9]", filename)
+  index1 <- datesearch
+  index2 <- datesearch + 16
+  file_date <- substr(filename, index1, index2) # pick date part
+
   # The date part of 'filename' (e.g., '2020-04-23')
   # will be used in part 10, when we save the resulting file
   
