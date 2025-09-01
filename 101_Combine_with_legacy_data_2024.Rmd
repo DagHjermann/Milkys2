@@ -93,7 +93,12 @@ legacy_data_file <- "101_data_updated_2024-09-25.rds"
 - The file named '01_df_2019_notstandard_<date>' were made on DHJs PC using script 01 in project 'Milkys2_pc'  
 ```{r, results='hold'}
 
-filepattern <- paste0("80_df_", lastyear, "_notstandard_")    # file name except date and extension #ELU endrer fra 80_df til 01_df
+# file name pattern: file name except date and extension 
+# '20[0-9][0-9]' will fit 'year' (e.g. 2025)
+# Not including ELU files 
+filepattern <- paste0("80_df_", lastyear, "_notstandard_20[0-9][0-9]")   
+# ELU: replace sentence above with
+# filepattern <- paste0("80_df_", lastyear, "_notstandard_ELU_20[0-9][0-9]")   
 filepattern_with_extension <- paste0(filepattern, ".+.csv")
                   
 filenumber <- 1                                 # filenumber = 1 means "read the newest file"
