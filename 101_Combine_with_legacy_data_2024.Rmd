@@ -165,7 +165,7 @@ cat("\n")
 dat_new1_missing_value <- dat_new1 %>% 
   filter(is.na(VALUE))
 
-if (TRUE){
+if (FALSE){
   
   n1 <- nrow(dat_new1)
   dat_new1 <- dat_new1 %>%
@@ -463,7 +463,7 @@ files <- list_files("Data", pattern = "101_data_updated") %>% sort(decreasing = 
 data.frame(filename = head(files, 5), remark = c("newest file", rep("", 4)))
 
 # HARD_CODED: pick most recent data from last year
-legacy_data_file_number <- 1
+legacy_data_file_number <- 4                            #ELU: velger 3 for å få siste fil fra i fjor (25sept2024)
 legacy_data_file <- files[legacy_data_file_number]
 
 data_legacy <- readRDS(paste0("Data/", legacy_data_file)) %>%
@@ -1281,7 +1281,7 @@ dat_new5 %>%
   
 }
 
-if (FALSE){
+if (TRUE){
   
   # Plot all sum parameters
   
@@ -2262,7 +2262,7 @@ All time series for a station/tissue
 ```{r, fig.width=9, fig.height=6.5}
 
 # Set 'station' to one of the stations with new data (see table in part 4 above)
-station <- "15B"
+station <- "30B"
 tissue <- "Lever"
 
 if (FALSE){
