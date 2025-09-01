@@ -176,7 +176,7 @@ dat_1 <- specimens %>%
   left_join(methods) %>%
   left_join(project_stations) %>%
   left_join(projects) %>%
-  filter(PROJECT_NAME == "CEMP_Biota")  %>%
+  filter(PROJECT_NAME %in% c("CEMP_Biota", "MILKYS (2021-2025)"))  %>%
   left_join(taxonomy_codes) %>%
   left_join(taxonomy)  
 
@@ -195,7 +195,8 @@ dat_2 <- dat_1 %>%
     # extra chemical methiod info
     LABORATORY, METHOD_REF, DETECTION_LIMIT, UNCERTAINTY, QUANTIFICATION_LIMIT, 
     # IDs
-    PROJECT_ID, STATION_ID, TAXONOMY_CODE_ID, MATRIX_ID, SAMPLE_ID, TISSUE_ID, METHOD_ID, VALUE_ID, )
+    PROJECT_ID, STATION_ID, TAXONOMY_CODE_ID, MATRIX_ID, SAMPLE_ID, TISSUE_ID, METHOD_ID, VALUE_ID,
+    LABWARE_TEXT_ID)
 
 ```
 
@@ -258,7 +259,7 @@ if (download_and_save){
 
 if (download_and_save){
   
-  fn_rds <- paste0("80_df_", measurement_year, "_notstandard_", timestring, ".rds")  
+  fn_rds <- paste0("80_df_", measurement_year, "_notstandard_ELU_", timestring, ".rds")  
   fn_csv <- sub(".rds", ".csv", fn_rds)  
   # fn_rds; fn_csv
   saveRDS(dat_last_year, paste0("Input_data/", fn_rds))
@@ -396,7 +397,93 @@ specimen_id
 
 ```
 
+## APPENDIX 3. Remove duplicates in 2025
 
+```{r}
+
+if (FALSE){
+  
+  
+  dat_2023 <- readRDS("Input_data/80_df_2023_notstandard_2024-10-18_12h58m.rds")
+  dat_last_year <- readRDS("Input_data/80_df_2024_notstandard_2025-08-29_14h10m.rds")
+
+  nrow(dat_2023)
+  nrow(dat_last_year)
+  
+  # main cause appears to be that "MILKYS (2021-2025)" has been set for the Milkys stations
+  table(dat_last_year$PROJECT_NAME)
+  # CEMP_Biota  MILKYS (2021-2025)
+  #    32359              32359 
+  table(dat_last_year$PROJECT_ID)
+  #  3699 12818 
+  # 32359 32359 
+  
+  # check for duplicates
+  # many duplicates and quadruplicates ()
+  dat <- dat_last_year %>% 
+    # there should be one measurement for every sample and parameter (NAME)
+    add_count(LATIN_NAME, STATION_CODE, TISSUE_NAME, NAME, SAMPLE_NO)
+  table(dat$n)
+  
+  dat %>% 
+    filter(n == 2) %>% 
+    arrange(LATIN_NAME, STATION_CODE, TISSUE_NAME, NAME, SAMPLE_NO) %>% 
+    head(4)
+  
+  # mostly livers, some whole soft body and galle, few muskel 
+  dat %>% 
+    filter(n == 2) %>% 
+    arrange(LATIN_NAME, STATION_CODE, TISSUE_NAME, NAME, SAMPLE_NO)  %>%
+    count(TISSUE_NAME)
+  
+  # quadruplicates
+  dat %>% 
+    filter(n == 4) %>% 
+    arrange(LATIN_NAME, STATION_CODE, TISSUE_NAME, NAME, SAMPLE_NO) %>% 
+    head(4) %>% 
+    View("quadr")
+  
+  #
+  # FIX duplicates -----
+  #
+  
+  # for writing code:
+  # dat %>% names() %>% paste(collapse = ", ")
+  # PROJECT_NAME, STATION_CODE, STATION_NAME, LATIN_NAME, MYEAR, TISSUE_NAME, SAMPLE_NO, REPNO, NAME, VALUE, FLAG1, UNIT, REMARK_sample, LABORATORY, METHOD_REF, DETECTION_LIMIT, UNCERTAINTY, QUANTIFICATION_LIMIT, PROJECT_ID, STATION_ID, TAXONOMY_CODE_ID, MATRIX_ID, SAMPLE_ID, TISSUE_ID, METHOD_ID, VALUE_ID, LABWARE_TEXT_ID.x, Pooled_n, LABWARE_TEXT_ID.y, SPECIMEN_ID, SPECIMEN_NO
+  
+  # Filter on PROJECT_NAME (and thereby PROJECT_ID)
+  # Remove extra duplicates by using distinct without LABWARE_TEXT_ID.x
+  dat_last_year2 <- dat_last_year %>%
+    filter(PROJECT_NAME %in% "CEMP_Biota") %>% 
+    distinct(
+      PROJECT_NAME, PROJECT_ID, STATION_CODE, STATION_NAME, LATIN_NAME, MYEAR, TISSUE_NAME, SAMPLE_NO, REPNO, NAME, VALUE, FLAG1, UNIT, REMARK_sample, LABORATORY, METHOD_REF,
+      DETECTION_LIMIT, UNCERTAINTY, QUANTIFICATION_LIMIT, STATION_ID, TAXONOMY_CODE_ID,
+      MATRIX_ID, SAMPLE_ID, TISSUE_ID, METHOD_ID, VALUE_ID, Pooled_n, LABWARE_TEXT_ID.y, SPECIMEN_ID, SPECIMEN_NO) %>%
+    # The next line removes 5 measurements of isotope variables ("Delta 15N", "% C", "W% C/N", "% N", "Delta 13C") from 1 blue mussel in 
+    # 71A Bjørkøya that have measurememnts with UNIT given (blut slighly different measurements)
+    filter(UNIT != "NA")
+  
+  nrow(dat_last_year2)
+  
+  
+  # check for duplicates
+  dat <- dat_last_year2 %>% 
+    add_count(LATIN_NAME, STATION_CODE, TISSUE_NAME, NAME, SAMPLE_NO)
+  table(dat$n)
+  
+  # if there are duplicates, explore them with:
+  dat_dupl <- dat %>% 
+    filter(n > 1)
+  
+  # if OK (nop duplicates)
+  dat_last_year <- dat_last_year2 %>% 
+    rename(LABWARE_TEXT_ID = LABWARE_TEXT_ID.y)
+  # then run "Save" part above
+  
+  
+}
+
+```
 
 
 
