@@ -171,15 +171,19 @@ cat("\n")
 dat_new1_missing_value <- dat_new1 %>% 
   filter(is.na(VALUE))
 
-if (FALSE){
+remove_rows_with_no_value <- TRUE
+
+if (remove_rows_with_no_value){
   
   n1 <- nrow(dat_new1)
   dat_new1 <- dat_new1 %>%
     filter(!is.na(VALUE))
   n2 <- nrow(dat_new1)
   
-  warning("\n", n1-n2, " rows with no value of VALUE were removed\n")
-  message("You must check the reason for missing rows - check 'dat_new1_missing_value'")
+  if (n1-n2 > 0){
+    warning("\n", n1-n2, " rows with no value of VALUE were removed\n")
+    message("You should check the reason for missing rows - check 'dat_new1_missing_value!'")
+  }
   
 } else {
   
@@ -465,7 +469,7 @@ The data go up to 2017 and combines data from the Access database (up to 2015) a
 ```{r}
 
 # File
-cat("File used for legacy data:", legacy_data_file, "\n\n"
+cat("File used for legacy data:", legacy_data_file, "\n\n")
 
 data_legacy <- readRDS(paste0("Data/", legacy_data_file)) %>%
   mutate(PARAM = case_when(
