@@ -35,7 +35,7 @@ get_nivabase_data(str)
 ### Selected year  
 ```{r}
 
-selected_year <- 2023  
+selected_year <- 2024  
 previous_year <- selected_year - 1
 
 ```
@@ -155,7 +155,7 @@ Read and reformat the most recent data (by default)
 ```{r}
 
 # Files 
-files <- list_files("Data", pattern = "105_data_with_uncertainty.+.rds")
+files <- list_files("Data", pattern = "105_data_with_uncertainty_20[0-9][0-9].+.rds")
 
 # Pick file
 filename <- files[1]
@@ -171,7 +171,12 @@ data_all <- readRDS(paste0("Data/", filename))
 
 # We save the date part of the text (e.g., '2020-04-23')
 # This will be used in part 10, when we save the resulting file
-file_date <- substr(filename, 18, 27)    # pick out the part of the text from character no. 17 to no. 26
+# Find the integer for where the date-time starts
+datesearch <- regexpr("20[0-9][0-9].[0-9][0-9].[0-9][0-9]", filename)
+# Get date
+index1 <- datesearch
+index2 <- datesearch + 16
+file_date <- substr(filename, index1, index2) # pick date part
 
 ```
 #### Data in the selected year  
@@ -201,7 +206,7 @@ data_ind2 <- data_all %>%
       STATION_CODE == "36A" ~ "36A1",
       STATION_CODE == "56A2" ~ "56A",
       TRUE ~ STATION_CODE)
-  )
+  ) 
 
 
 #
