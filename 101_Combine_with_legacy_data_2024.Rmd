@@ -70,11 +70,17 @@ source("101_Combine_with_legacy_data_functions.R")
 
 ```
 
-### Set year  
+### Set year and file for legacy data
 Note: there are still some hard-coded "2019" given in the code  
 ```{r}
 
 lastyear <- 2024
+
+# Legacy data are the data to use for previous years 
+# (I.e. the data up to lastyear - 1)
+# Typically we use the last version for previous year
+# The file should be fond in the folder "Data"
+legacy_data_file <- "101_data_updated_2024-09-25.rds"
 
 ```
 
@@ -458,13 +464,8 @@ if (!identical(check[1,], check[2,])){
 The data go up to 2017 and combines data from the Access database (up to 2015) and NIVAbasen (2016-17). 
 ```{r}
 
-# Files 
-files <- list_files("Data", pattern = "101_data_updated") %>% sort(decreasing = TRUE)
-data.frame(filename = head(files, 5), remark = c("newest file", rep("", 4)))
-
-# HARD_CODED: pick most recent data from last year
-legacy_data_file_number <- 4                            #ELU: velger 3 for å få siste fil fra i fjor (25sept2024)
-legacy_data_file <- files[legacy_data_file_number]
+# File
+cat("File used for legacy data:", legacy_data_file, "\n\n"
 
 data_legacy <- readRDS(paste0("Data/", legacy_data_file)) %>%
   mutate(PARAM = case_when(
