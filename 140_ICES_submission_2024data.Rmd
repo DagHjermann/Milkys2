@@ -322,9 +322,10 @@ if (selected_year == 2024){
   data_extra <- readxl::read_excel(excelfile, "EROD") %>%
     rename(
       # HARD-CODED column names:
-      SAMPLE_NO2 = `lab code`,
+      SAMPLE_NO = Sampleno,
       VALUE_WW = `EROD (pmol/min/mg protein)`) %>%
     mutate(
+      SAMPLE_NO2 = SAMPLE_NO,
       MYEAR = 2024,
       LATIN_NAME = "Gadus morhua",
       TISSUE_NAME = "Blod",
@@ -335,7 +336,7 @@ if (selected_year == 2024){
       UNCRT = 40,
       METCU = "%") %>%
     select(
-      STATION_CODE, SAMPLE_NO2, MYEAR, LATIN_NAME, TISSUE_NAME, PARAM, VALUE_WW, FLAG1, UNIT, 
+      STATION_CODE, SAMPLE_NO, SAMPLE_NO2, MYEAR, LATIN_NAME, TISSUE_NAME, PARAM, VALUE_WW, FLAG1, UNIT, 
       Uncertainty, UNCRT, METCU)
   
   # Check if the data already 
@@ -359,9 +360,10 @@ if (selected_year == 2024){
   data_extra <- readxl::read_excel(excelfile, "ALA-D") %>%
     rename(
       # HARD-CODED column names:
-      SAMPLE_NO2 = Sampleno,
+      SAMPLE_NO = Sampleno,
       VALUE_WW = ALAD) %>%
     mutate(
+      SAMPLE_NO2 = SAMPLE_NO,
       MYEAR = 2024,
       LATIN_NAME = "Gadus morhua",
       TISSUE_NAME = "Blod",
@@ -372,7 +374,7 @@ if (selected_year == 2024){
       UNCRT = 40,
       METCU = "%") %>%
     select(
-      STATION_CODE, SAMPLE_NO2, MYEAR, LATIN_NAME, TISSUE_NAME, PARAM, VALUE_WW, FLAG1, UNIT, 
+      STATION_CODE, SAMPLE_NO, SAMPLE_NO2, MYEAR, LATIN_NAME, TISSUE_NAME, PARAM, VALUE_WW, FLAG1, UNIT, 
       Uncertainty, UNCRT, METCU)
   
   # Check if the data already 
@@ -401,23 +403,24 @@ if (selected_year == 2024){
   data_extra_1 <- readRDS("Input_data/Biological_effects_cod/2024/083_PAH_metabolites_15B-53B-23B.rds")
   data_extra_meta <- readRDS("Input_data/Biological_effects_cod/2024/083_PAH_metabolites_15B-53B-23B_samples.rds")
   data_extra_meta
-  table(data_extra_1$REPORTED_NAME)
-  table(data_extra_1$AQUAMONITOR_CODE)
+  # table(data_extra_1$REPORTED_NAME)
+  # table(data_extra_1$AQUAMONITOR_CODE)
   
   data_extra <- data_extra_1 %>% 
     left_join(
       data_extra_meta %>% select(TEXT_ID, BIOTA_SAMPLENO),
       by = join_by(TEXT_ID), relationship = "many-to-one"
     )
-  data_extra
+  # data_extra
   
   data_extra <- data_extra %>%
     rename(
       # HARD-CODED column names:
       STATION_CODE = AQUAMONITOR_CODE,
-      SAMPLE_NO2 = BIOTA_SAMPLENO,
+      SAMPLE_NO = BIOTA_SAMPLENO,
       VALUE_WW = NUMERIC_ENTRY) %>%
     mutate(
+      SAMPLE_NO2 = SAMPLE_NO,
       MYEAR = 2024,
       LATIN_NAME = "Gadus morhua",
       TISSUE_NAME = "Galle",
@@ -433,7 +436,7 @@ if (selected_year == 2024){
       UNCRT = 40,
       METCU = "%") %>%
     select(
-      STATION_CODE, SAMPLE_NO2, MYEAR, LATIN_NAME, TISSUE_NAME, PARAM, VALUE_WW, FLAG1, UNIT, 
+      STATION_CODE, SAMPLE_NO, SAMPLE_NO2, MYEAR, LATIN_NAME, TISSUE_NAME, PARAM, VALUE_WW, FLAG1, UNIT, 
       Uncertainty, UNCRT, METCU)
   
   # Check if the data already 
@@ -635,8 +638,6 @@ str(data_previous[["10"]])
 lapply(data_previous, names)
 
 ```
-
-
 
 ### e1. Fish individual data
 ```{r}
