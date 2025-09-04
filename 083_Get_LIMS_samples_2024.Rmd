@@ -300,24 +300,29 @@ table(import_sel$PARAM)
 
 ```
 
-### Getting lacking PAH metabolites (2024)
+### Getting lacking PAH metabolites, 2024  
 ```{r}
 
-textid_sel <- labware_samples %>% 
-  filter(AQUAMONITOR_CODE %in% c("15B", "53B", "23B") & SPECIES == "Gadus morhua" & TISSUE == "BI-Galle") %>% 
+samples_sel <- labware_samples %>% 
+  filter(AQUAMONITOR_CODE %in% c("15B", "53B", "23B") & SPECIES == "Gadus morhua" & TISSUE == "BI-Galle")
+  
+textid_sel <- samples_sel %>% 
   pull(TEXT_ID) %>% 
   sort()
 
 import <- tbl(con, in_schema("NIVADATABASE", "LABWARE_IMPORT"))
 
 import_sel <- import %>% 
-  filter(TEXT_ID == "NR-2024-08136") %>% 
+  filter(TEXT_ID %in% textid_sel) %>% 
   collect()
 
 table(import_sel$T_ANALYSIS_METHOD)
 table(import_sel$PARAM)
 
-
+if (FALSE){
+  saveRDS(import_sel, "Input_data/Biological_effects_cod/2024/083_PAH_metabolites_15B-53B-23B.rds")
+  saveRDS(samples_sel, "Input_data/Biological_effects_cod/2024/083_PAH_metabolites_15B-53B-23B_samples.rds")
+}
 
 ```
 
