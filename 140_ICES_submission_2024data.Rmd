@@ -659,6 +659,16 @@ filename <- files[1]
 df_samples <- readRDS(paste0("Input_data/", filename))
 
 # table(df_samples$AQUAMONITOR_CODE)
+table(df_samples$SPECIES)
+
+# get LABWARE_TEXT_ID
+# some are 2 codes joined by comma, e.g. NR-2024-08475, NR-2024-08805
+unique_textid <- data_ind2 %>% 
+  # filter(STATION_CODE == "11X") %>%    # for testing
+  distinct(LABWARE_TEXT_ID) %>% 
+  separate_rows(LABWARE_TEXT_ID, sep = ", ") %>% 
+  distinct(LABWARE_TEXT_ID) %>% 
+  pull(LABWARE_TEXT_ID)
 
 # Some fixing
 df_samples <- df_samples %>%
@@ -674,7 +684,9 @@ df_samples <- df_samples %>%
   filter(
     # drop haddock, saithe, lyr ("Melanogrammus aeglefinus", "Merlangius merlangus", "Pollachius pollachius")
     SPECIES %in% c("Gadus morhua", "Littorina littorea", "Mytilus edulis", 
-                      "Nucella lapillus", "Somateria mollissima"))
+                      "Nucella lapillus", "Somateria mollissima")) %>% 
+  filter(
+    TEXT_ID %in% unique_textid)
   
 
 
@@ -703,10 +715,19 @@ check <- df_samples %>%
   filter(n > 1)
 if (nrow(check) > 0){
   stop("Duplicates in liver data (error in section 1.e1)")
+  
   # If error, check using the following lines:
   check %>% 
     select(AQUAMONITOR_CODE, TISSUE, DESCRIPTION, BIOTA_SAMPLENO, X_BULK_BIO, n) %>% 
     View("Liver samples")
+  
+  example_textid <- check %>%
+    filter(AQUAMONITOR_CODE == "24B" & BIOTA_SAMPLENO == 1) %>% 
+    pull(TEXT_ID)
+  data_ind2 %>% 
+    filter(LABWARE_TEXT_ID %in% example_textid) %>% 
+    xtabs(~PARAM + LABWARE_TEXT_ID, .)
+  
 }
 
 check <- df_samples %>%
@@ -1353,9 +1374,9 @@ sel_tissues <- c("Blod", "Galle", "Liver - microsome")
 
 df1 <- data_ind2 %>%
   filter(LATIN_NAME %in% fish_species & 
-           (TISSUE_NAME %in% sel_tissues | PARAM %in% "EROD"))  %>%
+           (TISSUE_NAME %in% sel_tissues | PARAM %in% c("EROD", "ALAD")))  %>% # View("biol")
   # filter(STATION_CODE == "53B") %>%
-  rename(Fish_no = SAMPLE_NO) %>%       # because for biological effects, the sample numbers refer to specimen number
+  rename(Fish_no = SAMPLE_NO) %>%        # because for biological effects, the sample numbers refer to specimen number
   distinct(STATION_CODE, Fish_no)
 
 df2 <- data_04_fish_main %>%
@@ -1367,7 +1388,7 @@ df2 <- data_04_fish_main %>%
 # df2
 
 check <- df1 %>%
-  left_join(df2, by = c("STATION_CODE", "Fish_no")) %>%
+  left_join(df2, by = c("STATION_CODE", "Fish_no")) %>% # View("test")
   filter(is.na(In_table_04))
 
 cat(nrow(check), "specimens lack in 'data_04_fish_main'")
