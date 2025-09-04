@@ -222,7 +222,7 @@ xtabs(~ is.na(SAMPLE_NO), data_ind2)
 xtabs(~ addNA(LATIN_NAME), data_ind2)
 
 ```
-#### Data on individual level of fish (lengt, weight, gonad weight)
+#### Data on individual level of fish (length, weight, gonad weight)
 
 * Must contain these exact column names:
     - STATION_CODE, Fish_no, Length, Weight, Gonad_weight  
@@ -230,7 +230,12 @@ xtabs(~ addNA(LATIN_NAME), data_ind2)
 ```{r}
 
 fishdata_fn <- paste0("Data/150_Fish_individual_data_ELU_", selected_year, ".rds")  # assuming this file name format
-data_ind_fish <- readRDS(fishdata_fn)
+data_ind_fish <- readRDS(fishdata_fn) 
+
+table(addNA(data_ind_fish$Species))
+
+data_ind_fish <- data_ind_fish %>% 
+  filter(Species %in% "Torsk")
 
 ```
 
@@ -483,7 +488,11 @@ lapply(data_previous, names)
 ```{r}
 
 # rev() sorts files in opposite direction (i.e. with the newest first)
-files <- dir("Input_data", "83_Labware_samples_") %>% rev()
+files <- dir(
+  "Input_data", 
+  paste0("83_Labware_samples_", selected_year, "_")
+  ) %>% 
+    rev()
 
 sel <- selected_year %in% as.numeric(substr(files, 20, 23))
 
@@ -738,7 +747,7 @@ Basis: the file of LABWARE samples (df_samples) and weight/length data (data_ind
 Fish individual Length/weight are added to df_ind  
 ```{r}
 
-df_ind <- bind_rows(
+df_ind_1 <- bind_rows(
   # Get STATION_CODE + Fish_no for each part
   df_liver %>% 
     select(STATION_CODE, FiskNr_1, FiskNr_2, FiskNr_3) %>%
@@ -759,14 +768,24 @@ df_ind <- bind_rows(
   select(-n) %>%
   filter(!is.na(Fish_no))
 
-nrow(df_ind)
+nrow(df_ind_1)
 # Add fish length and weight to the data
-df_ind <- df_ind %>%
-  safe_left_join(    # using safe_lef_join, see https://github.com/moodymudskipper/safejoin 
-    data_ind_fish %>% select(STATION_CODE, Fish_no, Length, Weight, Gonad_weight),
+df_ind <- df_ind_1 %>%
+  left_join(
+    data_ind_fish %>% select(STATION_CODE, Fish_no, Length, Weight, Gonad_weight), 
     by = c("STATION_CODE", "Fish_no"),
+    relationship = "many-to-one", 
     na_matches = "never"
   )
+
+# Add fish length and weight to the data
+# ?? It's already there
+# df_ind <- df_ind %>%
+#   safe_left_join(    # using safe_lef_join, see https://github.com/moodymudskipper/safejoin 
+#     data_ind_fish %>% select(STATION_CODE, Fish_no, Length, Weight, Gonad_weight),
+#     by = c("STATION_CODE", "Fish_no"),
+#     na_matches = "never"
+#   )
 
 range(df_ind$Length, na.rm = TRUE)  # must not include zero
 range(df_ind$Weight, na.rm = TRUE)  # must not include zero
