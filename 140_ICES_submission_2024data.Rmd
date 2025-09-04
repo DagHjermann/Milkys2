@@ -207,7 +207,11 @@ data_ind2 <- data_all %>%
       STATION_CODE == "36A" ~ "36A1",
       STATION_CODE == "56A2" ~ "56A",
       TRUE ~ STATION_CODE)
-  ) 
+  ) %>% 
+  filter(
+    # drop haddock, saithe, lyr ("Melanogrammus aeglefinus", "Merlangius merlangus", "Pollachius pollachius")
+    LATIN_NAME %in% c("Gadus morhua", "Littorina littorea", "Mytilus edulis", 
+                      "Nucella lapillus", "Somateria mollissima"))
 
 
 #
@@ -666,7 +670,12 @@ df_samples <- df_samples %>%
       TRUE ~ AQUAMONITOR_CODE)
   ) %>%
   # Remove "SIA" lines 
-  filter(!grepl("SIA", DESCRIPTION))
+  filter(!grepl("SIA", DESCRIPTION)) %>% 
+  filter(
+    # drop haddock, saithe, lyr ("Melanogrammus aeglefinus", "Merlangius merlangus", "Pollachius pollachius")
+    SPECIES %in% c("Gadus morhua", "Littorina littorea", "Mytilus edulis", 
+                      "Nucella lapillus", "Somateria mollissima"))
+  
 
 
 # Nice way of viewing these data  
@@ -690,12 +699,13 @@ if (length(check) > 0){
 check <- df_samples %>%
   filter(TISSUE %in% "LI-Lever") %>%
   add_count(AQUAMONITOR_CODE, TISSUE, BIOTA_SAMPLENO) %>%
+  arrange(AQUAMONITOR_CODE, TISSUE, BIOTA_SAMPLENO) %>% 
   filter(n > 1)
 if (nrow(check) > 0){
   stop("Duplicates in liver data (error in section 1.e1)")
   # If error, check using the following lines:
   check %>% 
-    select(AQUAMONITOR_CODE, TISSUE, DESCRIPTION, BIOTA_SAMPLENO, X_BULK_BIO) %>% 
+    select(AQUAMONITOR_CODE, TISSUE, DESCRIPTION, BIOTA_SAMPLENO, X_BULK_BIO, n) %>% 
     View("Liver samples")
 }
 
