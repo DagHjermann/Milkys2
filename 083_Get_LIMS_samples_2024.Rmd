@@ -70,7 +70,7 @@ download_and_save <- TRUE
 if (interactive()){
   
   con <- DBI::dbConnect(odbc::odbc(),
-                      Driver = "/opt/conda/orahome/libsqora.so.12.1",
+                      Driver = "/usr/lib/oracle/23/client64/lib/libsqora.so.23.1",
                       DBQ = "dbora-niva-prod01.niva.corp:1555/NIVABPRD",
                       UID = rstudioapi::askForPassword("Database username (NIVA initials, 3 capital letters)"),
                       PWD = rstudioapi::askForPassword("Nivabasen password")
@@ -208,15 +208,15 @@ xtabs(~addNA(AQUAMONITOR_CODE) + paste0(year_sample, ",", year_textid), df_check
 cat("-----------------------------------------------\n")
 cat("2023 - exclude blanks\n-----------------------------------------------\n")
 
-xtabs(~year_sample + year_textid, df_check2)
+xtabs(~year_sample + year_textid, df_check2)                    #ELU: skal det være df_check1 her? får feilmelding
 
-xtabs(~addNA(AQUAMONITOR_CODE) + paste0(year_sample, ",", year_textid), df_check2)
+xtabs(~addNA(AQUAMONITOR_CODE) + paste0(year_sample, ",", year_textid), df_check2)            #ELU: skal det være df_check1 her? får feilmelding
 
 ```
 
 ### Including SAMPLED_DATE     
 ```{r}
-df_check2 %>%
+df_check1 %>%             #ELU: skal det være df_check1 her? får feilmelding
   count(AQUAMONITOR_CODE, SAMPLED_DATE, TISSUE, year_textid, year_sample) %>%
   kable()
 
@@ -273,3 +273,51 @@ message("Data saved to 'Input_data' as ", sQuote(fn_csv), " (and as a correspond
   
 
 ```
+
+## 7. APPENDIX: data  
+
+### Example  
+```{r}
+
+if (FALSE){
+  dir("Input_data", pattern = "83_Labware_samples_2024")
+  labware_samples <- readRDS("Input_data/83_Labware_samples_2024_2025-08-27_13h41m.rds")
+}
+
+textid_sel <- labware_samples %>% 
+  filter(AQUAMONITOR_CODE == "30B" & SPECIES == "Gadus morhua" & TISSUE == "LI-Lever") %>% 
+  pull(TEXT_ID) %>% 
+  sort()
+
+import <- tbl(con, in_schema("NIVADATABASE", "LABWARE_IMPORT"))
+
+import_sel <- import %>% 
+  filter(TEXT_ID == "NR-2024-08136") %>% 
+  collect()
+
+table(import_sel$T_ANALYSIS_METHOD)
+table(import_sel$PARAM)
+
+```
+
+### Getting lacking PAH metabolites (2024)
+```{r}
+
+textid_sel <- labware_samples %>% 
+  filter(AQUAMONITOR_CODE %in% c("15B", "53B", "23B") & SPECIES == "Gadus morhua" & TISSUE == "BI-Galle") %>% 
+  pull(TEXT_ID) %>% 
+  sort()
+
+import <- tbl(con, in_schema("NIVADATABASE", "LABWARE_IMPORT"))
+
+import_sel <- import %>% 
+  filter(TEXT_ID == "NR-2024-08136") %>% 
+  collect()
+
+table(import_sel$T_ANALYSIS_METHOD)
+table(import_sel$PARAM)
+
+
+
+```
+
