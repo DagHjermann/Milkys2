@@ -291,7 +291,47 @@ cat("Intersex changed to code INTF% for", sum(sel), "records")
 - NOT NEEDED anymore (see scripts from previous years)   
 
 ### a2-2. Add VDSI + intersex data   
-- NOT NEEDED anymore (see scripts from previous years)   
+- will just be added very manually, after checking result in script 051_Add_imposex_2024 (but not adding data to NIVAbasen))   
+
+```{r}
+
+snail_last_year <- data_all %>% 
+  filter(PARAM %in% c("VDSI", "Intersex") & MYEAR == 2023) %>% 
+  arrange(STATION_CODE)
+
+# snail_last_year
+
+
+if (selected_year == 2024){
+  
+  # VERY HARD-CODED
+  # changes this year: no intersex at 131G, and VDSI on 15G (value = 0)
+  snail_this_year <- bind_rows(
+    # all data, except no intersex at 131G
+    snail_last_year %>% 
+      filter(!(PARAM == "Intersex" & STATION_CODE == "131G")), 
+    # add 15G
+    snail_last_year %>% 
+      filter(STATION_CODE == "11G") %>% 
+      mutate(
+        STATION_CODE = "15G",
+        STATION_NAME = as.character(NA))
+  ) %>% 
+    mutate(
+      DRYWT = NA)
+  
+  # snail_this_year
+  
+  if (sum(data_ind2$PARAM %in% c("VDSI", "Intersex")) == 0){
+    data_ind2 <- data_ind2 %>% 
+      bind_rows(snail_this_year)
+    message(nrow(snail_this_year), " VDSI/intersex rows added")
+  }
+  
+}
+
+```
+
 
 
 ### a2-3. Remove stations not to submit  
