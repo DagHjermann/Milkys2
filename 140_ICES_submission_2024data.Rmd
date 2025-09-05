@@ -2973,7 +2973,8 @@ table(is.na(data_conc$DETECTION_LIMIT))
 
 ```
 
-### k9a. For less-thans (QFLAG = <), set UNCRT = NA
+### k9a. Set UNCRT = NA for less-thans (QFLAG = <)  
+* Also set METCU to NA  
 ```{r}
 
 cat("Before: \n")
@@ -2989,7 +2990,7 @@ xtabs(~addNA(QFLAG) + addNA(METCU), data_10)
 ```
 
 
-### k9b. Change uncertainties (UNCRT) method to METCU = U2   
+### k9b. Change UNCRT method to METCU = U2   
 
 * Values of METCU:  
     - SD = standard deviation (u)   
@@ -3003,7 +3004,8 @@ xtabs(~addNA(QFLAG) + addNA(METCU), data_10)
 data_10 <- data_10 %>% 
   mutate(
     UNCRT = UNCRT/100*VALUE,
-    METCU = "U2"
+    METCU = case_when(
+      is.na(UNCRT) ~"U2")
   )
 
 ```
