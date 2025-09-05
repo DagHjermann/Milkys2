@@ -15,7 +15,7 @@ library(dplyr)
 library(purrr)
 library(tidyr)     # pivot_wider
 library(ggplot2)
-source("845_Check_ICES_submission_functions.R")
+source("141_ICES_submission_check_functions.R")
 
 ```
 
@@ -25,8 +25,7 @@ The 2018 version, with changed stations according to '02_Change_stations_in_2014
 ### a. Filename
 ```{r}
 
-folder_data <- "Files_to_ICES/2020/Delivered"
-folder_data <- "Files_to_ICES/2022/Test"
+folder_data <- "Files_to_ICES/2024/Test/"
 dir(folder_data)
 fns <- dir(folder_data, ".NO", full.names = TRUE)
 fns
