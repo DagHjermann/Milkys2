@@ -1767,7 +1767,7 @@ data_conc_1 <- data_ind2 %>%
 sel <- data_conc_1$PARAM %in% c("BDE100", "BDE126", "BDE153", "BDE154", "BDE183", "BDE209")
 data_conc_1$PARAM[sel] <- sub("BDE", "BD", data_conc_1$PARAM[sel])
 
-sel <- data_conc_1$PARAM %in% "PFUdA"; sum(sel)
+sel <- data_conc_1$PARAM %in% "PFUnDA"; sum(sel)
 data_conc_1$PARAM[sel] <- "PFUnda"
 sel <- data_conc_1$PARAM %in% "PFDcA"; sum(sel)
 data_conc_1$PARAM[sel] <- "PFDA"
