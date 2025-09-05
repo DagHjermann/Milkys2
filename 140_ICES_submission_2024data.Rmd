@@ -341,8 +341,8 @@ if (selected_year == 2024){
 
 ```{r}
 
-data_all <- data_all %>%
-  filter(!STATION_CODE %in% c("I969", "I965"))
+data_ind2 <- data_ind2 %>%
+  filter(!STATION_CODE %in% c("I969", "I965", "I964"))
 
 ```
 
