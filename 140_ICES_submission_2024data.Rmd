@@ -240,7 +240,13 @@ data_ind_fish <- readRDS(fishdata_fn)
 table(addNA(data_ind_fish$Species))
 
 data_ind_fish <- data_ind_fish %>% 
-  filter(Species %in% "Torsk")
+  filter(Species %in% "Torsk") %>% 
+  mutate(
+    STATION_CODE = case_when(
+      STATION_CODE %in% "43B" ~ "43B2",
+      STATION_CODE %in% "45B" ~ "45B2",
+      TRUE ~ STATION_CODE)
+  )
 
 ```
 
