@@ -2983,26 +2983,22 @@ xtabs(~addNA(QFLAG) + addNA(METCU), data_10)
 ```
 
 
-### k9b. When UNCRT present, set METCU  
+### k9b. Change uncertainties (UNCRT) method to METCU = U2   
+
+* Values of METCU:  
+    - SD = standard deviation (u)   
+    - U2 = "expanded uncertainty" ~ 2*u  
+    - % = percentage, defined as 100 × u / VALUE  
+* In practice, I think our uncertainties (in %) correspond to "expanded uncertainty"  
+* So we have the following equation: percentage = 100 × 2*u / VALUE  
+    - i.e. U2 = percentage/100*VALUE
 ```{r}
 
-# This is all old
-
-# sel_uncrt <- !is.na(data_10$UNCRT)
-# 
-# 
-# cat("UNCRT given vs less thans \n") 
-# # (could also use sel_lt from previous :)
-# table(sel_uncrt, sel_lt)
-# 
-# cat("\nCheck METCU \n") 
-# table(addNA(data_10$METCU), sel_uncrt)
-# 
-# data_10$METCU[sel_uncrt] <- "SD"
-# data_10$METCU[!sel_uncrt] <- NA
-# 
-# cat("\nCheck METCU again \n") 
-# table(addNA(data_10$METCU), sel_uncrt)
+data_10 <- data_10 %>% 
+  mutate(
+    UNCRT = UNCRT/100*VALUE,
+    METCU = "U2"
+  )
 
 ```
 
