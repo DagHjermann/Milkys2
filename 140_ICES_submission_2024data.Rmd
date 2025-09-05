@@ -1764,17 +1764,29 @@ data_conc_1 <- data_ind2 %>%
 ```{r}
 
 # Change BDE to BD for the following. NOTE: "BDE28"  "BDE47"  "BDE99" should NOT be changed (!)
-sel <- data_conc_1$PARAM %in% c("BDE100", "BDE126", "BDE153", "BDE154", "BDE183", "BDE209")
+cat("Change names of BDEs\n")
+sel <- data_conc_1$PARAM %in% c("BDE100", "BDE126", "BDE153", "BDE154", "BDE183", "BDE209"); sum(sel)
 data_conc_1$PARAM[sel] <- sub("BDE", "BD", data_conc_1$PARAM[sel])
 
+cat("Change names of PFAS\n")
 sel <- data_conc_1$PARAM %in% "PFUnDA"; sum(sel)
 data_conc_1$PARAM[sel] <- "PFUnda"
 sel <- data_conc_1$PARAM %in% "PFDcA"; sum(sel)
 data_conc_1$PARAM[sel] <- "PFDA"
+sel <- data_conc_1$PARAM %in% "Perfluordekansulfonat (PFDS)"; sum(sel)
+data_conc_1$PARAM[sel] <- "PFDS"
+sel <- data_conc_1$PARAM %in% "Perfluortridekansyre (PFTrA)"; sum(sel)
+data_conc_1$PARAM[sel] <- "PFTrDA"    
+sel <- data_conc_1$PARAM %in% "PFHxS"; sum(sel)
+data_conc_1$PARAM[sel] <- "PFHXS"
+sel <- data_conc_1$PARAM %in% "PFOSA"; sum(sel)
+data_conc_1$PARAM[sel] <- "PFOSD"
 
+cat("Change names of TBT\n")
 sel <- data_conc_1$PARAM %in% "TBT"; sum(sel)   # Note this is TBT cation weight = 2.44 * TBTIN (TBT tin weight)
 data_conc_1$PARAM[sel] <- "TBSN+"
 
+cat("Change names of isotopes\n")
 sel <- data_conc_1$PARAM %in% "Delta13C"; sum(sel)  
 data_conc_1$PARAM[sel] <- "C13D"
 sel <- data_conc_1$PARAM %in% "Delta15N"; sum(sel)  
@@ -1782,6 +1794,7 @@ data_conc_1$PARAM[sel] <- "N15D"
 
 # This did NOT do in 2018:
 # Fat:
+cat("Change names of fat\n")
 sel <- data_conc_1$PARAM %in% "Fett"; sum(sel)
 data_conc_1$PARAM[sel] <- "FATWT%"
 
