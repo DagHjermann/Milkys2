@@ -3426,6 +3426,32 @@ if (FALSE){
   
 }
 
+if (lastyear == 2024){
+  
+  # Used in 2024
+  # "PFDS", "PFUnda", "PFHXS", "PFTrDA"
+  
+  amlnk <- data_10 %>% table_10_amlnk_get("PFDS")
+  data_10 <- data_10 %>% table_10_amlnk_set("PFDS", amlnk)
+  data_21 <- data_21 %>% table_21_add(amlnk)
+  
+  cat("\n")
+  amlnk <- data_10 %>% table_10_amlnk_get("PFUnda")
+  data_10 <- data_10 %>% table_10_amlnk_set("PFUnda", amlnk)
+  data_21 <- data_21 %>% table_21_add(amlnk)
+  
+  cat("\n")
+  amlnk <- data_10 %>% table_10_amlnk_get("PFHXS")
+  data_10 <- data_10 %>% table_10_amlnk_set("PFHXS", amlnk)
+  data_21 <- data_21 %>% table_21_add(amlnk)
+  
+  cat("\n")
+  amlnk <- data_10 %>% table_10_amlnk_get("PFTrDA")
+  data_10 <- data_10 %>% table_10_amlnk_set("PFTrDA", amlnk)
+  data_21 <- data_21 %>% table_21_add(amlnk)
+  
+}
+
 ```
 
 
