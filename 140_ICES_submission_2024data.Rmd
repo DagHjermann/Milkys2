@@ -2948,7 +2948,8 @@ xtabs(~PARAM, data_10[sel,])
 xtabs(~PARAM, data_10[sel,]) %>% names() %>% dput()
 
 # Set UNCRT
-sel <- data_10$PARAM %in% c("DRYWT%", "FATWT%", "LNMEA", "WTMEA"); sum(sel)
+# sel <- data_10$PARAM %in% c("DRYWT%", "FATWT%", "LNMEA", "WTMEA"); sum(sel)
+sel <- data_10$PARAM %in% c("LNMEA", "WTMEA"); sum(sel)
 data_10$UNCRT[sel] <- 10
 data_10$METCU[sel] <- "%"
 
