@@ -1858,6 +1858,9 @@ par_ices <- par_ices[!par_ices %in% "TBTIN"]
 par_ices <- c(par_ices, "TBSN+")
 # par_ices
 
+# Add PFAS we haven't reported before
+par_ices <- c(par_ices, "PFDS", "PFUnda", "PFHXS", "PFTrDA")
+
 # Filter data to keep only those parameters that we need
 data_conc_2 <- data_conc_1 %>% filter(PARAM %in% par_ices)
 
