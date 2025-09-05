@@ -318,6 +318,7 @@ if (selected_year == 2024){
         STATION_NAME = as.character(NA))
   ) %>% 
     mutate(
+      MYEAR = 2024,
       DRYWT = NA)
   
   # snail_this_year
