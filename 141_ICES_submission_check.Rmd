@@ -14,6 +14,7 @@ Functions are from `"H:\Documents\seksjon 212\Milkys 2017\Analyse\21_read_ices_f
 library(dplyr)
 library(purrr)
 library(tidyr)     # pivot_wider
+library(forcats)  # fct_ functions
 library(ggplot2)
 source("141_ICES_submission_check_functions.R")
 
@@ -53,9 +54,25 @@ data <- data %>%
   add_field_codes() %>%
   set_numeric()
 
-
 ```
 
+### c1. Check actual and lacking field names  
+```{r}
+i <- "20"
+cat("Table", i, "\n")
+data[[i]] %>% names() %>% paste(collapse = ", ")
+fieldcodes[[i]] %>% paste(collapse = ", ")
+
+i <- "21"
+cat("Table", i, "\n")
+data[[i]] %>% names() %>% paste(collapse = ", ")
+fieldcodes[[i]] %>% paste(collapse = ", ")
+
+i <- "91"
+cat("Table", i, "\n")
+data[[i]] %>% names() %>% paste(collapse = ", ")
+fieldcodes[[i]] %>% paste(collapse = ", ")
+```
 
 ### c. Check links between tables  
 
@@ -168,6 +185,84 @@ if (FALSE){
 
 ```
 
+
+
+### f. Plots  
+
+#### plotdata  
+```{r}
+
+df10 <- data[["10"]]
+df4 <- data[["04"]] %>% select(-Line_no)
+df3 <- data[["03"]] %>% select(-Line_no)
+cols1 <- var_overlap(df10, df4, drop = c("RECID", "Line_no"))
+cols2 <- var_overlap(df4, df3, drop = c("RECID", "Line_no"))
+
+plotdata <- df10 %>% 
+  left_join(df4, by = cols1) %>% 
+  left_join(df3, by = cols2)
+
+```
+
+#### overview, cod  
+```{r, fig.height=7, fig.width=8}
+
+plotdata %>% 
+  filter(SPECI == "Gadus morhua") %>% 
+  count(PARAM, STNNO) %>% 
+  mutate(PARAM = fct_rev(PARAM)) %>% 
+  ggplot(aes(STNNO, PARAM, fill = n)) +
+  geom_raster() +
+  scale_fill_viridis_c() +
+  theme(axis.text.x = element_text(angle = -30, hjust = 0))
+
+```
+#### overview, blue mussel  
+```{r, fig.height=6, fig.width=6}
+
+plotdata %>% 
+  filter(SPECI == "Mytilus edulis") %>% 
+  count(PARAM, STNNO) %>% 
+  mutate(PARAM = fct_rev(PARAM)) %>% 
+  ggplot(aes(STNNO, PARAM, fill = n)) +
+  geom_raster() +
+  scale_fill_viridis_c() +
+  theme(axis.text.x = element_text(angle = -30, hjust = 0))
+
+```
+
+#### plot values with uncertainty  
+```{r}
+
+plotdata %>% 
+  filter(SPECI == "Gadus morhua" & PARAM == "BDE99" & STNNO %in% c("23B","30B","53B")) %>% 
+  ggplot(aes(SUBNO, y = VALUE)) +
+  geom_point() +
+  geom_linerange(aes(ymin = VALUE - UNCRT, ymax = VALUE + UNCRT)) +
+  facet_wrap(vars(STNNO))
+
+```
+
+### g. Check uncertainty  
+
+```{r}
+
+tab <- table(addNA(is.na(data[["10"]]$UNCRT)), data[["10"]]$QFLAG)
+tab
+
+cat("\n")
+if (tab["TRUE",1] == 0){
+  cat("All lacking uncertainties are for values under LOQ\n")
+} else {
+  warning(tab["TRUE",1], " data with over-LOQ values miss uncertainty. UNCRT values should be added.")
+}
+if (tab["FALSE",2] == 0){
+  cat("All data with values under LOQ have set UNCRT to missing (which is correct)\n")
+} else {
+  warning(tab["FALSE",2], " data with values under LOQ have a value for UNCRT. This doesn't make sense but it's not a critical error")
+}
+
+```
 
 
 ## 2. Year 2000: Check HCHA at 36B    
