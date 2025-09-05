@@ -60,7 +60,7 @@ lookup_methods <- data.frame(
 ## 2. Settings  
 ```{r}
 
-measurement_year <- 2023
+measurement_year <- 2024
 
 # 'write_sql_files' shall normally be TRUE  
 # can sometimes be useufle that it is FALSE (to avoid overwriting files that were OK already)
@@ -277,6 +277,18 @@ xtabs(~is.na(VALUE_WW) + addNA(Sex), dat_vdsi)
 
 ```
 
+#### Get VDSI (mean VDS) for direct export to ICES (script 140)  
+
+```{r}
+
+dat_vdsi %>% 
+  filter(PARAM == "VDSI") %>% 
+  group_by(STATION_CODE) %>% 
+  summarize(VALUE_WW = mean(VALUE_WW, na.rm = TRUE))
+
+```
+
+
 #### Intersex: find files 
 
 ```{r}
@@ -344,6 +356,17 @@ dat_intersex <- dat_intersex_list %>%
 
 ```
 
+
+#### Get VDSI (mean VDS) for direct export to ICES (script 140)  
+
+```{r}
+
+dat_intersex %>% 
+  filter(PARAM == "Intersex") %>% 
+  group_by(STATION_CODE) %>% 
+  summarize(VALUE_WW = mean(VALUE_WW, na.rm = TRUE))
+
+```
 
 #### Combine imposex and intersex  
 
