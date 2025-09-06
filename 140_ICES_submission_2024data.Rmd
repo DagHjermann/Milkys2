@@ -3035,14 +3035,14 @@ table(is.na(data_conc$DETECTION_LIMIT))
 ```{r}
 
 cat("Before: \n")
-xtabs(~addNA(QFLAG) + addNA(METCU), data_10)
+xtabs(~is.na(UNCRT) + addNA(QFLAG), data_10)
 
 sel_lt <- data_10$QFLAG %in% "<"; sum(sel)
 data_10$UNCRT[sel_lt] <- NA
 data_10$METCU[sel_lt] <- NA
 
 cat("\nAfter: \n")
-xtabs(~addNA(QFLAG) + addNA(METCU), data_10)
+xtabs(~is.na(UNCRT) + addNA(QFLAG), data_10)
 
 ```
 
@@ -3062,8 +3062,11 @@ data_10 <- data_10 %>%
   mutate(
     UNCRT = UNCRT/100*VALUE,
     METCU = case_when(
-      is.na(UNCRT) ~"U2")
+      !is.na(UNCRT) ~"U2")
   )
+
+cat("\nAfter: \n")
+xtabs(~addNA(METCU) + is.na(UNCRT) + addNA(QFLAG), data_10)
 
 ```
 
