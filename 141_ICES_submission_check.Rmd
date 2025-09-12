@@ -56,7 +56,7 @@ data <- data %>%
 
 ```
 
-### c1. Check actual and lacking field names  
+### c. Check actual and lacking field names  
 ```{r}
 i <- "20"
 cat("Table", i, "\n")
@@ -72,9 +72,14 @@ i <- "91"
 cat("Table", i, "\n")
 data[[i]] %>% names() %>% paste(collapse = ", ")
 fieldcodes[[i]] %>% paste(collapse = ", ")
+
+i <- "92"
+cat("Table", i, "\n")
+data[[i]] %>% names() %>% paste(collapse = ", ")
+fieldcodes[[i]] %>% paste(collapse = ", ")
 ```
 
-### c. Check links between tables  
+### d. Check links between tables  
 
 ```{r}
 
@@ -122,68 +127,48 @@ check_link(df1, df2, cols, print_values = TRUE)
 cat("\n")
 
 ```
-### d. Check in case of errors - example  
+### e1. Check UNCRT vs METCU  
+
+* DATSU error message: 
+    - Cross field check (error preventing data import) - Line 501, When UNCRT is reported METCU may not be blank
 
 ```{r}
 
-# File: "NIVA2021CF_01.NO" gives this error/warning:
+xtabs(~is.na(UNCRT) + METCU + QFLAG, data[["10"]])
 
-# *** 03 (sample occasion per station) and 20 (sampling methods) ***
-# Variables used for join: SMLNK 
-# Table 1 has 52 rows (0 rows with missing values in join variables)
-# Table 2 has 3 rows (0 rows with missing values in join variables)
-# All variable combinations in table 1 exist in table 2
-# 
-# Table 2 has 1 rows (1 variable combinations) without corresponding rows in table 1
-#   Number of SMLNK values in missing rows: 1
-
-table(data[["03"]]$SMLNK)
-table(data[["20"]]$SMLNK)
-
-# In this case, table 20 has SMLNK = 9, which is not in 20:  
-
-data[["20"]]
-# 20;NIVA;11;HAN;;;;;;;
-# 20;NIVA;9;GIL;;;;;;;
-# 20;NIVA;8;BOT;;;;;;;
-
-# But is this variable other places? 
-tables_with_var <- map_lgl(data, ~"SMLNK" %in% names(.x))
-tables_with_var[tables_with_var]
-#   03   20 
-# TRUE TRUE 
-
-# It's not. So we can safely delete  SMLNK = 9 in table 20 
-#   (in this case, we do it by deleting the BOT (bottom trawl) line and change the '9' to '8' in the 2nd line)
-
-
-  
 ```
 
 
-### e. Check what others do
+### e2. DETLI (detection limit)  
+
 ```{r}
 
-# source("00_read_ICES_webservice_functions.R")
-# source('00_read_ICES_webservice_functions.R', encoding = 'ANSI_X3.4-1986')
-source("840_read_ICES_webservice_functions.R", encoding = 'ANSI_X3.4-1986')
+# Check that DETLI (detection limit) is never lower than value 
 
-# The following objects are masked from ???package:dplyr???:
-#   arrange, count, desc, failwith, id, mutate, rename, summarise, summarize
+check <- data[["10"]] %>% 
+  filter(VALUE < DETLI)
+if (nrow(check) > 0) {
+  error("DETLI (detection limit) is lower than value!")
+} else {
+  message("Checked that DETLI (detection limit) is never lower than value")
+}
 
-# Hg data for one year
-# debugonce(get_ices_data)
-# debugonce(get_ices_parameter_table)
-
-# Seems to work only for reporting lab (RLABO), not for Country  
-if (FALSE){
-  df_test1 <- get_ices_biotadata("HG", yearstart = 2018, lab = "NIVA")   # 371 lines
-  df_test1 <- get_ices_biotadata("HG", yearstart = 2017, lab = "NIVA")   # 371 lines
-  df_test2 <- get_ices_biotadata("VDSI", lab = "ALUK")   # 437 lines
+# Check that PARAM bile metabolites has reporting of DETLI, as  required (WGBEC2013)
+check <- data[["10"]] %>% 
+  filter(PARAM %in% c("PA1O", "PYR1O", "BAP3O", "PA1OH", "PYR1OH", "BAP3OH") & is.na(DETLI))
+if (nrow(check) > 0) {
+  error("DETLI lacking for some bile metabolites!")
+} else {
+  message("Checked that DETLI is not lacking for any bile metabolites")
 }
 
 
+
+
 ```
+
+
+
 
 
 
@@ -554,3 +539,230 @@ data[["10"]] %>%
 
 - DETLI changed to 0.5 for the 3 lines above
 - Saved as NIVA2022CF_09.NO  
+
+
+## 20. Checks using DATSU issue file   
+
+### a. 3 Cross field check errors  
+
+- 3 rows in table 21 with missing info (2024 version 07)   
+* After screening in DATSU (https://dome.ices.dk/datsu/datsu.aspx )  
+    - Note: need to register your e-mail, write a mail to Accessions <accessions@ices.dk> and ask to be added   
+* DATSU error: 
+    - "Cross field check (error preventing data import)", error fields: R21, Condition  
+    - Reason: METOA lacking for PFDS, PFHXS, PFTrDA  
+
+```{r}
+
+if (FALSE){
+  
+  # File of issues, downloaded after DATSU screening 
+  datsufile <- "Files_to_ICES/2024/Test/DatsuScreening_NIVA2024CF_07.xlsx"
+  
+  # Get overview part - first, find rows:
+  xl_test <- readxl::read_excel(datsufile, range = "G1:G50", col_names = "x")
+  sel <- xl_test$x %in% c("Type", "error", "warning")
+  n1 <- min(which(sel))-1
+  n2 <- max(which(sel))
+  
+  # Get overview part - read
+  datsu_overview <- readxl::read_excel(datsufile, skip = n1, n_max = n2-n1) %>% 
+    select(`Number Of Errors`, Type, `Reported Errors`, `Error Fields`)
+  
+  # Get main part - find rows
+  xl_test <- readxl::read_excel(datsufile, range = "D1:D50", col_names = "x")
+  n3 <- min(which(xl_test$x == "Record Line"))-1
+  
+  # Get main part - read
+  datsu_data <- readxl::read_excel(datsufile, skip = n3) %>% 
+    select(`Record Line`, Type, `Reported Errors`, `Error Values`, `Error Fields`)
+  
+  # Find this particular error 
+  # table(datsu_data$`Error Fields`)
+  datsu_data_sel <- datsu_data %>% 
+    filter(`Error Fields` == "R21, Condition")
+  
+  # read ICES submission file
+  fn <- "Files_to_ICES/2024/Test//NIVA2024CF_07.NO"
+  data_txt <- readLines(fn)
+  
+  # lines with in submitted text file:
+  data_txt[datsu_data_sel$`Record Line`]
+  # 1] "21;77;NIVA;;;;NON;;;;;;;;;;;" "21;79;NIVA;;;;NON;;;;;;;;;;;" "21;80;NIVA;;;;NON;;;;;;;;;;;"
+  
+  # column names
+  data[["21"]] %>% names()
+  # I.e., errors are for AMLNK = 77, 79, 80
+  
+  # Select these in table 10
+  data10_sel <- data[["10"]] %>% 
+    filter(AMLNK %in% c(77, 79, 80)) 
+  data10_sel
+  table(data10_sel$PARAM)
+  
+}
+
+
+```
+
+
+### b. 25 Cross field check errors (2024 version 08)  
+* After screening in DATSU (https://dome.ices.dk/datsu/datsu.aspx )  
+    - Note: need to register your e-mail, write a mail to Accessions <accessions@ices.dk> and ask to be added   
+* DATSU error: 
+    - "Cross field check (error preventing data import)", error fields: R10, Condition  
+    - Reason: METOA lacking for PFDS, PFHXS, PFTrDA  
+
+```{r}
+
+if (FALSE){
+  
+  # File of issues, downloaded after DATSU screening 
+  datsufile <- "Files_to_ICES/2024/Test/DatsuScreening_NIVA2024CF_08.xlsx"
+  
+  # Get overview part - first, find rows:
+  xl_test <- readxl::read_excel(datsufile, range = "G1:G50", col_names = "x")
+  sel <- xl_test$x %in% c("Type", "error", "warning")
+  n1 <- min(which(sel))-1
+  n2 <- max(which(sel))
+  
+  # Get overview part - read
+  datsu_overview <- readxl::read_excel(datsufile, skip = n1, n_max = n2-n1) %>% 
+    select(`Number Of Errors`, Type, `Reported Errors`, `Error Fields`)
+  
+  # Get main part - find rows
+  xl_test <- readxl::read_excel(datsufile, range = "D1:D50", col_names = "x")
+  n3 <- min(which(xl_test$x == "Record Line"))-1
+  
+  # Get main part - read
+  datsu_data <- readxl::read_excel(datsufile, skip = n3) %>% 
+    select(`Record Line`, Type, `Reported Errors`, `Error Values`, `Error Fields`)
+  
+  # Find this particular error 
+  # table(datsu_data$`Error Fields`)
+  datsu_data_sel <- datsu_data %>% 
+    filter( `Reported Errors` == "Cross field check (error preventing data import)")
+  nrow(datsu_data_sel) # 25
+  
+  # read ICES submission file
+  fn <- "Files_to_ICES/2024/Test//NIVA2024CF_08.NO"
+  data_txt <- readLines(fn)
+  
+  # lines with in submitted text file:
+  data_txt[datsu_data_sel$`Record Line`]
+  # 1] "21;77;NIVA;;;;NON;;;;;;;;;;;" "21;79;NIVA;;;;NON;;;;;;;;;;;" "21;80;NIVA;;;;NON;;;;;;;;;;;"
+  
+  data_sel_txt <- data_txt[datsu_data_sel$`Record Line`]
+  colnm <- setdiff(names(data[["10"]]), "Line_no")
+  data_sel <- strsplit(data_sel_txt, split = ";") %>% 
+    map_dfr(set_names, nm = colnm)
+  # measurements = 0.5 
+  # DETLI (detection limit) = 1  
+  table(data_sel$PARAM)
+  
+}
+
+
+```
+
+
+## 30. Check links - what to do in case of errors  
+
+### a. Example: Table 2 has 1 rows (1 variable combinations) without corresponding rows in table 1  
+
+```{r}
+
+# File: "NIVA2021CF_01.NO" gives this error/warning:
+
+# *** 03 (sample occasion per station) and 20 (sampling methods) ***
+# Variables used for join: SMLNK 
+# Table 1 has 52 rows (0 rows with missing values in join variables)
+# Table 2 has 3 rows (0 rows with missing values in join variables)
+# All variable combinations in table 1 exist in table 2
+# 
+# Table 2 has 1 rows (1 variable combinations) without corresponding rows in table 1
+#   Number of SMLNK values in missing rows: 1
+
+table(data[["03"]]$SMLNK)
+table(data[["20"]]$SMLNK)
+
+# In this case, table 20 has SMLNK = 9, which is not in 20:  
+
+data[["20"]]
+# 20;NIVA;11;HAN;;;;;;;
+# 20;NIVA;9;GIL;;;;;;;
+# 20;NIVA;8;BOT;;;;;;;
+
+# But is this variable other places? 
+tables_with_var <- map_lgl(data, ~"SMLNK" %in% names(.x))
+tables_with_var[tables_with_var]
+#   03   20 
+# TRUE TRUE 
+
+# It's not. So we can safely delete  SMLNK = 9 in table 20 
+#   (in this case, we do it by deleting the BOT (bottom trawl) line and change the '9' to '8' in the 2nd line)
+
+
+  
+```
+
+
+
+
+## 50. Check file using DATSU  
+
+* Couldn't make this work  
+
+```{r}
+
+if (FALSE){
+  
+  # library(icesDatsu)
+  # library(icesConnect)
+  # help(package = "icesDatsu")
+  
+  icesConnect::set_username("dag.hjermann@niva.no")
+  icesConnect::set_username("hjermann")
+  
+  ## Not run: 
+  filename <- "Files_to_ICES/2024/Test/NIVA2024CF_07.NO"
+  filename <- "Files_to_ICES/2024/Test/NIVA2024CF_06.NO"
+  id <- uploadDatsuFileFireAndForget(filename, 145, emailAddress = "dag.hjermann@niva.no")
+  
+  getScreeningSessionDetails(id)
+  messages <- getScreeningSessionMessages(id)
+  head(messages)
+  
+  
+  # test file
+  filename <- system.file("test_files/vms_test.csv", package = "icesDatsu")
+  file.copy(filename, "Files_to_ICES/2024/Test/vms_test.csv")
+  
+}
+
+```
+
+
+## APPENDIX Check what others do
+```{r}
+
+# source("00_read_ICES_webservice_functions.R")
+# source('00_read_ICES_webservice_functions.R', encoding = 'ANSI_X3.4-1986')
+source("840_read_ICES_webservice_functions.R", encoding = 'ANSI_X3.4-1986')
+
+# The following objects are masked from ???package:dplyr???:
+#   arrange, count, desc, failwith, id, mutate, rename, summarise, summarize
+
+# Hg data for one year
+# debugonce(get_ices_data)
+# debugonce(get_ices_parameter_table)
+
+# Seems to work only for reporting lab (RLABO), not for Country  
+if (FALSE){
+  df_test1 <- get_ices_biotadata("HG", yearstart = 2018, lab = "NIVA")   # 371 lines
+  df_test1 <- get_ices_biotadata("HG", yearstart = 2017, lab = "NIVA")   # 371 lines
+  df_test2 <- get_ices_biotadata("VDSI", lab = "ALUK")   # 437 lines
+}
+
+
+```
