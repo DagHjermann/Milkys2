@@ -3074,14 +3074,14 @@ xtabs(~addNA(METCU) + is.na(UNCRT) + addNA(QFLAG), data_10)
 
 ### k9c. Set DETLI for PAH metabolites   
 
-- Set to   
+- Commented out (see part k6 above)   
 
 ```{r}
 
-sel <- data_10$PARAM %in% c("PA1OH", "PYR1OH", "BAP3OH")  
-sum(sel)
-
-data_10$DETLI[sel] <- 1
+# sel <- data_10$PARAM %in% c("PA1OH", "PYR1OH", "BAP3OH")  
+# sum(sel)
+# 
+# data_10$DETLI[sel] <- 1
 
 ```
 
