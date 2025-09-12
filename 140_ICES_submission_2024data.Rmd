@@ -1760,6 +1760,8 @@ for (param in params_new){
   }
 }
 
+
+
 ```
 
 
@@ -3395,19 +3397,26 @@ table_10_amlnk_set <- function(existing_data_10, param, amlnk){
   existing_data_10
 }
 
-table_21_add <- function(existing_data_21, amlnk){
+table_21_add <- function(existing_data_21, amlnk, metoa = NULL){
   if (amlnk %in% existing_data_21$AMLNK){
     stop("This AMLNK already exists in table 21 (Table 21 b3b)")
   }
   cat(length(amlnk), "row with AMLNK", amlnk, "added to table 21 \n")
-  bind_rows(
-    existing_data_21,
-    tibble(
+  if (is.null(metoa)){
+    data_to_add <-     tibble(
       RECID = "21",
       AMLNK = amlnk,
       ALABO = "NIVA",
       METFP = "NON")
-  )
+  } else {
+    data_to_add <-     tibble(
+      RECID = "21",
+      AMLNK = amlnk,
+      ALABO = "NIVA",
+      METFP = "NON", 
+      METOA = metoa)
+  }
+  bind_rows(existing_data_21, data_to_add)
 } 
 
 if (FALSE){
@@ -3437,22 +3446,22 @@ if (selected_year == 2024){
   
   amlnk <- data_10 %>% table_10_amlnk_get("PFDS")
   data_10 <- data_10 %>% table_10_amlnk_set("PFDS", amlnk)
-  data_21 <- data_21 %>% table_21_add(amlnk)
+  data_21 <- data_21 %>% table_21_add(amlnk, metoa = "HPLC-MS-NE")
   
   cat("\n")
   amlnk <- data_10 %>% table_10_amlnk_get("PFUnda")
   data_10 <- data_10 %>% table_10_amlnk_set("PFUnda", amlnk)
-  data_21 <- data_21 %>% table_21_add(amlnk)
+  data_21 <- data_21 %>% table_21_add(amlnk, metoa = "HPLC-MS-NE")
   
   cat("\n")
   amlnk <- data_10 %>% table_10_amlnk_get("PFHXS")
   data_10 <- data_10 %>% table_10_amlnk_set("PFHXS", amlnk)
-  data_21 <- data_21 %>% table_21_add(amlnk)
+  data_21 <- data_21 %>% table_21_add(amlnk, metoa = "HPLC-MS-NE")
   
   cat("\n")
   amlnk <- data_10 %>% table_10_amlnk_get("PFTrDA")
   data_10 <- data_10 %>% table_10_amlnk_set("PFTrDA", amlnk)
-  data_21 <- data_21 %>% table_21_add(amlnk)
+  data_21 <- data_21 %>% table_21_add(amlnk, metoa = "HPLC-MS-NE")
   
 }
 
