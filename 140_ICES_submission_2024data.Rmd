@@ -4488,7 +4488,7 @@ if (write_ices_file){
     dir.create(save_folder_txt)
   }
   
-  fns <- dir(save_folder_txt, paste0("NIVA", selected_year, "CF*"))
+  fns <- dir(save_folder_txt, paste0("^NIVA", selected_year, "CF*"))
   existing_versions <- substr(fns, 12, 13) %>% as.numeric()
   
   if (length(existing_versions) == 0){
