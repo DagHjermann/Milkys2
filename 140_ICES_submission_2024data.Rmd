@@ -3430,7 +3430,7 @@ if (FALSE){
   
 }
 
-if (lastyear == 2024){
+if (selected_year == 2024){
   
   # Used in 2024
   # "PFDS", "PFUnda", "PFHXS", "PFTrDA"
