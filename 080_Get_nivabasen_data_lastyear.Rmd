@@ -184,7 +184,11 @@ dat_1 <- specimens %>%
 # - one row per sample, specimen-level info is discarded  
 # - assumes that there is only one project, station and MYEAR per sample  
 dat_2 <- dat_1 %>%
-  distinct(
+  # to avoid duplicates when there are several PROJECT_NAME, PROJECT_ID and LABWARE_TEXT_ID for each sample
+  # arrange LABWARE_TEXT_ID with the last one first (in order to keep only the last one, see filter sentence)
+  arrange(desc(LABWARE_TEXT_ID)) %>% 
+  # keep only rows with the last LABWARE_TEXT_ID (group_by + mutate + filter)
+  group_by(
     # Main data
     PROJECT_NAME, STATION_CODE, STATION_NAME, LATIN_NAME, MYEAR, TISSUE_NAME, SAMPLE_NO, REPNO, 
     NAME, VALUE, FLAG1, UNIT, 
@@ -195,8 +199,24 @@ dat_2 <- dat_1 %>%
     # extra chemical methiod info
     LABORATORY, METHOD_REF, DETECTION_LIMIT, UNCERTAINTY, QUANTIFICATION_LIMIT, 
     # IDs
-    PROJECT_ID, STATION_ID, TAXONOMY_CODE_ID, MATRIX_ID, SAMPLE_ID, TISSUE_ID, METHOD_ID, VALUE_ID,
-    LABWARE_TEXT_ID)
+    STATION_ID, TAXONOMY_CODE_ID, MATRIX_ID, SAMPLE_ID, TISSUE_ID, METHOD_ID, VALUE_ID) %>% 
+  mutate(LABWARE_TEXT_ID_1 = first(LABWARE_TEXT_ID)) %>% 
+  ungroup() %>% 
+  filter(LABWARE_TEXT_ID == LABWARE_TEXT_ID_1) %>% 
+  # avoid rows that differs only by PROJECT_NAME or PROJECT_ID:
+  distinct(
+    # Main data (PROJECT_NAME removed as it causes duplicates)
+    STATION_CODE, STATION_NAME, LATIN_NAME, MYEAR, TISSUE_NAME, SAMPLE_NO, REPNO, 
+    NAME, VALUE, FLAG1, UNIT, 
+    # extra time info
+    # DATE_CAUGHT, YEAR, MONTH,
+    # extra sample info (note: LABWARE_TEXT_ID not included as there can be two or more TEXT_ID for a single sample)
+    REMARK_sample, 
+    # extra chemical methiod info
+    LABORATORY, METHOD_REF, DETECTION_LIMIT, UNCERTAINTY, QUANTIFICATION_LIMIT, 
+    # IDs
+    STATION_ID, TAXONOMY_CODE_ID, MATRIX_ID, SAMPLE_ID, TISSUE_ID, METHOD_ID, VALUE_ID)
+
 
 ```
 
@@ -207,6 +227,12 @@ dat_2 <- dat_1 %>%
 * Download takes ca. 6 minutes  
 
 ```{r}
+
+# for testing that we don't get duplicates:
+# dat_2 %>%
+#   filter(MYEAR == measurement_year & STATION_CODE == "30B" & NAME == "Tinn") %>%
+#   arrange(LATIN_NAME, SAMPLE_NO) %>% 
+#   collect()
 
 if (download_and_save){
   
