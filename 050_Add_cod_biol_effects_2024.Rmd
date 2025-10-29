@@ -1,7 +1,7 @@
 ---
 title: "50_Add_cod_biol_effects"
 author: "DHJ"
-date: "2024-09-01"
+date: "2025-10-29"
 output: 
   html_document:
     keep_md: true
@@ -55,7 +55,7 @@ lookup_methods <- data.frame(
 ## 2. Settings  
 ```{r}
 
-measurement_year <- 2023
+measurement_year <- 2024
 
 # 'write_sql_files' shall normally be TRUE  
 # can sometimes be useufle that it is FALSE (to avoid overwriting files that were OK already)
@@ -77,7 +77,7 @@ con_exists <- "con" %in% ls()
 if (interactive() & !con_exists){
   
   con <- DBI::dbConnect(odbc::odbc(),
-                      Driver = "/opt/conda/orahome/libsqora.so.12.1",
+                      Driver = "/usr/lib/oracle/23/client64/lib/libsqora.so.23.1",
                       DBQ = "dbora-niva-prod01.niva.corp:1555/NIVABPRD",
                       UID = rstudioapi::askForPassword("Database username (NIVA initials, 3 capital letters)"),
                       PWD = rstudioapi::askForPassword("Nivabasen password")
@@ -99,7 +99,7 @@ if (interactive() & !con_exists){
   }
   
   con <- DBI::dbConnect(odbc::odbc(),
-                        Driver = "/opt/conda/orahome/libsqora.so.12.1",
+                        Driver = "/usr/lib/oracle/23/client64/lib/libsqora.so.23.1",
                         DBQ = "dbora-niva-prod01.niva.corp:1555/NIVABPRD",
                         UID = params$oracleuser,
                         PWD = params$oraclepass
@@ -172,23 +172,22 @@ lims_id <- tbl(con, in_schema("NIVADATABASE", "LABWARE_BSID")) %>%
 
 ### Excel data that shall be imported to Nivadatabase    
 
+Data with columns STATION_CODE, SPECIMEN_NO (1,2,...), NAME ('ALAD' or 'EROD'), VALUE
+
 ```{r}
 
-df_raw <- read_excel("Input_data/Biological_effects_cod/BEM-JAMP_2023_ARU.xls", sheet = 1)
+fn <- "Input_data/Biological_effects_cod/2024/milkys_2024_EROD-ALAD_results.xlsx"
+excel_sheets(fn)
+df_raw_erod <- read_excel(fn, sheet = "EROD") %>% 
+  mutate(NAME = "EROD") %>% 
+  select(STATION_CODE, SPECIMEN_NO = Sampleno, NAME, VALUE = `EROD (pmol/min/mg protein)`)
+df_raw_alad <- read_excel(fn, sheet = "ALA-D") %>% 
+  mutate(NAME = "ALAD") %>% 
+  select(STATION_CODE, SPECIMEN_NO = Sampleno, NAME, VALUE = ALAD)
 
-dat_alad_erod1 <- df_raw %>%
-  filter(!(is.na(ALAD) & is.na(EROD))) %>%
-  mutate(
-    STATION_CODE = paste0(stasjon, Fisk),
-    SPECIMEN_NO = nummer
-  ) %>%
-  select(
-    STATION_CODE, SPECIMEN_NO, ALAD, EROD 
-  ) %>%
-  pivot_longer(
-    cols = c(ALAD, EROD), names_to = "NAME", values_to = "VALUE" 
-  )
+dat_alad_erod1 <- bind_rows(df_raw_erod, df_raw_alad)
 
+head(dat_alad_erod1, 2)
 xtabs(~SPECIMEN_NO + STATION_CODE, dat_alad_erod1)
 
 ```
@@ -207,11 +206,12 @@ Most recent data
 # files <- dir("Input_data", pattern = filepattern_with_extension) %>% rev()
 # filename <- files[filenumber]
 
-filename <- '80_df_2023_notstandard_2024-08-31_07h42m.rds'
+# filename <- '80_df_2023_notstandard_2024-08-31_07h42m.rds'
+filename <- 'Input_data/80_df_2024_notstandard_2025-09-01_09h14m.rds'
 
 # Read data
 message("Reading file ",  filename)
-dat_new1 <- readRDS(paste0("Input_data/", filename))
+dat_new1 <- readRDS(filename)
 message(nrow(dat_new1), " rows of data read from file")
 
 
@@ -263,10 +263,10 @@ df_specimens_nivabasen <- map_dfr(lookup_stationid$STATION_ID,
 lookup_tissues <- tissue %>% 
   collect()
 
-
 # Expecting only be one species for each station
 # - otherwise, left_join further down will warn you
 lookup_taxonomyid <- dat_new1 %>%
+  filter(LATIN_NAME %in% "Gadus morhua") %>%           # HARD-CODED: EROD and ALA-D are expected to be from cod (Gadus morhua)  
   distinct(STATION_CODE, TAXONOMY_CODE_ID)
 
 lookup_date_by_specimen <- df_specimens_nivabasen %>% 
@@ -334,6 +334,7 @@ biota_samples_to_add <- dat_alad_erod2 %>%
 The script below creates a text file named e.g. 'milkys_2023_erod-alad_samples.sql'  
 * It is located in the folder 'Milkys2/Input_data/Biological_effects_cod'
 * Download this file to your PC  
+* Copy it to SQL Developer's script folder; for instance 'C:\Users\DHJ\AppData\Roaming\SQL Developer'
 * Open this file in SQL Developer and run it  
 - remember `commit;` after running the insert sentences  
 * Then come back here and continue below (part g)  
@@ -358,11 +359,10 @@ sql <- paste0(sql, ";\n")
 # writeLines(sql, "clipboard")  # copies SQLs to clipboard - go to SQL Developer and paste
 
 # On Jupyterhub:
-fn <- paste0("Input_data/Biological_effects_cod/milkys_", measurement_year, "_erod-alad_samples.sql")
+fn <- paste0("Input_data/Biological_effects_cod/", measurement_year, "/milkys_", measurement_year, "_erod-alad_samples.sql")
 
 if (write_sql_files)
   writeLines(sql, fn)  # writes SQL code to file - download this to yor computer 
-
 
 cat("Number of SQLs: \n")
 length(sql_list)  
@@ -423,7 +423,7 @@ sql <- paste0(sql, ";\n")
 # Windows only:
 # writeLines(sql, "clipboard")  # copies SQLs to clipboard - go to SQL Developer and paste
 # On Jupyterhub:
-fn <- paste0("Input_data/Biological_effects_cod/milkys_", measurement_year, "_erod-alad_specimen.sql")
+fn <- paste0("Input_data/Biological_effects_cod/", measurement_year, "/milkys_", measurement_year, "_erod-alad_specimen.sql")
 
 if (write_sql_files)
   writeLines(sql, fn)  # writes SQL code to text file - download it to your PC and run it from SQL Developer
@@ -451,7 +451,7 @@ samples_sel <- tbl(con, in_schema("NIVADATABASE", "BIOTA_SAMPLES")) %>%
   filter(
     STATION_ID %in% station_ids, 
     REPNO %in% specimen_no,
-    year(SAMPLE_DATE) == 2023, 
+    year(SAMPLE_DATE) == measurement_year, 
     TISSUE_ID %in% tissue_ids) %>%
   collect()
 
@@ -466,7 +466,7 @@ specimens_sel <- tbl(con, in_schema("NIVADATABASE", "BIOTA_SINGLE_SPECIMENS")) %
   filter(
     STATION_ID %in% station_ids, 
     SPECIMEN_NO %in% specimen_no,
-    year(DATE_CAUGHT) == 2023) %>%
+    year(DATE_CAUGHT) == measurement_year) %>%
   collect()
 
 biota_specimens_added <- dat_alad_erod2 %>%
@@ -490,8 +490,9 @@ biota_samples_specimens_to_add <- biota_specimens_added %>%
 ### j. Samples-specimens: Make SQLs for adding data to 'BIOTA_SAMPLES_SPECIMENS' table   
 
 The script below creates a text file named e.g. 'milkys_2023_erod-alad_samples_specimen.sql'    
-* The file is located in the folder 'Milkys2/Input_data/Biological_effects_cod'
+* The file is located in the folder 'Milkys2/Input_data/Biological_effects_cod/[measurement year]'
 * Download this file to your PC  
+* Copy it to SQL Developer's script folder; for instance 'C:\Users\DHJ\AppData\Roaming\SQL Developer'
 * Open this file in SQL Developer and run it  
 - remember `commit;` after running the insert sentences  
 * Then come back here and continue below  
@@ -507,7 +508,7 @@ sql <- paste0(sql, ";\n")
 # Windows only:
 # writeLines(sql, "clipboard")  # copies SQLs to clipboard - go to SQL Developer and paste
 # On Jupyterhub:
-fn <- paste0("Input_data/Biological_effects_cod/milkys_", measurement_year, "_erod-alad_samples_specimens.sql")
+fn <- paste0("Input_data/Biological_effects_cod/", measurement_year, "/milkys_", measurement_year, "_erod-alad_samples_specimens.sql")
 
 if (write_sql_files)
   writeLines(sql, fn)  # writes SQL code to text file - download it to your PC and run it from SQL Developer
@@ -530,7 +531,7 @@ tail(sql_list, 3)
 
 ### k. Adding methods: Make SQLs for adding methods to METHODS_DEFINITIONS  
 
-Usually not needed  
+Usually not needed!  
 
 ### l. Measurements: Make data   
 
@@ -545,7 +546,7 @@ samples_sel <- tbl(con, in_schema("NIVADATABASE", "BIOTA_SAMPLES")) %>%
   filter(
     STATION_ID %in% station_ids, 
     REPNO %in% specimen_no,
-    year(SAMPLE_DATE) == 2023, 
+    year(SAMPLE_DATE) == measurement_year, 
     TISSUE_ID %in% tissue_ids) %>%
   collect()
 
@@ -570,7 +571,7 @@ biota_measurements_to_add <- dat_alad_erod3 %>%
 ```
 
 
-### m. Make SQLs for adding data to 'BIOTA_SAMPLES_SPECIMENS' table   
+### m. Make SQLs for adding data to 'BIOTA_CHEMISTRY_VALUES' table   
 
 The script below creates a text file named e.g. 'milkys_2023_erod-alad_measurements.sql'    
 * The file is located in the folder 'Milkys2/Input_data/Biological_effects_cod'
@@ -591,7 +592,7 @@ sql <- paste0(sql, ";\n")
 # Windows only:
 # writeLines(sql, "clipboard")  # copies SQLs to clipboard - go to SQL Developer and paste
 # On Jupyterhub:
-fn <- paste0("Input_data/Biological_effects_cod/milkys_", measurement_year, "_erod-alad_measurements.sql")
+fn <- paste0("Input_data/Biological_effects_cod/", measurement_year, "/milkys_", measurement_year, "_erod-alad_measurements.sql")
 if (write_sql_files)
   writeLines(sql, fn)  # writes SQL code to text file - download it to your PC and run it from SQL Developer
 
