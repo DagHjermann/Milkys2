@@ -83,7 +83,7 @@ con_exists <- "con" %in% ls()
 if (interactive() & !con_exists){
   
   con <- DBI::dbConnect(odbc::odbc(),
-                        Driver = "/opt/conda/orahome/libsqora.so.12.1",
+                        Driver = "/usr/lib/oracle/23/client64/lib/libsqora.so.23.1",
                         DBQ = "dbora-niva-prod01.niva.corp:1555/NIVABPRD",
                         UID = rstudioapi::askForPassword("Database username (NIVA initials, 3 capital letters)"),
                         PWD = rstudioapi::askForPassword("Nivabasen password")
@@ -103,7 +103,7 @@ if (interactive() & !con_exists){
   }
   
   con <- DBI::dbConnect(odbc::odbc(),
-                        Driver = "/opt/conda/orahome/libsqora.so.12.1",
+                        Driver = "/usr/lib/oracle/23/client64/lib/libsqora.so.23.1",
                         DBQ = "dbora-niva-prod01.niva.corp:1555/NIVABPRD",
                         UID = params$oracleuser,
                         PWD = params$oraclepass
@@ -172,6 +172,35 @@ lims_id <- tbl(con, in_schema("NIVADATABASE", "LABWARE_BSID")) %>%
 
 ```
 
+### Test data already there  
+
+```{r}
+
+# old data
+filename <- 'Input_data/80_df_2023_notstandard_2024-10-18_12h58m.rds'
+dat_existing_nivabase <- readRDS(filename)
+
+lookup_methods <- dat_existing_nivabase %>%
+  distinct(NAME, METHOD_ID) %>%
+  filter(NAME %in% c("VDSI", "Intersex"))
+
+test_year <- 2024
+measurements %>% 
+  filter(METHOD_ID %in% lookup_methods$METHOD_ID) %>% 
+  left_join(samples) %>% 
+  left_join(samples_specimens) %>% 
+  left_join(specimens) %>% 
+  left_join(project_stations) %>% 
+  left_join(projects) %>% 
+  filter(PROJECT_NAME == "MILKYS (2021-2025)") %>% 
+  filter(year(DATE_CAUGHT) == test_year) %>%
+  arrange(STATION_CODE) %>% 
+  xtabs(~STATION_CODE, .)
+
+
+```
+
+
 ## 4. Read data 
 
 ### Data that shall be added to NIVAbase   
@@ -234,7 +263,7 @@ cat("\n\nData stored in 'dat_vdsi_list', a list of length", length(dat_vdsi_list
 #### Imposex: check number of rows - should be 50  
 ```{r}
 
-#  unless oherwise noted in sheet (15G "Fant ikke flere snegl i år, men det er over 15 hunner.")
+#  unless otherwise noted in sheet (15G "Fant ikke flere snegl i år, men det er over 15 hunner.")
 dat_vdsi_list %>% map_int(nrow)
 
 ```
@@ -412,11 +441,11 @@ xtabs(~NAME, dat_1)
 # files <- dir("Input_data", pattern = filepattern_with_extension) %>% rev()
 # filename <- files[filenumber]
 
-filename <- '80_df_2023_notstandard_2024-08-31_07h42m.rds'
+filename <- 'Input_data/80_df_2024_notstandard_2025-09-01_09h14m.rds'
 
 # Read data
 message("Reading file ",  filename)
-dat_existing_nivabase <- readRDS(paste0("Input_data/", filename))
+dat_existing_nivabase <- readRDS(filename)
 message(nrow(dat_existing_nivabase), " rows of data read from file")
 
 ```
@@ -665,7 +694,7 @@ sql <- paste0(sql, ";\n")
 # Windows only:
 # writeLines(sql, "clipboard")  # copies SQLs to clipboard - go to SQL Developer and paste
 # On Jupyterhub:
-fn <- paste0("Input_data/opparbeiding_biota/Snegl_2023/milkys_", measurement_year, "_imposex_measurements.sql")
+fn <- paste0("Input_data/opparbeiding_biota/Snegl_", measurement_year, "/milkys_", measurement_year, "_imposex_measurements.sql")
 if (write_sql_files)
   writeLines(sql, fn)  # writes SQL code to text file - download it to your PC and run it from SQL Developer
 
