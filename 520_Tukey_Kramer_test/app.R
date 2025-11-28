@@ -59,8 +59,8 @@ dat2 <- dat %>%
 
 matrices <- dat2 %>%
     filter(MYEAR %in% (current_year-5):current_year) %>%
-    count(Matrix) %>%
-    arrange(desc(n)) %>%
+    count(LATIN_NAME, Matrix) %>%
+    arrange(LATIN_NAME, desc(n)) %>%
     pull(Matrix)
 
 years <- sort(unique(dat2$MYEAR))
