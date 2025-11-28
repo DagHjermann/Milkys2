@@ -1,4 +1,4 @@
-#
+q#
 # This is a Shiny web application. You can run the application by clicking
 # the 'Run App' button above.
 #
@@ -12,17 +12,33 @@ library(shiny)
 library(ggplot2)
 library(dplyr)
 
-current_year <- 2023
+current_year <- 2024
 
 # Data and station metadata
-dat <- readRDS("../Data/109_adjusted_data_ELU_2024-09-25.rds")
+dat <- readRDS("../Data/109_adjusted_data_ELU_2025-09-01.rds")
 dat_stations <- read.csv("../Input_data/Lookup_tables/Lookup_stationorder.csv") %>%
   mutate(Station = paste(STATION_CODE, substr(Station_name, 1, 15)))
+
+dat_alad_erod_2024 <- bind_rows(df_raw_erod, df_raw_alad) %>% 
+  mutate(
+    LATIN_NAME = "Gadus morhua",
+    TISSUE_NAME = case_when(
+      NAME == "ALAD" ~ "Blod",                # must use exactly this name (from Nivabasen BIOTA_TISSUE_TYPES)
+      NAME == "EROD" ~ "Liver - microsome"    # must use exactly this name (from Nivabasen BIOTA_TISSUE_TYPES),
+    ),
+    FLAG1 = as.character(NA),
+    SPECIMEN_NO = as.character(SPECIMEN_NO),
+    MYEAR = 2024
+  ) %>% 
+  rename(
+    PARAM = NAME,
+    VALUE_WW = VALUE)
 
 c <- 0.1
 
 dat2 <- dat %>%
-    filter((VALUE_WW + c) > 0) %>%
+  bind_rows(dat_alad_erod_2024) %>% 
+  filter((VALUE_WW + c) > 0) %>%
     left_join(dat_stations %>% select(STATION_CODE, Order, Station), by = "STATION_CODE") %>%
     mutate(
         Matrix = paste0(LATIN_NAME, ", ", TISSUE_NAME),
@@ -95,6 +111,14 @@ ui <- fluidPage(
         )
     )
 )
+
+if (FALSE){
+  # for test
+  input <- list()
+  input$param <- "EROD"
+  input$matrix <- "Gadus morhua, Liver - microsome"
+  input$year <- 2022
+}
 
 # Define server logic required to draw a histogram
 server <- function(input, output) {
