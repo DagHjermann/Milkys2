@@ -11,6 +11,7 @@ source("functions/function_HSDtest.R")
 library(shiny)
 library(ggplot2)
 library(dplyr)
+library(readxl)
 
 current_year <- 2024
 
@@ -18,6 +19,15 @@ current_year <- 2024
 dat <- readRDS("../Data/109_adjusted_data_ELU_2025-09-01.rds")
 dat_stations <- read.csv("../Input_data/Lookup_tables/Lookup_stationorder.csv") %>%
   mutate(Station = paste(STATION_CODE, substr(Station_name, 1, 15)))
+
+fn <- "../Input_data/Biological_effects_cod/2024/milkys_2024_EROD-ALAD_results.xlsx"
+# excel_sheets(fn)
+df_raw_erod <- read_excel(fn, sheet = "EROD") %>% 
+  mutate(NAME = "EROD") %>% 
+  select(STATION_CODE, SPECIMEN_NO = Sampleno, NAME, VALUE = `EROD (pmol/min/mg protein)`)
+df_raw_alad <- read_excel(fn, sheet = "ALA-D") %>% 
+  mutate(NAME = "ALAD") %>% 
+  select(STATION_CODE, SPECIMEN_NO = Sampleno, NAME, VALUE = ALAD)
 
 dat_alad_erod_2024 <- bind_rows(df_raw_erod, df_raw_alad) %>% 
   mutate(
