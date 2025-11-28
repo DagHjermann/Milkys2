@@ -9,40 +9,15 @@ source("functions/function_HSDtest.R")
 library(shiny)
 library(ggplot2)
 library(dplyr)
-
-current_year <- 2023
-
-# Data and station metadata
-dat <- readRDS("../Data/109_adjusted_data_ELU_2024-09-25.rds")
-dat_stations <- read.csv("../Input_data/Lookup_tables/Lookup_stationorder.csv") %>%
-  mutate(Station = paste(STATION_CODE, substr(Station_name, 1, 15)))
-
-# no ALAD and EROD for 2024 here:
-dat <- readRDS("../Data/109_adjusted_data_ELU_2025-09-01.rds")
-dat %>% 
-  filter(PARAM %in% c("ALAD", "EROD", "PYR1OH")) %>% 
-  xtabs(~PARAM + MYEAR, .)
-
-#
-# No data here:
-#
-dat_80 <- readRDS("../Input_data/80_df_2024_notstandard_ELU_2025-11-12_03h38m.rds")
-dat_80 %>% 
-  filter(NAME %in% c("ALAD", "EROD", "PYR1OH")) %>% 
-  xtabs(~NAME + MYEAR, .)
-
+library(readxl)
 
 current_year <- 2024
+
 # Data and station metadata
 dat <- readRDS("../Data/109_adjusted_data_ELU_2025-09-01.rds")
 dat_stations <- read.csv("../Input_data/Lookup_tables/Lookup_stationorder.csv") %>%
   mutate(Station = paste(STATION_CODE, substr(Station_name, 1, 15)))
 
-c <- 0.1
-
-#
-# Add from file
-# 
 fn <- "../Input_data/Biological_effects_cod/2024/milkys_2024_EROD-ALAD_results.xlsx"
 # excel_sheets(fn)
 df_raw_erod <- read_excel(fn, sheet = "EROD") %>% 
@@ -60,14 +35,40 @@ dat_alad_erod_2024 <- bind_rows(df_raw_erod, df_raw_alad) %>%
       NAME == "EROD" ~ "Liver - microsome"    # must use exactly this name (from Nivabasen BIOTA_TISSUE_TYPES),
     ),
     FLAG1 = as.character(NA),
-    SPECIMEN_NO = as.character(SPECIMEN_NO)
+    SPECIMEN_NO = as.character(SPECIMEN_NO),
+    MYEAR = 2024
   ) %>% 
   rename(
     PARAM = NAME,
     VALUE_WW = VALUE)
 
+# Add PAH metabolites from file
+pah_met_2024 <- readRDS("../Input_data/Biological_effects_cod/2024/083_PAH_metabolites_15B-53B-23B.rds")
+pah_met_2024_samples <- readRDS("../Input_data/Biological_effects_cod/2024/083_PAH_metabolites_15B-53B-23B_samples.rds")
+
+dat_pahmetabolites_2024 <- pah_met_2024 %>% 
+  left_join(
+    pah_met_2024_samples %>% select(TEXT_ID, BIOTA_SAMPLENO), by = join_by(TEXT_ID)) %>% 
+  mutate(
+    LATIN_NAME = "Gadus morhua",
+    TISSUE_NAME = "Galle",
+    SPECIMEN_NO = as.character(BIOTA_SAMPLENO),
+    MYEAR = 2024
+  ) %>% 
+  rename(
+    VALUE_WW = NUMERIC_ENTRY,
+    FLAG1 = ENTRY_QUALIFIER,
+    STATION_CODE = AQUAMONITOR_CODE
+  ) %>% 
+  select(LATIN_NAME, STATION_CODE, TISSUE_NAME, MYEAR, SPECIMEN_NO, PARAM, VALUE_WW, FLAG1)
+
+# xtabs(~PARAM + STATION_CODE, dat_pahmetabolites_2024)
+
+c <- 0.1
+
 dat2 <- dat %>%
   bind_rows(dat_alad_erod_2024) %>% 
+  bind_rows(dat_pahmetabolites_2024) %>% 
   filter((VALUE_WW + c) > 0) %>%
   left_join(dat_stations %>% select(STATION_CODE, Order, Station), by = "STATION_CODE") %>%
   mutate(
@@ -76,6 +77,12 @@ dat2 <- dat %>%
     LOQ = ifelse(is.na(FLAG1), "Over LOQ", "Under LOQ")
   ) %>%
   filter(!is.na(log_Conc))
+
+dat2 %>% 
+  filter(PARAM == "PYR1OH") %>% 
+  xtabs(~STATION_CODE + MYEAR, .)
+
+
 
 matrices <- dat2 %>%
   filter(MYEAR %in% (current_year-5):current_year) %>%
