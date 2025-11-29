@@ -12,7 +12,15 @@ output:
 ## Startup  
 ```{r 01_settings, include=FALSE}
 
-current_year <- 2023
+current_year <- 2024
+
+# this script will normally run in the year after 'current_year'
+# if you want to override this, comment out the lines below
+if (lubridate::year(Sys.time()) - current_year != 1){
+  stop("'current_year' is not one year ago. Comment out if you want to run the script anyway.")
+}
+
+# don't show code if the document is knitted
 knitr::opts_chunk$set(echo = FALSE, results = 'hold')
 
 ```
@@ -42,11 +50,11 @@ library(cowplot)
 
 ```{r 03_medians_data1}
 
-dat_raw <- readRDS("Data/109_adjusted_data_ELU_2024-09-25.rds") %>%
+dat_raw <- readRDS("Data/109_adjusted_data_ELU_2025-09-01.rds") %>%
   filter(!STATION_CODE %in% c("I965","I969"))
 
 dat_medians <- readr::read_csv(
-  "Data/110_mediandata_updated_ELU_2024-09-025_rettet 09-26.csv") %>%
+  "Data/110_mediandata_updated_ELU_2025-09-01.csv") %>%
   filter(!STATION_CODE %in% c("I965","I969"))
 
 # Stations - for corrrect ordering
@@ -234,11 +242,11 @@ gg <- ggplot(dat_loq2, aes(MYEAR, PARAM, fill = loq_rel)) +
             aes(label = medLOQ_label), color = "black", size = 3.5) +
   geom_text(data = subset(dat_loq2, loq_rel < white[1] | loq_rel > white[2]), 
             aes(label = medLOQ_label), color = "white", size = 3.5) +
-  scale_x_continuous(breaks = seq(2002,2023,1)) +
+  scale_x_continuous(breaks = seq(2002,current_year,1)) +
   theme(axis.title = element_blank())
   
 gg1 <- gg + coord_cartesian(xlim = c(2002,2012))
-gg2 <- gg + coord_cartesian(xlim = c(2013,2023))
+gg2 <- gg + coord_cartesian(xlim = c(2013,current_year))
 
 ggsave(paste0("Figures/433_LOQ-median1-", current_year, ".png"), gg1, 
        width = 10, height = 6.5, dpi = 200)
