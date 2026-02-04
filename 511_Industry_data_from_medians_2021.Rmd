@@ -3064,8 +3064,8 @@ table(addNA(data_new$LATIN_NAME))
 ```{r}
 
 # Load self-made functions
-source("002_Utility_functions.R")
-# source("101_Combine_with_legacy_data_functions.R")
+# source("002_Utility_functions.R")
+source("101_Combine_with_legacy_data_functions.R")
 
 data_new$PARAM <- get_standard_parametername(
   data_new$NAME,
