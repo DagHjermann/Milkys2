@@ -284,7 +284,7 @@ if (download_and_save){
 
 if (download_and_save){
   
-  fn_rds <- paste0("80_df_", measurement_year, "_notstandard_ELU_", timestring, ".rds")  
+  fn_rds <- paste0("80_df_", measurement_year, "_notstandard_", timestring, ".rds")  
   fn_csv <- sub(".rds", ".csv", fn_rds)  
   # fn_rds; fn_csv
   saveRDS(dat_last_year, paste0("Input_data/", fn_rds))
@@ -297,6 +297,10 @@ if (download_and_save){
   message("Complete data not saved (set 'download_and_save' to TRUE to download and save data)")
   
 }
+
+# manually deleting the file you just made - in vcase you nmeed to do that:
+# file.remove(paste0("Input_data/", fn_rds))
+# file.remove(paste0("Input_data/", fn_csv))
 
 ```
 
