@@ -310,7 +310,7 @@ if (download_and_save){
 ### All substances/parameters measured in one station, one year
 ```{r}
 
-dat_last_year_1 <- dat_2 %>%
+dat_one_station <- dat_last_year %>%
   filter(MYEAR == measurement_year & STATION_CODE == "30B")
 
 ```
@@ -318,8 +318,8 @@ dat_last_year_1 <- dat_2 %>%
 ### Measurements of one substance in one station, one year
 ```{r}
 
-dat_2 %>%
-  filter(MYEAR == 2023 & STATION_CODE == "30B" & NAME == "Perfluoroktansulfonamid (PFOSA)") 
+dat_last_year %>%
+  filter(STATION_CODE == "30B" & NAME == "Perfluoroktansulfonamid (PFOSA)") 
 
 ```
 
@@ -327,9 +327,9 @@ dat_2 %>%
 ### Overview of specimens per sample inc. pooled samples (one station/year)    
 ```{r}
 
-dat_1 %>%
+dat1_last_year %>%
   filter(
-    MYEAR == 2023 & STATION_CODE == "30B") %>%
+    STATION_CODE == "30B") %>%
   distinct(
     TISSUE_NAME, SAMPLE_NO, REPNO, 
     # SAMPLE_ID, LABWARE_TEXT_ID, SPECIMEN_ID      # more columns if we wish
@@ -344,7 +344,8 @@ dat_1 %>%
     ) %>%
   summarise(
     # SPECIMEN_IDs = str_flatten(SPECIMEN_ID, collapse = ", "),
-    SPECIMEN_NOs = str_flatten(SPECIMEN_NO, collapse = ", ")
+    SPECIMEN_NOs = str_flatten(SPECIMEN_NO, collapse = ", "),
+    .groups = "drop"
   ) %>%
   arrange(TISSUE_NAME, SAMPLE_NO)
 
@@ -353,20 +354,23 @@ dat_1 %>%
 ### Medians of one substance in all stations, several years  
 ```{r}
 
-dat_plot <- dat_2 %>%
+dat_plot <- dat_1 %>%
+  # select what to download
   filter(MYEAR >= 2018 & NAME == "Perfluoroktansulfonamid (PFOSA)" & LATIN_NAME == "Gadus morhua") %>%
   mutate(
     Over_LOQ_num = ifelse(is.na(FLAG1), 1, 0)
   ) %>%
+  # select how to summarize data before downloading
   group_by(STATION_CODE, MYEAR) %>%
   summarise(
-    VALUE_median = median(VALUE),
-    Over_LOQ_f = mean(Over_LOQ_num),
+    VALUE_median = median(VALUE, na.rm = TRUE),
+    Over_LOQ_f = mean(Over_LOQ_num, na.rm = TRUE),
     n_samples = n()
   ) %>%
   mutate(
     LOQ = ifelse(Over_LOQ_f >= 0.5, "Over LOQ", "Under LOQ")
   ) %>%
+  # actually download
   collect() %>%
   group_by(STATION_CODE) %>%
   mutate(n_years = length(unique(MYEAR)))
