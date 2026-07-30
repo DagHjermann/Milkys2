@@ -74,13 +74,13 @@ source("101_Combine_with_legacy_data_functions.R")
 Note: there are still some hard-coded "2019" given in the code  
 ```{r}
 
-lastyear <- 2024
+lastyear <- 2025
 
 # Legacy data are the data to use for previous years 
 # (I.e. the data up to lastyear - 1)
 # Typically we use the last version for previous year
 # The file should be fond in the folder "Data"
-legacy_data_file <- "101_data_updated_2024-09-25.rds"
+legacy_data_file <- "Data/101_data_updated_2025-09-01_09h14m.rds"
 
 ```
 
@@ -481,7 +481,7 @@ The data go up to 2017 and combines data from the Access database (up to 2015) a
 # File
 cat("File used for legacy data:", legacy_data_file, "\n\n")
 
-data_legacy <- readRDS(paste0("Data/", legacy_data_file)) %>%
+data_legacy <- readRDS(legacy_data_file) %>%
   mutate(PARAM = case_when(
     PARAM %in% "TTBTIN" ~ "TTBT",
     TRUE ~ PARAM)
