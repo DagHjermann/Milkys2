@@ -1,0 +1,556 @@
+---
+title: "083_Get_LIMS_samples"
+author: "DHJ"
+date: "2024-05-08"
+output: 
+  html_document:
+    keep_md: true
+    toc: true  
+    toc_float: true
+params:
+  oracleuser: 
+    label: "NIVA initials (3 capital letters)"
+    value: "DHJ"
+    input: text
+  oraclepass: 
+    label: "Oracle password"
+    value: ""
+    input: password
+---
+
+**Get last year's LIMS sample data from Nivabasen**    
+
+* Just the sample data,not the concentrations - one row per sample  
+
+* Filtering and joining is done using lazy table loading    
+    - "Lazy" means that the data are not actually downloaded until you use 'collect()'  
+    - So, if you wait using collect() until you have done the filtering, you avoid downloading unnecessary data  
+
+* This script accesses Nivabasen on Oracle and therefore needs your Oracle user name (your initials) and password. It can be run in two ways:  
+    - Interactively - run chunk by chunk (by clicking the little arrow in the corner of the chunk, or Shift+Ctrl+Enter and Shift-Alt-N) - enter username and password when you are asked for it 
+    - Or by using "Knit with Parameters..." from the menu (pull-down menu from the Knit button) - enter username and password, then click 'Knit'  
+
+## 1. Libraries
+
+```{r}
+
+# For loading libraries without startup messages
+library2 <- function(...) suppressPackageStartupMessages(library(...))
+
+library2(dbplyr)
+library2(dplyr)
+library2(lubridate)
+library2(ggplot2)
+library2(stringr)
+library2(knitr)
+
+source("083_functions.R")
+
+# help(package = "dbplyr")
+
+```
+
+## 2. Settings  
+```{r}
+
+measurement_year <- 2024
+
+# Set to TRUE if you want to download the data (ca. 6 minutes)
+download_and_save <- TRUE
+
+```
+
+
+
+## 3. Set up Oracle connection   
+
+- This part of the script will ask you about your user name and password to Nivabasen  
+
+```{r}
+
+con <- create_connection()
+
+```
+
+## 4. Set up queries  
+
+* These define how to get data from Nivabasen, but don't actually get them  
+
+
+### Get pointers to tables  
+
+```{r}
+
+projects <- tbl(con, in_schema("NIVADATABASE", "LABWARE_CHECK_SAMPLE")) %>%
+  count(ACCOUNT_NUMBER, PROSJEKT, CUSTOMER)
+
+samples <- tbl(con, in_schema("NIVADATABASE", "LABWARE_CHECK_SAMPLE"))
+
+```
+
+## 5. Get samples  
+
+### List projects 
+
+```{r}
+
+projects %>% 
+  filter(upper(CUSTOMER) %in% 'MSC') %>%
+  show_query()
+# All Merete's projects  
+dat_projects <- projects %>%
+  filter(upper(CUSTOMER) %in% 'MSC') %>%
+  collect()
+
+# View(dat_projects)
+
+```
+
+### Get samples for all years    
+
+* Download should take around 20 seconds  
+
+```{r}
+
+project <- "O 210200.ANAIN"
+cat("Name of project:", project, " \n\n")
+
+labware_sample_all <- samples %>%
+  filter(PROSJEKT %in% project) %>%
+  collect()
+
+# labware_sample_all_back <- labware_sample_all
+```
+
+
+### b2. Check samples with conflicting year info    
+
+* In some cases, year in SAMPLED_DATE is different from year in TEXT_ID
+
+#### Data for checking  
+
+```{r}
+# All years
+df_check_years <- labware_sample_all %>%
+  mutate(
+    year_sample = year(SAMPLED_DATE),
+    month_sample = month(SAMPLED_DATE),
+    year_textid = as.numeric(substr(TEXT_ID, 4, 7)))
+xtabs(~year_sample + year_textid, df_check_years)
+```
+
+#### Conficting year information
+```{r}
+# Check those with conflicting year info  
+df_check_year_conflicts <- df_check_years %>%
+  # Select those where year in SAMPLED_DATE is different from year in TEXT_ID  
+  filter(year_sample != year_textid) %>%
+  select(SAMPLED_DATE, TEXT_ID, year_sample, month_sample, year_textid,
+         DESCRIPTION, AQUAMONITOR_CODE, TISSUE)
+
+xtabs(~year_sample + year_textid, df_check_year_conflicts)
+
+```
+
+#### Check  
+```{r}
+
+cat("-----------------------------------------------\n")
+cat("One of the year info is", measurement_year, "or", 
+    measurement_year+1, "\n-----------------------------------------------\n")
+
+df_check1 <- df_check_year_conflicts %>%
+  filter(
+    year_sample %in% c(measurement_year, measurement_year+1) | 
+      year_textid == c(measurement_year, measurement_year+1)) %>%
+  # Does DESCRIPTION contain 'blank'?  
+  mutate(
+    blank = grepl("blank", DESCRIPTION, ignore.case = TRUE))
+
+xtabs(~year_sample + year_textid, df_check1)
+
+xtabs(~addNA(AQUAMONITOR_CODE) + paste0(year_sample, ",", year_textid), df_check1)
+
+```
+
+### Excluding blank samples (DESCRIPTION contains 'blank')
+
+```{r}
+
+cat("-----------------------------------------------\n")
+cat("2023 - exclude blanks\n-----------------------------------------------\n")
+
+xtabs(~year_sample + year_textid, df_check2)                    #ELU: skal det være df_check1 her? får feilmelding
+
+xtabs(~addNA(AQUAMONITOR_CODE) + paste0(year_sample, ",", year_textid), df_check2)            #ELU: skal det være df_check1 her? får feilmelding
+
+```
+
+### Including SAMPLED_DATE     
+```{r}
+df_check1 %>%             #ELU: skal det være df_check1 her? får feilmelding
+  count(AQUAMONITOR_CODE, SAMPLED_DATE, TISSUE, year_textid, year_sample) %>%
+  kable()
+
+```
+
+
+### b3. Get 'labware_sample'   
+
+* From code above, we found that we can download all samples where either year in SAMPLED_DATE or year in TEXT_ID is 2023 (or both)   
+
+```{r}
+
+labware_samples <- labware_sample_all %>%
+  filter(
+    # year(SAMPLED_DATE) == 2023 | as.numeric(substr(TEXT_ID, 4, 7)) == 2023) %>%
+    year(SAMPLED_DATE) == measurement_year | as.numeric(substr(TEXT_ID, 4, 7)) == measurement_year) %>%
+  collect()
+
+# Exlude blanks
+labware_samples <- labware_samples %>%
+  filter(
+    !grepl("blank", DESCRIPTION, ignore.case = TRUE)) 
+
+# make timestamp to use in file name (NOTE: UTC = Greenwich mean time used, not local time)
+now <- lubridate::now()
+timestring <- paste0(substr(now, 1, 10), "_", substr(now, 12, 13), "h", substr(now, 15, 16), "m")  
+
+cat("-----------------------------------------------\n")
+cat("Number of samples -", measurement_year, "(excluding blanks)\n-----------------------------------------------\n")
+nrow(labware_samples)
+
+```
+
+## 6. Save   
+
+```{r}
+
+# Needs only be save if different from previously downloaded data
+
+fn_rds <- paste0("83_Labware_samples_", measurement_year, "_", timestring, ".rds")  
+fn_csv <- sub(".rds", ".csv", fn_rds)  
+
+# fn_rds; fn_csv
+saveRDS(labware_samples, paste0("Input_data/", fn_rds))
+readr::write_csv(labware_samples, paste0("Input_data/", fn_csv), na = "")
+  
+message("Data saved to 'Input_data' as ", sQuote(fn_csv), " (and as a corresponding .rds file)")
+
+# all years
+fn_rds <- paste0("83_Labware_samples_all_", timestring, ".rds")  
+fn_csv <- sub(".rds", ".csv", fn_rds)  
+readr::write_csv(labware_sample_all, paste0("Input_data/", fn_csv), na = "")
+message("Data saved to 'Input_data' as ", sQuote(fn_csv), " (and as a corresponding .rds file)")
+  
+
+```
+
+## 7. APPENDIX: data  
+
+### Example  
+```{r}
+
+if (FALSE){
+  dir("Input_data", pattern = "83_Labware_samples_2024")
+  labware_samples <- readRDS("Input_data/83_Labware_samples_2024_2025-08-27_13h41m.rds")
+}
+
+textid_sel <- labware_samples %>% 
+  filter(AQUAMONITOR_CODE == "30B" & SPECIES == "Gadus morhua" & TISSUE == "LI-Lever") %>% 
+  pull(TEXT_ID) %>% 
+  sort()
+
+import <- tbl(con, in_schema("NIVADATABASE", "LABWARE_IMPORT"))
+
+import_sel <- import %>% 
+  filter(TEXT_ID == "NR-2024-08136") %>% 
+  collect()
+
+table(import_sel$T_ANALYSIS_METHOD)
+table(import_sel$PARAM)
+
+```
+
+### Getting lacking PAH metabolites, 2024  
+```{r}
+
+samples_sel <- labware_samples %>% 
+  filter(AQUAMONITOR_CODE %in% c("15B", "53B", "23B") & SPECIES == "Gadus morhua" & TISSUE == "BI-Galle")
+  
+textid_sel <- samples_sel %>% 
+  pull(TEXT_ID) %>% 
+  sort()
+
+import <- tbl(con, in_schema("NIVADATABASE", "LABWARE_IMPORT"))
+
+import_sel <- import %>% 
+  filter(TEXT_ID %in% textid_sel) %>% 
+  collect()
+
+table(import_sel$T_ANALYSIS_METHOD)
+table(import_sel$PARAM)
+
+if (FALSE){
+  saveRDS(import_sel, "Input_data/Biological_effects_cod/2024/083_PAH_metabolites_15B-53B-23B.rds")
+  saveRDS(samples_sel, "Input_data/Biological_effects_cod/2024/083_PAH_metabolites_15B-53B-23B_samples.rds")
+}
+
+```
+### Metals in flatfish in Sande (33F) 
+```{r}
+
+textid_liver <- labware_sample_all %>% 
+  filter(AQUAMONITOR_CODE == "33F" & TISSUE == "LI-Lever") %>% 
+  pull(TEXT_ID) %>% 
+  sort()
+textid_muscle <- labware_sample_all %>% 
+  filter(AQUAMONITOR_CODE == "33F" & TISSUE == "MU-Muskel") %>% 
+  pull(TEXT_ID) %>% 
+  sort()
+
+import <- tbl(con, in_schema("NIVADATABASE", "LABWARE_IMPORT"))
+
+# Set columns to get
+# import_sel <- import %>% 
+#   filter(TEXT_ID == "NR-2025-11021") %>% 
+#   head(2) %>% 
+#   collect()
+# names(import_sel) %>% paste(collapse = ", ")
+
+import_muscle <- import %>%
+  select(
+    TEXT_ID, SAMPLE_TYPE, SAMPLED_DATE, STATUSX, DESCRIPTION, AQUAMONITOR_ID, AQUAMONITOR_CODE, AQUAMONITOR_NAME, 
+    REPORTED_NAME, T_ANALYSIS_METHOD, X_ISO_REF, ENTRY_QUALIFIER, FORMATTED_ENTRY, NUMERIC_ENTRY, UNITS, AQUAMONITOR_UNIT, 
+    ANALYS, PARAM, PARAM_I_AQUAMONITOR, VERDI_I_AQUAMONITOR, VERDI_TIL_AQUAMONITOR) %>% 
+  filter(TEXT_ID %in% textid_muscle) %>%
+  collect()
+
+import_liver <- import %>%
+  select(
+    TEXT_ID, SAMPLE_TYPE, SAMPLED_DATE, STATUSX, DESCRIPTION, AQUAMONITOR_ID, AQUAMONITOR_CODE, AQUAMONITOR_NAME, 
+    REPORTED_NAME, T_ANALYSIS_METHOD, X_ISO_REF, ENTRY_QUALIFIER, FORMATTED_ENTRY, NUMERIC_ENTRY, UNITS, AQUAMONITOR_UNIT, 
+    ANALYS, PARAM, PARAM_I_AQUAMONITOR, VERDI_I_AQUAMONITOR, VERDI_TIL_AQUAMONITOR) %>% 
+  filter(TEXT_ID %in% textid_liver) %>%
+  collect()
+
+#
+# Compare with Nivabase
+#    In script 80, run "4. Set up queries "
+#
+
+dat_test <- dat_2 %>%
+  filter(MYEAR == 2021 & STATION_CODE == "33F") %>%
+  collect()
+  
+method_id <- dat_test %>% pull(METHOD_ID) %>% unique()
+
+dat_test_methods <- con %>% 
+  tbl(in_schema("NIVADATABASE", "METHOD_DEFINITIONS")) %>% 
+  filter(METHOD_ID %in% method_id) %>% 
+  collect()
+
+```
+
+### Milfersk 2024 checking  
+
+Suspicious results in Vannmiljø export
+* Number of BRPFOS (branched PFOS) results are 2x that of other PFAS   
+* L5 (slioxan) lacking for one sample?  
+* 
+
+#### table pointers  
+```{r}
+
+create_table_pointers()     # creates the dbplyr objects 'lims_projects' and 'lims_samples'
+
+```
+
+#### get samples  
+```{r}
+
+# Projects  
+dat_projects <- lims_projects %>%
+  # filter(grepl("MILFERSK", PROSJEKT, ignore.case = TRUE)) %>%  # doesn't work
+  filter(sql("PROSJEKT like '%210136%'")) %>%                    # works
+  collect()
+
+projects <- pull(dat_projects, PROSJEKT)
+
+df_lims_samples <- lims_samples %>%
+  filter(PROSJEKT %in% projects) %>% 
+  filter(year(SAMPLED_DATE) == 2024) %>% # show_query()
+  collect()
+
+table(df_lims_samples$AQUAMONITOR_CODE)
+table(df_lims_samples$TISSUE)
+
+# example (trout liver from Mjøsa)
+# . get TEXT_ID
+textid <- df_lims_samples %>% 
+  filter(AQUAMONITOR_CODE == "Ørret_M" & TISSUE == "LI-Lever") %>% 
+  head(1) %>% 
+  pull(TEXT_ID)
+
+import_test1 <- lims_import %>%
+  filter(TEXT_ID %in% textid) %>%
+  collect()
+
+```
+
+
+#### get all data   
+- from all samples  
+
+```{r}
+# All samples
+textid_all <- labware_sample_all %>% 
+  pull(TEXT_ID)
+
+# All samples with PFOS (and therefore all PFAS)
+df_limsdata <- lims_import %>%
+  filter(TEXT_ID %in% textid_all) %>%
+  collect()
+```
+
+#### define group parameters  
+```{r}
+
+tab <- table(df_limsdata$REPORTED_NAME) %>% sort()
+# table(tab)
+
+# names(tab)[tab > 60]
+# names(tab)[tab > 25 & tab <= 40]
+# names(tab)[tab > 10 & tab <= 25]
+# names(tab)[tab <= 10]
+
+# names(tab)[tab > 40 & tab <= 60] %>% dput()
+
+# PFAS
+par_pfas <- c(
+  "10:2 FTS", "12:2 FTS", "4:2 FTS", "6:2 FTS", "8:2 FTS", "ADONA", "brPFOS", 
+  "HFPO-DA (Gen-X)", "N-EtFBSA", "N-EtFOSA", "N-EtFOSAA", "N-EtFOSE", "N-MeFBSA", 
+  "N-MeFOSA", "N-MeFOSE", "PFBA", "PFBS", "PFBSA", 
+  "PFDA", "PFDoDA", "PFDoDS", "PFDS", "PFECHS", "PFHpA", "PFHpS", 
+  "PFHxA", "PFHxDA", "PFHxS", "PFNA", "PFNS", "PFOA", "PFOcDA", 
+  "PFOS", "PFOSA", "PFPA", "PFPS", "PFTeDA", "PFTeDS", "PFTrDA", 
+  "PFTrDS", "PFUnDA", "PFUnDS")
+
+# BDE
+par_bde <- c(
+  "BDE17", "BDE28", "BDE47", "BDE49", "BDE66", "BDE71", "BDE77", "BDE85", "BDE99", "BDE100", 
+  "BDE119", "BDE126", "BDE138", "BDE153", "BDE154", "BDE156", "BDE183", "BDE184", 
+  "BDE190", "BDE191", "BDE196", "BDE197", "BDE202", "BDE206", "BDE207", "BDE209")
+
+par_silox <- c(
+  "D3F (2,4,6-Trimethyl-2,4,6-tris(3,3,3-trifluoropropyl)cyclotrisiloxane)", 
+  "D4 (oktametylsyklotetrasiloksan)", 
+  "D4F (2,4,6,8-tetramethyl-2,4,6,8-tetrakis(3,3,3-trifluoropropyl)cyclotetrasiloxane)", 
+  "D5 (dekametylsyklopentasiloksan)", "D6 (dodekametylsykloheksasiloksan)",
+  "L3 (octamethyltrisiloxane)", "L4 (decamethyltetrasiloxane)", 
+  "L5 (dodecamethylpentasiloxane)", "M3T(Ph) (tris(trimetylsiloksy)fenylsilan)") 
+
+
+# names(tab)[tab > 25 & tab <= 40] %>% dput()
+
+par_qac <- c(
+  "ATAC-C8", "ATAC-C10", "ATAC-C12", "ATAC-C14", "ATAC-C16", "ATAC-C18", "ATAC-C20", "ATAC-C22", 
+  "BAC-C8", "BAC-C10", "BAC-C12", "BAC-C14", "BAC-C16", "BAC-C18", 
+  "DADMAC-C8", "DADMAC-C10", "DADMAC-C12", "DADMAC-C14", "DADMAC-C16", "DADMAC-C18")
+
+par_ccp <- c(
+  "Kortkjedede (SCCP), C10-C13", 
+  "Langkjedede (LCCP)", 
+  "Mellomkjedede (MCCP), C14-C17")
+
+# some "extra" in the group of 45 ssamples   
+# , "Benzophenone-3", 
+# "Dicyclopentylsilanediol", "EHMC-E", "EHMC-Z",
+# "Homosalate", "Kvikksølv", 
+# "Octocrylen", 
+
+```
+
+#### check PFAS   
+- seems ok, including for brPFOS   
+```{r}
+
+if (FALSE){
+df_limsdata %>%
+  filter(REPORTED_NAME %in% par_pfas) %>%
+  xtabs(~ REPORTED_NAME + DESCRIPTION, .)
+}
+
+# boring plot
+df_limsdata %>%
+  filter(REPORTED_NAME %in% par_pfas) %>%
+  distinct(REPORTED_NAME, DESCRIPTION, ENTRY_QUALIFIER) %>%
+  ggplot(aes(DESCRIPTION, REPORTED_NAME, fill = is.na(ENTRY_QUALIFIER))) +
+  geom_tile() +
+  theme(axis.text.x = element_text(angle = -45, hjust = 0))
+
+```
+
+#### check L5 (siloxane )   
+- seems ok     
+```{r}
+
+if (FALSE){
+df_limsdata %>%
+  filter(REPORTED_NAME %in% par_silox) %>%
+  xtabs(~ REPORTED_NAME + DESCRIPTION, .)
+}
+
+# boring plot
+df_limsdata %>%
+  filter(REPORTED_NAME %in% par_silox) %>%
+  mutate(REPORTED_NAME = substr(REPORTED_NAME, 1, 15)) %>% 
+  distinct(REPORTED_NAME, DESCRIPTION, ENTRY_QUALIFIER) %>%
+  ggplot(aes(DESCRIPTION, REPORTED_NAME, fill = is.na(ENTRY_QUALIFIER))) +
+  geom_tile() +
+  theme(axis.text.x = element_text(angle = -45, hjust = 0))
+
+```
+
+
+#### check QAC, esp. ATAC_C22      
+- seems ok     
+```{r}
+
+if (FALSE){
+df_limsdata %>%
+  filter(REPORTED_NAME %in% par_silox) %>%
+  xtabs(~ REPORTED_NAME + DESCRIPTION, .)
+}
+
+# plot
+df_limsdata %>%
+  filter(REPORTED_NAME %in% par_qac) %>%
+  mutate(REPORTED_NAME = substr(REPORTED_NAME, 1, 15)) %>% 
+  distinct(REPORTED_NAME, DESCRIPTION, ENTRY_QUALIFIER) %>%
+  ggplot(aes(DESCRIPTION, REPORTED_NAME, fill = is.na(ENTRY_QUALIFIER))) +
+  geom_tile() +
+  theme(axis.text.x = element_text(angle = -45, hjust = 0))
+
+```
+
+#### also check nivabasen
+- seems ok     
+```{r}
+
+if (FALSE){
+df_limsdata %>%
+  filter(REPORTED_NAME %in% par_silox) %>%
+  xtabs(~ REPORTED_NAME + DESCRIPTION, .)
+}
+
+# plot
+df_limsdata %>%
+  filter(REPORTED_NAME %in% par_qac) %>%
+  mutate(REPORTED_NAME = substr(REPORTED_NAME, 1, 15)) %>% 
+  distinct(REPORTED_NAME, DESCRIPTION, ENTRY_QUALIFIER) %>%
+  ggplot(aes(DESCRIPTION, REPORTED_NAME, fill = is.na(ENTRY_QUALIFIER))) +
+  geom_tile() +
+  theme(axis.text.x = element_text(angle = -45, hjust = 0))
+
+```
