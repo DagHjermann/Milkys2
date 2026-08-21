@@ -44,6 +44,8 @@ library2(ggplot2)
 library2(stringr)
 library2(knitr)
 
+source("083_functions.R")
+
 # help(package = "dbplyr")
 
 ```
@@ -66,40 +68,7 @@ download_and_save <- TRUE
 
 ```{r}
 
-# if the script is run interactively
-if (interactive()){
-  
-  con <- DBI::dbConnect(odbc::odbc(),
-                      Driver = "/usr/lib/oracle/23/client64/lib/libsqora.so.23.1",
-                      DBQ = "dbora-niva-prod01.niva.corp:1555/NIVABPRD",
-                      UID = rstudioapi::askForPassword("Database username (NIVA initials, 3 capital letters)"),
-                      PWD = rstudioapi::askForPassword("Nivabasen password")
-  )
-  
-} else {
-# if the script is knitted
-  
-  # If params$oraclepass is just an empty string, you have probably just clicked the Knit button  
-  if (params$oraclepass == ""){
-    stop("Password = ''. You must use 'Knit with Parameters...' from the menu (pull-down menu from the Knit button), and enter you password in the dialog")
-  }
-  
-  con <- DBI::dbConnect(odbc::odbc(),
-                        Driver = "/opt/conda/orahome/libsqora.so.12.1",
-                        DBQ = "dbora-niva-prod01.niva.corp:1555/NIVABPRD",
-                        UID = params$oracleuser,
-                        PWD = params$oraclepass
-  )
-  
-}
-
-test_connection <- DBI::dbGetQuery(con, "select * from NIVADATABASE.PROJECTS where rownum < 4")
-if ("test_connection" %in% ls()){
-  if (nrow(test_connection) == 3)
-    cat("Connection to Nivadatabase set up and tested")
-}
-
-rm(test_connection)
+con <- create_connection()
 
 ```
 
@@ -125,6 +94,9 @@ samples <- tbl(con, in_schema("NIVADATABASE", "LABWARE_CHECK_SAMPLE"))
 
 ```{r}
 
+projects %>% 
+  filter(upper(CUSTOMER) %in% 'MSC') %>%
+  show_query()
 # All Merete's projects  
 dat_projects <- projects %>%
   filter(upper(CUSTOMER) %in% 'MSC') %>%
@@ -325,4 +297,260 @@ if (FALSE){
 }
 
 ```
+### Metals in flatfish in Sande (33F) 
+```{r}
 
+textid_liver <- labware_sample_all %>% 
+  filter(AQUAMONITOR_CODE == "33F" & TISSUE == "LI-Lever") %>% 
+  pull(TEXT_ID) %>% 
+  sort()
+textid_muscle <- labware_sample_all %>% 
+  filter(AQUAMONITOR_CODE == "33F" & TISSUE == "MU-Muskel") %>% 
+  pull(TEXT_ID) %>% 
+  sort()
+
+import <- tbl(con, in_schema("NIVADATABASE", "LABWARE_IMPORT"))
+
+# Set columns to get
+# import_sel <- import %>% 
+#   filter(TEXT_ID == "NR-2025-11021") %>% 
+#   head(2) %>% 
+#   collect()
+# names(import_sel) %>% paste(collapse = ", ")
+
+import_muscle <- import %>%
+  select(
+    TEXT_ID, SAMPLE_TYPE, SAMPLED_DATE, STATUSX, DESCRIPTION, AQUAMONITOR_ID, AQUAMONITOR_CODE, AQUAMONITOR_NAME, 
+    REPORTED_NAME, T_ANALYSIS_METHOD, X_ISO_REF, ENTRY_QUALIFIER, FORMATTED_ENTRY, NUMERIC_ENTRY, UNITS, AQUAMONITOR_UNIT, 
+    ANALYS, PARAM, PARAM_I_AQUAMONITOR, VERDI_I_AQUAMONITOR, VERDI_TIL_AQUAMONITOR) %>% 
+  filter(TEXT_ID %in% textid_muscle) %>%
+  collect()
+
+import_liver <- import %>%
+  select(
+    TEXT_ID, SAMPLE_TYPE, SAMPLED_DATE, STATUSX, DESCRIPTION, AQUAMONITOR_ID, AQUAMONITOR_CODE, AQUAMONITOR_NAME, 
+    REPORTED_NAME, T_ANALYSIS_METHOD, X_ISO_REF, ENTRY_QUALIFIER, FORMATTED_ENTRY, NUMERIC_ENTRY, UNITS, AQUAMONITOR_UNIT, 
+    ANALYS, PARAM, PARAM_I_AQUAMONITOR, VERDI_I_AQUAMONITOR, VERDI_TIL_AQUAMONITOR) %>% 
+  filter(TEXT_ID %in% textid_liver) %>%
+  collect()
+
+#
+# Compare with Nivabase
+#    In script 80, run "4. Set up queries "
+#
+
+dat_test <- dat_2 %>%
+  filter(MYEAR == 2021 & STATION_CODE == "33F") %>%
+  collect()
+  
+method_id <- dat_test %>% pull(METHOD_ID) %>% unique()
+
+dat_test_methods <- con %>% 
+  tbl(in_schema("NIVADATABASE", "METHOD_DEFINITIONS")) %>% 
+  filter(METHOD_ID %in% method_id) %>% 
+  collect()
+
+```
+
+### Milfersk 2024 checking  
+
+Suspicious results in Vannmiljø export
+* Number of BRPFOS (branched PFOS) results are 2x that of other PFAS   
+* L5 (slioxan) lacking for one sample?  
+* 
+
+#### table pointers  
+```{r}
+
+create_table_pointers()     # creates the dbplyr objects 'lims_projects' and 'lims_samples'
+
+```
+
+#### get samples  
+```{r}
+
+# Projects  
+dat_projects <- lims_projects %>%
+  # filter(grepl("MILFERSK", PROSJEKT, ignore.case = TRUE)) %>%  # doesn't work
+  filter(sql("PROSJEKT like '%210136%'")) %>%                    # works
+  collect()
+
+projects <- pull(dat_projects, PROSJEKT)
+
+df_lims_samples <- lims_samples %>%
+  filter(PROSJEKT %in% projects) %>% 
+  filter(year(SAMPLED_DATE) == 2024) %>% # show_query()
+  collect()
+
+table(df_lims_samples$AQUAMONITOR_CODE)
+table(df_lims_samples$TISSUE)
+
+# example (trout liver from Mjøsa)
+# . get TEXT_ID
+textid <- df_lims_samples %>% 
+  filter(AQUAMONITOR_CODE == "Ørret_M" & TISSUE == "LI-Lever") %>% 
+  head(1) %>% 
+  pull(TEXT_ID)
+
+import_test1 <- lims_import %>%
+  filter(TEXT_ID %in% textid) %>%
+  collect()
+
+```
+
+
+#### get all data   
+- from all samples  
+
+```{r}
+# All samples
+textid_all <- labware_sample_all %>% 
+  pull(TEXT_ID)
+
+# All samples with PFOS (and therefore all PFAS)
+df_limsdata <- lims_import %>%
+  filter(TEXT_ID %in% textid_all) %>%
+  collect()
+```
+
+#### define group parameters  
+```{r}
+
+tab <- table(df_limsdata$REPORTED_NAME) %>% sort()
+# table(tab)
+
+# names(tab)[tab > 60]
+# names(tab)[tab > 25 & tab <= 40]
+# names(tab)[tab > 10 & tab <= 25]
+# names(tab)[tab <= 10]
+
+# names(tab)[tab > 40 & tab <= 60] %>% dput()
+
+# PFAS
+par_pfas <- c(
+  "10:2 FTS", "12:2 FTS", "4:2 FTS", "6:2 FTS", "8:2 FTS", "ADONA", "brPFOS", 
+  "HFPO-DA (Gen-X)", "N-EtFBSA", "N-EtFOSA", "N-EtFOSAA", "N-EtFOSE", "N-MeFBSA", 
+  "N-MeFOSA", "N-MeFOSE", "PFBA", "PFBS", "PFBSA", 
+  "PFDA", "PFDoDA", "PFDoDS", "PFDS", "PFECHS", "PFHpA", "PFHpS", 
+  "PFHxA", "PFHxDA", "PFHxS", "PFNA", "PFNS", "PFOA", "PFOcDA", 
+  "PFOS", "PFOSA", "PFPA", "PFPS", "PFTeDA", "PFTeDS", "PFTrDA", 
+  "PFTrDS", "PFUnDA", "PFUnDS")
+
+# BDE
+par_bde <- c(
+  "BDE17", "BDE28", "BDE47", "BDE49", "BDE66", "BDE71", "BDE77", "BDE85", "BDE99", "BDE100", 
+  "BDE119", "BDE126", "BDE138", "BDE153", "BDE154", "BDE156", "BDE183", "BDE184", 
+  "BDE190", "BDE191", "BDE196", "BDE197", "BDE202", "BDE206", "BDE207", "BDE209")
+
+par_silox <- c(
+  "D3F (2,4,6-Trimethyl-2,4,6-tris(3,3,3-trifluoropropyl)cyclotrisiloxane)", 
+  "D4 (oktametylsyklotetrasiloksan)", 
+  "D4F (2,4,6,8-tetramethyl-2,4,6,8-tetrakis(3,3,3-trifluoropropyl)cyclotetrasiloxane)", 
+  "D5 (dekametylsyklopentasiloksan)", "D6 (dodekametylsykloheksasiloksan)",
+  "L3 (octamethyltrisiloxane)", "L4 (decamethyltetrasiloxane)", 
+  "L5 (dodecamethylpentasiloxane)", "M3T(Ph) (tris(trimetylsiloksy)fenylsilan)") 
+
+
+# names(tab)[tab > 25 & tab <= 40] %>% dput()
+
+par_qac <- c(
+  "ATAC-C8", "ATAC-C10", "ATAC-C12", "ATAC-C14", "ATAC-C16", "ATAC-C18", "ATAC-C20", "ATAC-C22", 
+  "BAC-C8", "BAC-C10", "BAC-C12", "BAC-C14", "BAC-C16", "BAC-C18", 
+  "DADMAC-C8", "DADMAC-C10", "DADMAC-C12", "DADMAC-C14", "DADMAC-C16", "DADMAC-C18")
+
+par_ccp <- c(
+  "Kortkjedede (SCCP), C10-C13", 
+  "Langkjedede (LCCP)", 
+  "Mellomkjedede (MCCP), C14-C17")
+
+# some "extra" in the group of 45 ssamples   
+# , "Benzophenone-3", 
+# "Dicyclopentylsilanediol", "EHMC-E", "EHMC-Z",
+# "Homosalate", "Kvikksølv", 
+# "Octocrylen", 
+
+```
+
+#### check PFAS   
+- seems ok, including for brPFOS   
+```{r}
+
+if (FALSE){
+df_limsdata %>%
+  filter(REPORTED_NAME %in% par_pfas) %>%
+  xtabs(~ REPORTED_NAME + DESCRIPTION, .)
+}
+
+# boring plot
+df_limsdata %>%
+  filter(REPORTED_NAME %in% par_pfas) %>%
+  distinct(REPORTED_NAME, DESCRIPTION, ENTRY_QUALIFIER) %>%
+  ggplot(aes(DESCRIPTION, REPORTED_NAME, fill = is.na(ENTRY_QUALIFIER))) +
+  geom_tile() +
+  theme(axis.text.x = element_text(angle = -45, hjust = 0))
+
+```
+
+#### check L5 (siloxane )   
+- seems ok     
+```{r}
+
+if (FALSE){
+df_limsdata %>%
+  filter(REPORTED_NAME %in% par_silox) %>%
+  xtabs(~ REPORTED_NAME + DESCRIPTION, .)
+}
+
+# boring plot
+df_limsdata %>%
+  filter(REPORTED_NAME %in% par_silox) %>%
+  mutate(REPORTED_NAME = substr(REPORTED_NAME, 1, 15)) %>% 
+  distinct(REPORTED_NAME, DESCRIPTION, ENTRY_QUALIFIER) %>%
+  ggplot(aes(DESCRIPTION, REPORTED_NAME, fill = is.na(ENTRY_QUALIFIER))) +
+  geom_tile() +
+  theme(axis.text.x = element_text(angle = -45, hjust = 0))
+
+```
+
+
+#### check QAC, esp. ATAC_C22      
+- seems ok     
+```{r}
+
+if (FALSE){
+df_limsdata %>%
+  filter(REPORTED_NAME %in% par_silox) %>%
+  xtabs(~ REPORTED_NAME + DESCRIPTION, .)
+}
+
+# plot
+df_limsdata %>%
+  filter(REPORTED_NAME %in% par_qac) %>%
+  mutate(REPORTED_NAME = substr(REPORTED_NAME, 1, 15)) %>% 
+  distinct(REPORTED_NAME, DESCRIPTION, ENTRY_QUALIFIER) %>%
+  ggplot(aes(DESCRIPTION, REPORTED_NAME, fill = is.na(ENTRY_QUALIFIER))) +
+  geom_tile() +
+  theme(axis.text.x = element_text(angle = -45, hjust = 0))
+
+```
+
+#### also check nivabasen
+- seems ok     
+```{r}
+
+if (FALSE){
+df_limsdata %>%
+  filter(REPORTED_NAME %in% par_silox) %>%
+  xtabs(~ REPORTED_NAME + DESCRIPTION, .)
+}
+
+# plot
+df_limsdata %>%
+  filter(REPORTED_NAME %in% par_qac) %>%
+  mutate(REPORTED_NAME = substr(REPORTED_NAME, 1, 15)) %>% 
+  distinct(REPORTED_NAME, DESCRIPTION, ENTRY_QUALIFIER) %>%
+  ggplot(aes(DESCRIPTION, REPORTED_NAME, fill = is.na(ENTRY_QUALIFIER))) +
+  geom_tile() +
+  theme(axis.text.x = element_text(angle = -45, hjust = 0))
+
+```
