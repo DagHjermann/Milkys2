@@ -168,6 +168,87 @@ lims_id <- tbl(con, in_schema("NIVADATABASE", "LABWARE_BSID")) %>%
 
 ```
 
+### For 2025 only: delete EROD and PROTV with errors  
+
+```{r}
+
+# modify 'samples' and 'measurements' pointer (add ENTERED_BY, ENTERED_DATE)
+samples <- tbl(con, in_schema("NIVADATABASE", "BIOTA_SAMPLES")) %>%
+  select(STATION_ID, SAMPLE_ID, TISSUE_ID, SAMPLE_NO, REPNO, REMARK,
+         ENTERED_BY, ENTERED_DATE) %>%
+  rename(REMARK_sample = REMARK)
+measurements <- tbl(con, in_schema("NIVADATABASE", "BIOTA_CHEMISTRY_VALUES")) %>%
+  select(SAMPLE_ID, METHOD_ID, VALUE_ID, VALUE, FLAG1, 
+         DETECTION_LIMIT, UNCERTAINTY, QUANTIFICATION_LIMIT,
+         ENTERED_BY, ENTERED_DATE)
+
+df_to_remove_1 <- measurements %>%
+  left_join(methods) %>% 
+  filter(NAME %in% c("EROD", "PROTV") & ENTERED_DATE >= sql("DATE '2026-01-01'")) %>% 
+  left_join(samples) %>% 
+  left_join(tissue) %>% 
+  left_join(samples_specimens) %>% 
+  left_join(specimens) %>% 
+  left_join(project_stations) %>% 
+  collect()
+
+# xtabs(~paste(STATION_CODE, TISSUE_NAME, DATE_CAUGHT, PROJECT_ID) + NAME, df_to_remove_1)
+
+df_to_remove <- df_to_remove_1 %>% filter(PROJECT_ID == 3699)
+
+xtabs(~paste(STATION_CODE, TISSUE_NAME, DATE_CAUGHT) + NAME, df_to_remove)
+xtabs(~paste(ENTERED_BY, ENTERED_DATE) + NAME, df_to_remove)
+xtabs(~paste(TISSUE_ID, METHOD_ID) + NAME, df_to_remove)
+
+# xtabs(~paste(STATION_CODE, TISSUE_NAME, DATE_CAUGHT, ENTERED_BY, ENTERED_DATE) + NAME, df_to_remove)
+
+
+# paste(ENTERED_BY, ENTERED_DATE) EROD PROTV
+#         DHJ 2026-08-24 13:35:36    0    21
+#         DHJ 2026-08-24 13:35:37   45    22
+
+# xtabs(~paste(SAMPLE_ID, TISSUE_NAME) + NAME, df_to_remove)
+
+# Code used in SQL Developer, script
+# "milkys_2025_erod-alad_remove_errors.sql"
+
+# /* delete EROD and PROTV measurements added by myself on specific date */
+# DELETE from NIVADATABASE.BIOTA_CHEMISTRY_VALUES where METHOD_ID in (28575,28580) and TRUNC(ENTERED_DATE) = TO_DATE('2026-08-24', 'yyyy-mm-dd') and ENTERED_BY = 'DHJ';
+# 
+# commit;
+
+# Check corresponding samples  
+check1 <- samples %>% 
+  filter(TISSUE_ID %in% c(23,64) & ENTERED_DATE >= sql("DATE '2026-08-24'")) %>% 
+  collect()
+xtabs(~TISSUE_ID, check1)
+
+# no results from this (ie., no "children" of these SAMPLE_IDs)
+check2 <- measurements %>% 
+  select(-ENTERED_BY, -ENTERED_DATE) %>% 
+  left_join(samples) %>% 
+  left_join(methods) %>% 
+  filter(SAMPLE_ID %in% check1$SAMPLE_ID) %>% 
+  collect()
+
+# but 88 results from this, so we have to delete these "children" first  
+check3 <- samples_specimens %>% 
+  filter(SAMPLE_ID %in% check1$SAMPLE_ID) %>% 
+  collect()
+
+# copy pasted code resulting from the command below to 
+# "milkys_2025_erod-alad_remove_errors.sql"
+samples_specimens %>% 
+  filter(SAMPLE_ID %in% check1$SAMPLE_ID) %>%
+  show_query()
+
+# Can then delete corresponding samples_specimens
+# And then, finally, the samples  
+
+```
+
+
+
 ## 4. Read data 
 
 ### Excel data that shall be imported to Nivadatabase    
