@@ -66,12 +66,18 @@ download_and_save <- TRUE
 # if the script is run interactively
 if (interactive()){
   
+  # Check if "con" already exists
+  if (!exists("con")){
+    if (class(con) != "Oracle"){
   con <- DBI::dbConnect(odbc::odbc(),
                       Driver = "/usr/lib/oracle/23/client64/lib/libsqora.so.23.1",
                       DBQ = "dbora-niva-prod01.niva.corp:1555/NIVABPRD",
                       UID = rstudioapi::askForPassword("Database username (NIVA initials, 3 capital letters)"),
                       PWD = rstudioapi::askForPassword("Nivabasen password")
   )
+    }
+  }
+  
   
 } else {
 # if the script is knitted
