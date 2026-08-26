@@ -304,9 +304,155 @@ if (download_and_save){
   
 }
 
-# manually deleting the file you just made - in vcase you nmeed to do that:
+# manually deleting the file you just made - in case you nmeed to do that:
 # file.remove(paste0("Input_data/", fn_rds))
 # file.remove(paste0("Input_data/", fn_csv))
+
+```
+
+## 6. Ad-hoc fix for 2025 data  
+* Liver sample number 5 from 30B (NR-2025-08453) exists in LIMS but lacking from final data  
+* The data exists in `biota_samples` table, but is missing from `biota_samples_specimens` and `biota_single_specimens`  
+* Therefore station and time info is lacking  
+* We add this ifo manually, and add all to the data  
+
+### Get LIMS samples, ad find out which ones that lack 
+
+```{r}
+# samples from 2025, from LIMS
+labware_samples <- readRDS("Input_data/83_Labware_samples_2025_2026-08-26_07h18m.rds")
+
+labware_samples_lacking_1 <- labware_samples %>% 
+  anti_join(
+    dat_last_year %>% count(LABWARE_TEXT_ID), 
+    by = c("TEXT_ID" = "LABWARE_TEXT_ID")
+    )  
+
+# Actually also missing gall data
+# Also some issue with blue mussel data
+# Also some flatfish data from 33F   
+# xtabs(~AQUAMONITOR_CODE + TISSUE, labware_samples_lacking_1)
+cat("\n----------------------------------------------------------------\n")
+cat("All liver samples in LIMS missing from Nivabase:\n\n")
+xtabs(~TISSUE, labware_samples_lacking_1)
+
+# We forget about all the other issues and concentratie on liver
+cat("\n----------------------------------------------------------------\n")
+cat("All liver samples in LIMS missing from Nivabase:\n\n")
+labware_samples_lacking_1 %>% 
+  filter(TISSUE == "LI-Lever") %>% 
+  xtabs(~paste(AQUAMONITOR_CODE, SAMPLED_DATE, STATUS) + TISSUE, .)
+
+# Get the one sample we need
+labware_samples_lacking <- labware_samples_lacking_1 %>% 
+  filter(TISSUE == "LI-Lever" & year(SAMPLED_DATE) == 2025 & STATUS == "Ferdig") 
+
+cat("\n----------------------------------------------------------------\n")
+cat("Selected liver samples in LIMS missing from Nivabase:\n\n")
+labware_samples_lacking %>% 
+  xtabs(~paste(AQUAMONITOR_CODE, SAMPLED_DATE, STATUS) + TISSUE, .)
+
+```
+
+### Make data rows to add to the data  
+```{r}
+
+data_to_add <- samples %>% 
+  left_join(tissue) %>% 
+  left_join(lims_id, by = c("SAMPLE_ID" = "BIOTA_SAMPLE_ID")) %>% 
+  left_join(measurements) %>%
+  left_join(methods) %>%
+  filter(LABWARE_TEXT_ID %in% labware_samples_lacking$TEXT_ID) %>% 
+  collect()
+
+# Get station info from LIMS data
+data_to_add$STATION_CODE <- 
+  labware_samples_lacking$AQUAMONITOR_CODE
+data_to_add$STATION_ID <- 
+  labware_samples_lacking$AQUAMONITOR_ID
+data_to_add$STATION_NAME <- 
+  labware_samples_lacking$AQUAMONITOR_NAME
+
+# Get DATE_CAUGHT
+data_to_add$DATE_CAUGHT <- 
+  labware_samples_lacking$SAMPLED_DATE
+
+# Get MYEAR
+data_to_add <- data_to_add %>%
+  mutate(
+    YEAR = year(DATE_CAUGHT),
+    MONTH = month(DATE_CAUGHT),
+    MYEAR = case_when(
+      MONTH >= 4 ~ YEAR,
+      MONTH < 4 ~ YEAR-1))
+
+# Get DATE_CAUGHT
+data_to_add$DATE_CAUGHT <- 
+  labware_samples_lacking$SAMPLED_DATE
+
+# Get number of specimens from counting numbers in X_BULK_BIO:
+data_to_add$Pooled_n <- 
+  gregexpr("[0-9]+", labware_samples_lacking$X_BULK_BIO) %>% map_int(length)
+
+# Get species info
+data_to_add$LATIN_NAME <- 
+  labware_samples_lacking$SPECIES
+
+# Get and add TAXONOMY_CODE_ID
+df_taxon <- taxonomy_codes  %>%
+  left_join(taxonomy) %>% 
+  filter(LATIN_NAME %in% labware_samples_lacking$SPECIES) %>% 
+  select(LATIN_NAME, TAXONOMY_CODE_ID) %>% 
+  collect()
+
+data_to_add <- data_to_add %>% 
+  left_join(df_taxon, by = "LATIN_NAME")
+
+data_to_add$SPECIMEN_NO <- labware_samples_lacking$X_BULK_BIO
+data_to_add$SPECIMEN_ID <- "Not in Nivabase"
+
+a <- names(dat_last_year)
+b <- names(data_to_add)
+setdiff(a, b)
+setdiff(b,a)
+
+# Select the columns we need
+data_to_add <- data_to_add[names(dat_last_year)]
+
+```
+### Add to original data and save - same format but with new timestamp   
+* Run what's inside the brackets following "if (FALSE)" manually to update data manually 
+```{r}
+
+# wrapped in a "FALSE" to avoid accidental ovrewrite
+
+if (FALSE){
+  
+  # make timestamp (NOTE: in UTC, i.e. Greenwich mean time0)
+  now <- lubridate::now()
+  timestring <- paste0(substr(now, 1, 10), "_", 
+                       substr(now, 12, 13), "h", substr(now, 15, 16), "m")  
+
+  fn_rds <- paste0("80_df_", measurement_year, "_notstandard_", timestring, ".rds")  
+  fn_csv <- sub(".rds", ".csv", fn_rds)  
+  # fn_rds; fn_csv
+  
+  dat_last_year_updated <- bind_rows(
+    dat_last_year,
+    data_to_add
+  )
+  
+  saveRDS(dat_last_year_updated, paste0("Input_data/", fn_rds))
+  readr::write_csv(dat_last_year_updated, paste0("Input_data/", fn_csv))
+  
+  message("Manually updated data saved to 'Input_data' as ", 
+          sQuote(fn_csv), " (and as a corresponding .rds file)")
+  
+  # 80_df_2025_notstandard_2026-08-26_11h44m.rds
+  # 80_df_2025_notstandard_2026-08-26_11h44m.csv
+
+}
+
 
 ```
 
