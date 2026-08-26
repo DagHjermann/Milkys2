@@ -15,14 +15,14 @@ format:
 library(dplyr)
 library(ggplot2)
 # library(stringr)
-library(forcats)
+library(forcats)  
 
 ```
 
 ### Set year  
 ```{r}
 
-lastyear <- 2023
+lastyear <- 2025
 
 ```
 
@@ -87,7 +87,11 @@ if (FALSE){
   
 } else {
   
+  if (sum(is.na(dat_new1$VALUE)) > 0){
   warning("There are ", sum(is.na(dat_new1$VALUE)), " rows with VALUE = NA. These have NOT been removed")
+  } else {
+    message("There are ", sum(is.na(dat_new1$VALUE)), " rows with VALUE = NA.")
+  }
   
 }
 
@@ -152,6 +156,109 @@ ggplot(dat_summ, aes(STATION_CODE, fct_rev(factor(NAME)), fill = n_samples)) +
   geom_tile() +
   scale_fill_viridis_c() +
   theme(axis.text.x = element_text(angle = -45, hjust = 0))
+
+```
+## Check missing liver sample (30B number 5: NR-2025-08453.)  
+
+### Check LIMS samples
+```{r}
+labware_samples <- readRDS("Input_data/83_Labware_samples_2025_2026-08-26_07h18m.rds")
+
+# confirm that the sample is there
+labware_samples %>% 
+  filter(TEXT_ID == "NR-2025-08453")
+
+```
+
+### Check all liver_samples from 30B   
+* Nothing suspicious, nothing seems to be lacking  
+* Specimens should be number 16,17,18,19,20,21,22 
+```{r}
+
+labware_samples %>% 
+  filter(grepl("30B", DESCRIPTION) & grepl("Lever", DESCRIPTION) & !grepl("Siloksaner", DESCRIPTION)) %>% 
+  arrange(SAMPLE_NUMBER)
+```
+
+
+
+### Get pointers to Nivabasen tables (from script 80)   
+Doesn't actually download data, just points to tables  
+```{r}
+methods <- tbl(con, in_schema("NIVADATABASE", "METHOD_DEFINITIONS")) %>%
+  select(METHOD_ID, NAME, UNIT, LABORATORY, METHOD_REF, MATRIX_ID)
+measurements <- tbl(con, in_schema("NIVADATABASE", "BIOTA_CHEMISTRY_VALUES")) %>%
+  select(SAMPLE_ID, METHOD_ID, VALUE_ID, VALUE, FLAG1, 
+         DETECTION_LIMIT, UNCERTAINTY, QUANTIFICATION_LIMIT)
+lims_id <- tbl(con, in_schema("NIVADATABASE", "LABWARE_BSID")) %>%
+  select(BIOTA_SAMPLE_ID, LABWARE_TEXT_ID)
+samples <- tbl(con, in_schema("NIVADATABASE", "BIOTA_SAMPLES")) %>%
+  select(SAMPLE_ID, TISSUE_ID, SAMPLE_NO, REPNO, REMARK) %>%
+  rename(REMARK_sample = REMARK)
+samples_specimens <- tbl(con, in_schema("NIVADATABASE", "BIOTA_SAMPLES_SPECIMENS")) %>%
+  select(SPECIMEN_ID, SAMPLE_ID)
+specimens <- tbl(con, in_schema("NIVADATABASE", "BIOTA_SINGLE_SPECIMENS")) %>%
+  select(STATION_ID, SPECIMEN_ID, SPECIMEN_NO, DATE_CAUGHT, TAXONOMY_CODE_ID, REMARK) %>%
+  rename(REMARK_specimen = REMARK)
+project_stations <- tbl(con, in_schema("NIVADATABASE", "PROJECTS_STATIONS")) %>%
+  select(STATION_ID, STATION_CODE, STATION_NAME, PROJECT_ID )
+projects <- tbl(con, in_schema("NIVADATABASE", "PROJECTS")) %>%
+  select(PROJECT_ID, PROJECT_NAME, PROJECT_DESCRIPTION)
+# lookup table
+lims_id <- tbl(con, in_schema("NIVADATABASE", "LABWARE_BSID")) %>%
+  select(BIOTA_SAMPLE_ID, LABWARE_TEXT_ID)
+
+```
+
+### Check data transferred from LIMS to Nivabasen  
+```{r}
+# get SAMPLE_ID from TEXT_ID
+df1 <- lims_id %>% 
+  filter(LABWARE_TEXT_ID == "NR-2025-08453") %>% 
+  collect()
+# continue from SAMPLE_ID
+df2 <- samples %>% 
+  filter(SAMPLE_ID == df1$BIOTA_SAMPLE_ID) %>% 
+  collect()
+df3 <- measurements %>% 
+  filter(SAMPLE_ID == df1$BIOTA_SAMPLE_ID) %>% 
+  collect()
+# 0 observations - the sample is lacking here!
+df4 <- samples_specimens %>% 
+  filter(SAMPLE_ID == df1$BIOTA_SAMPLE_ID) %>% 
+  collect()
+nrow(df1)
+nrow(df2)
+nrow(df3)
+nrow(df4)
+```
+### Check specimens from 30B in 2025
+```{r}
+
+df5 <- project_stations %>% 
+  filter(STATION_CODE == "30B") %>% 
+  head(10) %>% 
+  collect()
+df6 <- specimens %>% 
+  filter(STATION_ID %in% df5$STATION_ID & year(DATE_CAUGHT) == 2025) %>% 
+  collect()
+
+```
+
+## Check missing 33F data (flatfish)  
+
+### Check LIMS samples
+```{r}
+labware_samples <- readRDS("Input_data/83_Labware_samples_2025_2026-08-26_07h18m.rds")
+
+# confirm that the sample is there
+labware_samples %>% 
+  filter(AQUAMONITOR_CODE == "33F" & year(SAMPLED_DATE) == 2025)
+
+labware_samples %>% 
+  filter(AQUAMONITOR_CODE == "33F") %>% 
+  count(AQUAMONITOR_CODE, SAMPLED_DATE, STATUS)
+
 
 ```
 
