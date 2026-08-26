@@ -53,7 +53,7 @@ source("083_functions.R")
 ## 2. Settings  
 ```{r}
 
-measurement_year <- 2024
+measurement_year <- 2025
 
 # Set to TRUE if you want to download the data (ca. 6 minutes)
 download_and_save <- TRUE
@@ -180,13 +180,16 @@ xtabs(~addNA(AQUAMONITOR_CODE) + paste0(year_sample, ",", year_textid), df_check
 cat("-----------------------------------------------\n")
 cat("2023 - exclude blanks\n-----------------------------------------------\n")
 
-xtabs(~year_sample + year_textid, df_check2)                    #ELU: skal det være df_check1 her? får feilmelding
+xtabs(~year_sample + year_textid, df_check1)                    #ELU: skal det være df_check1 her? får feilmelding
 
-xtabs(~addNA(AQUAMONITOR_CODE) + paste0(year_sample, ",", year_textid), df_check2)            #ELU: skal det være df_check1 her? får feilmelding
+xtabs(~addNA(AQUAMONITOR_CODE) + paste0(year_sample, ",", year_textid), df_check1)            #ELU: skal det være df_check1 her? får feilmelding
 
 ```
 
 ### Including SAMPLED_DATE     
+Conclusion:
+* 28A2 are samples taken in January 2026, belonging to the "sample year" 2025 (1. Feb 2025-31. Jan 2026) -> this is OK
+* 33F are old samples from flatfish colleced in previous years, analysed this year  
 ```{r}
 df_check1 %>%             #ELU: skal det være df_check1 her? får feilmelding
   count(AQUAMONITOR_CODE, SAMPLED_DATE, TISSUE, year_textid, year_sample) %>%
@@ -197,7 +200,7 @@ df_check1 %>%             #ELU: skal det være df_check1 her? får feilmelding
 
 ### b3. Get 'labware_sample'   
 
-* From code above, we found that we can download all samples where either year in SAMPLED_DATE or year in TEXT_ID is 2023 (or both)   
+* From code above, we found that we can download all samples where either year in SAMPLED_DATE or year in TEXT_ID is `measurement_year` (or both)   
 
 ```{r}
 
