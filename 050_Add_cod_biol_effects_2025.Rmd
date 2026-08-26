@@ -55,7 +55,7 @@ lookup_methods <- data.frame(
 ## 2. Settings  
 ```{r}
 
-measurement_year <- 2024
+measurement_year <- 2025
 
 # 'write_sql_files' shall normally be TRUE  
 # can sometimes be useufle that it is FALSE (to avoid overwriting files that were OK already)
@@ -176,14 +176,25 @@ Data with columns STATION_CODE, SPECIMEN_NO (1,2,...), NAME ('ALAD' or 'EROD'), 
 
 ```{r}
 
-fn <- "Input_data/Biological_effects_cod/2024/milkys_2024_EROD-ALAD_results.xlsx"
+fn <- "Input_data/Biological_effects_cod/2025/milkys_2025_EROD-ALAD_results.xlsx"
+
+fn_years <- stringr::str_extract_all(fn, "20[0-9][0-9]")[[1]] %>% unique() %>% as.numeric()
+if (fn_years != measurement_year)
+  stop("Check filename (filename). Measurement year = ", measurement_year, " but fn contains years ", paste(fn_years, collapse = ","))
+
+cat("Sheet names in file:\n")
 excel_sheets(fn)
-df_raw_erod <- read_excel(fn, sheet = "EROD") %>% 
+cat("\n\n")
+
+df_raw_erod <- read_excel(fn, sheet = "EROD")
+df_raw_erod <- df_raw_erod %>% 
   mutate(NAME = "EROD") %>% 
   select(STATION_CODE, SPECIMEN_NO = Sampleno, NAME, VALUE = `EROD (pmol/min/mg protein)`)
-df_raw_alad <- read_excel(fn, sheet = "ALA-D") %>% 
+
+df_raw_alad <- read_excel(fn, sheet = "ALA-D")
+df_raw_alad <- df_raw_alad %>% 
   mutate(NAME = "ALAD") %>% 
-  select(STATION_CODE, SPECIMEN_NO = Sampleno, NAME, VALUE = ALAD)
+  select(STATION_CODE, SPECIMEN_NO = Sampleno, NAME, VALUE = `ng PBG/min/mg protein`)
 
 dat_alad_erod1 <- bind_rows(df_raw_erod, df_raw_alad)
 
@@ -207,7 +218,7 @@ Most recent data
 # filename <- files[filenumber]
 
 # filename <- '80_df_2023_notstandard_2024-08-31_07h42m.rds'
-filename <- 'Input_data/80_df_2024_notstandard_2025-09-01_09h14m.rds'
+filename <- 'Input_data/80_df_2025_notstandard_2026-07-30_07h52m.rds'
 
 # Read data
 message("Reading file ",  filename)
