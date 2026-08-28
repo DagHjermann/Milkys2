@@ -247,6 +247,37 @@ samples_specimens %>%
 
 ```
 
+#### Check that deletion is ok  
+
+```{r}
+
+# modify 'samples' and 'measurements' pointer (add ENTERED_BY, ENTERED_DATE)
+samples_check <- tbl(con, in_schema("NIVADATABASE", "BIOTA_SAMPLES")) %>%
+  select(STATION_ID, SAMPLE_ID, TISSUE_ID, SAMPLE_NO, REPNO, REMARK,
+         ENTERED_BY, ENTERED_DATE) %>%
+  rename(REMARK_sample = REMARK) %>% 
+  filter(ENTERED_DATE >= sql("DATE '2026-01-01'") & ENTERED_BY == "DHJ") %>% 
+  collect()
+nrow(samples_check)
+# 0
+
+measurements_check <- tbl(con, in_schema("NIVADATABASE", "BIOTA_CHEMISTRY_VALUES")) %>%
+  select(SAMPLE_ID, METHOD_ID, VALUE_ID, VALUE, FLAG1, 
+         DETECTION_LIMIT, UNCERTAINTY, QUANTIFICATION_LIMIT,
+         ENTERED_BY, ENTERED_DATE) %>% 
+  filter(ENTERED_DATE >= sql("DATE '2026-01-01'") & ENTERED_BY == "DHJ") %>% 
+  collect()
+nrow(measurements_check)
+# 0
+
+samples_specimens_check <- tbl(con, in_schema("NIVADATABASE", "BIOTA_SAMPLES_SPECIMENS")) %>%
+  select(SPECIMEN_ID, SAMPLE_ID, ENTERED_BY, ENTERED_DATE) %>% 
+  filter(ENTERED_DATE >= sql("DATE '2026-01-01'") & ENTERED_BY == "DHJ") %>% 
+  collect()
+nrow(samples_specimens_check)
+# 0   
+
+```
 
 
 ## 4. Read data 
@@ -620,6 +651,26 @@ cat("...\n")
 tail(sql_list, 3)
 
 ```
+#### j2. Check so far  
+
+```{r}
+
+samples %>% 
+  left_join(tissue) %>% 
+  left_join(samples_specimens) %>% 
+  # should work in this special case, as there is one specimen per sample
+  left_join(specimens) %>% 
+  # there are several project_stations rows per STATION_ID, so we must filter on PROJECT_ID
+  left_join(project_stations) %>% 
+  left_join(taxonomy_codes) %>% 
+  left_join(taxonomy) %>% 
+  filter(year(DATE_CAUGHT) == 2025 & TISSUE_NAME == "Blod" & PROJECT_ID == 3699) %>%
+  # head(3) %>% 
+  collect() %>% 
+  xtabs(~STATION_CODE + LATIN_NAME, .)
+
+```
+
 
 ### k. Adding methods: Make SQLs for adding methods to METHODS_DEFINITIONS  
 
@@ -643,8 +694,8 @@ samples_sel <- tbl(con, in_schema("NIVADATABASE", "BIOTA_SAMPLES")) %>%
   collect()
 
 
-
-#dat_alad_erod3
+# take data (dat_alad_erod2) and add columns 
+# SAMPLE_ID, SAMPLE_NO, REMARED, ENTERED_BY, ENTERED_DATE
 dat_alad_erod3 <- dat_alad_erod2 %>%
   left_join(
     samples_sel,
