@@ -44,11 +44,6 @@ library2(readxl)
 
 source("002_Utility_functions.R")
 
-lookup_methods <- data.frame(
-  NAME = c("ALAD", "EROD", "PROTV", "AY380"),
-  METHOD_ID = c(28580, 28575, 28579, 28574)   
-)  
-
 ```
 
 
@@ -165,6 +160,16 @@ lims_id <- tbl(con, in_schema("NIVADATABASE", "LABWARE_BSID")) %>%
 # matrix <- tbl(con, in_schema("NIVADATABASE", "MATRIX_DEFINITIONS")) %>%
 #   select(MATRIX_ID, MATRIX_NAME)
 # collect(matrix)
+
+```
+
+### Get METHOD_ID lookup
+
+```{r}
+
+lookup_methods2 <- methods %>%
+  filter(NAME %in% c("ALAD", "EROD", "PROTV", "AY380") & METHOD_ID > 20000) %>%
+  collect()
 
 ```
 
