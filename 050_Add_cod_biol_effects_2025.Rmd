@@ -267,6 +267,7 @@ measurements_check <- tbl(con, in_schema("NIVADATABASE", "BIOTA_CHEMISTRY_VALUES
          ENTERED_BY, ENTERED_DATE) %>% 
   filter(ENTERED_DATE >= sql("DATE '2026-01-01'") & ENTERED_BY == "DHJ") %>% 
   collect()
+
 nrow(measurements_check)
 # 0
 
@@ -680,23 +681,31 @@ Usually not needed!
 
 ```{r}
 
-station_ids <- unique(dat_alad_erod2$STATION_ID)
-specimen_no <- unique(dat_alad_erod2$SPECIMEN_NO)
+# original version also selects blood from eider duck 
+# station_ids <- unique(dat_alad_erod2$STATION_ID)
+# specimen_no <- unique(dat_alad_erod2$SPECIMEN_NO)
+station_ids_specimen_no <- unique(paste(dat_alad_erod2$STATION_ID, dat_alad_erod2$SPECIMEN_NO))
 tissue_ids <- unique(dat_alad_erod2$TISSUE_ID)
 
 # Read the biota samples we just added to the database  
 samples_sel <- tbl(con, in_schema("NIVADATABASE", "BIOTA_SAMPLES")) %>%
   filter(
-    STATION_ID %in% station_ids, 
-    REPNO %in% specimen_no,
+    paste(STATION_ID,REPNO) %in% station_ids_specimen_no, 
     year(SAMPLE_DATE) == measurement_year, 
     TISSUE_ID %in% tissue_ids) %>%
+  # only for checking
+  left_join(tissue) %>% 
   collect()
 
+cat("---------------------------------\n")
+cat("check 'samples_sel'\n")
+cat("---------------------------------\n")
+xtabs(~STATION_ID + TISSUE_NAME, samples_sel)
 
 # take data (dat_alad_erod2) and add columns 
 # SAMPLE_ID, SAMPLE_NO, REMARED, ENTERED_BY, ENTERED_DATE
 dat_alad_erod3 <- dat_alad_erod2 %>%
+  select(-TISSUE_NAME) %>% 
   left_join(
     samples_sel,
     by = join_by(STATION_ID, 
@@ -710,6 +719,11 @@ biota_measurements_to_add <- dat_alad_erod3 %>%
   left_join(lookup_methods) %>%
   mutate(FLAG1 = as.character(NA) )
   
+cat("---------------------------------\n")
+cat("check 'biota_measurements_to_add'\n")
+cat("---------------------------------\n")
+xtabs(~STATION_ID + NAME, biota_measurements_to_add)
+xtabs(~TISSUE_NAME + NAME, biota_measurements_to_add)
 
 ```
 
@@ -752,4 +766,36 @@ cat("...\n")
 tail(sql_list, 3)
 
 ```
+
+### n. Final check 
+
+```{r}
+
+check <- samples %>% 
+  left_join(tissue) %>% 
+  left_join(measurements) %>% 
+  left_join(methods) %>% 
+  left_join(samples_specimens) %>% 
+  # should work in this special case, as there is one specimen per sample
+  left_join(specimens) %>% 
+  # there are several project_stations rows per STATION_ID, so we must filter on PROJECT_ID
+  left_join(project_stations) %>% 
+  left_join(taxonomy_codes) %>% 
+  left_join(taxonomy) %>% 
+  filter(DATE_CAUGHT >= sql("DATE '2025-03-01'"),
+         DATE_CAUGHT < sql("DATE '2026-03-01'"),
+         NAME %in% c("ALAD","EROD"),
+         PROJECT_ID == 3699) %>%
+  # head(3) %>% 
+  collect()
+
+
+```
+#### Table 
+
+```{r}
+xtabs(~STATION_CODE + NAME + LATIN_NAME, check)
+
+```
+
 
