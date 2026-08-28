@@ -803,4 +803,28 @@ xtabs(~STATION_CODE + NAME + LATIN_NAME, check)
 
 ```
 
+#### Figure  
+Comparing result from database with excel data 
+```{r}
+
+gg1 <- ggplot(check, aes(STATION_CODE, VALUE)) +
+  geom_jitter(width = 0.1) +
+  facet_grid(cols = vars(NAME), scales = "free_y")
+
+gg2 <- ggplot(df_raw_alad, aes(STATION_CODE, VALUE)) +
+  geom_jitter(width = 0.1) +
+  labs(title = "ALAD (from excel)") +
+  theme(plot.title = element_text(size = 10))
+
+gg3 <- ggplot(df_raw_erod, aes(STATION_CODE, VALUE)) +
+  geom_jitter(width = 0.1) +
+  labs(title = "EROD (from excel)") +
+  theme(plot.title = element_text(size = 10))
+
+cowplot::plot_grid(
+  gg1,
+  cowplot::plot_grid(gg2, gg3, nrow = 1),
+  nrow = 2)
+
+```
 
