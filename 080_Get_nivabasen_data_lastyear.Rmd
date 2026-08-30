@@ -457,6 +457,23 @@ if (FALSE){
 
 ```
 
+## 7. Run scripts 101, 103 and 105   
+```{r, results='hide'}
+
+if (FALSE){
+  
+  # If these scripts already have been created and updated 
+  # (at the very least, 'lastyear' must be set to the correct year),
+  # then scripts 101, 103 and 105 can be run like this:
+  
+  rmarkdown::render("101_Combine_with_legacy_data_2025.Rmd")
+  rmarkdown::render("103_Add_sums.Rmd")
+  rmarkdown::render("105_Add_uncertainty_2025.Rmd")
+}
+
+```
+
+
 
 ## APPENDIX 1. Examples of use  
 
