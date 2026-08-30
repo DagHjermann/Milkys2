@@ -181,7 +181,8 @@ dat_1 <- specimens %>%
   left_join(methods) %>%
   left_join(project_stations) %>%
   left_join(projects) %>%
-  filter(PROJECT_NAME %in% c("CEMP_Biota", "MILKYS (2021-2025)"))  %>%
+  # filter(PROJECT_NAME %in% c("CEMP_Biota", "MILKYS (2021-2025)"))  %>%
+  filter(PROJECT_NAME %in% "CEMP_Biota")  %>%
   left_join(taxonomy_codes) %>%
   left_join(taxonomy) %>% 
   # order data according to LABWARE_TEXT_ID with the last one first 
@@ -194,7 +195,7 @@ dat_1 <- specimens %>%
 
 ### Download  
 
-* Download takes ca. 6 minutes  
+* Download takes 6-10 minutes  
 
 ```{r}
 
