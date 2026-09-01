@@ -1,7 +1,7 @@
 ---
-title: "140_ICES_submission_2023data"
+title: "140_ICES_submission_2025data"
 author: "DHJ"
-date: "2024-09-21"
+date: "2025-08-30"
 output: 
   html_document:
     keep_md: true
@@ -36,7 +36,7 @@ get_nivabase_data(str)
 ### Selected year  
 ```{r}
 
-selected_year <- 2024  
+selected_year <- 2025  
 previous_year <- selected_year - 1
 
 ```
@@ -234,7 +234,7 @@ xtabs(~ addNA(LATIN_NAME), data_ind2)
     
 ```{r}
 
-fishdata_fn <- paste0("Data/150_Fish_individual_data_ELU_", selected_year, ".rds")  # assuming this file name format
+fishdata_fn <- "Data/150_Fish_individual_data_ELU_18aug_2025.rds"  # assuming this fishdata_fn <- paste0("Data/150_Fish_individual_data_ELU_", selected_year, ".rds")  # assuming this file name format
 data_ind_fish <- readRDS(fishdata_fn) 
 
 table(addNA(data_ind_fish$Species))
@@ -348,156 +348,7 @@ data_ind2 <- data_ind2 %>%
 ```
 
 ### a2-4 Add EROD and ALAD   
-
-* For 2024 data  
-
-#### Data file  
-```{r}
-  excelfile <- "Input_data/Biological_effects_cod/2024/milkys_2024_EROD-ALAD_results.xlsx"
-  # readxl::excel_sheets(excelfile)
-```
-
-#### EROD 
-```{r}
-
-# example from previous year
-# data_all %>%
-#   filter(STATION_CODE =="23B" & PARAM == "EROD" & MYEAR == 2023)
-
-if (selected_year == 2024){
-
-  data_extra <- readxl::read_excel(excelfile, "EROD") %>%
-    rename(
-      # HARD-CODED column names:
-      SAMPLE_NO = Sampleno,
-      VALUE_WW = `EROD (pmol/min/mg protein)`) %>%
-    mutate(
-      SAMPLE_NO2 = SAMPLE_NO,
-      MYEAR = 2024,
-      LATIN_NAME = "Gadus morhua",
-      TISSUE_NAME = "Blod",
-      PARAM = "EROD",
-      FLAG1 = as.character(NA),
-      UNIT = "pmol/min/mg protein",
-      Uncertainty = 0.4,
-      UNCRT = 40,
-      METCU = "%") %>%
-    select(
-      STATION_CODE, SAMPLE_NO, SAMPLE_NO2, MYEAR, LATIN_NAME, TISSUE_NAME, PARAM, VALUE_WW, FLAG1, UNIT, 
-      Uncertainty, UNCRT, METCU)
-  
-  # Check if the data already 
-  check <- data_ind2 %>%
-    filter(PARAM == "EROD" & MYEAR == 2024)
-  if (nrow(check) == 0){
-    # Add only if there are none of these data already
-    data_ind2 <- data_ind2 %>%
-      bind_rows(data_extra)
-    message(nrow(data_extra), " rows added")
-  }
-
-}
-
-```
-
-#### ALAD  
-```{r}
-if (selected_year == 2024){
-
-  data_extra <- readxl::read_excel(excelfile, "ALA-D") %>%
-    rename(
-      # HARD-CODED column names:
-      SAMPLE_NO = Sampleno,
-      VALUE_WW = ALAD) %>%
-    mutate(
-      SAMPLE_NO2 = SAMPLE_NO,
-      MYEAR = 2024,
-      LATIN_NAME = "Gadus morhua",
-      TISSUE_NAME = "Blod",
-      PARAM = "ALAD",
-      FLAG1 = as.character(NA),
-      UNIT = "ng/min/mg protein",
-      Uncertainty = 0.4,
-      UNCRT = 40,
-      METCU = "%") %>%
-    select(
-      STATION_CODE, SAMPLE_NO, SAMPLE_NO2, MYEAR, LATIN_NAME, TISSUE_NAME, PARAM, VALUE_WW, FLAG1, UNIT, 
-      Uncertainty, UNCRT, METCU)
-  
-  # Check if the data already 
-  check <- data_ind2 %>%
-    filter(PARAM == "ALAD" & MYEAR == 2024)
-  if (nrow(check) == 0){
-    # Add only if there are none of these data already
-    data_ind2 <- data_ind2 %>%
-      bind_rows(data_extra)
-    message(nrow(data_extra), " rows added")
-  }
-}
-```
-
-### a2-5 Add lacking PAH metabolites, 2024  
-```{r}
-
-if (selected_year == 2024){
-  
-  # example from previous year
-  test <- data_all %>%
-    filter(STATION_CODE == "15B" & MYEAR == 2022 & TISSUE_NAME == "Galle")
-  test
-  table(test$PARAM)
-
-  data_extra_1 <- readRDS("Input_data/Biological_effects_cod/2024/083_PAH_metabolites_15B-53B-23B.rds")
-  data_extra_meta <- readRDS("Input_data/Biological_effects_cod/2024/083_PAH_metabolites_15B-53B-23B_samples.rds")
-  data_extra_meta
-  # table(data_extra_1$REPORTED_NAME)
-  # table(data_extra_1$AQUAMONITOR_CODE)
-  
-  data_extra <- data_extra_1 %>% 
-    left_join(
-      data_extra_meta %>% select(TEXT_ID, BIOTA_SAMPLENO),
-      by = join_by(TEXT_ID), relationship = "many-to-one"
-    )
-  # data_extra
-  
-  data_extra <- data_extra %>%
-    rename(
-      # HARD-CODED column names:
-      STATION_CODE = AQUAMONITOR_CODE,
-      SAMPLE_NO = BIOTA_SAMPLENO,
-      VALUE_WW = NUMERIC_ENTRY) %>%
-    mutate(
-      SAMPLE_NO2 = SAMPLE_NO,
-      MYEAR = 2024,
-      LATIN_NAME = "Gadus morhua",
-      TISSUE_NAME = "Galle",
-      PARAM = case_when(
-        REPORTED_NAME %in% "1-OH-fenantren" ~ "PA1OH",
-        REPORTED_NAME %in% "1-OH-pyren" ~ "PYR1OH",
-        REPORTED_NAME %in% "3-OH-benzo[a]pyren" ~ "BAP3OH",
-        TRUE ~ PARAM),
-      FLAG1 = ENTRY_QUALIFIER,
-      UNIT = case_when(
-        UNITS %in% "NG_P_G" ~ "UG_P_KG"),
-      Uncertainty = 0.4,
-      UNCRT = 40,
-      METCU = "%") %>%
-    select(
-      STATION_CODE, SAMPLE_NO, SAMPLE_NO2, MYEAR, LATIN_NAME, TISSUE_NAME, PARAM, VALUE_WW, FLAG1, UNIT, 
-      Uncertainty, UNCRT, METCU)
-  
-  # Check if the data already 
-  check <- data_ind2 %>%
-    filter(PARAM %in% c("PA1OH", "PYR1OH", "BAP3OH") & STATION_CODE %in% c("15B", "23B", "53B"))
-  if (nrow(check) == 0){
-    # Add only if there are none of these data already
-    data_ind2 <- data_ind2 %>%
-      bind_rows(data_extra)
-    message(nrow(data_extra), " rows added")
-  }  
-}
-
-```
+* For 2024 data only - not needed for 2025 (have been added to dataset in script 50) 
 
 
 ### a3. For checking single stations
