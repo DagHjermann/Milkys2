@@ -1,0 +1,708 @@
+---
+title: "051_Add_imposex"
+author: "DHJ"
+date: "2024-09-06"
+output: 
+  html_document:
+    keep_md: true
+    toc: true  
+    toc_float: true
+params:
+  oracleuser: 
+    label: "NIVA initials (3 capital letters)"
+    value: "DHJ"
+    input: text
+  oraclepass: 
+    label: "Oracle password"
+    value: ""
+    input: password
+---
+
+
+*NOTE: To be able to do this, you need write access to Nivabasen and SQL Developer (or something similar).*
+The way this script works, is that it is used to create SQL for inserting rows into Nivabasen, 
+which then are copy-pasted into SQL Developer.  
+
+* Imposex and intersex files were copied from Project Portal (210200 - Miljøgifter i kystområdene 2021-2025):  
+    - 2023 / Opparbeiding / Snegler  
+    - saved to Input_data/opparbeiding_biota/Snegl_2023  
+    
+
+## 1. Libraries and functions
+```{r}
+#| results: false
+#| warnings: false        
+#|
+
+# For loading libraries without startup messages
+library2 <- function(...) suppressPackageStartupMessages(library(...))
+
+library2(dplyr)
+library2(dbplyr)
+library2(purrr)
+library2(lubridate)
+library2(stringr)
+library2(tidyr)
+library2(ggplot2)
+# library(safejoin)   # https://github.com/moodymudskipper/safejoin
+library2(readxl)
+
+source("002_Utility_functions.R")
+
+```
+
+
+## 2. Settings  
+```{r}
+
+measurement_year <- 2024
+
+# 'write_sql_files' shall normally be TRUE  
+# can sometimes be useufle that it is FALSE (to avoid overwriting files that were OK already)
+write_sql_files <- TRUE
+# write_sql_files <- FALSE
+
+```
+
+
+## 3. Set up Oracle connection   
+
+- This part of the script will ask you about your user name and password to Nivabasen  
+
+```{r}
+
+con_exists <- "con" %in% ls()
+
+# if the script is run interactively and 'con' has not been defined,
+#   ask for username and password
+if (interactive() & !con_exists){
+  
+  con <- DBI::dbConnect(odbc::odbc(),
+                        Driver = "/usr/lib/oracle/23/client64/lib/libsqora.so.23.1",
+                        DBQ = "dbora-niva-prod01.niva.corp:1555/NIVABPRD",
+                        UID = rstudioapi::askForPassword("Database username (NIVA initials, 3 capital letters)"),
+                        PWD = rstudioapi::askForPassword("Nivabasen password")
+  )
+  
+# if 'con' has not been defined, we don't have to aske for username and password again
+} else if (interactive() & con_exists){  
+  
+  message("Connection 'con' already exists \n  - run 'rm(con)' if you want to remove it")
+
+# if the script is knitted (not run interactively), you need to .knit with parameters' from the 'knit' menu
+} else {
+
+  # If params$oraclepass is just an empty string, you have probably just clicked the Knit button  
+  if (params$oraclepass == ""){
+    stop("Password = ''. You must use 'Knit with Parameters...' from the menu (pull-down menu from the Knit button), and enter you password in the dialog")
+  }
+  
+  con <- DBI::dbConnect(odbc::odbc(),
+                        Driver = "/usr/lib/oracle/23/client64/lib/libsqora.so.23.1",
+                        DBQ = "dbora-niva-prod01.niva.corp:1555/NIVABPRD",
+                        UID = params$oracleuser,
+                        PWD = params$oraclepass
+  )
+  
+}
+
+test_connection <- DBI::dbGetQuery(con, "select * from NIVADATABASE.PROJECTS where rownum < 4")
+if ("test_connection" %in% ls()){
+  if (nrow(test_connection) == 3)
+    cat("Connection to Nivadatabase set up and tested")
+}
+
+rm(test_connection)
+
+```
+
+### Get pointers to Nivabase tables  
+
+* Note that when dbplyr joins tables, it will try to join using all fields (columns) that have the same name in the two tables  
+    - therefore, fields with the same column names but that cannot be used for joining (such as ENTERED_BY, ENTERED_DATE) must either be removed or renamed   
+    - if not, no rows will be joined (probably)  
+* Columns that are actually used for joins should of couse not be removed (e.g., STATION_ID, SAMPLE_ID)   
+
+```{r}
+
+# Remove ENTERED_BY and ENTERED_DATE from all tables because they mess up the joins
+
+methods <- tbl(con, in_schema("NIVADATABASE", "METHOD_DEFINITIONS")) %>%
+  select(METHOD_ID, NAME, UNIT, LABORATORY, METHOD_REF, MATRIX_ID)
+measurements <- tbl(con, in_schema("NIVADATABASE", "BIOTA_CHEMISTRY_VALUES")) %>%
+  select(SAMPLE_ID, METHOD_ID, VALUE_ID, VALUE, FLAG1, 
+         DETECTION_LIMIT, UNCERTAINTY, QUANTIFICATION_LIMIT)
+# drop STATION_ID, TAXONOMY_CODE_ID from samples
+samples <- tbl(con, in_schema("NIVADATABASE", "BIOTA_SAMPLES")) %>%
+  select(STATION_ID, SAMPLE_ID, TISSUE_ID, SAMPLE_NO, REPNO, REMARK) %>%
+  rename(REMARK_sample = REMARK)
+samples_specimens <- tbl(con, in_schema("NIVADATABASE", "BIOTA_SAMPLES_SPECIMENS")) %>%
+  select(SPECIMEN_ID, SAMPLE_ID)
+specimens <- tbl(con, in_schema("NIVADATABASE", "BIOTA_SINGLE_SPECIMENS")) %>%
+  select(STATION_ID, SPECIMEN_ID, SPECIMEN_NO, DATE_CAUGHT, TAXONOMY_CODE_ID, REMARK) %>%
+  rename(REMARK_specimen = REMARK)
+project_stations <- tbl(con, in_schema("NIVADATABASE", "PROJECTS_STATIONS")) %>%
+  select(STATION_ID, STATION_CODE, STATION_NAME, PROJECT_ID )
+projects <- tbl(con, in_schema("NIVADATABASE", "PROJECTS")) %>%
+  select(PROJECT_ID, PROJECT_NAME, PROJECT_DESCRIPTION)
+
+# Labware sample table  
+labware_checksample <- tbl(con, in_schema("NIVADATABASE", "LABWARE_CHECK_SAMPLE")) %>%
+  select(PROSJEKT, SAMPLED_DATE, DESCRIPTION, AQUAMONITOR_CODE, TISSUE, X_BULK_BIO)
+
+# Lookup tables  
+taxonomy_codes <- tbl(con, in_schema("NIVADATABASE", "TAXONOMY_CODES")) %>%
+  select(TAXONOMY_CODE_ID, CODE, NIVA_TAXON_ID)
+taxonomy <- tbl(con, in_schema("NIVADATABASE", "TAXONOMY")) %>%
+  select(NIVA_TAXON_ID, LATIN_NAME)
+tissue <- tbl(con, in_schema("NIVADATABASE", "BIOTA_TISSUE_TYPES")) %>%
+  select(TISSUE_ID, TISSUE_NAME)
+lims_id <- tbl(con, in_schema("NIVADATABASE", "LABWARE_BSID")) %>%
+  select(BIOTA_SAMPLE_ID, LABWARE_TEXT_ID)
+
+# Not really necessary here:
+# matrix <- tbl(con, in_schema("NIVADATABASE", "MATRIX_DEFINITIONS")) %>%
+#   select(MATRIX_ID, MATRIX_NAME)
+# collect(matrix)
+
+```
+
+### Test data already there  
+
+```{r}
+
+# old data
+filename <- 'Input_data/80_df_2023_notstandard_2024-10-18_12h58m.rds'
+dat_existing_nivabase <- readRDS(filename)
+
+lookup_methods <- dat_existing_nivabase %>%
+  distinct(NAME, METHOD_ID) %>%
+  filter(NAME %in% c("VDSI", "Intersex"))
+
+test_year <- 2024
+measurements %>% 
+  filter(METHOD_ID %in% lookup_methods$METHOD_ID) %>% 
+  left_join(samples) %>% 
+  left_join(samples_specimens) %>% 
+  left_join(specimens) %>% 
+  left_join(project_stations) %>% 
+  left_join(projects) %>% 
+  filter(PROJECT_NAME == "MILKYS (2021-2025)") %>% 
+  filter(year(DATE_CAUGHT) == test_year) %>%
+  arrange(STATION_CODE) %>% 
+  xtabs(~STATION_CODE, .)
+
+
+```
+
+
+## 4. Read data 
+
+### Data that shall be added to NIVAbase   
+
+#### Imposex: file names and station codes  
+
+```{r}
+
+# folder_vdsi <- "K:/Prosjekter/Sjøvann/JAMP/2021/opparbeiding/Snegl"
+folder_vdsi <- paste0("Input_data/opparbeiding_biota/Snegl_", measurement_year, "/")
+
+# Get all file names
+fn <- dir(folder_vdsi, pattern = ".xlsx")
+# Remove some file names
+fn <- fn[!grepl("imposex_mal", fn)]       # mal (template file)
+fn <- fn[!grepl("intersex", fn)]          # skip intersex for now (dealt with further down)
+fn <- fn[!grepl("~", fn, fixed = TRUE)]   # names with "~" are usually temporary files
+
+# Set names of 'fn'
+# Should be equal to station code 
+# We find this by extracting all characters to the left of the first underscore  
+names(fn) <- stringr::str_extract(fn, "[^_]+")
+
+# Manual fix: 227G changed to 227G2
+names(fn)[names(fn) == "227G"] <- "227G2"
+
+# Check that the stations codes are correct:
+
+message("Check station codes!")
+fn
+message("If not, you can correct like in the example given in the end of this code chunk")
+
+# If not, you can correct like in the example below
+# names(fn)[names(fn) == "131"] <- "131G"
+# fn
+
+
+```
+#### Imposex: read files  
+
+```{r}
+# Function for reading one file (with file name 'fn')  
+read_excel_imposex <- function(fn){
+  df <- readxl::read_excel(paste0(folder_vdsi, "/", fn), skip = 6)
+  df <- df[1:6]
+  df <- df[!is.na(df$`Analysert av`),]
+  df
+}
+
+dat_vdsi_list <- fn %>% map(read_excel_imposex)
+
+# If there are errors, you may use 'safely', in that case the output is a list of lists 
+#   and must be treated a bit differently. Run ?safely to read the documentation
+# read_excel_imposex_s <- safely(read_excel_imposex)
+# dat_vdsi_list <- fn %>% map(read_excel_imposex_s)
+
+cat("\n\nData stored in 'dat_vdsi_list', a list of length", length(dat_vdsi_list))
+
+```
+#### Imposex: check number of rows - should be 50  
+```{r}
+
+#  unless otherwise noted in sheet (15G "Fant ikke flere snegl i år, men det er over 15 hunner.")
+dat_vdsi_list %>% map_int(nrow)
+
+```
+#### Imposex: manually look at data, if needed  
+```{r}
+
+if (FALSE){
+  dat_vdsi_list[["15G"]] %>% View()
+  dat_vdsi_list[["36G"]] %>% View()
+  
+  # exampple of fixing:
+  # dat_vdsi_list[["15G"]] <- dat_vdsi_list[["15G"]][1:50,]  # delete last line
+}
+
+```
+
+#### Imposex: create data frame 'dat_vdsi'  
+
+* combines list items to one data frame  
+* pick only number, sex and Imposex  
+* ...we will deal with length and penis length later  
+
+```{r, message=FALSE}
+
+dat_vdsi <- dat_vdsi_list %>% 
+  map(~.[c(1,3,5)]) %>%
+  bind_rows(.id = "STATION_CODE") %>%
+  rename(VALUE_WW = VDSI, 
+         Sex = `Kj<U+00F8>nn`) %>%
+  mutate(PARAM = "VDSI",
+         UNIT = "idx",
+         LATIN_NAME = "Nucella lapillus",
+         Sex = tolower(Sex))
+
+# View(dat_vdsi)
+
+cat("\n------------------------------------------\n")
+cat("Imposex data: \n------------------------------------------\n")
+xtabs(~is.na(VALUE_WW) + addNA(Sex), dat_vdsi)
+
+```
+
+#### Get VDSI (mean VDS) for direct export to ICES (script 140)  
+
+```{r}
+
+dat_vdsi %>% 
+  filter(PARAM == "VDSI") %>% 
+  group_by(STATION_CODE) %>% 
+  summarize(VALUE_WW = mean(VALUE_WW, na.rm = TRUE))
+
+```
+
+
+#### Intersex: find files 
+
+```{r}
+
+# Get all file names
+fn <- dir(folder_vdsi, pattern = ".xlsx")
+fn <- fn[grepl("intersex", fn)]          # keep only intersex for now
+
+names(fn) <- stringr::str_extract(fn, "[^_]+")
+
+# Check that the stations codes are correct:
+message("Check station codes!")
+fn
+message("If not, you can correct like in the example given in the end of this code chunk")
+
+
+```
+
+#### Intersex: read files  
+
+```{r}
+
+# function for reading one file
+read_excel_intersex <- function(fn){
+  df <- readxl::read_excel(paste0(folder_vdsi, fn), range = "A3:G53")
+  df %>%
+    filter(F == 1) %>%              # read only females
+    mutate(STATION_CODE = "71G", 
+           Sex = "f",
+           PARAM = "Intersex",
+           UNIT = "PERCENT",
+           LATIN_NAME = "Littorina littorea") %>%
+    mutate(VALUE_WW = `ISI   (intersex-stadie)`*100) %>%
+    select(STATION_CODE, Sex, VALUE_WW, PARAM, LATIN_NAME)
+}
+
+dat_intersex_list <- fn %>% map(read_excel_intersex)
+
+# If there are errors, you may use 'safely', in that case the output is a list of lists 
+#   and must be treated a bit differently. Run ?safely to read the documentation
+# read_excel_imposex_s <- safely(read_excel_imposex)
+# dat_vdsi_list <- fn %>% map(read_excel_imposex_s)
+
+cat("\n\nData stored in 'dat_intersex_list', a list of length", length(dat_intersex_list))
+
+```
+#### Intersex: check number of rows - should be reasonable    
+```{r}
+
+#  unless otherwise noted in sheet (15G "Fant ikke flere snegl i år, men det er over 15 hunner.")
+dat_intersex_list %>% map_int(nrow)
+
+
+```
+
+#### Intersex: create data frame 'dat_intersex'  
+
+* combines list items to one data frame  
+
+```{r}
+
+dat_intersex <- dat_intersex_list %>% 
+  # map(~.[c(1,3,5)]) %>%
+  bind_rows(.id = "STATION_CODE")
+
+```
+
+
+#### Get VDSI (mean VDS) for direct export to ICES (script 140)  
+
+```{r}
+
+dat_intersex %>% 
+  filter(PARAM == "Intersex") %>% 
+  group_by(STATION_CODE) %>% 
+  summarize(VALUE_WW = mean(VALUE_WW, na.rm = TRUE))
+
+```
+
+#### Combine imposex and intersex  
+
+```{r}
+
+# check names - not completely equal, but the important ones are  
+# names(dat_vdsi)
+# names(dat_intersex)
+
+dat_1 <- bind_rows(dat_vdsi, dat_intersex) %>%
+  filter(
+    Sex == "f") %>%
+  group_by(
+    STATION_CODE, PARAM, LATIN_NAME) %>%
+  summarise(
+    VALUE = mean(VALUE_WW), .groups = "drop") %>%
+  mutate(
+    MYEAR = measurement_year,
+    TISSUE_NAME = "Whole soft body",
+    SPECIMEN_NO = 1
+  ) %>%
+  rename(
+    NAME = PARAM
+  )
+
+cat("\n------------------------------------------\n")
+cat("Combined data: \n------------------------------------------\n")
+xtabs(~NAME, dat_1)
+
+```
+
+### Existing Nivabasen data 
+
+* Most recent data  
+* For getting IDs for station, specimens and samples  
+
+```{r}
+
+# Get available files, sorted from newest to oldest
+# filenumber <- 1                                 # filenumber = 1 means "read the newest file"
+# filepattern <- paste0("80_df_", lastyear, "_notstandard_")    # file name except date and extension
+# filepattern_with_extension <- paste0(filepattern, ".+.rds")
+# files <- dir("Input_data", pattern = filepattern_with_extension) %>% rev()
+# filename <- files[filenumber]
+
+filename <- 'Input_data/80_df_2024_notstandard_2025-09-01_09h14m.rds'
+
+# Read data
+message("Reading file ",  filename)
+dat_existing_nivabase <- readRDS(filename)
+message(nrow(dat_existing_nivabase), " rows of data read from file")
+
+```
+### Previous years  
+
+```{r}
+
+dat_prev_a <- readRDS("Data/101_dat_new_2022-09-23.rds")
+
+# dat_prev_b <- readRDS("Data/109_adjusted_data_ELU_2023-09-12.rds") %>%
+#   filter(MYEAR %in% 2021:2022)
+
+```
+
+
+## 5. Add data to Nivabasen   
+
+### a. Get specimens for Nivabasen  
+
+* We need this in order to get dates  
+
+```{r}
+
+# Which station codes have ALAD/EROD data?
+stations <- unique(dat_1$STATION_CODE)
+
+# Expecting only be one STATION_ID for each station
+lookup_stationid <- dat_existing_nivabase %>%
+  distinct(STATION_CODE, STATION_ID) %>%
+  filter(STATION_CODE %in% stations)
+
+# Function for getting specimens for a single station (given by 'station_id') 
+#    and measurement year ('year')
+get_specimens_nivabasen <- function(station_id, year){
+  specimens %>%
+    filter(
+      STATION_ID == station_id &
+        (
+          (year(DATE_CAUGHT) == year & month(DATE_CAUGHT) >= 4) |
+          (year(DATE_CAUGHT) == (year+1) & month(DATE_CAUGHT) < 4))
+    ) %>%
+    collect()
+}
+# test
+# get_specimens_nivabasen(46980, 2023)
+
+# Get specimens from Nivabasen
+df_specimens_nivabasen <- map_dfr(lookup_stationid$STATION_ID, 
+                                  get_specimens_nivabasen, year = measurement_year)
+
+
+```
+
+
+
+### b. Add columns to data (dat_2)  
+
+```{r}
+
+lookup_tissues <- tissue %>% 
+  collect()
+
+dat_2 <- dat_1 %>%
+  mutate(
+    TISSUE_NAME = case_when(
+      NAME == "ALAD" ~ "Blod",                # must use exactly this name (from Nivabasen BIOTA_TISSUE_TYPES)
+      NAME == "EROD" ~ "Liver - microsome"    # must use exactly this name (from Nivabasen BIOTA_TISSUE_TYPES)
+    )
+  ) %>%
+  # add TISSUE_ID column
+  left_join(lookup_tissues, by = "TISSUE_NAME", relationship = "many-to-one") %>%      
+  # add STATION_ID column
+  left_join(lookup_stationid, by = "STATION_CODE", relationship = "many-to-one") %>%
+  collect()
+
+```
+
+### c. Add columns to data (dat_3)  
+
+```{r}
+
+# a. Get TAXONOMY_CODE_ID for given species - problem: there are several per species
+latin_names <- unique(dat_1$LATIN_NAME)
+lookup_taxonomyid_1 <- taxonomy_codes %>%
+  left_join(taxonomy, by = "NIVA_TAXON_ID") %>%
+  filter(LATIN_NAME %in% latin_names) %>%
+  distinct(LATIN_NAME, TAXONOMY_CODE_ID) %>%
+  collect()
+
+
+# b. Get TAXONOMY_CODE_ID used last year
+station_ids <- unique(dat_2$STATION_ID)
+lookup_taxonomyid_2 <- specimens %>%
+  filter(
+    year(DATE_CAUGHT) %in% (measurement_year - 1),
+    STATION_ID %in% station_ids) %>%
+  distinct(TAXONOMY_CODE_ID) %>%
+  collect()
+
+# c. filter by those  
+lookup_taxonomyid <- lookup_taxonomyid_1 %>%
+  filter(TAXONOMY_CODE_ID %in% pull(lookup_taxonomyid_2, TAXONOMY_CODE_ID)) %>%
+  collect() 
+
+dat_3 <- dat_2 %>%   
+  # add TAXONOMY_CODE_ID column
+  left_join(lookup_taxonomyid, by = "LATIN_NAME", relationship = "many-to-one")
+
+```
+
+### d. Add columns to data (dat_4)  
+
+```{r}
+
+# Add DATE_CAUGHT, SPECIMEN_ID
+lookup_id_by_specimen <- df_specimens_nivabasen %>% 
+  filter(
+    year(DATE_CAUGHT) %in% measurement_year,
+    STATION_ID %in% pull(dat_2, STATION_ID)) %>%
+  distinct(STATION_ID, SPECIMEN_NO, TAXONOMY_CODE_ID, DATE_CAUGHT, SPECIMEN_ID)  %>%
+  collect()
+
+dat_4 <- dat_3 %>%
+  left_join(lookup_id_by_specimen, by = c("STATION_ID", "TAXONOMY_CODE_ID", "SPECIMEN_NO")
+  )
+
+
+```
+
+### e. Check  
+
+```{r}
+
+if (sum(is.na(dat_4$SPECIMEN_ID)) > 0){
+  message(sum(is.na(dat_4$SPECIMEN_ID)), "samples don't have a corresponding SPECIMEN_ID")
+  message("Run 'subset(dat_4, is.na(SPECIMEN_ID)' to see which SPECIMEN_NO that are lacking")
+  message("You may need to add specimens to the database table BIOTA_SINGLE_SPECIMENS")
+} else {
+  message("SPECIMEN_ID found for all data")
+}
+
+```
+
+
+### f. Find existing samples    
+
+```{r}
+
+specimen_ids <- dat_4$SPECIMEN_ID 
+
+df_sampspec_nivabasen <- samples_specimens %>%
+  filter(SPECIMEN_ID %in% specimen_ids) %>%
+  collect()
+
+dat_5 <- dat_4 %>% 
+  left_join(df_sampspec_nivabasen, by = join_by(SPECIMEN_ID))
+
+```
+
+
+### f. Check if we need to add new samples 
+
+```{r}
+
+if (sum(is.na(dat_5$SAMPLE_ID)) > 0){
+  message(sum(is.na(dat_5$SAMPLE_ID)), "samples don't have a corresponding SPECIMEN_ID")
+  message("Run 'subset(dat_5, is.na(SAMPLE_ID)' to see which SPECIMEN_ID that are lacking SAMPLE_ID")
+  message("You may need to add samples to the database table BIOTA_SAMPLES")
+} else {
+  message("SAMPLE_ID found for all data")
+}
+
+```
+
+
+### g. New samples: Create data   
+
+* Can be skipped, see above  
+* Otherwise, see script 50 for code      
+
+### h. New samples: Make SQLs for adding data to 'BIOTA_SAMPLES' table   
+
+* Can be skipped, see above  
+* Otherwise, see script 50 for code      
+
+### i. Specimens: Do all specimens exist in Nivabasen?  
+
+* Can be skipped, see above  
+* Otherwise, see script 50 for code      
+
+### j. New specimens: Make SQLs for adding data to 'BIOTA_SINGLE_SPECIMENS' table   
+
+* Can be skipped in this case, see above  
+* Otherwise, see script 50 for code      
+
+
+### k. Samples-specimens: Make data for coupling specimens to samples    
+
+* Can be skipped in this case, see above  
+* Otherwise, see script 50 for code      
+
+### l. Samples-specimens: Make SQLs for adding data to 'BIOTA_SAMPLES_SPECIMENS' table   
+
+* Can be skipped in this case, see above  
+* Otherwise, see script 50 for code      
+
+### m. Adding methods: Make SQLs for adding methods to METHODS_DEFINITIONS  
+
+* Usually not needed  
+
+### n. Measurements: Make data   
+
+```{r}
+
+lookup_methods <- dat_prev_a %>%
+  rename(NAME = PARAM) %>%
+  distinct(NAME, METHOD_ID) %>%
+  filter(NAME %in% c("VDSI", "Intersex"))
+
+biota_measurements_to_add <- dat_5 %>%
+  left_join(lookup_methods) %>%
+  mutate(FLAG1 = as.character(NA) )
+  
+
+```
+
+
+### m. Make SQLs for adding data to 'BIOTA_SAMPLES_SPECIMENS' table   
+
+The script below creates a text file named e.g. 'milkys_2023_erod-alad_measurements.sql'    
+* The file is located in the folder 'Milkys2/Input_data/Biological_effects_cod'
+* Download this file to your PC (in the "JupyterLab" tab of your web browser) 
+* Open this file in SQL Developer and run it  
+- remember `commit;` after running the insert sentences  
+* Then come back here and continue below  
+
+(Note to DHJ: use "SQL developer (latest version)" from desktop. Don't use the start menu.)
+
+```{r}
+
+sql_list <- 1:nrow(biota_measurements_to_add) %>% 
+  map_chr(make_sql_chemistry_values, data = biota_measurements_to_add)
+sql <- paste(sql_list, collapse = ";\n")
+sql <- paste0(sql, ";\n")  
+
+# Windows only:
+# writeLines(sql, "clipboard")  # copies SQLs to clipboard - go to SQL Developer and paste
+# On Jupyterhub:
+fn <- paste0("Input_data/opparbeiding_biota/Snegl_", measurement_year, "/milkys_", measurement_year, "_imposex_measurements.sql")
+if (write_sql_files)
+  writeLines(sql, fn)  # writes SQL code to text file - download it to your PC and run it from SQL Developer
+
+
+cat("Number of SQLs: \n")
+length(sql_list)  # 9
+
+
+cat("\nThe three first and three last SQLs: \n")
+
+# the three first SQLs:
+head(sql_list, 3)
+cat("...\n")
+tail(sql_list, 3)
+
+```
