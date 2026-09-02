@@ -49,11 +49,6 @@ library2(readxl)
 
 source("002_Utility_functions.R")
 
-lookup_methods <- data.frame(
-  NAME = c("ALAD", "EROD", "PROTV", "AY380"),
-  METHOD_ID = c(28580, 28575, 28579, 28574)   
-)  
-
 ```
 
 
