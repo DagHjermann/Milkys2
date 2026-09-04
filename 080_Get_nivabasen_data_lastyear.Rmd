@@ -314,7 +314,7 @@ if (download_and_save){
 ## 6. Ad-hoc fix for 2025 data  
 * Liver sample number 5 from 30B (NR-2025-08453) exists in LIMS but lacking from final data  
 * The data exists in `biota_samples` table, but is missing from `biota_samples_specimens` and `biota_single_specimens`  
-* Therefore station and time info is lacking  
+* Therefore we use sample and measurement data, and add station and time info is lacking  
 * We add this ifo manually, and add all to the data  
 
 ### Get LIMS samples, ad find out which ones that lack 
@@ -334,7 +334,7 @@ labware_samples_lacking_1 <- labware_samples %>%
 # Also some flatfish data from 33F   
 # xtabs(~AQUAMONITOR_CODE + TISSUE, labware_samples_lacking_1)
 cat("\n----------------------------------------------------------------\n")
-cat("All liver samples in LIMS missing from Nivabase:\n\n")
+cat("All samples in LIMS missing from Nivabase (some samples may have an 'expired' LIMS number):\n\n")
 xtabs(~TISSUE, labware_samples_lacking_1)
 
 # We forget about all the other issues and concentratie on liver
@@ -461,6 +461,8 @@ if (FALSE){
 ```{r, results='hide'}
 
 if (FALSE){
+  
+  
   
   # If these scripts already have been created and updated 
   # (at the very least, 'lastyear' must be set to the correct year),
