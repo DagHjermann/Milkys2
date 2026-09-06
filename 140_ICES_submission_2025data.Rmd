@@ -1882,7 +1882,7 @@ data_to_add <- data_conc_2 %>%
   mutate(TISSUE_NAME = "WO",
          MATRX = "WO",
          PARAM = "GOSOI",       
-         BASIS = NA,
+         BASIS = as.character(NA),
          UNIT = "idx") %>%       # for "index" (MUNIT will be set to the same)
   select(-VALUE_WW, -UNCRT) %>%  # this we replace by left_join below
   safe_left_join(data_for_leftjoin, 
