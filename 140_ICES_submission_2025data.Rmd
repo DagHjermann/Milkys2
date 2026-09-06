@@ -64,6 +64,27 @@ create_folder_if_needed(save_folder_txt)
 create_folder_if_needed(save_folder_rds)
 
 ```
+## SETTINGS  
+```{r}
+
+# choose what you want:
+
+#
+# Write tables in text file format (for ICES submission). 
+# - existing files are not overwritten, a file with a new 
+#vesrion number is made.
+# Also writes an R file (rds).
+#
+# write_ices_file <- FALSE
+write_ices_file <- TRUE        
+
+#
+# Write excel file 
+#
+# write_excel_file <- FALSE
+write_excel_file <- TRUE
+
+```
 
 ## 0. Libraries and functions
 ```{r}
@@ -4312,9 +4333,6 @@ if (FALSE){
 - Set up to use UTF-8 when writing, but apparently we need to change the file manually to UTF-8 afterwards anyway (in Notepad++, set encoding to ANSI, then "convert to UTF-8")  
 ```{r}
 
-write_ices_file <- FALSE
- write_ices_file <- TRUE
-
 #
 # Set "scipen" options so we avoid writing scientific notation (almost always)
 # See ?write.table
@@ -4417,7 +4435,7 @@ if (FALSE){
 ### Save as Excel file  
 ```{r}
 
-if (FALSE){
+if (write_excel_file){
   
   library(writexl)
   string <- paste0("842_NIVA", selected_year, "CF_%02i.xlsx")
