@@ -8,7 +8,7 @@ output:
 ---
 
 
-**TODO: check 56A2 / 56A, why do we have both in the data?**
+**NOTE: Version with station I244 (New Bergen city station) removed.**
 
 Script for making files in ICES format, for submitting last year's data to ICES  
 
@@ -232,7 +232,9 @@ data_ind2 <- data_all %>%
   filter(
     # drop haddock, saithe, lyr ("Melanogrammus aeglefinus", "Merlangius merlangus", "Pollachius pollachius")
     LATIN_NAME %in% c("Gadus morhua", "Littorina littorea", "Mytilus edulis", 
-                      "Nucella lapillus", "Somateria mollissima"))
+                      "Nucella lapillus", "Somateria mollissima")) %>% 
+  # drop I244 (new Bergen City station)  
+  filter(STATION_CODE != "I244")
 
 
 #
@@ -3767,7 +3769,7 @@ check <- new_stations %in% data_91$STNNO
 check <- setdiff(unique(data_10$STNNO), data_91$STNNO)
 
 if (length(check) > 0){
-  stop("Lacking station(s)", paste(check, collapse = ", "))
+  stop("Lacking station(s) ", paste(check, collapse = ", "))
 } else {
   message("Stations in tables 10 and 91 are the same")
 }
