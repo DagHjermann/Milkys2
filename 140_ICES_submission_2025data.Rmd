@@ -546,7 +546,7 @@ df %>%
 
 ```{r}
 
-data_previous <- readRDS("Files_to_ICES/2022/Rdata/842_NIVA2022CF_08.rds")        # HARD-CODED
+data_previous <- readRDS("Files_to_ICES/2024/Rdata/842_NIVA2024CF_09.rds")        # HARD-CODED
 names(data_previous)
 
 data_previous[["03"]]$STNNO %>% table
@@ -664,6 +664,7 @@ if (nrow(check) > 0){
 
 
 ```
+
 
 ### e2. Check for errors in df_samples    
 Lacking X_BULK_BIO where there should have been a number   
@@ -3205,7 +3206,7 @@ check1 <- data_10 %>%
   count(PARAM, AMLNK) %>%
   filter(is.na(AMLNK))
 
-check1
+cat("Parameters in data_10 lacking AMLNK:", nrow(check1))
 
 ```
 
@@ -3217,7 +3218,7 @@ check2 <- data_10 %>%
   left_join(data_21 %>% select(AMLNK, ALABO), by = "AMLNK") %>% 
   filter(is.na(ALABO))
 
-check2
+cat("Parameters in data_10 lacking data_21 entry:", nrow(check2))
 
 ```
 
