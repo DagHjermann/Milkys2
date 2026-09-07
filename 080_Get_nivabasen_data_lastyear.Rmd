@@ -237,7 +237,7 @@ if (download_and_save){
       STATION_ID, TAXONOMY_CODE_ID, MATRIX_ID, SAMPLE_ID, TISSUE_ID, METHOD_ID, VALUE_ID) %>% 
     mutate(LABWARE_TEXT_ID_1 = first(LABWARE_TEXT_ID)) %>% 
     ungroup() %>% 
-    filter(LABWARE_TEXT_ID == LABWARE_TEXT_ID_1) %>% 
+    filter((LABWARE_TEXT_ID == LABWARE_TEXT_ID_1) | is.na(LABWARE_TEXT_ID)) %>% 
     # avoid rows that differs only by PROJECT_NAME or PROJECT_ID:
     distinct(
       # Main data (PROJECT_NAME removed as it causes duplicates)
