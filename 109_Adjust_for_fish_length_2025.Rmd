@@ -57,7 +57,7 @@ source("109_Adjust_for_fish_length_functions.R")
 ### Year  
 ```{r}
 
-selected_year <- 2024
+selected_year <- 2025
 
 ```
 
@@ -181,16 +181,30 @@ if (sum(sel) > 0){
 Read and reformat the most recent data (by default)  
 ```{r}
 
-files <- dir("Input_data", "Labware_samples_") %>% rev()
+filepattern <- paste0("83_Labware_samples_", selected_year, "_20[0-9][0-9]")   
+filepattern_with_extension <- paste0(filepattern, ".+.rds")
+                  
+filenumber <- 1                                 # filenumber = 1 means "read the newest file"
 
-sel <- selected_year %in% as.numeric(substr(files, 17, 20))
+# Get available files, sorted from newest to oldest
+files <- dir("Input_data", pattern = filepattern_with_extension) %>% rev()
 
-if (sum(sel)==0){
-  stop("No files from year ", selected_year, "found! Get it from script 801 on your pc.")
+if (length(files)==0){
+  stop("No files from year ", selected_year, " found! Run script 083 to create it.")
 }
 
-filename <- files[1] 
-df_samples <- readRDS(paste0("Input_data/", filename))
+# Read file with LIMS samples 
+filename <- files[sel][filenumber] 
+df_samples_all <- readRDS(paste0("Input_data/", filename))
+
+# Remove samples for SIA and siloxans  
+df_samples <- df_samples_all %>% 
+  filter(
+    !grepl("SIA", DESCRIPTION) & !grepl("siloksaner", DESCRIPTION, ignore.case = TRUE) 
+  )
+
+# head(df_samples, 2)
+
 # xtabs(~TISSUE, df_samples)
 
 # Helper funti0on used below
@@ -214,17 +228,21 @@ df_fishsamples <- df_samples %>%
     SPECIMEN_NO = extract_last_match(DESCRIPTION, "[0-9]+")) %>% 
   select(-TISSUE)
 
-# Check sample number of muscle samples
+# Check X_BULK_BIO of muscle samples
 check <- df_fishsamples %>% 
   filter(TISSUE_NAME == "Muskel") %>%
   filter(!is.na(X_BULK_BIO) & SPECIMEN_NO != X_BULK_BIO)
-cat("Number of muscle samples where fish number isn't equal to sample number:", nrow(check), "\n")  
+cat("Number of muscle samples where SPECIMEN_NO isn't equal to X_BULK_BIO:", nrow(check), "\n")  
 if (nrow(check) > 0){
   cat("- stations of those: \n")
-  cat(check %>% pull(AQUAMONITOR_CODE) %>% unique())  
+  cat(check %>% pull(AQUAMONITOR_CODE) %>% unique(), "\n")  
 }
 
 if (FALSE){
+  
+  # check muscle samples where SPECIMEN_NO isn't equal to X_BULK_BIO
+  View(check)
+  
   View((df_fishsamples %>% filter(TISSUE_NAME == "Muskel"))[sel,])
   
   # Check two cod stations
@@ -233,169 +251,29 @@ if (FALSE){
 }
 ```
 
-### c2. Example of number/tissue confusion   
+### c2. Example of odd (?) number/tissue
 ```{r}
 
-if (TRUE){
+if (selected_year == 2025){
   
-  df_fishsamples %>% 
-    filter(AQUAMONITOR_CODE %in% "45B2") %>%
-    xtabs(~BIOTA_SAMPLENO + TISSUE_NAME, .)
-
+df_fishsamples %>% 
+  filter(AQUAMONITOR_CODE %in% "36B" & BIOTA_SAMPLENO <= 3) %>%
+  count(DESCRIPTION, TISSUE_NAME, BIOTA_SAMPLENO, SPECIMEN_NO, X_BULK_BIO)
+  
 }
-
-# Example - number 1 is 2 different liver, 4 different muscle    
-cat('AQUAMONITOR_CODE %in% "45B2" & BIOTA_SAMPLENO == 1: \n')
-df_fishsamples %>% 
-  filter(AQUAMONITOR_CODE %in% "45B2" & BIOTA_SAMPLENO == 1) %>%
-  xtabs(~DESCRIPTION, .)
-cat('\n\n')
-
-# plus that number 101 is 2 more livers    
-cat('AQUAMONITOR_CODE %in% "45B2" & BIOTA_SAMPLENO == 101: \n')
-df_fishsamples %>% 
-  filter(AQUAMONITOR_CODE %in% "45B2" & BIOTA_SAMPLENO == 101) %>%
-  xtabs(~DESCRIPTION, .)
-
 
 ```
 
-### c3. Also use labware import file   
-- In order to remove siloxans and other confusing stuff from 'df_fishsamples'   
+### c3. Remove siloxans and SIA 
 - Creates 'df_fishsamples1'  
 ```{r}
 
-
-files <- dir("Input_data", "Labware_import_") %>% rev()
-
-sel <- selected_year %in% as.numeric(substr(files, 16, 19))
-
-if (sum(sel)==0){
-  stop("No files from year ", selected_year, "found! Get it from script 801 on your pc.")
-}
-
-filename <- files[1] 
-df_import <- readRDS(paste0("Input_data/", filename))
-# xtabs(~TISSUE, df_samples)
-
-
-if (TRUE){
-  
-  check <- df_import %>% 
-    filter(AQUAMONITOR_CODE %in% "43B2") %>%
-    mutate(
-      Type = case_when(
-        grepl("SIA", DESCRIPTION) & grepl("muskel", DESCRIPTION) ~ "Muskel SIA",
-        !grepl("SIA", DESCRIPTION) & grepl("muskel", DESCRIPTION) ~ "Muskel",
-        !grepl("SIA", DESCRIPTION) & grepl("lever", DESCRIPTION) ~ "Lever",
-        TRUE ~ "Annet"))
-  
-  xtabs(~Type, check)
-  
-  # 15 of each
-  check %>%
-    distinct(Type, DESCRIPTION) %>%
-    xtabs(~Type, .)
-
-  # As above but 30 liver:   
-  check %>%
-    distinct(Type, TEXT_ID) %>%
-    xtabs(~Type, .)
-
-  check %>%
-    filter(Type == "Lever") %>%
-    xtabs(~TEXT_ID, .)
-  
-}
-
-# df_import_cod_1: keep only fish (cod)
-df_import_cod_1 <- df_import %>%
-  left_join(df_samples %>% select(TEXT_ID, TISSUE)) %>% # xtabs(~TISSUE, .)
-  filter(TISSUE %in% c("LI-Lever", "MU-Muskel"))
-
-xtabs(~T_ANALYSIS_METHOD, df_import_cod_1)  
-# xtabs(~PARAM + T_ANALYSIS_METHOD, df_import_cod_1)  
-
-# df_import_cod_2: drop NILU (i.e. D4,D5,D6 = siloxans)
-# - for now, we also drop IFE (isotopes) - but they should be included later!
-df_import_cod_2 <- df_import_cod_1 %>%
-  filter(!T_ANALYSIS_METHOD %in% c("EKSTERN_NILU", "EKSTERN_IFE"))
-
-df_fishsamples1 <- df_fishsamples %>%
-  filter(TEXT_ID %in% unique(df_import_cod_2$TEXT_ID))
+# We have already done thiswhen we made df_samples based on df_samples_all  
+# See 2023 or 2024 file for alternative solution  
+df_fishsamples1 <- df_fishsamples
 
 ```
 
-### c4. New check 
-- Check that 'df_fishsamples1' is less confusing than 'df_fishsamples'  
-```{r}
-
-# Example - number 1 is just 1 liver and 1 muscle    
-cat('AQUAMONITOR_CODE %in% "43B2" & BIOTA_SAMPLENO == 1: \n')
-df_fishsamples1 %>% 
-  filter(AQUAMONITOR_CODE %in% "43B2" & BIOTA_SAMPLENO == 1) %>%
-  xtabs(~DESCRIPTION, .)
-cat('\n\n')
-
-# plus that number 101 has now been deleted    
-cat('AQUAMONITOR_CODE %in% "43B2" & BIOTA_SAMPLENO == 101: \n')
-df_fishsamples1 %>% 
-  filter(AQUAMONITOR_CODE %in% "43B2" & BIOTA_SAMPLENO == 101) %>%
-  xtabs(~DESCRIPTION, .)
-
-```
-
-
-### c5. Sample data, special case: galle (bile) at 30B                      #ELU kjører ikke for 2023  
-- DROPPED FOR NOW
-
-```{r}
-
-# DROPPED FOR NOW  
-
-if (FALSE){
-  
-  # Special case: galle (bile) at 30B
-  sel_1 <- grepl("30B", df_samples$DESCRIPTION)
-  message(sum(sel_1), " samples marked 30B")
-  
-  sel <- is.na(df_samples$AQUAMONITOR_CODE) & sel_1
-  message(sum(sel), " samples from 30B that lack AQUAMONITOR_CODE")
-  
-  # Check: 
-  #  View(df_samples[sel,])
-  
-  # Add galle (bile) at 30B, if needed
-  if (sum(sel) > 0) {
-    
-    df_fishsamples_extra <- df_samples[sel,] %>%
-      mutate(AQUAMONITOR_CODE = "30B",
-             BIOTA_SAMPLENO = as.numeric(X_BULK_BIO),
-             X_BULK_BIO = NA,
-             TISSUE_NAME = TISSUE) %>%
-      select(AQUAMONITOR_CODE, TISSUE_NAME, BIOTA_SAMPLENO, X_BULK_BIO)
-    
-    df_fishsamples <- bind_rows(
-      df_fishsamples %>% filter(!is.na(AQUAMONITOR_CODE)), 
-      df_fishsamples_extra
-    )
-  }
-  
-  # Check lines with AQUAMONITOR_CODE = NA, if any
-  if (FALSE){
-    
-    sel <- is.na(df_samples$AQUAMONITOR_CODE); sum(sel)
-    View(df_samples[sel,])
-    
-    sel <- is.na(df_fishsamples$AQUAMONITOR_CODE); sum(sel)
-    View(df_fishsamples[sel,])
-    
-  }
-  
-}
-
-
-```
 
 ## 3a. Prepare 'df_lnmea'  
 Data with mean length per sample  
@@ -404,42 +282,6 @@ Data with mean length per sample
 
 - DROPPED FOR NOW    
 
-```{r}
-
-
-# DROPPED FOR NOW                                                                     #ELU kjører ikke denne
-
-if (FALSE){
-  
-# Only a check of tissue
-# test <- data_ind2 %>%
-#   filter(MYEAR == selected_year & PARAM %in% c("PA1OH", "PYR1OH", "BAP3OH", "ALAD", "EROD")) %>%
-#   count(PARAM, TISSUE_NAME)
-
-# We must specify Lever - microsome (single specimen-sample) for EROD, otherwise it is 
-# mixed up with Lever (often pooled sample) when Length is added
-df_fishsamples_bioleff <- data_all %>%
-  filter(MYEAR == selected_year & PARAM %in% c("PA1OH", "PYR1OH", "BAP3OH", "ALAD", "EROD")) %>%
-  distinct(STATION_CODE, SAMPLE_NO2, TISSUE_NAME) %>%
-  rename(AQUAMONITOR_CODE = STATION_CODE,
-         BIOTA_SAMPLENO = SAMPLE_NO2) %>%
-  mutate(TISSUE_NAME = ifelse(TISSUE_NAME == "Lever", "Lever - microsome", TISSUE_NAME))
-
-# Check if these data have already been added
-check <- df_fishsamples %>% filter(AQUAMONITOR_CODE == "15B" & TISSUE_NAME == "Galle" & BIOTA_SAMPLENO > 0) %>% nrow()
-
-# If not already added
-if (nrow(df_fishsamples_bioleff) > 0 & check == 0){
-  df_fishsamples <- bind_rows(
-    df_fishsamples,
-    df_fishsamples_bioleff
-  )
-  cat("Rows for biol. effects in cod added\n")
-}
-
-}
-
-```
 
 ### df_fishsamples2 - split X_BULK_BIO
 Split up X_BULK_BIO (the fish each samples consists of) so each fish gets a separate row  
